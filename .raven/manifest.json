@@ -1,41 +1,114 @@
 {
-  "$schema": "./manifest.schema.json",
   "project": "Aryx",
   "version": "1.0",
+  "mode": "solo",
+  "github_id": "",
+  "audit_tag": "Aryx",
   "stack": {
     "work_type": "mixed",
     "language": [
-      "python3.13"
+      "python3.13",
+      "typescript",
+      "yaml",
+      "sql"
     ],
-    "frontend": [
-      "reactjs"
+    "db": {
+      "primary": [
+        "postgresql"
+      ],
+      "nosql": [],
+      "streaming": [],
+      "warehouse": [],
+      "cache": [],
+      "vector": [],
+      "graph": [
+        "falkordb"
+      ],
+      "blob": []
+    },
+    "cloud": [
+      "aws"
     ],
-    "db": [
-      "postgresql"
+    "apps": [
+      "google-drive",
+      "salesforce",
+      "odoo"
     ],
-    "infra": [
-      "docker-compose"
-    ],
-    "cloud": "aws",
     "libraries": []
   },
-  "standards": "raven-v1",
-  "min_compatible_version": "1.0",
-  "approval_mode": "first_responder",
-  "approval_mode_version": "1.0",
-  "approval_mode_changeable": true,
+  "standards": "raven-v3.0",
+  "approval_mode": "auto",
   "guard": {
     "enabled": true,
-    "version": "1.0"
+    "db": {
+      "mass_deletion_threshold": 100
+    },
+    "git": {
+      "force_push": "hard_block"
+    },
+    "infra": {
+      "terraform_state": "hard_block"
+    },
+    "firewall": {
+      "open_world": "hard_block"
+    }
+  },
+  "style": {
+    "max_lines_per_file": 150,
+    "require_type_hints": true,
+    "require_docstrings": true,
+    "forbid_print_statements": true
+  },
+  "allowed_tools": {
+    "default_policy": "warn",
+    "mcps": [],
+    "apis": [],
+    "web": {
+      "blocked_url_patterns": [
+        "api.openai.com",
+        "platform.openai.com"
+      ]
+    }
+  },
+  "approved_skills": {
+    "giggso": [
+      "raven-core",
+      "raven-expert",
+      "raven-plan",
+      "raven-review",
+      "raven-security",
+      "raven-refactor",
+      "raven-test",
+      "raven-document",
+      "andie"
+    ],
+    "anthropic": [
+      "debug",
+      "batch",
+      "review",
+      "security-review",
+      "init"
+    ],
+    "community": []
+  },
+  "project_rules": {
+    "forbidden_frameworks": [],
+    "forbidden_file_extensions": [],
+    "license": "",
+    "commit_convention": "conventional",
+    "require_approval_gates": false,
+    "ui_framework": "",
+    "phase_gated": false
   },
   "changelog": [
     {
       "version": "1.0",
       "changed_by": "rv@giggso.com",
-      "changed_at": "2026-05-25T02:25:48Z",
-      "changes": "Initial project manifest for Aryx: mixed work, python3.13, reactjs, postgresql, docker-compose, aws",
-      "pr": "pending",
-      "approved_by": "rv@giggso.com"
+      "github_id": "",
+      "audit_tag": "Aryx",
+      "changed_at": "2026-05-25T17:31:25Z",
+      "changes": "Init: mode=solo work_type=mixed platform=Codex",
+      "pr": "pending"
     }
   ]
 }

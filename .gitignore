@@ -1,4 +1,31 @@
-# Raven
+# Secrets — NEVER commit
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+manifest.secrets.json
 .raven/manifest.secrets.json
 .raven/.cache/
-.model.env
+.raven/audit/
+.raven/guard/digest.log
+
+# Raven framework — never commit (lives outside project)
+raven-claude/
+raven-claude-guard/
+.raven-claude/
+.raven-claude-guard/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,9 @@
+# Raven — GitLab CI
+raven:
+  stage: test
+  image: python:3.12
+  script:
+    - python3 -c "import json; json.load(open('.raven/manifest.json'))"
+    - python3 .claude/scripts/secret-scan.py
+  only:
+    - merge_requests
