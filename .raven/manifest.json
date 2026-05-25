@@ -1,0 +1,41 @@
+{
+  "$schema": "./manifest.schema.json",
+  "project": "Aryx",
+  "version": "1.0",
+  "stack": {
+    "work_type": "mixed",
+    "language": [
+      "python3.13"
+    ],
+    "frontend": [
+      "reactjs"
+    ],
+    "db": [
+      "postgresql"
+    ],
+    "infra": [
+      "docker-compose"
+    ],
+    "cloud": "aws",
+    "libraries": []
+  },
+  "standards": "raven-v1",
+  "min_compatible_version": "1.0",
+  "approval_mode": "first_responder",
+  "approval_mode_version": "1.0",
+  "approval_mode_changeable": true,
+  "guard": {
+    "enabled": true,
+    "version": "1.0"
+  },
+  "changelog": [
+    {
+      "version": "1.0",
+      "changed_by": "rv@giggso.com",
+      "changed_at": "2026-05-25T02:25:48Z",
+      "changes": "Initial project manifest for Aryx: mixed work, python3.13, reactjs, postgresql, docker-compose, aws",
+      "pr": "pending",
+      "approved_by": "rv@giggso.com"
+    }
+  ]
+}

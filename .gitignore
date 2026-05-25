@@ -1,0 +1,4 @@
+# Raven
+.raven/manifest.secrets.json
+.raven/.cache/
+.model.env
