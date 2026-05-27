@@ -36,6 +36,7 @@
     ],
     "libraries": []
   },
+  "raven_version": "3.3.0",
   "standards": "raven-v3.0",
   "approval_mode": "auto",
   "guard": {

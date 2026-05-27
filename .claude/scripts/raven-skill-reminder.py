@@ -2,15 +2,13 @@
 """
 Raven — UserPromptSubmit Hook
 Fires before every model response on brownfield/Raven projects.
-Injects the mandatory domain skill trigger into model context.
+Injects a skill trigger on the FIRST message only — silent thereafter.
+Session flag: /tmp/raven_skill_{cwd_hash}.flag (cleared by session-gate at Stop)
 
-This is the enforcement layer — it fires every single prompt so the
-model cannot "forget" which skill to invoke. Silent on non-Raven projects.
-
-Never reads .env or credential files. No external dependencies.
+Token cost: ~10 tok on message 1, 0 tok on all subsequent messages.
 """
 
-import json, sys
+import hashlib, json, sys
 from pathlib import Path
 
 # Domain → skill map (same order / logic as session-start.py)
@@ -121,50 +119,51 @@ def detect_domain(cwd: Path):
 
 
 def is_raven_project(cwd: Path) -> bool:
-    """True if this looks like a brownfield Raven project."""
-    # Explicit Raven manifest
     if (cwd / ".raven" / "manifest.json").exists():
         return True
-    # session-start.py wrote .model.env — means brownfield was detected
     if (cwd / ".model.env").exists():
         return True
     return False
 
 
+def get_flag_path(cwd: Path) -> Path:
+    """Per-project session flag in /tmp — cleared by session-gate at Stop."""
+    h = hashlib.md5(str(cwd.resolve()).encode()).hexdigest()[:8]
+    return Path(f"/tmp/raven_skill_{h}.flag")
+
+
 def main():
     try:
-        hook_input = json.load(sys.stdin)
+        json.load(sys.stdin)
     except Exception:
-        hook_input = {}
+        pass
 
     cwd = Path.cwd()
 
     if not is_raven_project(cwd):
-        # Not a Raven project — silent, no output
         sys.exit(0)
 
+    flag = get_flag_path(cwd)
+
+    # After first message: silent — skill is already in context
+    if flag.exists():
+        sys.exit(0)
+
+    # First message: inject reminder + set flag
     skill, domain_name = detect_domain(cwd)
-
     if skill:
-        context = (
-            f"RAVEN SKILL ENFORCEMENT: This is a {domain_name} project. "
-            f"You MUST invoke `{skill}` before any file read, Bash command, or code response. "
-            f"Invoking the skill IS the first action — not optional, not skippable."
-        )
+        context = f"Raven: invoke {skill} before coding."
     else:
-        context = (
-            "RAVEN ACTIVE: This is a brownfield project with Raven guards enabled. "
-            "Before any file read, Bash command, or code response: identify the domain "
-            "and invoke the matching Raven specialist skill first."
-        )
+        context = "Raven guards active — load domain skill before coding."
 
-    output = {
+    flag.touch()
+
+    print(json.dumps({
         "hookSpecificOutput": {
-            "hookEventName":   "UserPromptSubmit",
+            "hookEventName":    "UserPromptSubmit",
             "additionalContext": context,
         }
-    }
-    print(json.dumps(output))
+    }))
 
 
 if __name__ == "__main__":

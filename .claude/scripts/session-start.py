@@ -358,9 +358,45 @@ def write_model_env(providers: list[dict], routing: dict):
             gitignore.write_text(content.rstrip() + "\n.model.env\n")
 
 
+# ── Obsidian session memory ────────────────────────────────────────────────────
+
+def load_last_session_summary(cwd: Path) -> str | None:
+    """Read the most recent Obsidian session file and return a compact summary line."""
+    sessions_dir = cwd / ".raven" / "memory" / "sessions"
+    if not sessions_dir.exists():
+        return None
+    files = sorted(sessions_dir.glob("*.md"), reverse=True)
+    if not files:
+        return None
+    try:
+        content = files[0].read_text(errors="ignore")
+        bullets = []
+        in_summary = False
+        for line in content.splitlines():
+            low = line.lower()
+            if any(h in low for h in ["## summary", "## session summary", "## accomplished", "## what was"]):
+                in_summary = True
+                continue
+            if in_summary:
+                if line.startswith("## "):
+                    break
+                stripped = line.lstrip("-*• ").strip()
+                if stripped:
+                    bullets.append(stripped)
+                    if len(bullets) >= 3:
+                        break
+        if bullets:
+            date = files[0].stem[:10]
+            return "📝 Last session (" + date + "): " + " · ".join(bullets)
+    except Exception:
+        pass
+    return None
+
+
 # ── Format output ──────────────────────────────────────────────────────────────
 
-def format_context(project: dict, providers: list[dict], routing: dict, model_env_written: bool, domain_skill: tuple = (None, None)) -> str:
+def format_context(project: dict, providers: list[dict], routing: dict, model_env_written: bool,
+                   domain_skill: tuple = (None, None), last_session: str | None = None) -> str:
     lines = []
 
     # Project classification
@@ -385,11 +421,14 @@ def format_context(project: dict, providers: list[dict], routing: dict, model_en
             lines.append(f"☁️  CLOUD: " + ", ".join(p["provider"] for p in cloud_p))
 
         lines.append("")
-        lines.append("Model routing:")
+        lines.append("Model routing (dynamic — classified per query at UserPromptSubmit):")
         lines.append(f"  LOCAL_ONLY → {routing['LOCAL_ONLY']}")
-        lines.append(f"  SIMPLE     → {routing['SIMPLE']}")
-        lines.append(f"  MEDIUM     → {routing['MEDIUM']}")
-        lines.append(f"  COMPLEX    → {routing['COMPLEX']}")
+        lines.append(f"  SIMPLE     → {routing['SIMPLE']}  (typo fix, rename, simple Q)")
+        lines.append(f"  MEDIUM     → {routing['MEDIUM']}  (tests, debugging, docs)")
+        lines.append(f"  COMPLEX    → {routing['COMPLEX']}  (architecture, security, multi-file)")
+        lines.append("")
+        lines.append("  Agent() calls: read .raven/.model-session.json for current tier,")
+        lines.append("  or run: python3 .claude/scripts/raven_agent.py --tier COMPLEX")
 
         if model_env_written:
             lines.append("  .model.env written ✓")
@@ -399,16 +438,11 @@ def format_context(project: dict, providers: list[dict], routing: dict, model_en
         lines.append("   To add: set ANTHROPIC_API_KEY, GROQ_API_KEY, or start Ollama.")
 
     # Brownfield advisory + domain skill trigger
-    cwd = Path(".")
-    has_manifest  = (cwd / ".raven" / "manifest.json").exists()
-    has_claude_md = (cwd / ".claude" / "CLAUDE.md").exists() or (cwd / "CLAUDE.md").exists()
-
     if project["type"] == "brownfield":
         lines.append("")
-        lines.append("📋 Existing project — Raven IS installed and active.")
+        lines.append("📋 Existing project — Raven guards active for all changes.")
         if project["langs"]:
             lines.append(f"   Stack: {', '.join(project['langs'])}")
-        # Domain-specific skill trigger
         skill, domain_label = domain_skill
         if skill:
             lines.append("")
@@ -418,40 +452,14 @@ def format_context(project: dict, providers: list[dict], routing: dict, model_en
         else:
             lines.append("")
             lines.append("   MANDATORY: Before coding or file reads, invoke the matching Raven domain skill.")
-
-        # ── BOOT PROTOCOL (inline — does not require CLAUDE.md to exist) ──────
-        lines.append("")
-        lines.append("━━━ RAVEN BOOT PROTOCOL ━━━")
-        lines.append("On the FIRST user message of this session, BEFORE responding:")
-        if not has_manifest:
-            lines.append("  1. .raven/manifest.json is MISSING — run /raven-init immediately.")
-            lines.append("     Do NOT give generic Raven install instructions — Raven IS installed.")
-            lines.append("     /raven-init will ask a few questions and create the manifest.")
-        else:
-            lines.append("  1. manifest.json ✅ — load it, trust declared stack.")
-
-        if not has_claude_md:
-            lines.append("  2. No project CLAUDE.md — Raven is running from plugin context only.")
-            lines.append("     Ask the user: 'Run /raven-init to write project-level instructions? (y/n)'")
-        else:
-            lines.append("  2. CLAUDE.md ✅")
-
-        lines.append("  3. Output the session banner:")
-        lines.append('     "Raven ✅  | {project} | {stack} — guards active. What are we building?"')
-        lines.append("  4. Then respond to their actual request.")
-        lines.append("")
-        lines.append("DO NOT: give install instructions. DO NOT: say 'install raven-codex'.")
-        lines.append("Raven IS installed — the plugin loaded these instructions. Just boot it.")
-        lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━")
-
+            lines.append("   Run /raven-harden to identify which skill applies if unsure.")
     else:
         lines.append("")
         lines.append("🚀 New project — Raven will scaffold with your stack conventions.")
+
+    if last_session:
         lines.append("")
-        lines.append("━━━ RAVEN BOOT PROTOCOL ━━━")
-        lines.append("On the FIRST user message: run /raven-init to set up this project,")
-        lines.append("then output the Raven session banner before responding.")
-        lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        lines.append(last_session)
 
     return "\n".join(lines)
 
@@ -489,10 +497,13 @@ def main():
         except Exception:
             pass  # Non-critical — session continues regardless
 
-    # 6. Format context string
-    context = format_context(project, all_providers, routing, model_env_written, domain_skill)
+    # 6. Load last Obsidian session summary (max 3 bullets, ~80 tokens, zero if none)
+    last_session = load_last_session_summary(Path("."))
 
-    # 6. Build compact system notification (always shown in Claude Code UI)
+    # 7. Format context string
+    context = format_context(project, all_providers, routing, model_env_written, domain_skill, last_session)
+
+    # 8. Build compact system notification (always shown in Claude Code UI)
     badge_short = "BROWNFIELD" if project["type"] == "brownfield" else "GREENFIELD"
     skill, domain_label = domain_skill
     skill_line = f" · {domain_label} → {skill}" if skill else ""
@@ -509,7 +520,7 @@ def main():
 
     system_message = f"Raven ✅  {badge_short}{stack_line}{skill_line}{providers_short}"
 
-    # 7. Output JSON for SessionStart hook
+    # 9. Output JSON for SessionStart hook
     output = {
         "systemMessage": system_message,
         "hookSpecificOutput": {

@@ -19,15 +19,36 @@ allowed-tools: Agent, WebSearch, Read, Write, Bash
 ## Full Agent Chain
 
 ```
+Step 0 → check domain packs       packs/ directory — curated Tier 2a knowledge
 Step 1 → skill-search.py          check for existing curated skill
 Step 2 → read security_log.md     load prior observations for this platform
 Step 3 → read cache               load cached profile if it exists
 Step 4 → assess confidence        HIGH / MEDIUM / VERIFY
 Step 5 → search agent             ONLY if MEDIUM or VERIFY
-Step 6 → construct profile        log + cache + search + tools-landscape
+Step 6 → construct profile        log + cache + search + tools-landscape + pack
 Step 7 → deliver answer           full specialist format
 Step 8 → update log + cache       append findings, increment usage count
 Step 9 → check promotion          flag if count >= 3
+```
+
+---
+
+## Step 0 — Check Domain Packs (Tier 2a)
+
+```
+Check: skills/dynamic-specialist/packs/
+Look for: JSON pack matching detected domain or tool category
+
+If pack found:
+  → Load pack JSON (1-2K tokens)
+  → Use tools[].description, gotchas, decision_matrix for context
+  → Skip search agent (Step 5) unless user asks about 'latest'
+  → Pack is curated knowledge — higher trust than search results
+
+If no pack found:
+  → Proceed to Step 1 (normal dynamic flow)
+
+Pack format: see packs/README.md
 ```
 
 ---
@@ -139,15 +160,15 @@ Profile includes:
 Platform → Expert examples:
 | Platform | Expert |
 |---|---|
-| Flutter / Dart | Eric Seidel (Flutter co-founder) |
-| SvelteKit | Rich Harris (Svelte creator) |
-| Bun | Jarred Sumner (Bun creator) |
-| LangChain | Harrison Chase (LangChain co-founder) |
-| Supabase | Paul Copplestone (Supabase CEO) |
-| Remix | Ryan Florence (Remix co-founder) |
-| Astro | Fred K. Schott (Astro creator) |
-| Prisma | Johannes Schickling (Prisma founder) |
-| Tauri | Daniel Thompson-Yvetot (Tauri creator) |
+| Flutter / Dart | Eric (Flutter co-founder) |
+| SvelteKit | Rich (Svelte creator) |
+| Bun | Jarred (Bun creator) |
+| LangChain | Harrison (LangChain co-founder) |
+| Supabase | Paul (Supabase CEO) |
+| Remix | Ryan (Remix co-founder) |
+| Astro | Fred (Astro creator) |
+| Prisma | Johannes (Prisma founder) |
+| Tauri | Daniel (Tauri creator) |
 | Unknown | State best match + confidence level |
 
 ---

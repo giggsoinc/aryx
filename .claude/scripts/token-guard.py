@@ -1,142 +1,72 @@
 #!/usr/bin/env python3
-# Raven — Token Guard v2.0
-# CORRECT implementation based on actual Claude Code hook capabilities.
-#
-# Hook events do NOT receive token usage data.
-# This script handles TWO triggers:
-#   1. PreCompact event — Claude Code is about to compact context (nearly full)
-#   2. Notification event — surface warnings as macOS notifications
-#
-# Called by:
-#   PreCompact hook → saves session state before compaction
-#   Notification hook → shows desktop toaster warnings
+"""
+Raven Enterprise — Token Guard (PreCompact)
+Fires before context compaction. Backs up session state and alerts
+if context is growing faster than expected (possible runaway loop).
 
-import json, os, sys, subprocess
-from datetime import datetime, timezone
+Writes a backup stub to .raven/.cache/pre-compact-{timestamp}.json
+Alerts via stream-signal queue if token estimate is high.
+"""
+
+import json, os, sys
 from pathlib import Path
+from datetime import datetime, timezone
 
-STATE_FILE  = ".raven/.cache/token-guard-state.json"
-BACKUP_DIR  = ".raven/session-backups"
+CACHE_DIR  = Path(".raven/.cache")
+SIGNAL_Q   = CACHE_DIR / "signal-queue.json"
+STATS_FILE = CACHE_DIR / "session-stats.json"
 
-def safe(fn):
-    try: return fn()
-    except: return None
+HIGH_TOKEN_THRESHOLD = 150_000  # alert when context exceeds this
 
-def notify_macos(title: str, msg: str, subtitle: str = "Raven"):
-    """Fire a macOS notification toaster."""
-    safe(lambda: subprocess.run([
-        "osascript", "-e",
-        f'display notification "{msg}" with title "{title}" subtitle "{subtitle}"'
-    ], timeout=3, capture_output=True))
 
-def save_state(state: dict):
-    safe(lambda: (
-        os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True),
-        open(STATE_FILE, "w").write(json.dumps(state, indent=2))
-    ))
+def load_json(path: Path, default=None):
+    try:
+        return json.loads(path.read_text()) if path.exists() else (default or {})
+    except Exception:
+        return default or {}
 
-def load_state() -> dict:
-    return safe(lambda: json.load(open(STATE_FILE))) or {}
-
-def handle_precompact(data: dict):
-    """
-    PreCompact fires when Claude Code is about to compact context.
-    This means we're near the token limit.
-    Save session state and warn the developer.
-    """
-    os.makedirs(BACKUP_DIR, exist_ok=True)
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H%M")
-    backup_file = f"{BACKUP_DIR}/session-{ts}.md"
-
-    # Build session summary
-    summary_lines = [
-        f"# Session Backup — {ts}",
-        f"## Auto-saved by Raven Token Guard (PreCompact)",
-        f"",
-        f"Context window reached compaction threshold.",
-        f"",
-        f"## Context Being Compacted",
-    ]
-
-    # Include what's about to be compacted if available
-    summary_hint = data.get("summary_hint", "")
-    if summary_hint:
-        summary_lines.append(summary_hint)
-
-    summary_lines += [
-        "",
-        "## Next Steps",
-        "- Review what was being worked on",
-        "- Run /raven-mem to restore context in new session",
-        "- Check git status for uncommitted changes",
-    ]
-
-    # Write backup
-    with open(backup_file, "w") as f:
-        f.write("\n".join(summary_lines))
-
-    # Update state
-    state = load_state()
-    state["last_compact"] = ts
-    state["last_backup"]  = backup_file
-    save_state(state)
-
-    # macOS toaster notification
-    notify_macos(
-        "🔴 Raven — Context Nearly Full",
-        "Session compacting. Context saved to .raven/session-backups/",
-        f"Run /raven-mem to preserve session"
-    )
-
-    # Print to stderr — shows in Claude Code terminal
-    print(f"\n{'━'*52}", file=sys.stderr)
-    print(f"  Raven Token Guard — PreCompact", file=sys.stderr)
-    print(f"{'━'*52}", file=sys.stderr)
-    print(f"  🔴 Context window reaching limit", file=sys.stderr)
-    print(f"  Session backup saved: {backup_file}", file=sys.stderr)
-    print(f"  Run /raven-mem to preserve key decisions", file=sys.stderr)
-    print(f"{'━'*52}\n", file=sys.stderr)
-
-    # Return additionalContext to inject into Claude's context
-    output = {
-        "additionalContext": (
-            f"⚠️ RAVEN TOKEN GUARD: Context window is nearly full and about to compact. "
-            f"Session backup saved to {backup_file}. "
-            f"Please run /raven-mem to save key decisions and file changes before context resets."
-        )
-    }
-    print(json.dumps(output))
-
-def handle_notification(data: dict):
-    """
-    Notification hook — fire macOS toaster for important alerts.
-    """
-    msg = data.get("message", "")
-    if not msg:
-        sys.exit(0)
-
-    # Only surface important ones
-    keywords = ["error", "fail", "blocked", "denied", "warning", "critical"]
-    if any(k in msg.lower() for k in keywords):
-        notify_macos("Raven Alert", msg[:100])
-
-    sys.exit(0)
 
 def main():
-    data  = safe(lambda: json.load(sys.stdin)) or {}
-    event = data.get("hook_event_name", os.environ.get("CLAUDE_HOOK_EVENT", ""))
+    # PreCompact hook receives the compaction type on stdin
+    try:
+        payload = json.loads(sys.stdin.read())
+    except Exception:
+        payload = {}
 
-    if event == "PreCompact":
-        handle_precompact(data)
-    elif event == "Notification":
-        handle_notification(data)
-    else:
-        # Called directly — check state and advise
-        state = load_state()
-        if state.get("last_compact"):
-            print(f"Last compact: {state['last_compact']}", file=sys.stderr)
-            print(f"Backup at: {state.get('last_backup','')}", file=sys.stderr)
-        sys.exit(0)
+    compact_type = payload.get("compaction_type", "auto")  # "manual" | "auto"
+    now = datetime.now(timezone.utc).isoformat()
+
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Write pre-compact marker
+    marker = {
+        "event":          "pre-compact",
+        "compact_type":   compact_type,
+        "timestamp":      now,
+    }
+
+    ts_short = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    marker_path = CACHE_DIR / f"pre-compact-{ts_short}.json"
+    marker_path.write_text(json.dumps(marker, indent=2))
+
+    # Check session stats for high token usage
+    stats = load_json(STATS_FILE)
+    tokens_est = stats.get("tokens_estimated", 0)
+
+    if tokens_est > HIGH_TOKEN_THRESHOLD:
+        # Queue an alert to stream-signal
+        queue = load_json(SIGNAL_Q, {"events": []})
+        queue.setdefault("events", []).append({
+            "type":      "token_alert",
+            "tokens":    tokens_est,
+            "threshold": HIGH_TOKEN_THRESHOLD,
+            "ts":        now,
+        })
+        SIGNAL_Q.write_text(json.dumps(queue, indent=2))
+
+    # Pass through — never block compaction
+    sys.exit(0)
+
 
 if __name__ == "__main__":
     main()
