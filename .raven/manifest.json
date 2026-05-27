@@ -34,7 +34,11 @@
       "salesforce",
       "odoo"
     ],
-    "libraries": []
+    "libraries": [
+      "psycopg",
+      "pydantic-settings~",
+      "pydantic~"
+    ]
   },
   "raven_version": "3.3.0",
   "standards": "raven-v3.0",

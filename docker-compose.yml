@@ -1,0 +1,41 @@
+# Aryx local stack — dev only. RDB is the source of truth; FalkorDB is the
+# rebuildable graph projection. Production orchestrator (ECS/EKS/OCI) is
+# decided at rollout — these containers are 12-factor and portable.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: aryx
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aryx}
+      POSTGRES_DB: aryx
+    # Host port 55432 avoids colliding with other stacks already on 5432.
+    # In-network clients still reach this as postgres:5432.
+    ports:
+      - "55432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aryx"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  falkordb:
+    image: falkordb/falkordb:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - graphdata:/data
+
+  worker:
+    build: .
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      falkordb:
+        condition: service_started
+
+volumes:
+  pgdata:
+  graphdata:

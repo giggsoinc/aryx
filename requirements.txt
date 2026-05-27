@@ -1,0 +1,6 @@
+# Aryx ETL spine dependencies (Increment 1).
+# Deterministic stages only — no LLM/graph deps yet (added in later increments).
+# Raven CVE gate verifies these at commit; pinned to recent stable releases.
+pydantic~=2.9
+pydantic-settings~=2.6
+psycopg[binary]~=3.2
