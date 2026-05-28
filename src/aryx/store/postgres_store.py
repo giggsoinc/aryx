@@ -12,7 +12,7 @@ import logging
 import psycopg
 from psycopg.types.json import Json
 
-from aryx.models import CleanRecord, FieldProfile
+from aryx.models import CleanRecord, FieldProfile, FieldTag
 from aryx.queries import load
 
 logger = logging.getLogger(__name__)
@@ -79,6 +79,15 @@ class PostgresStore:
                     )
                     for p in profiles
                 ],
+            )
+        self._conn.commit()
+
+    def save_tags(self, run_id: int, tags: list[FieldTag]) -> None:
+        """Persist cheap-tier semantic field tags for a run."""
+        with self._conn.cursor() as cur:
+            cur.executemany(
+                load("insert_field_tag"),
+                [(run_id, t.field, t.semantic_type, t.is_pii) for t in tags],
             )
         self._conn.commit()
 

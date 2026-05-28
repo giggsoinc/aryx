@@ -47,3 +47,11 @@ class FieldProfile(BaseModel):
         description="True when distinct counting hit its cap (a floor, not exact).",
     )
     samples: list[str] = Field(default_factory=list)
+
+
+class FieldTag(BaseModel):
+    """A semantic type assigned to a field by the cheap-tier tagger (stage 4)."""
+
+    field: str
+    semantic_type: str = Field(description="snake_case type, e.g. 'email', 'amount'.")
+    is_pii: bool = Field(default=False, description="True if the field holds PII.")

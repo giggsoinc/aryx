@@ -19,3 +19,6 @@ class ModelSpec(BaseModel):
     tier: Tier = Field(description="Capability/cost tier this model serves.")
     context_tokens: int = Field(default=0, description="Context window size.")
     local: bool = Field(default=False, description="True for self-hosted/local models.")
+    endpoint: str | None = Field(
+        default=None, description="Base URL for provider call (Ollama host)."
+    )

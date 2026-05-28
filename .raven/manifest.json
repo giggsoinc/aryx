@@ -35,6 +35,7 @@
       "odoo"
     ],
     "libraries": [
+      "anthropic~",
       "boto3~",
       "psycopg",
       "pydantic-settings~",

@@ -37,7 +37,8 @@ def discover_ollama(host: str, timeout: float = 5.0) -> list[ModelSpec]:
     with urllib.request.urlopen(url, timeout=timeout) as resp:  # noqa: S310
         payload = json.loads(resp.read().decode("utf-8"))
     models = [
-        ModelSpec(name=m["name"], provider="ollama", tier="local", local=True)
+        ModelSpec(name=m["name"], provider="ollama", tier="local", local=True,
+                  endpoint=host.rstrip("/"))
         for m in payload.get("models", [])
     ]
     logger.info("ollama discovery host=%s models=%d", host, len(models))

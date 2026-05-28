@@ -6,3 +6,5 @@ pydantic-settings~=2.6
 psycopg[binary]~=3.2
 # AWS Secrets Manager / SSM Parameter Store — used only by AwsSecretProvider.
 boto3~=1.35
+# Claude API client — frontier/cheap Anthropic model calls via the Broker.
+anthropic~=0.40
