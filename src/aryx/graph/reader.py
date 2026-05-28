@@ -75,10 +75,12 @@ class GraphReader:
         """
         rows = self._graph.query(
             "MATCH (e:Entity {id: $id})-[r:REL]->(n:Entity) "
-            "RETURN n.id, n.type, n.name, r.name, 'out' "
+            "RETURN n.id AS id, n.type AS type, n.name AS name, "
+            "r.name AS rel, 'out' AS dir "
             "UNION "
             "MATCH (e:Entity {id: $id})<-[r:REL]-(n:Entity) "
-            "RETURN n.id, n.type, n.name, r.name, 'in'",
+            "RETURN n.id AS id, n.type AS type, n.name AS name, "
+            "r.name AS rel, 'in' AS dir",
             {"id": entity_id},
         ).result_set
         return [{**_entity(r), "relationship": r[3], "direction": r[4]} for r in rows]

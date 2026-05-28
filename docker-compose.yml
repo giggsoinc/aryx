@@ -36,6 +36,22 @@ services:
       falkordb:
         condition: service_started
 
+  # Read-only HTTP API over the FalkorDB projection (Increment 6). Reuses the
+  # worker image, overriding the command to serve uvicorn. Bound to all
+  # interfaces so a published port is reachable; restrict exposure at the
+  # security-group / firewall layer.
+  api:
+    build: .
+    env_file: .env
+    command: ["uvicorn", "aryx.api.graph_api:app", "--host", "0.0.0.0", "--port", "8000"]
+    # Host 8000 is taken by another stack on shared hosts; publish on 8088.
+    ports:
+      - "8088:8000"
+    depends_on:
+      falkordb:
+        condition: service_started
+    restart: unless-stopped
+
 volumes:
   pgdata:
   graphdata:
