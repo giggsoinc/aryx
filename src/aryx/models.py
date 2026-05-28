@@ -100,3 +100,12 @@ class EntityMember(BaseModel):
 
     landed_record_id: int
     confidence: float = 1.0
+
+
+class Relationship(BaseModel):
+    """A typed edge between two resolved entities (stage 8)."""
+
+    source_entity_id: int
+    target_entity_id: int
+    name: str = Field(description="Edge label, e.g. 'places' or 'works_for'.")
+    confidence: float = 0.0

@@ -11,7 +11,12 @@ import logging
 import psycopg
 from psycopg.types.json import Json
 
-from aryx.models import EntityMember, ResolutionRecord, ResolvedEntity
+from aryx.models import (
+    EntityMember,
+    Relationship,
+    ResolutionRecord,
+    ResolvedEntity,
+)
 from aryx.queries import load
 
 logger = logging.getLogger(__name__)
@@ -74,6 +79,34 @@ class EntityStore:
         self._conn.commit()
         logger.info("entities saved count=%d", count)
         return count
+
+    def save_relationships(self, relationships: list[Relationship]) -> None:
+        """Persist inferred relationships between entities (stage 8)."""
+        with self._conn.cursor() as cur:
+            cur.executemany(
+                load("insert_relationship"),
+                [(r.source_entity_id, r.target_entity_id, r.name, r.confidence)
+                 for r in relationships],
+            )
+        self._conn.commit()
+
+    def list_entities(self) -> list[tuple[int, str, dict]]:
+        """Return (id, ontology_type, attributes) for graph projection."""
+        with self._conn.cursor() as cur:
+            cur.execute(load("select_entities"))
+            return [(r[0], r[1], r[2]) for r in cur.fetchall()]
+
+    def list_members_provenance(self) -> list[tuple[int, str, str, str]]:
+        """Return (entity_id, system, dataset, record_id) provenance edges."""
+        with self._conn.cursor() as cur:
+            cur.execute(load("select_members_provenance"))
+            return [(r[0], r[1], r[2], r[3]) for r in cur.fetchall()]
+
+    def list_relationships(self) -> list[tuple[int, int, str]]:
+        """Return (source_entity_id, target_entity_id, name) edges."""
+        with self._conn.cursor() as cur:
+            cur.execute(load("select_relationships"))
+            return [(r[0], r[1], r[2]) for r in cur.fetchall()]
 
     def close(self) -> None:
         """Close the database connection."""

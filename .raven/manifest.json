@@ -37,6 +37,7 @@
     "libraries": [
       "anthropic~",
       "boto3~",
+      "falkordb~",
       "psycopg",
       "pydantic-settings~",
       "pydantic~"
