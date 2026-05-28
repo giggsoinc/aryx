@@ -5,5 +5,9 @@
     "mid": 10000000,
     "cheap": 0,
     "local": 0
+  },
+  "embed": {
+    "model": "nomic-embed-text",
+    "endpoint": "http://localhost:11434"
   }
 }
