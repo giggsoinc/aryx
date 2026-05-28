@@ -77,3 +77,26 @@ class SchemaMapping(BaseModel):
     ontology_type: str
     ontology_attribute: str | None = None
     confidence: float = 0.0
+
+
+class ResolutionRecord(BaseModel):
+    """A landed record prepared for entity resolution (stage 7)."""
+
+    record_id: int = Field(description="aryx_landed_record.id (provenance link).")
+    text: str = Field(description="Key text built from match attributes.")
+    payload: dict[str, Any] = Field(description="Full payload for the golden record.")
+
+
+class ResolvedEntity(BaseModel):
+    """A canonical entity formed by merging matched records (stage 7)."""
+
+    ontology_type: str
+    attributes: dict[str, Any] = Field(description="Golden record (merged values).")
+    confidence: float = 0.0
+
+
+class EntityMember(BaseModel):
+    """Provenance: a landed record belonging to a resolved entity (stage 7)."""
+
+    landed_record_id: int
+    confidence: float = 1.0
