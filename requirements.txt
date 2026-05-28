@@ -4,3 +4,5 @@
 pydantic~=2.9
 pydantic-settings~=2.6
 psycopg[binary]~=3.2
+# AWS Secrets Manager / SSM Parameter Store — used only by AwsSecretProvider.
+boto3~=1.35

@@ -1,0 +1,9 @@
+{
+  "models": [],
+  "budgets": {
+    "frontier": 2000000,
+    "mid": 10000000,
+    "cheap": 0,
+    "local": 0
+  }
+}

@@ -35,6 +35,7 @@
       "odoo"
     ],
     "libraries": [
+      "boto3~",
       "psycopg",
       "pydantic-settings~",
       "pydantic~"
