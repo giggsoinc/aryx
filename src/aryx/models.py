@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -55,3 +55,25 @@ class FieldTag(BaseModel):
     field: str
     semantic_type: str = Field(description="snake_case type, e.g. 'email', 'amount'.")
     is_pii: bool = Field(default=False, description="True if the field holds PII.")
+
+
+class OntologyType(BaseModel):
+    """A canonical entity type in the ontology (stage 6)."""
+
+    name: str = Field(description="Canonical type name, e.g. 'Organization'.")
+    attributes: list[str] = Field(default_factory=list, description="Attribute names.")
+    status: Literal["proposed", "approved"] = Field(
+        default="proposed", description="HITL gate: new types start 'proposed'."
+    )
+    source: str = Field(default="agent", description="Origin: agent/dd/mdm/schema.org.")
+
+
+class SchemaMapping(BaseModel):
+    """Maps a source dataset/field to a canonical type/attribute (stage 6)."""
+
+    source_system: str
+    source_dataset: str
+    source_field: str | None = Field(default=None, description="None = table-level.")
+    ontology_type: str
+    ontology_attribute: str | None = None
+    confidence: float = 0.0
