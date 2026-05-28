@@ -24,11 +24,11 @@ def apply_migrations(dsn: str) -> None:
     files = sorted(_MIGRATIONS_DIR.glob("*.sql"))
     with psycopg.connect(dsn, autocommit=True) as conn:
         for path in files:
-            statements = [
-                stmt.strip()
-                for stmt in path.read_text(encoding="utf-8").split(";")
-                if stmt.strip()
-            ]
+            raw = path.read_text(encoding="utf-8")
+            # Strip line comments first so a ';' inside a comment can't be
+            # mistaken for a statement separator.
+            code = "\n".join(line.split("--", 1)[0] for line in raw.splitlines())
+            statements = [stmt.strip() for stmt in code.split(";") if stmt.strip()]
             with conn.cursor() as cur:
                 for statement in statements:
                     cur.execute(statement)  # type: ignore[arg-type]
