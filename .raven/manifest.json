@@ -38,9 +38,11 @@
       "anthropic~",
       "boto3~",
       "falkordb~",
+      "fastapi~",
       "psycopg",
       "pydantic-settings~",
-      "pydantic~"
+      "pydantic~",
+      "uvicorn~"
     ]
   },
   "raven_version": "3.3.0",

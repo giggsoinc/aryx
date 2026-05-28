@@ -10,3 +10,6 @@ boto3~=1.35
 anthropic~=0.40
 # FalkorDB client — knowledge-graph projection target (stage 5d).
 falkordb~=1.0
+# Read API over the graph projection (Increment 6) + ASGI server.
+fastapi~=0.115
+uvicorn~=0.32
