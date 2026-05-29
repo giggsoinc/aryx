@@ -43,7 +43,7 @@ class FalkorStore:
         self._graph.query(
             "MERGE (e:Entity {id: $id}) SET e.type = $type, e.name = $name",
             {"id": entity_id, "type": ontology_type,
-             "name": str(attributes.get("name", ""))},
+             "name": str(attributes.get("name") or attributes.get("full_name", ""))},
         )
 
     def add_provenance(self, entity_id: int, system: str, dataset: str,
