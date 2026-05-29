@@ -42,7 +42,17 @@
       "psycopg",
       "pydantic-settings~",
       "pydantic~",
-      "uvicorn~"
+      "uvicorn~",
+      "pymupdf~",
+      "python-pptx~",
+      "python-docx~",
+      "striprtf~",
+      "pytesseract~",
+      "Pillow~",
+      "presidio-analyzer~",
+      "presidio-anonymizer~",
+      "spacy~",
+      "pgvector~"
     ]
   },
   "raven_version": "3.3.0",

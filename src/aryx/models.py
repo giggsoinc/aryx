@@ -109,3 +109,25 @@ class Relationship(BaseModel):
     target_entity_id: int
     name: str = Field(description="Edge label, e.g. 'places' or 'works_for'.")
     confidence: float = 0.0
+
+
+class DocumentChunk(BaseModel):
+    """A text segment cut from a parsed document (Inc 9 vector plane)."""
+
+    doc_id: str = Field(description="SHA-256 content hash of the source file.")
+    chunk_index: int
+    page_slide: int | None = Field(default=None, description="Page or slide number; None for whole-doc sources.")
+    text: str
+    char_start: int = 0
+    char_end: int = 0
+    source: SourceRef
+
+
+class ChunkEmbedding(BaseModel):
+    """Dense vector for one chunk, tagged with its model and dimensionality."""
+
+    chunk_index: int
+    doc_id: str
+    model_id: str
+    dim: int
+    vector: list[float]

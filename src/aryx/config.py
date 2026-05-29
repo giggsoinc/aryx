@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     )
     log_level: str = Field(default="INFO", description="Root log level.")
     batch_size: int = Field(default=500, description="Rows fetched per extract batch.")
+    embed_dim: int = Field(default=768, description="Expected embedding dim; startup check fails on mismatch.")
+    chunk_size: int = Field(default=1000, description="Target chunk size in characters.")
+    chunk_overlap: int = Field(default=100, description="Overlap in characters between adjacent chunks.")
 
 
 @lru_cache(maxsize=1)

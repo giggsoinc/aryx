@@ -84,6 +84,11 @@ class Broker:
         """Record spend so subsequent choices can downgrade."""
         self._governor.charge(tier, tokens)
 
+    @property
+    def embed_model_id(self) -> str | None:
+        """Return the configured local embed model name, or None if unset."""
+        return self._embed.get("model") or None
+
     def models(self) -> list[ModelSpec]:
         """Return every registered model (for the setup UI roll-call)."""
         return self._registry.all()
