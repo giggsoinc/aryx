@@ -5,16 +5,30 @@ import logging
 import uuid
 from typing import Any
 
+import os
+
 import psycopg
 from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel
 
-from aryx.broker import default_broker
+from aryx.broker import Broker, ModelSpec, Registry, TokenGovernor
 from aryx.config import get_settings
 from aryx.connectors.postgres import PostgresConnector
 from aryx.pipeline.orchestrate import run_pipeline
 from aryx.store.job_store import JobStore
 from aryx.store.migrate import apply_migrations
+
+
+def _local_broker() -> Broker:
+    """Local-only broker so the pipeline never tries Claude without a key."""
+    endpoint = os.environ.get("ARYX_LLM_BASE_URL", "http://ollama:11434")
+    menial = os.environ.get("ARYX_LLM_MENIAL_MODEL", "qwen3.5:0.8b")
+    reason = os.environ.get("ARYX_LLM_REASON_MODEL", "qwen3.5:0.8b")
+    registry = Registry()
+    for name, tier in ((menial, "cheap"), (reason, "frontier")):
+        registry.add(ModelSpec(name=name, provider="ollama", tier=tier,
+                               local=True, endpoint=endpoint))
+    return Broker(registry, TokenGovernor({}))
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +63,7 @@ def _run_db(req: IngestDbRequest, job_id: str) -> None:
             system=req.system, dataset=req.table,
             ontology_type=req.ontology_type,
             match_keys=[k.strip() for k in req.match_keys.split(",") if k.strip()],
-            graph_url=settings.graph_url, broker=default_broker(),
+            graph_url=settings.graph_url, broker=_local_broker(),
             on_progress=lambda stage, pct, detail: jobs.update_stage(job_id, stage, pct, detail),
             fk_links=[link.model_dump() for link in req.fk_links],
         )
