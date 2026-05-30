@@ -13,6 +13,9 @@ logger = logging.getLogger(__name__)
 
 _AUTO_MERGE = 0.92
 _REJECT = 0.60
+# Only the genuinely ambiguous middle reaches the LLM; clear non-matches
+# (below ADJUDICATE_FROM) skip it entirely so CPU-only boxes stay usable.
+_ADJUDICATE_FROM = 0.80
 
 
 def _block_embeddings(
@@ -58,7 +61,7 @@ def resolve(
                                    embeddings.get(right.record_id))
                 if score >= _AUTO_MERGE:
                     union.union(left.record_id, right.record_id)
-                elif score >= _REJECT and adjudicate(left, right, broker):
+                elif score >= _ADJUDICATE_FROM and adjudicate(left, right, broker):
                     union.union(left.record_id, right.record_id)
 
     results: list[tuple[ResolvedEntity, list[EntityMember]]] = []
