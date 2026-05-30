@@ -14,6 +14,22 @@ def all_types(reader: GraphReader) -> list[str]:
     return sorted({e["type"] for e in reader.find_entities(limit=500)})
 
 
+def _lookup(reader: GraphReader, term: str) -> list[dict]:
+    """Find entities for a term; if a phrase misses, retry on its longest words.
+
+    Handles phrasing drift ('umbrella company' -> entity 'Umbrella Co') that a
+    plain substring match would miss.
+    """
+    hits = reader.find_entities(name=term, limit=5)
+    if not hits and " " in term:
+        for word in sorted(term.split(), key=len, reverse=True):
+            if len(word) > 2:
+                hits = reader.find_entities(name=word, limit=5)
+                if hits:
+                    break
+    return hits
+
+
 def retrieve(reader: GraphReader, terms: list[str]) -> tuple[str, list[str]]:
     """Look up terms, expand one hop, gather provenance.
 
@@ -25,7 +41,7 @@ def retrieve(reader: GraphReader, terms: list[str]) -> tuple[str, list[str]]:
 
     for term in terms[:5]:
         calls.append(f"search_entities(name={term!r})")
-        for ent in reader.find_entities(name=term, limit=5):
+        for ent in _lookup(reader, term):
             eid = ent["id"]
             if eid in seen:
                 continue
