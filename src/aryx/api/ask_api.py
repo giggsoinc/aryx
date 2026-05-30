@@ -16,8 +16,7 @@ from functools import lru_cache
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from aryx.broker import Broker, default_broker
-from aryx.broker.specs import ModelSpec
+from aryx.broker import Broker, ModelSpec, Registry, TokenGovernor
 from aryx.config import get_settings
 from aryx.graph import GraphReader
 from aryx.graph.retrieve import all_types, retrieve
@@ -37,12 +36,14 @@ def _reader() -> GraphReader:
 
 @lru_cache(maxsize=1)
 def _broker() -> Broker:
-    broker = default_broker()
-    broker.register(ModelSpec(name=_MENIAL, provider="ollama", tier="cheap",
-                              local=True, endpoint=_OLLAMA))
-    broker.register(ModelSpec(name=_REASON, provider="ollama", tier="frontier",
-                              local=True, endpoint=_OLLAMA))
-    return broker
+    """Local-only broker: menial=cheap (qwen), reason=frontier (lfm). Cloud
+    providers are opt-in via the Settings panel, not bundled here by default."""
+    registry = Registry()
+    registry.add(ModelSpec(name=_MENIAL, provider="ollama", tier="cheap",
+                           local=True, endpoint=_OLLAMA))
+    registry.add(ModelSpec(name=_REASON, provider="ollama", tier="frontier",
+                           local=True, endpoint=_OLLAMA))
+    return Broker(registry, TokenGovernor({}))
 
 
 class AskRequest(BaseModel):
