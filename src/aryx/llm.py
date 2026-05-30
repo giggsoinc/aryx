@@ -39,7 +39,7 @@ def _anthropic_json(
 
 
 def _post_json(url: str, body: dict[str, Any], headers: dict[str, str],
-               timeout: float = 120.0) -> dict[str, Any]:
+               timeout: float = 600.0) -> dict[str, Any]:
     """POST a JSON body and return the parsed JSON response."""
     data = json.dumps(body).encode("utf-8")
     req = urllib.request.Request(url, data=data, headers={**headers,
