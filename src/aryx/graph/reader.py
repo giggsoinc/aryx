@@ -85,6 +85,13 @@ class GraphReader:
         ).result_set
         return [{**_entity(r), "relationship": r[3], "direction": r[4]} for r in rows]
 
+    def all_relationships(self) -> list[dict[str, Any]]:
+        """Return every relationship edge in the graph."""
+        rows = self._graph.query(
+            "MATCH (a:Entity)-[r:REL]->(b:Entity) RETURN a.id, b.id, r.name"
+        ).result_set
+        return [{"source": r[0], "target": r[1], "name": r[2]} for r in rows]
+
     def provenance(self, entity_id: int) -> list[dict[str, Any]]:
         """Return the source records an entity was projected from."""
         rows = self._graph.query(

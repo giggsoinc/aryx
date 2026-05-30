@@ -1,0 +1,17 @@
+"""Combined Aryx API: graph queries + admin/ingestion."""
+from __future__ import annotations
+
+from fastapi import FastAPI
+
+from aryx.api.admin_api import admin_router
+from aryx.api.graph_api import graph_router
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(title="Aryx API", version="1.0")
+    app.include_router(graph_router())
+    app.include_router(admin_router())
+    return app
+
+
+app = create_app()
