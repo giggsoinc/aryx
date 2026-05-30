@@ -101,6 +101,24 @@ class GraphReader:
         ).result_set
         return [{"system": r[0], "dataset": r[1], "record_id": r[2]} for r in rows]
 
+    def shortest_path(self, src: int, dst: int, max_hops: int = 6) -> list[dict[str, Any]]:
+        """Return the shortest undirected path between two entities, or []."""
+        rows = self._graph.query(
+            "MATCH p = shortestPath((a:Entity {id: $a})-[:REL*1.."
+            f"{max(1, min(int(max_hops), 10))}]-(b:Entity {{id: $b}})) "
+            "RETURN [n IN nodes(p) | [n.id, n.type, n.name]] AS ns, "
+            "[r IN relationships(p) | r.name] AS rs",
+            {"a": src, "b": dst},
+        ).result_set
+        if not rows:
+            return []
+        nodes, rels = rows[0]
+        steps: list[dict[str, Any]] = []
+        for i, n in enumerate(nodes):
+            steps.append({"id": n[0], "type": n[1], "name": n[2],
+                          "relationship": rels[i - 1] if i > 0 else None})
+        return steps
+
 
 def _entity(row: list[Any]) -> dict[str, Any]:
     """Map an (id, type, name) result row to an entity dict."""

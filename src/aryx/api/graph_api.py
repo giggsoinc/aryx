@@ -58,6 +58,13 @@ def graph_router() -> APIRouter:
     ) -> list[dict[str, Any]]:
         return reader.provenance(entity_id)
 
+    @router.get("/entities/{entity_id}/path/{target_id}")
+    def path(
+        entity_id: int, target_id: int, max_hops: int = 6,
+        reader: GraphReader = Depends(_reader),
+    ) -> list[dict[str, Any]]:
+        return reader.shortest_path(entity_id, target_id, max_hops)
+
     return router
 
 

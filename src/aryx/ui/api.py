@@ -46,6 +46,10 @@ def get_provenance(entity_id: int) -> list[dict]:
     return _get(f"/entities/{entity_id}/provenance")
 
 
+def get_path(src: int, dst: int) -> list[dict]:
+    return _get(f"/entities/{src}/path/{dst}")
+
+
 def list_runs() -> list[dict]:
     return _get("/admin/runs")
 
