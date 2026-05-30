@@ -3,7 +3,7 @@
 # decided at rollout — these containers are 12-factor and portable.
 services:
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: aryx
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aryx}

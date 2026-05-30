@@ -1,7 +1,6 @@
 """Ingest panel — DB tables or file uploads, with live pipeline progress."""
 from __future__ import annotations
 
-import json
 import time
 
 import streamlit as st
@@ -41,19 +40,33 @@ def _db_form() -> None:
             st.error(f"Failed: {exc}")
 
 
+_TYPES = ["json", "csv", "pdf", "pptx", "ppt", "docx", "doc", "rtf",
+          "jpg", "jpeg", "png", "tiff", "tif", "bmp"]
+
+
 def _file_form() -> None:
     with st.form("ingest_file"):
-        uploaded = st.file_uploader("Upload a JSON or CSV file", type=["json", "csv"])
+        uploaded = st.file_uploader(
+            "Upload files (max 50 files, 2 MB each, 50 MB total)",
+            type=_TYPES, accept_multiple_files=True,
+        )
         col1, col2 = st.columns(2)
         otype = col1.text_input("Ontology type", placeholder="Product", key="file_otype")
         match_keys = col2.text_input("Match keys", placeholder="name,id", key="file_keys")
-        submitted = st.form_submit_button("Ingest file", type="primary")
+        submitted = st.form_submit_button("Ingest files", type="primary")
     if submitted:
         if not uploaded or not otype or not match_keys:
-            st.warning("Upload a file, set ontology type, and match keys.")
+            st.warning("Upload at least one file, set ontology type, and match keys.")
+            return
+        if len(uploaded) > 50:
+            st.error("Max 50 files per upload.")
+            return
+        total = sum(f.size for f in uploaded)
+        if total > 50 * 1024 * 1024:
+            st.error(f"Total size {total // (1024*1024)} MB exceeds 50 MB limit.")
             return
         try:
-            resp = api.ingest_file(uploaded.getvalue(), uploaded.name, otype, match_keys)
+            resp = api.ingest_files(uploaded, otype, match_keys)
             st.session_state.active_job = resp.get("job_id")
         except Exception as exc:
             st.error(f"Failed: {exc}")

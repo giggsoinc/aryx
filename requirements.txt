@@ -13,6 +13,7 @@ falkordb~=1.0
 # Read API over the graph projection (Increment 6) + ASGI server.
 fastapi~=0.115
 uvicorn~=0.32
+python-multipart~=0.0.17
 # Document connectors (Increment 8): PDF, PPTX, DOCX, RTF, image OCR.
 pymupdf~=1.24
 python-pptx~=1.0

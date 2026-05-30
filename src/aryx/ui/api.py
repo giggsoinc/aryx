@@ -76,24 +76,27 @@ def ask(question: str, history: list[dict] | None = None) -> dict[str, Any]:
     return _post("/ask", {"question": question, "history": history or []}, timeout=180)
 
 
-def ingest_file(file_bytes: bytes, filename: str, ontology_type: str,
-                match_keys: str, fk_links: str = "[]") -> dict[str, Any]:
-    """Upload a file to /admin/ingest/file (multipart)."""
-    import urllib.request
+def ingest_files(files: list, ontology_type: str,
+                 match_keys: str, fk_links: str = "[]") -> dict[str, Any]:
+    """Upload multiple files to /admin/ingest/file (multipart)."""
     boundary = "----AryxBoundary"
     parts: list[bytes] = []
     for name, value in [("ontology_type", ontology_type),
                         ("match_keys", match_keys), ("fk_links", fk_links)]:
         parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n{value}\r\n".encode())
-    parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\nContent-Type: application/octet-stream\r\n\r\n".encode())
-    parts.append(file_bytes)
-    parts.append(f"\r\n--{boundary}--\r\n".encode())
+    for f in files:
+        fname = getattr(f, "name", "upload")
+        data = f.getvalue() if hasattr(f, "getvalue") else f.read()
+        parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"files\"; filename=\"{fname}\"\r\nContent-Type: application/octet-stream\r\n\r\n".encode())
+        parts.append(data)
+        parts.append(b"\r\n")
+    parts.append(f"--{boundary}--\r\n".encode())
     body = b"".join(parts)
     req = urllib.request.Request(
         f"{_BASE}/admin/ingest/file", data=body,
         headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
     )
-    with urllib.request.urlopen(req, timeout=30) as r:  # noqa: S310
+    with urllib.request.urlopen(req, timeout=60) as r:  # noqa: S310
         return json.loads(r.read())
 
 

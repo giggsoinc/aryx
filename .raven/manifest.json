@@ -43,6 +43,7 @@
       "pydantic-settings~",
       "pydantic~",
       "uvicorn~",
+      "python-multipart~",
       "pymupdf~",
       "python-pptx~",
       "python-docx~",
