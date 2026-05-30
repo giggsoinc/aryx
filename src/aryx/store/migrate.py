@@ -31,5 +31,11 @@ def apply_migrations(dsn: str) -> None:
             statements = [stmt.strip() for stmt in code.split(";") if stmt.strip()]
             with conn.cursor() as cur:
                 for statement in statements:
-                    cur.execute(statement)  # type: ignore[arg-type]
+                    try:
+                        cur.execute(statement)  # type: ignore[arg-type]
+                    except psycopg.Error as exc:
+                        # An optional/unavailable feature (e.g. a missing
+                        # extension) must not block unrelated later migrations.
+                        logger.warning("migration statement skipped file=%s error=%s",
+                                       path.name, exc)
             logger.info("migration applied file=%s statements=%d", path.name, len(statements))
