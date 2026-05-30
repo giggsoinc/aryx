@@ -82,3 +82,7 @@ def get_llm_config() -> dict[str, Any]:
 
 def set_llm_config(cfg: dict) -> dict[str, Any]:
     return _post("/admin/llm/config", cfg)
+
+
+def observability() -> dict[str, Any]:
+    return _get("/admin/observability")

@@ -7,6 +7,7 @@ from aryx.api.admin_api import admin_router
 from aryx.api.ask_api import ask_router
 from aryx.api.graph_api import graph_router
 from aryx.api.jobs_api import jobs_router
+from aryx.api.observability_api import observability_router
 
 
 def create_app() -> FastAPI:
@@ -15,6 +16,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_router())
     app.include_router(ask_router())
     app.include_router(jobs_router())
+    app.include_router(observability_router())
     return app
 
 

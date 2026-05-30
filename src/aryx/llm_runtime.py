@@ -7,10 +7,16 @@ source secrets from AWS via the existing AwsSecretProvider.
 """
 from __future__ import annotations
 
+import logging
 import os
+
+import psycopg
 
 from aryx.broker import Broker, ModelSpec, Registry, TokenGovernor
 from aryx.llm import complete_text
+from aryx.queries import load
+
+logger = logging.getLogger(__name__)
 
 _KEY_REF = "ARYX_RUNTIME_KEY"
 
@@ -41,10 +47,29 @@ def _broker_for(model: str) -> Broker:
     return Broker(registry, TokenGovernor({}), secrets=_RuntimeSecrets())
 
 
+def _log_call(role: str, model: str, pt: int, ct: int, ms: int, err: str) -> None:
+    """Best-effort persist to aryx_llm_call (no-op if DB unavailable)."""
+    dsn = os.environ.get("ARYX_RDB_DSN", "")
+    if not dsn:
+        return
+    try:
+        with psycopg.connect(dsn, autocommit=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute(load("insert_llm_call"),
+                            (role, model, _state["provider"], pt, ct, ms, "ask", err or None))
+    except Exception:  # noqa: BLE001
+        logger.debug("llm call log write failed", exc_info=True)
+
+
 def chat(role: str, system: str, user: str) -> tuple[str, int, int]:
     """Run a completion for 'menial' or 'answer' using the configured model."""
     model = _state["menial_model"] if role == "menial" else _state["answer_model"]
-    return complete_text(_broker_for(model), "cheap", system, user, think=False)
+    import time
+    start = time.monotonic()
+    text, pt, ct = complete_text(_broker_for(model), "cheap", system, user, think=False)
+    ms = int((time.monotonic() - start) * 1000)
+    _log_call(role, model, pt, ct, ms, "")
+    return text, pt, ct
 
 
 def set_config(**fields: str) -> None:
