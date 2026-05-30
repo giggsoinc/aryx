@@ -103,9 +103,11 @@ class GraphReader:
 
     def shortest_path(self, src: int, dst: int, max_hops: int = 6) -> list[dict[str, Any]]:
         """Return the shortest undirected path between two entities, or []."""
+        hops = max(1, min(int(max_hops), 10))
         rows = self._graph.query(
-            "MATCH p = shortestPath((a:Entity {id: $a})-[:REL*1.."
-            f"{max(1, min(int(max_hops), 10))}]-(b:Entity {{id: $b}})) "
+            "MATCH (a:Entity {id: $a}), (b:Entity {id: $b}) "
+            f"WITH shortestPath((a)-[:REL*1..{hops}]-(b)) AS p "
+            "WHERE p IS NOT NULL "
             "RETURN [n IN nodes(p) | [n.id, n.type, n.name]] AS ns, "
             "[r IN relationships(p) | r.name] AS rs",
             {"a": src, "b": dst},
