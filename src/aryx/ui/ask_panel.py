@@ -43,10 +43,11 @@ def render() -> None:
     st.session_state.chat.append(user_msg)
     _render_msg(user_msg)
 
+    history = [{"role": m["role"], "text": m["text"]} for m in st.session_state.chat[:-1][-5:]]
     with st.chat_message("assistant"):
         with st.spinner("Thinking — reading the graph…"):
             try:
-                resp = api.ask(question)
+                resp = api.ask(question, history)
             except Exception as exc:
                 resp = {"answer": f"Error reaching Ask API: {exc}", "tools_called": [], "usage": {}}
         st.markdown(resp.get("answer", "(no answer)"))

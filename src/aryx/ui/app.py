@@ -10,7 +10,9 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-from aryx.ui import ask_panel, graph_panel, home_panel, ingest_panel, theme  # noqa: E402
+from aryx.ui import (  # noqa: E402
+    ask_panel, graph_panel, home_panel, ingest_panel, settings_panel, theme,
+)
 
 theme.inject()
 
@@ -19,6 +21,7 @@ PAGES = {
     "➕  Ingest": ingest_panel,
     "💬  Ask": ask_panel,
     "🕸️  Graph": graph_panel,
+    "⚙️  Settings": settings_panel,
 }
 
 with st.sidebar:

@@ -58,5 +58,13 @@ def ingest_db(table: str, ontology_type: str, match_keys: str,
     })
 
 
-def ask(question: str) -> dict[str, Any]:
-    return _post("/ask", {"question": question}, timeout=180)
+def ask(question: str, history: list[dict] | None = None) -> dict[str, Any]:
+    return _post("/ask", {"question": question, "history": history or []}, timeout=180)
+
+
+def get_llm_config() -> dict[str, Any]:
+    return _get("/llm/config")
+
+
+def set_llm_config(cfg: dict) -> dict[str, Any]:
+    return _post("/admin/llm/config", cfg)
