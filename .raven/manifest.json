@@ -52,7 +52,8 @@
       "presidio-analyzer~",
       "presidio-anonymizer~",
       "spacy~",
-      "pgvector~"
+      "pgvector~",
+      "mcp~"
     ]
   },
   "raven_version": "3.3.0",

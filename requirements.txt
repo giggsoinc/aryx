@@ -30,5 +30,6 @@ pgvector~=0.3
 streamlit~=1.41
 streamlit-agraph~=0.0.45
 # MCP SSE transport (Increment 11).
+mcp~=1.6
 sse-starlette~=2.2
 starlette~=0.41
