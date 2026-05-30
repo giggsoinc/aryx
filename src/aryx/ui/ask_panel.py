@@ -10,7 +10,7 @@ def _render_usage(usage: dict) -> None:
     cols = st.columns(3)
     cols[0].caption(f"⏱ {usage.get('latency_ms', 0)} ms")
     cols[1].caption(f"🔢 {usage.get('prompt_tokens', 0)}+{usage.get('completion_tokens', 0)} tok")
-    cols[2].caption(f"🧠 {usage.get('reason_model', '?')}")
+    cols[2].caption(f"🧠 {usage.get('answer_model', '?')}")
 
 
 def _render_msg(msg: dict) -> None:

@@ -69,6 +69,13 @@ def _extract_terms(question: str, types: list[str]) -> tuple[list[str], int, int
     return ([t for t in terms if t] or [question.strip()]), it, ot, ms
 
 
+def _strip_think(text: str) -> str:
+    """Drop any <think> chain-of-thought a model inlines into its answer."""
+    if "</think>" in text:
+        text = text.rsplit("</think>", 1)[-1]
+    return text.replace("<think>", "").strip()
+
+
 def _synthesise(question: str, context: str) -> tuple[str, int, int, int]:
     sys = "You are Aryx, a knowledge-graph assistant."
     user = (
@@ -77,9 +84,9 @@ def _synthesise(question: str, context: str) -> tuple[str, int, int, int]:
         f"GRAPH FACTS:\n{context}\n\nQUESTION: {question}"
     )
     start = time.monotonic()
-    text, it, ot = complete_text(_broker(), "frontier", sys, user, think=False)
+    text, it, ot = complete_text(_broker(), "cheap", sys, user, think=False)
     ms = int((time.monotonic() - start) * 1000)
-    return text, it, ot, ms
+    return _strip_think(text), it, ot, ms
 
 
 def ask_router() -> APIRouter:
@@ -106,7 +113,7 @@ def ask_router() -> APIRouter:
                 "completion_tokens": p_out + s_out,
                 "latency_ms": p_ms + s_ms,
                 "menial_model": _MENIAL,
-                "reason_model": _REASON,
+                "answer_model": _MENIAL,
             },
         }
 
