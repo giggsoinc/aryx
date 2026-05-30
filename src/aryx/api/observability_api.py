@@ -49,10 +49,10 @@ def _recent_llm(conn: psycopg.Connection) -> list[dict[str, Any]]:
 
 def _graph_stats() -> dict[str, int]:
     try:
-        from aryx.ui.api import full_graph
-        g = full_graph()
-        return {"entities": len(g.get("entities", [])),
-                "relationships": len(g.get("relationships", []))}
+        from aryx.graph import GraphReader
+        reader = GraphReader(get_settings().graph_url)
+        return {"entities": len(reader.find_entities(limit=500)),
+                "relationships": len(reader.all_relationships())}
     except Exception:
         return {"entities": 0, "relationships": 0}
 
