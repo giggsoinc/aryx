@@ -8,6 +8,6 @@
   },
   "embed": {
     "model": "nomic-embed-text",
-    "endpoint": "http://localhost:11434"
+    "endpoint": "http://ollama:11434"
   }
 }

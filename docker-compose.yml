@@ -62,7 +62,7 @@ services:
         condition: service_healthy
     environment:
       - OLLAMA_HOST=http://ollama:11434
-    entrypoint: ["/bin/sh", "-c", "ollama pull qwen3.5:0.8b && ollama pull lfm2.5-thinking"]
+    entrypoint: ["/bin/sh", "-c", "ollama pull qwen3.5:0.8b && ollama pull lfm2.5-thinking && ollama pull nomic-embed-text"]
     restart: "no"
 
   api:
