@@ -15,7 +15,7 @@ _AUTO_MERGE = 0.92
 _REJECT = 0.60
 # Only the genuinely ambiguous middle reaches the LLM; clear non-matches
 # (below ADJUDICATE_FROM) skip it entirely so CPU-only boxes stay usable.
-_ADJUDICATE_FROM = 0.80
+_ADJUDICATE_FROM = 0.90
 
 
 def _block_embeddings(
