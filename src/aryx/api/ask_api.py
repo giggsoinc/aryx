@@ -51,10 +51,11 @@ class AskRequest(BaseModel):
 
 
 def _extract_terms(question: str, types: list[str]) -> tuple[list[str], int, int, int]:
-    sys = "Extract search terms from the user's question."
+    sys = "Extract the specific search terms a graph lookup needs."
     user = (
-        f"Known entity types: {', '.join(types)}. Reply ONLY as JSON "
-        '{"terms": ["..."]} with 1-3 short terms (names, ticket refs, keywords). '
+        "From the question, pull 1-3 specific names, ticket refs, or keywords to "
+        "search for. Do NOT include generic category words like "
+        f"{', '.join(types)}. Reply ONLY as JSON {{\"terms\": [\"...\"]}}.\n"
         f"Question: {question}"
     )
     start = time.monotonic()
@@ -76,7 +77,7 @@ def _synthesise(question: str, context: str) -> tuple[str, int, int, int]:
         f"GRAPH FACTS:\n{context}\n\nQUESTION: {question}"
     )
     start = time.monotonic()
-    text, it, ot = complete_text(_broker(), "frontier", sys, user, think=True)
+    text, it, ot = complete_text(_broker(), "frontier", sys, user, think=False)
     ms = int((time.monotonic() - start) * 1000)
     return text, it, ot, ms
 

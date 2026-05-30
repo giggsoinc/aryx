@@ -97,7 +97,8 @@ def complete_text(
         text = next(b.text for b in resp.content if b.type == "text")
         in_tok, out_tok = resp.usage.input_tokens, resp.usage.output_tokens
     elif spec.provider == "ollama":
-        body: dict[str, Any] = {"model": spec.name, "stream": False, "messages": msgs}
+        body: dict[str, Any] = {"model": spec.name, "stream": False, "messages": msgs,
+                                "options": {"temperature": 0.2, "num_predict": 512}}
         if think is not None:
             body["think"] = think
         out = _post_json((spec.endpoint or "").rstrip("/") + "/api/chat", body, {})
