@@ -50,6 +50,14 @@ def list_runs() -> list[dict]:
     return _get("/admin/runs")
 
 
+def list_jobs() -> list[dict]:
+    return _get("/admin/jobs")
+
+
+def get_job(job_id: str) -> dict[str, Any]:
+    return _get(f"/admin/jobs/{job_id}")
+
+
 def ingest_db(table: str, ontology_type: str, match_keys: str,
               system: str = "postgresql", key_column: str = "id") -> dict:
     return _post("/admin/ingest/db", {

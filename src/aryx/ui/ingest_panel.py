@@ -1,11 +1,14 @@
-"""Ingest panel — trigger a DB-table ingest and watch run status."""
+"""Ingest panel — trigger a DB-table ingest and watch live stage progress."""
 from __future__ import annotations
+
+import time
 
 import streamlit as st
 
 from aryx.ui import api
 
-_STATUS_ICON = {"complete": "✅", "running": "⏳", "failed": "❌"}
+_TERMINAL = {"complete", "failed"}
+_ICON = {"complete": "✅", "failed": "❌", "running": "⏳", "queued": "🕓"}
 
 
 def _ingest_form() -> None:
@@ -24,44 +27,59 @@ def _ingest_form() -> None:
         if not all([table, otype, match_keys]):
             st.warning("Table, ontology type, and match keys are required.")
             return
-        with st.spinner(f"Queuing ingestion of {table}…"):
-            try:
-                api.ingest_db(table, otype, match_keys, system, key_col)
-                st.success(f"Queued **{table}** — refresh Sources below to watch progress.")
-            except Exception as exc:
-                st.error(f"Failed: {exc}")
+        try:
+            resp = api.ingest_db(table, otype, match_keys, system, key_col)
+            st.session_state.active_job = resp.get("job_id")
+        except Exception as exc:
+            st.error(f"Failed: {exc}")
+
+
+def _progress(job_id: str) -> None:
+    placeholder = st.empty()
+    for _ in range(120):
+        try:
+            job = api.get_job(job_id)
+        except Exception as exc:
+            placeholder.error(f"Lost track of job: {exc}")
+            return
+        with placeholder.container():
+            st.progress(min(int(job.get("pct", 0)), 100),
+                        text=f"**{job.get('stage', '')}** — {job.get('detail', '')}")
+        if job.get("status") in _TERMINAL:
+            if job["status"] == "complete":
+                st.success(f"Ingestion complete — {job.get('detail', '')}")
+            else:
+                st.error(f"Ingestion failed: {job.get('error', 'unknown error')}")
+            st.session_state.pop("active_job", None)
+            return
+        time.sleep(1.5)
+    st.info("Still running — see Sources below for status.")
 
 
 def _sources() -> None:
     head, btn = st.columns([4, 1])
-    head.subheader("Sources")
+    head.subheader("Sources & runs")
     if btn.button("Refresh"):
         st.rerun()
     try:
-        runs = api.list_runs()
+        jobs = api.list_jobs()
     except Exception as exc:
-        st.error(f"Cannot load runs: {exc}")
+        st.error(f"Cannot load jobs: {exc}")
         return
-    if not runs:
-        st.info("No sources ingested yet. Use the form above to add your first table.")
+    if not jobs:
+        st.info("No ingestion jobs yet. Use the form above to add your first table.")
         return
-
-    total = sum(r.get("record_count") or 0 for r in runs)
-    c1, c2 = st.columns(2)
-    c1.metric("Sources", len(runs))
-    c2.metric("Records ingested", total)
-
     st.dataframe(
         [
             {
-                "Run": r["run_id"],
-                "Status": f"{_STATUS_ICON.get(r.get('status', ''), '⚪')} {r.get('status', '')}",
-                "Source": f"{r['source_system']}.{r['source_dataset']}",
-                "Records": r.get("record_count"),
-                "Started": r.get("started_at"),
-                "Finished": r.get("finished_at"),
+                "Status": f"{_ICON.get(j.get('status', ''), '⚪')} {j.get('status', '')}",
+                "Source": f"{j['source_system']}.{j['source_dataset']}",
+                "Stage": j.get("stage"),
+                "%": j.get("pct"),
+                "Started": j.get("started_at"),
+                "Run": j.get("run_id"),
             }
-            for r in runs
+            for j in jobs
         ],
         use_container_width=True,
         hide_index=True,
@@ -71,7 +89,11 @@ def _sources() -> None:
 def render() -> None:
     st.title("Add a Data Source")
     st.caption("Connect a Postgres table — Aryx reads the rows, resolves duplicates, "
-               "and writes entities into the graph.")
+               "and writes entities into the graph. Watch each agent work below.")
     _ingest_form()
+    if st.session_state.get("active_job"):
+        st.divider()
+        st.subheader("Ingestion progress")
+        _progress(st.session_state["active_job"])
     st.divider()
     _sources()
