@@ -1,20 +1,23 @@
-"""Graph retrieval over GraphReader, with a record of which calls fired.
+"""Deterministic graph retrieval for the Ask flow.
 
-Small local models are unreliable at free-form tool-calling, so the Ask flow
-drives retrieval deterministically here and lets the LLM interpret/answer. Each
-graph call is logged so the UI can show exactly what was queried.
+Small local models are unreliable at free-form tool-calling, so retrieval is
+driven here and the LLM only interprets the question and writes the answer.
+Each graph call is recorded so the UI can show exactly what was queried.
 """
 from __future__ import annotations
 
-from typing import Any
+from aryx.graph.reader import GraphReader
 
-from aryx.graph import GraphReader
+
+def all_types(reader: GraphReader) -> list[str]:
+    """Distinct ontology types present — helps the parser pick search terms."""
+    return sorted({e["type"] for e in reader.find_entities(limit=500)})
 
 
 def retrieve(reader: GraphReader, terms: list[str]) -> tuple[str, list[str]]:
-    """Look up each term, expand one hop, gather provenance.
+    """Look up terms, expand one hop, gather provenance.
 
-    Returns a compact text context for the LLM and the list of tool calls made.
+    Returns a compact text context for the LLM and the graph calls made.
     """
     calls: list[str] = []
     seen: set[int] = set()
@@ -43,16 +46,3 @@ def retrieve(reader: GraphReader, terms: list[str]) -> tuple[str, list[str]]:
 
     context = "\n\n".join(blocks) if blocks else "No matching entities in the graph."
     return context, calls
-
-
-def all_types(reader: GraphReader) -> list[str]:
-    """Distinct ontology types present — helps the parser pick search terms."""
-    types: set[str] = set()
-    for e in reader.find_entities(limit=500):
-        types.add(e["type"])
-    return sorted(types)
-
-
-def to_rows(calls: list[str]) -> list[dict[str, Any]]:
-    """Shape tool calls for JSON responses."""
-    return [{"call": c} for c in calls]

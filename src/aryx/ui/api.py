@@ -60,7 +60,3 @@ def ingest_db(table: str, ontology_type: str, match_keys: str,
 
 def ask(question: str) -> dict[str, Any]:
     return _post("/ask", {"question": question}, timeout=180)
-
-
-def llm_config() -> dict[str, Any]:
-    return _get("/llm/config")

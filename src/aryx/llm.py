@@ -78,6 +78,42 @@ def _openai_json(
     return data, int(usage.get("prompt_tokens", 0)), int(usage.get("completion_tokens", 0))
 
 
+def complete_text(
+    broker: Broker, tier: Tier, system: str, user: str, think: bool | None = None
+) -> tuple[str, int, int]:
+    """Plain-text completion at the given tier; returns (text, in_tok, out_tok).
+
+    `think` toggles hybrid-model reasoning on the Ollama path (False keeps fast
+    models off thinking for menial work). Token counts let callers meter usage.
+    """
+    spec = broker.choose(tier)
+    key = broker.secrets.get(spec.api_key_ref) if spec.api_key_ref else None
+    msgs = [{"role": "system", "content": system}, {"role": "user", "content": user}]
+    if spec.provider == "anthropic":
+        import anthropic  # lazy: only on the Anthropic path
+        client = anthropic.Anthropic(api_key=key) if key else anthropic.Anthropic()
+        resp = client.messages.create(model=spec.name, max_tokens=1024, system=system,
+                                       messages=[{"role": "user", "content": user}])
+        text = next(b.text for b in resp.content if b.type == "text")
+        in_tok, out_tok = resp.usage.input_tokens, resp.usage.output_tokens
+    elif spec.provider == "ollama":
+        body: dict[str, Any] = {"model": spec.name, "stream": False, "messages": msgs}
+        if think is not None:
+            body["think"] = think
+        out = _post_json((spec.endpoint or "").rstrip("/") + "/api/chat", body, {})
+        text = out["message"]["content"]
+        in_tok, out_tok = int(out.get("prompt_eval_count", 0)), int(out.get("eval_count", 0))
+    else:
+        headers = {"Authorization": f"Bearer {key}"} if key else {}
+        out = _post_json((spec.endpoint or "").rstrip("/") + "/chat/completions",
+                         {"model": spec.name, "messages": msgs}, headers)
+        text = out["choices"][0]["message"]["content"]
+        u = out.get("usage", {})
+        in_tok, out_tok = int(u.get("prompt_tokens", 0)), int(u.get("completion_tokens", 0))
+    broker.charge(tier, in_tok + out_tok)
+    return text.strip(), in_tok, out_tok
+
+
 def complete_json(
     broker: Broker, tier: Tier, system: str, user: str, schema: dict[str, Any]
 ) -> dict[str, Any]:
