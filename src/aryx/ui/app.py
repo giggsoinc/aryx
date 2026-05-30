@@ -1,4 +1,4 @@
-"""Aryx Streamlit UI — graph canvas, Q&A, and data ingestion."""
+"""Aryx Streamlit UI — welcome, ingest, ask, and graph canvas."""
 from __future__ import annotations
 
 import streamlit as st
@@ -10,12 +10,15 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-from aryx.ui import ask_panel, graph_panel, ingest_panel  # noqa: E402
+from aryx.ui import ask_panel, graph_panel, home_panel, ingest_panel, theme  # noqa: E402
+
+theme.inject()
 
 PAGES = {
-    "🕸️  Graph": graph_panel,
-    "💬  Ask": ask_panel,
+    "🏠  Home": home_panel,
     "➕  Ingest": ingest_panel,
+    "💬  Ask": ask_panel,
+    "🕸️  Graph": graph_panel,
 }
 
 with st.sidebar:
