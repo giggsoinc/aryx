@@ -102,16 +102,26 @@ class GraphReader:
         return [{"system": r[0], "dataset": r[1], "record_id": r[2]} for r in rows]
 
     def shortest_path(self, src: int, dst: int, max_hops: int = 6) -> list[dict[str, Any]]:
-        """Return the shortest undirected path between two entities, or []."""
+        """Return the shortest path between two entities (either direction), or []."""
         hops = max(1, min(int(max_hops), 10))
-        rows = self._graph.query(
-            "MATCH (a:Entity {id: $a}), (b:Entity {id: $b}) "
-            f"WITH shortestPath((a)-[:REL*1..{hops}]-(b)) AS p "
-            "WHERE p IS NOT NULL "
-            "RETURN [n IN nodes(p) | [n.id, n.type, n.name]] AS ns, "
-            "[r IN relationships(p) | r.name] AS rs",
-            {"a": src, "b": dst},
-        ).result_set
+        # FalkorDB rejects undirected shortestPath, so try outbound then inbound
+        # and keep whichever is shorter.
+        candidates: list[tuple[list, list]] = []
+        for arrow_a, arrow_b in (("-", "->"), ("<-", "-")):
+            rows = self._graph.query(
+                "MATCH (a:Entity {id: $a}), (b:Entity {id: $b}) "
+                f"WITH shortestPath((a){arrow_a}[:REL*1..{hops}]{arrow_b}(b)) AS p "
+                "WHERE p IS NOT NULL "
+                "RETURN [n IN nodes(p) | [n.id, n.type, n.name]] AS ns, "
+                "[r IN relationships(p) | r.name] AS rs",
+                {"a": src, "b": dst},
+            ).result_set
+            if rows:
+                candidates.append((rows[0][0], rows[0][1]))
+        if not candidates:
+            return []
+        nodes, rels = min(candidates, key=lambda c: len(c[0]))
+        rows = [(nodes, rels)]
         if not rows:
             return []
         nodes, rels = rows[0]
