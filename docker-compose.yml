@@ -40,16 +40,45 @@ services:
   # worker image, overriding the command to serve uvicorn. Bound to all
   # interfaces so a published port is reachable; restrict exposure at the
   # security-group / firewall layer.
+  # Local LLM runtime (Increment: Ask). CPU inference is fine for sub-2B models.
+  # Models persist in the ollama_models volume so they download only once.
+  ollama:
+    image: ollama/ollama
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  # One-shot: pull the menial + reason models, then exit. Re-running is a no-op
+  # once the models are cached in the volume.
+  ollama-init:
+    image: ollama/ollama
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: ["/bin/sh", "-c", "ollama pull qwen3.5:0.8b && ollama pull lfm2.5-thinking"]
+    restart: "no"
+
   api:
     build: .
     env_file: .env
     command: ["uvicorn", "aryx.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      - ARYX_LLM_BASE_URL=http://ollama:11434
     ports:
       - "8088:8000"
     depends_on:
       postgres:
         condition: service_healthy
       falkordb:
+        condition: service_started
+      ollama:
         condition: service_started
     restart: unless-stopped
     healthcheck:
@@ -85,3 +114,4 @@ services:
 volumes:
   pgdata:
   graphdata:
+  ollama_models:
