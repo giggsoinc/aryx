@@ -21,14 +21,31 @@ def _ingest_form() -> None:
         col3, col4 = st.columns(2)
         system = col3.text_input("Source system label", value="postgresql")
         key_col = col4.text_input("Primary key column", value="id")
+
+        with st.expander("Link to another entity (optional)", expanded=False):
+            st.caption("Connect each row to another entity by matching a column to that entity's attribute "
+                       "(e.g. customer_name → Customer.full_name as HAS_TICKET).")
+            link_col1, link_col2, link_col3 = st.columns(3)
+            link_attr = link_col1.text_input("My column", placeholder="customer_name")
+            link_type = link_col2.text_input("Target entity type", placeholder="Customer")
+            link_target_attr = link_col3.text_input("Target attribute", placeholder="full_name")
+            link_name = st.text_input("Edge label", placeholder="HAS_TICKET")
+
         submitted = st.form_submit_button("Ingest table", type="primary")
 
     if submitted:
         if not all([table, otype, match_keys]):
             st.warning("Table, ontology type, and match keys are required.")
             return
+        fk_links = []
+        if all([link_attr, link_type, link_target_attr, link_name]):
+            fk_links.append({
+                "source_type": otype, "source_attr": link_attr,
+                "target_type": link_type, "target_attr": link_target_attr,
+                "name": link_name,
+            })
         try:
-            resp = api.ingest_db(table, otype, match_keys, system, key_col)
+            resp = api.ingest_db(table, otype, match_keys, system, key_col, fk_links=fk_links)
             st.session_state.active_job = resp.get("job_id")
         except Exception as exc:
             st.error(f"Failed: {exc}")

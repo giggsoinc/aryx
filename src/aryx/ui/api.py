@@ -63,10 +63,12 @@ def get_job(job_id: str) -> dict[str, Any]:
 
 
 def ingest_db(table: str, ontology_type: str, match_keys: str,
-              system: str = "postgresql", key_column: str = "id") -> dict:
+              system: str = "postgresql", key_column: str = "id",
+              fk_links: list[dict] | None = None) -> dict:
     return _post("/admin/ingest/db", {
         "table": table, "ontology_type": ontology_type,
         "match_keys": match_keys, "system": system, "key_column": key_column,
+        "fk_links": fk_links or [],
     })
 
 

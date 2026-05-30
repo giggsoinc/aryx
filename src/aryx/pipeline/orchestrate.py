@@ -16,6 +16,7 @@ from aryx.connectors.base import Connector
 from aryx.discover import discover
 from aryx.graph import FalkorStore
 from aryx.models import Relationship
+from aryx.pipeline.fk_edges import link_by_attribute
 from aryx.project import project_graph
 from aryx.relationships import infer_relationship
 from aryx.resolve_entities import resolve_run
@@ -70,6 +71,7 @@ def run_pipeline(
     relate: bool = False,
     max_pairs: int = 50,
     on_progress: Progress | None = None,
+    fk_links: list[dict] | None = None,
 ) -> dict[str, int]:
     """Run a source from extraction through to the FalkorDB projection.
 
@@ -104,6 +106,13 @@ def run_pipeline(
         if relate:
             _emit(on_progress, "Relate", 75, "Inferring relationships between entities")
         relationships = _relate(estore, broker, max_pairs) if relate else 0
+        if fk_links:
+            _emit(on_progress, "Link", 80, "Linking entities by foreign-key attributes")
+            for spec in fk_links:
+                relationships += link_by_attribute(
+                    estore, spec["source_type"], spec["source_attr"],
+                    spec["target_type"], spec["target_attr"], spec["name"],
+                )
         _emit(on_progress, "Project", 90, "Projecting entities and edges to the graph")
         counts = project_graph(estore, FalkorStore(graph_url))
     finally:

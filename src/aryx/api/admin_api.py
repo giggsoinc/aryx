@@ -19,12 +19,21 @@ from aryx.store.migrate import apply_migrations
 logger = logging.getLogger(__name__)
 
 
+class FkLink(BaseModel):
+    source_type: str
+    source_attr: str
+    target_type: str
+    target_attr: str
+    name: str
+
+
 class IngestDbRequest(BaseModel):
     table: str
     ontology_type: str
     match_keys: str
     system: str = "postgresql"
     key_column: str = "id"
+    fk_links: list[FkLink] = []
 
 
 def _run_db(req: IngestDbRequest, job_id: str) -> None:
@@ -42,6 +51,7 @@ def _run_db(req: IngestDbRequest, job_id: str) -> None:
             match_keys=[k.strip() for k in req.match_keys.split(",") if k.strip()],
             graph_url=settings.graph_url, broker=default_broker(),
             on_progress=lambda stage, pct, detail: jobs.update_stage(job_id, stage, pct, detail),
+            fk_links=[link.model_dump() for link in req.fk_links],
         )
         jobs.finish(job_id, run_id=summary.get("run_id"), status="complete")
     except Exception as exc:  # noqa: BLE001 — record failure for the dashboard
