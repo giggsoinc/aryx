@@ -110,3 +110,16 @@ def set_llm_config(cfg: dict) -> dict[str, Any]:
 
 def observability() -> dict[str, Any]:
     return _get("/admin/observability")
+
+
+def db_connect(cfg: dict) -> dict[str, Any]:
+    return _post("/admin/connect", cfg, timeout=60)
+
+
+def db_discover(connection_id: str, context: str) -> dict[str, Any]:
+    return _post("/admin/discover", {"connection_id": connection_id, "context": context}, timeout=180)
+
+
+def ingest_multi(connection_id: str, tables: list[dict], edges: list[dict]) -> dict[str, Any]:
+    return _post("/admin/ingest/multi",
+                 {"connection_id": connection_id, "tables": tables, "edges": edges})

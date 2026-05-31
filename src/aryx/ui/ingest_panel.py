@@ -1,80 +1,23 @@
-"""Ingest panel — DB tables or file uploads, with live pipeline progress."""
+"""Ingest page — context first, then connect a database or upload documents.
+
+The discovery agent maps database tables to ontology entities from the context;
+documents go through the chunk/embed pipeline. Live job progress below.
+"""
 from __future__ import annotations
 
 import time
 
 import streamlit as st
 
-from aryx.ui import api
+from aryx.ui import api, ingest_files, ingest_rdb
 
 _TERMINAL = {"complete", "failed"}
 _ICON = {"complete": "✅", "failed": "❌", "running": "⏳", "queued": "🕓"}
 
 
-def _db_form() -> None:
-    with st.form("ingest_db"):
-        col1, col2 = st.columns(2)
-        table = col1.text_input("Table name", placeholder="demo_customers")
-        otype = col2.text_input("Ontology type", placeholder="Customer")
-        match_keys = st.text_input("Match keys (comma-separated)", placeholder="full_name,email")
-        col3, col4 = st.columns(2)
-        system = col3.text_input("Source system", value="postgresql")
-        key_col = col4.text_input("Primary key column", value="id")
-        with st.expander("Link to another entity (optional)", expanded=False):
-            lc1, lc2, lc3 = st.columns(3)
-            la = lc1.text_input("My column", placeholder="customer_name")
-            lt = lc2.text_input("Target type", placeholder="Customer")
-            lta = lc3.text_input("Target attribute", placeholder="full_name")
-            ln = st.text_input("Edge label", placeholder="HAS_TICKET")
-        submitted = st.form_submit_button("Ingest table", type="primary")
-    if submitted:
-        if not all([table, otype, match_keys]):
-            st.warning("Table, ontology type, and match keys are required.")
-            return
-        fk = [{"source_type": otype, "source_attr": la, "target_type": lt,
-               "target_attr": lta, "name": ln}] if all([la, lt, lta, ln]) else []
-        try:
-            resp = api.ingest_db(table, otype, match_keys, system, key_col, fk_links=fk)
-            st.session_state.active_job = resp.get("job_id")
-        except Exception as exc:
-            st.error(f"Failed: {exc}")
-
-
-_TYPES = ["json", "csv", "pdf", "pptx", "ppt", "docx", "doc", "rtf",
-          "jpg", "jpeg", "png", "tiff", "tif", "bmp"]
-
-
-def _file_form() -> None:
-    with st.form("ingest_file"):
-        uploaded = st.file_uploader(
-            "Upload files (max 50 files, 2 MB each, 50 MB total)",
-            type=_TYPES, accept_multiple_files=True,
-        )
-        col1, col2 = st.columns(2)
-        otype = col1.text_input("Ontology type", placeholder="Product", key="file_otype")
-        match_keys = col2.text_input("Match keys", placeholder="name,id", key="file_keys")
-        submitted = st.form_submit_button("Ingest files", type="primary")
-    if submitted:
-        if not uploaded or not otype or not match_keys:
-            st.warning("Upload at least one file, set ontology type, and match keys.")
-            return
-        if len(uploaded) > 50:
-            st.error("Max 50 files per upload.")
-            return
-        total = sum(f.size for f in uploaded)
-        if total > 50 * 1024 * 1024:
-            st.error(f"Total size {total // (1024*1024)} MB exceeds 50 MB limit.")
-            return
-        try:
-            resp = api.ingest_files(uploaded, otype, match_keys)
-            st.session_state.active_job = resp.get("job_id")
-        except Exception as exc:
-            st.error(f"Failed: {exc}")
-
-
 def _progress(job_id: str) -> None:
     placeholder = st.empty()
-    for _ in range(120):
+    for _ in range(160):
         try:
             job = api.get_job(job_id)
         except Exception as exc:
@@ -108,7 +51,7 @@ def _sources() -> None:
         st.info("No ingestion jobs yet.")
         return
     st.dataframe(
-        [{"Status": f"{_ICON.get(j.get('status',''),'⚪')} {j.get('status','')}",
+        [{"Status": f"{_ICON.get(j.get('status', ''), '⚪')} {j.get('status', '')}",
           "Source": f"{j['source_system']}.{j['source_dataset']}",
           "Stage": j.get("stage"), "%": j.get("pct"),
           "Started": j.get("started_at"), "Run": j.get("run_id")}
@@ -119,13 +62,20 @@ def _sources() -> None:
 
 def render() -> None:
     st.title("Add a Data Source")
-    st.caption("Ingest a Postgres table or upload a JSON/CSV file. "
-               "PDF/DOCX/PPTX supported when pgvector is deployed.")
-    tab_db, tab_file = st.tabs(["Database table", "File upload (JSON/CSV)"])
+    st.caption("Step 1 — say what you're building. Step 2 — connect a database "
+               "(the agent finds the right tables) or upload documents.")
+    context = st.text_area(
+        "What are you building? — context for the discovery agent",
+        key="ingest_context",
+        placeholder="e.g. A customer-support knowledge graph linking customers "
+                    "to their support tickets and the products they use.",
+    )
+    st.divider()
+    tab_db, tab_docs = st.tabs(["🗄 Database (auto-discover)", "📄 Documents (folder)"])
     with tab_db:
-        _db_form()
-    with tab_file:
-        _file_form()
+        ingest_rdb.render(context)
+    with tab_docs:
+        ingest_files.render()
     if st.session_state.get("active_job"):
         st.divider()
         st.subheader("Ingestion progress")

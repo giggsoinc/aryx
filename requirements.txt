@@ -14,6 +14,10 @@ falkordb~=1.0
 fastapi~=0.115
 uvicorn~=0.32
 python-multipart~=0.0.17
+# Multi-RDBMS ingest: SQLAlchemy introspection + pure-Python dialect drivers.
+SQLAlchemy~=2.0
+PyMySQL~=1.1
+oracledb~=2.4
 # Document connectors (Increment 8): PDF, PPTX, DOCX, RTF, image OCR.
 pymupdf~=1.24
 python-pptx~=1.0
