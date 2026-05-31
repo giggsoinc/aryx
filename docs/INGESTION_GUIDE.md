@@ -1,19 +1,18 @@
 # Ingestion Guide
 
-## Overview (Assume You're a Fresher)
+## Overview
 
-**Ingestion = turning messy source data into a clean, deduplicated knowledge graph.**
+**Ingestion** is the process of converting messy source data (databases, documents) into a clean, deduplicated knowledge graph. The system automates most of the work through a 7-stage pipeline:
 
-Think of it as a 7-stage assembly line:
-1. **Extract** — Read from database or files
-2. **Land** — Store raw records in Postgres with provenance (where did this come from?)
-3. **Tag** — Cheap AI labels fields (email, phone, date, etc.)
-4. **Map** — Human + AI agree on entity types (Person, Company, Product)
-5. **Resolve** — Find duplicates, merge them into single entities
-6. **Relate** — Draw edges between entities (Person works at Company)
-7. **Project** — Build interactive graph in FalkorDB
+1. **Extract** — Read records from source (Postgres, CSV, PDF, etc.)
+2. **Land** — Store raw records in Postgres with full provenance (source tracking)
+3. **Tag** — Semantic tagging (email, phone, date, currency fields)
+4. **Map** — Map source tables/fields to canonical entity types (Person, Company, Product)
+5. **Resolve** — Detect and merge duplicate records into single entities
+6. **Relate** — Infer relationships between entities (Person → works at → Company)
+7. **Project** — Build interactive graph in FalkorDB (queryable)
 
-**You only interact with steps 1–4. Steps 5–7 happen automatically.**
+**You interact with steps 1–4 via the UI. Steps 5–7 run automatically in the background.**
 
 ## Two Paths: Database vs. Documents
 
@@ -21,9 +20,9 @@ Think of it as a 7-stage assembly line:
 
 **When to use:** You have existing data in Postgres, MySQL, Oracle, etc.
 
-**What you need:**
-- Database credentials (host, port, user, password)
-- One sentence describing the data: *"Customer accounts from Q2: include names, company, industry, deal size"*
+**Requirements:**
+- Database connection details (host, port, username, password)
+- One-sentence description of the data context (e.g., *"Customer accounts from Q2: include names, company, industry, deal size"*)
 
 **Step-by-step:**
 
@@ -76,9 +75,9 @@ customers
 
 **When to use:** You have unstructured data (PDFs, Word docs, CSV files, emails).
 
-**What you need:**
-- Files (PDF, PPTX, DOCX, CSV, JSON, images ≤2 MB each, max 50 files)
-- One sentence: *"Customer support tickets: include customer names, product names, issue description"*
+**Requirements:**
+- Documents to ingest (PDF, PPTX, DOCX, CSV, JSON, images — max 2 MB per file, 50 files total)
+- One-sentence description of content (e.g., *"Customer support tickets: include customer names, product names, issue descriptions"*)
 
 **Step-by-step:**
 
@@ -152,11 +151,11 @@ After records land, **5 merge** into entities automatically:
 - UnionFind merges transitive groups into single entities
 - Result: one Person entity with 3 merged members (original records)
 
-**Why this design?**
-- Blocks eliminate 99% of comparisons (n² → n log n)
-- Cheap model scores 95% of remaining pairs
-- Only 1–5% go to expensive frontier model
-- Humans only review high-stakes merges
+**Design rationale:**
+- Blocking eliminates ~99% of comparisons (n² → n log n complexity)
+- Cheap local models handle ~95% of remaining pairs (fast, low cost)
+- Frontier LLM processes only ~1–5% (ambiguous cases with 0.4–0.6 confidence)
+- HITL gate ensures humans review high-stakes entity merges (audit trail + quality)
 
 ## Monitoring Ingest
 
