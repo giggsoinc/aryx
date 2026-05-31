@@ -30,19 +30,29 @@ DOC_EXTS = {".pdf", ".pptx", ".ppt", ".docx", ".doc", ".rtf",
 DATA_EXTS = {".json", ".csv"}
 
 
+_GENERIC = {"table", "row", "record", "data", "file", "entity", "item", "object", "dataset"}
+
+
 def _infer_type(sample: str, filename: str, context: str) -> dict[str, Any]:
-    sys = "You name the single entity type a tabular data file represents."
+    sys = ("You name the real-world thing each ROW of a data file represents, "
+           "for a knowledge graph.")
     user = (f"Goal: {context or 'general knowledge graph'}\nFile: {filename}\n"
-            f"Sample:\n{sample[:600]}\n\nReply ONLY as JSON "
-            '{"ontology_type":"SingularPascalCase","match_keys":["col"]}.')
+            f"Sample rows:\n{sample[:600]}\n\nWhat real-world entity is each row? "
+            "Use a concrete singular noun like Customer, Company, Product, Order — "
+            "NEVER generic words like Table, Row, Record, or Data. Reply ONLY as JSON "
+            '{"ontology_type":"SingularPascalCase","match_keys":["the 1-2 columns '
+            'that name/identify a row"]}.')
+    fallback = Path(filename).stem.replace("_", " ").title().replace(" ", "")
     try:
         txt = llm_runtime.chat("menial", sys, user)[0]
         s, e = txt.find("{"), txt.rfind("}")
         d = json.loads(txt[s:e + 1])
-        return {"ontology_type": d.get("ontology_type") or Path(filename).stem.title(),
-                "match_keys": d.get("match_keys") or ["name"]}
+        otype = (d.get("ontology_type") or "").strip()
+        if not otype or otype.lower() in _GENERIC:
+            otype = fallback
+        return {"ontology_type": otype, "match_keys": d.get("match_keys") or ["name"]}
     except Exception:  # noqa: BLE001
-        return {"ontology_type": Path(filename).stem.title(), "match_keys": ["name"]}
+        return {"ontology_type": fallback, "match_keys": ["name"]}
 
 
 def read_files(doc_paths: list[Path], tabular: list[tuple[bytes, str]],
