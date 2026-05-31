@@ -68,6 +68,8 @@ class WorkspaceStore:
             raise ValueError("the Default workspace cannot be deleted")
         self._drop_partitions(int(wid))
         with self._conn.cursor() as cur:
+            cur.execute(load("delete_profiles_by_workspace"), (wid,))
+            cur.execute(load("delete_tags_by_workspace"), (wid,))
             cur.execute(load("delete_runs_by_workspace"), (wid,))
             cur.execute(load("delete_jobs_by_workspace"), (wid,))
             cur.execute(load("delete_workspace_row"), (wid,))
