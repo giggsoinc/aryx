@@ -16,6 +16,10 @@ INSERT INTO aryx_workspace (id, name, description)
 VALUES (1, 'Default', 'Original workspace')
 ON CONFLICT (id) DO NOTHING;
 
+-- Advance the serial past the hand-seeded Default so generated ids start at 2.
+SELECT setval(pg_get_serial_sequence('aryx_workspace', 'id'),
+              (SELECT max(id) FROM aryx_workspace));
+
 ALTER TABLE aryx_run ADD COLUMN IF NOT EXISTS workspace_id BIGINT NOT NULL DEFAULT 1;
 ALTER TABLE aryx_job ADD COLUMN IF NOT EXISTS workspace_id BIGINT NOT NULL DEFAULT 1;
 
