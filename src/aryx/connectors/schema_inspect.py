@@ -24,12 +24,17 @@ def test_connection(url: str) -> None:
 
 
 def introspect(url: str, max_tables: int = 200) -> list[dict[str, Any]]:
-    """Return per-table {table, columns, pk, fks} for every base table."""
+    """Return per-table {table, columns, pk, fks} for every base table.
+
+    Aryx's own operational tables (aryx_*) are skipped — they are never
+    ingestion targets and would only bloat the discovery prompt.
+    """
     engine = create_engine(url)
     out: list[dict[str, Any]] = []
     try:
         insp = inspect(engine)
-        for table in insp.get_table_names()[:max_tables]:
+        names = [t for t in insp.get_table_names() if not t.startswith("aryx_")]
+        for table in names[:max_tables]:
             columns = [c["name"] for c in insp.get_columns(table)]
             pk = insp.get_pk_constraint(table).get("constrained_columns", []) or []
             fks = [
