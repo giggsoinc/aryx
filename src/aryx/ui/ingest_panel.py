@@ -16,6 +16,7 @@ _ICON = {"complete": "✅", "failed": "❌", "running": "⏳", "queued": "🕓"}
 
 
 def _progress(job_id: str) -> None:
+    """Poll job status and show live progress bar until complete or failed."""
     placeholder = st.empty()
     for _ in range(160):
         try:
@@ -38,6 +39,7 @@ def _progress(job_id: str) -> None:
 
 
 def _sources() -> None:
+    """Show table of recent ingestion jobs with status, source, stage, and progress."""
     head, btn = st.columns([4, 1])
     head.subheader("Sources & runs")
     if btn.button("Refresh"):
@@ -61,6 +63,7 @@ def _sources() -> None:
 
 
 def render() -> None:
+    """Main ingest page: tabs for database/documents, progress monitor, and job history."""
     st.title("Ingest")
     st.markdown("**Add data sources** — Connect a database (agent auto-discovers tables) "
                 "or upload documents (agent finds entities).")
