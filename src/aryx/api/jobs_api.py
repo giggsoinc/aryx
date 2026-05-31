@@ -17,10 +17,10 @@ def jobs_router() -> APIRouter:
     router = APIRouter(prefix="/admin")
 
     @router.get("/jobs")
-    def list_jobs() -> list[dict[str, Any]]:
+    def list_jobs(workspace_id: int = 1) -> list[dict[str, Any]]:
         jobs = _store()
         try:
-            return jobs.list_recent()
+            return jobs.list_recent(workspace_id)
         finally:
             jobs.close()
 

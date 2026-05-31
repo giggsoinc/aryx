@@ -39,7 +39,8 @@ def _save_tmp(data: bytes, suffix: str) -> Path:
     return Path(tmp.name)
 
 
-def _read_job(items: list[tuple[bytes, str]], context: str, did: str) -> None:
+def _read_job(items: list[tuple[bytes, str]], context: str, did: str,
+              workspace_id: int = 1) -> None:
     settings = get_settings()
     jobs = JobStore(settings.rdb_dsn)
     try:
@@ -47,7 +48,9 @@ def _read_job(items: list[tuple[bytes, str]], context: str, did: str) -> None:
         doc_paths = [_save_tmp(d, Path(n).suffix) for d, n in items
                      if Path(n).suffix.lower() in DOC_EXTS]
         tabular = [(d, n) for d, n in items if Path(n).suffix.lower() in DATA_EXTS]
-        discoveries.put(did, read_files(doc_paths, tabular, _local_broker(), context))
+        result = read_files(doc_paths, tabular, _local_broker(), context)
+        result["workspace_id"] = workspace_id
+        discoveries.put(did, result)
         jobs.finish(did, run_id=None, status="complete")
     except Exception as exc:  # noqa: BLE001
         logger.warning("doc read failed did=%s: %s", did, exc)
@@ -63,7 +66,8 @@ def _confirm_job(did: str, types: list[str], files: list[str], job_id: str) -> N
     try:
         if not data:
             raise ValueError("discovery expired — re-read the files")
-        ingest_confirmed(data, types, files, _local_broker(), jobs, job_id)
+        ingest_confirmed(data, types, files, _local_broker(), jobs, job_id,
+                         data.get("workspace_id", 1))
         jobs.finish(job_id, run_id=None, status="complete")
     except Exception as exc:  # noqa: BLE001
         logger.warning("doc confirm failed job=%s: %s", job_id, exc)
@@ -77,7 +81,8 @@ def doc_discover_router() -> APIRouter:
 
     @router.post("/read")
     async def read(background_tasks: BackgroundTasks,
-                   files: list[UploadFile] = File(...), context: str = Form("")) -> dict[str, Any]:
+                   files: list[UploadFile] = File(...), context: str = Form(""),
+                   workspace_id: int = Form(1)) -> dict[str, Any]:
         settings = get_settings()
         apply_migrations(settings.rdb_dsn)
         items: list[tuple[bytes, str]] = []
@@ -89,10 +94,10 @@ def doc_discover_router() -> APIRouter:
         did = uuid.uuid4().hex
         jobs = JobStore(settings.rdb_dsn)
         try:
-            jobs.create(did, "discovery", f"{len(items)} file(s)")
+            jobs.create(did, "discovery", f"{len(items)} file(s)", workspace_id)
         finally:
             jobs.close()
-        background_tasks.add_task(_read_job, items, context, did)
+        background_tasks.add_task(_read_job, items, context, did, workspace_id)
         return {"discovery_id": did}
 
     @router.get("/summary/{did}")
@@ -102,12 +107,13 @@ def doc_discover_router() -> APIRouter:
 
     @router.post("/confirm")
     def confirm(req: ConfirmRequest, background_tasks: BackgroundTasks) -> dict[str, Any]:
-        if not discoveries.get(req.discovery_id):
+        data = discoveries.get(req.discovery_id)
+        if not data:
             raise HTTPException(404, "unknown or expired discovery")
         job_id = uuid.uuid4().hex
         jobs = JobStore(get_settings().rdb_dsn)
         try:
-            jobs.create(job_id, "documents", "confirmed entities")
+            jobs.create(job_id, "documents", "confirmed entities", data.get("workspace_id", 1))
         finally:
             jobs.close()
         background_tasks.add_task(_confirm_job, req.discovery_id,

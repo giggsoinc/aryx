@@ -9,7 +9,7 @@ import time
 
 import streamlit as st
 
-from aryx.ui import api
+from aryx.ui import api, upload
 
 _TYPES = ["json", "csv", "pdf", "pptx", "ppt", "docx", "doc", "rtf",
           "jpg", "jpeg", "png", "tiff", "tif", "bmp"]
@@ -71,7 +71,7 @@ def render(context: str) -> None:
             st.warning("Upload at least one file first.")
         else:
             try:
-                st.session_state.docs_did = api.docs_read(uploaded, context).get("discovery_id")
+                st.session_state.docs_did = upload.docs_read(uploaded, context).get("discovery_id")
                 st.session_state.pop("docs_summary", None)
             except Exception as exc:
                 st.error(f"Failed: {exc}")

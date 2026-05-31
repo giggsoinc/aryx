@@ -1,18 +1,17 @@
 """FastAPI read API over the FalkorDB knowledge graph (Increment 6)."""
 from __future__ import annotations
 
-from functools import lru_cache
 from typing import Any
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
 
 from aryx.config import get_settings
 from aryx.graph import GraphReader
+from aryx.workspaces import ws_graph
 
 
-@lru_cache(maxsize=1)
-def _reader() -> GraphReader:
-    return GraphReader(get_settings().graph_url)
+def _reader(workspace_id: int = 1) -> GraphReader:
+    return GraphReader(get_settings().graph_url, ws_graph(workspace_id))
 
 
 def graph_router() -> APIRouter:

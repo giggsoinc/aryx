@@ -13,17 +13,18 @@ from fastapi import APIRouter
 from aryx import llm_runtime
 from aryx.config import get_settings
 from aryx.queries import load
+from aryx.workspaces import ws_graph
 
 
 def _db() -> psycopg.Connection:
     return psycopg.connect(get_settings().rdb_dsn, autocommit=True)
 
 
-def _job_summary(conn: psycopg.Connection) -> dict[str, Any]:
+def _job_summary(conn: psycopg.Connection, workspace_id: int) -> dict[str, Any]:
     with conn.cursor() as cur:
-        cur.execute(load("select_job_summary"))
+        cur.execute(load("select_job_summary"), (workspace_id,))
         by_status = {r[0]: r[1] for r in cur.fetchall()}
-        cur.execute(load("select_job_total"))
+        cur.execute(load("select_job_total"), (workspace_id,))
         total = cur.fetchone()[0]
     return {"total": total, **by_status}
 
@@ -47,10 +48,10 @@ def _recent_llm(conn: psycopg.Connection) -> list[dict[str, Any]]:
         return [dict(zip(cols, r)) for r in cur.fetchall()]
 
 
-def _graph_stats() -> dict[str, int]:
+def _graph_stats(workspace_id: int) -> dict[str, int]:
     try:
         from aryx.graph import GraphReader
-        reader = GraphReader(get_settings().graph_url)
+        reader = GraphReader(get_settings().graph_url, ws_graph(workspace_id))
         return {"entities": len(reader.find_entities(limit=500)),
                 "relationships": len(reader.all_relationships())}
     except Exception:
@@ -61,14 +62,14 @@ def observability_router() -> APIRouter:
     router = APIRouter(prefix="/admin")
 
     @router.get("/observability")
-    def observability() -> dict[str, Any]:
+    def observability(workspace_id: int = 1) -> dict[str, Any]:
         conn = _db()
         try:
             return {
-                "jobs": _job_summary(conn),
+                "jobs": _job_summary(conn, workspace_id),
                 "llm": _llm_stats(conn),
                 "llm_recent": _recent_llm(conn),
-                "graph": _graph_stats(),
+                "graph": _graph_stats(workspace_id),
                 "model_config": llm_runtime.status(),
             }
         finally:

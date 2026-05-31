@@ -26,22 +26,24 @@ def _dumps(value: object) -> str:
 class PostgresStore:
     """Persists landed records, profiles, and run bookkeeping to Postgres."""
 
-    def __init__(self, dsn: str) -> None:
-        """Open a (non-autocommit) connection to the landing database.
+    def __init__(self, dsn: str, workspace_id: int = 1) -> None:
+        """Open a (non-autocommit) connection scoped to a workspace.
 
         Args:
             dsn: PostgreSQL connection string.
+            workspace_id: Partition this store writes into.
         """
         self._conn = psycopg.connect(dsn, autocommit=False)
+        self._ws = workspace_id
 
     def start_run(self, system: str, dataset: str) -> int:
-        """Open a run row and return its generated id."""
+        """Open a run row in this workspace and return its generated id."""
         with self._conn.cursor() as cur:
-            cur.execute(load("insert_run"), (system, dataset))
+            cur.execute(load("insert_run"), (self._ws, system, dataset))
             row = cur.fetchone()
         self._conn.commit()
         run_id = int(row[0]) if row else 0
-        logger.info("run started run_id=%s system=%s dataset=%s", run_id, system, dataset)
+        logger.info("run started run_id=%s ws=%s system=%s", run_id, self._ws, system)
         return run_id
 
     def insert_records(self, run_id: int, records: list[CleanRecord]) -> None:
@@ -51,6 +53,7 @@ class PostgresStore:
                 load("insert_landed_record"),
                 [
                     (
+                        self._ws,
                         run_id,
                         r.source.system,
                         r.source.dataset,

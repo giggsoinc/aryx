@@ -9,19 +9,50 @@ from typing import Any
 
 _BASE = os.environ.get("ARYX_API_URL", "http://localhost:8088").rstrip("/")
 
+_WS = {"id": 1}
+
+
+def set_workspace(workspace_id: int) -> None:
+    """Set the active workspace for all subsequent scoped calls."""
+    _WS["id"] = int(workspace_id)
+
+
+def current_workspace() -> int:
+    return _WS["id"]
+
 
 def _get(path: str) -> Any:
-    with urllib.request.urlopen(f"{_BASE}{path}", timeout=10) as r:  # noqa: S310
+    sep = "&" if "?" in path else "?"
+    url = f"{_BASE}{path}{sep}workspace_id={_WS['id']}"
+    with urllib.request.urlopen(url, timeout=15) as r:  # noqa: S310
         return json.loads(r.read())
 
 
 def _post(path: str, body: dict, timeout: int = 30) -> Any:
-    data = json.dumps(body).encode()
+    data = json.dumps({"workspace_id": _WS["id"], **body}).encode()
     req = urllib.request.Request(
         f"{_BASE}{path}", data=data, headers={"Content-Type": "application/json"}
     )
     with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310
         return json.loads(r.read())
+
+
+def _delete(path: str) -> Any:
+    req = urllib.request.Request(f"{_BASE}{path}", method="DELETE")
+    with urllib.request.urlopen(req, timeout=15) as r:  # noqa: S310
+        return json.loads(r.read())
+
+
+def list_workspaces() -> list[dict]:
+    return _get("/admin/workspaces")
+
+
+def create_workspace(name: str, description: str = "") -> dict:
+    return _post("/admin/workspaces", {"name": name, "description": description})
+
+
+def delete_workspace(workspace_id: int) -> dict:
+    return _delete(f"/admin/workspaces/{workspace_id}")
 
 
 def full_graph() -> dict[str, Any]:
@@ -76,32 +107,6 @@ def ask(question: str, history: list[dict] | None = None) -> dict[str, Any]:
     return _post("/ask", {"question": question, "history": history or []}, timeout=180)
 
 
-def _multipart(path: str, fields: dict[str, str], files: list) -> dict[str, Any]:
-    """POST a multipart form (text fields + uploaded files) and return JSON."""
-    b = "----AryxBoundary"
-    parts: list[bytes] = [
-        f"--{b}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n{v}\r\n".encode()
-        for k, v in fields.items()
-    ]
-    for f in files:
-        fname = getattr(f, "name", "upload")
-        data = f.getvalue() if hasattr(f, "getvalue") else f.read()
-        parts.append(f"--{b}\r\nContent-Disposition: form-data; name=\"files\"; "
-                     f"filename=\"{fname}\"\r\nContent-Type: application/octet-stream\r\n\r\n".encode())
-        parts.append(data + b"\r\n")
-    parts.append(f"--{b}--\r\n".encode())
-    req = urllib.request.Request(f"{_BASE}{path}", data=b"".join(parts),
-                                 headers={"Content-Type": f"multipart/form-data; boundary={b}"})
-    with urllib.request.urlopen(req, timeout=120) as r:  # noqa: S310
-        return json.loads(r.read())
-
-
-def ingest_files(files: list, ontology_type: str,
-                 match_keys: str, fk_links: str = "[]") -> dict[str, Any]:
-    return _multipart("/admin/ingest/file", {"ontology_type": ontology_type,
-                      "match_keys": match_keys, "fk_links": fk_links}, files)
-
-
 def get_llm_config() -> dict[str, Any]:
     return _get("/llm/config")
 
@@ -125,11 +130,6 @@ def db_discover(connection_id: str, context: str) -> dict[str, Any]:
 def ingest_multi(connection_id: str, tables: list[dict], edges: list[dict]) -> dict[str, Any]:
     return _post("/admin/ingest/multi",
                  {"connection_id": connection_id, "tables": tables, "edges": edges})
-
-
-def docs_read(files: list, context: str) -> dict[str, Any]:
-    """Upload files for self-discovery (multipart) with an optional context."""
-    return _multipart("/admin/docs/read", {"context": context}, files)
 
 
 def docs_summary(discovery_id: str) -> dict[str, Any]:

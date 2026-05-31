@@ -48,6 +48,7 @@ class IngestDbRequest(BaseModel):
     system: str = "postgresql"
     key_column: str = "id"
     fk_links: list[FkLink] = []
+    workspace_id: int = 1
 
 
 def _run_db(req: IngestDbRequest, job_id: str) -> None:
@@ -66,6 +67,7 @@ def _run_db(req: IngestDbRequest, job_id: str) -> None:
             graph_url=settings.graph_url, broker=_local_broker(),
             on_progress=lambda stage, pct, detail: jobs.update_stage(job_id, stage, pct, detail),
             fk_links=[link.model_dump() for link in req.fk_links],
+            workspace_id=req.workspace_id,
         )
         jobs.finish(job_id, run_id=summary.get("run_id"), status="complete")
     except Exception as exc:  # noqa: BLE001 — record failure for the dashboard
@@ -86,7 +88,7 @@ def admin_router() -> APIRouter:
         job_id = uuid.uuid4().hex
         try:
             jobs.archive_old(30)
-            jobs.create(job_id, req.system, req.table)
+            jobs.create(job_id, req.system, req.table, req.workspace_id)
         finally:
             jobs.close()
         background_tasks.add_task(_run_db, req, job_id)

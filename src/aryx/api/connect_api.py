@@ -50,6 +50,7 @@ class IngestMultiRequest(BaseModel):
     connection_id: str
     tables: list[dict]
     edges: list[dict] = []
+    workspace_id: int = 1
 
 
 def _build_url(req: ConnectRequest) -> str:
@@ -65,7 +66,8 @@ def _build_url(req: ConnectRequest) -> str:
     return f"{driver}://{auth}{req.host}{port}/{req.database}"
 
 
-def _run_multi(url: str, tables: list[dict], edges: list[dict], job_id: str) -> None:
+def _run_multi(url: str, tables: list[dict], edges: list[dict], job_id: str,
+               workspace_id: int = 1) -> None:
     settings = get_settings()
     jobs = JobStore(settings.rdb_dsn)
     broker = _local_broker()
@@ -80,6 +82,7 @@ def _run_multi(url: str, tables: list[dict], edges: list[dict], job_id: str) -> 
                 dsn=settings.rdb_dsn, system="rdb", dataset=t["table"],
                 ontology_type=t["ontology_type"], match_keys=keys,
                 graph_url=settings.graph_url, broker=broker,
+                workspace_id=workspace_id,
                 fk_links=edges if i == total - 1 else [],
             )
         jobs.finish(job_id, run_id=None, status="complete")
@@ -121,10 +124,10 @@ def connect_router() -> APIRouter:
         job_id = uuid.uuid4().hex
         jobs = JobStore(settings.rdb_dsn)
         try:
-            jobs.create(job_id, "rdb", f"{len(req.tables)} table(s)")
+            jobs.create(job_id, "rdb", f"{len(req.tables)} table(s)", req.workspace_id)
         finally:
             jobs.close()
-        background_tasks.add_task(_run_multi, url, req.tables, req.edges, job_id)
+        background_tasks.add_task(_run_multi, url, req.tables, req.edges, job_id, req.workspace_id)
         return {"status": "queued", "job_id": job_id,
                 "tables": [t["table"] for t in req.tables]}
 

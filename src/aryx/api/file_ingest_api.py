@@ -44,7 +44,8 @@ def _save_tmp(data: bytes, suffix: str) -> Path:
 
 
 def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
-               match_keys: list[str], fk_links: list[dict], job_id: str) -> None:
+               match_keys: list[str], fk_links: list[dict], job_id: str,
+               workspace_id: int = 1) -> None:
     settings = get_settings()
     jobs = JobStore(settings.rdb_dsn)
     broker = _local_broker()
@@ -64,7 +65,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 ontology_type=ontology_type, match_keys=match_keys,
                 graph_url=settings.graph_url, broker=broker,
                 on_progress=lambda s, p, d: jobs.update_stage(job_id, s, p, d),
-                fk_links=fk_links,
+                fk_links=fk_links, workspace_id=workspace_id,
             )
         if doc_files:
             jobs.update_stage(job_id, "Documents", 50, f"Chunking {len(doc_files)} doc(s)")
@@ -81,7 +82,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 ontology_type=ontology_type, match_keys=match_keys,
                 graph_url=settings.graph_url, broker=broker,
                 on_progress=lambda s, p, d: jobs.update_stage(job_id, s, p, d),
-                fk_links=fk_links,
+                fk_links=fk_links, workspace_id=workspace_id,
             )
         jobs.finish(job_id, run_id=None, status="complete")
     except Exception as exc:  # noqa: BLE001
@@ -101,6 +102,7 @@ def file_ingest_router() -> APIRouter:
         ontology_type: str = Form(...),
         match_keys: str = Form(...),
         fk_links: str = Form("[]"),
+        workspace_id: int = Form(1),
     ) -> dict[str, Any]:
         if len(files) > _MAX_FILES:
             raise HTTPException(400, f"Max {_MAX_FILES} files per upload")
@@ -122,12 +124,12 @@ def file_ingest_router() -> APIRouter:
         job_id = uuid.uuid4().hex
         jobs = JobStore(settings.rdb_dsn)
         try:
-            jobs.create(job_id, "upload", f"{len(items)} file(s)")
+            jobs.create(job_id, "upload", f"{len(items)} file(s)", workspace_id)
         finally:
             jobs.close()
         keys = [k.strip() for k in match_keys.split(",") if k.strip()]
         links = json.loads(fk_links) if fk_links else []
-        background_tasks.add_task(_run_files, items, ontology_type, keys, links, job_id)
+        background_tasks.add_task(_run_files, items, ontology_type, keys, links, job_id, workspace_id)
         names = [n for _, n in items]
         return {"status": "queued", "job_id": job_id, "files": names, "count": len(items)}
 

@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS {child} PARTITION OF {parent} FOR VALUES IN ({wid})

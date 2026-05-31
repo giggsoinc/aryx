@@ -12,7 +12,7 @@ st.set_page_config(
 
 from aryx.ui import (  # noqa: E402
     ask_panel, graph_panel, home_panel, ingest_panel,
-    observability_panel, settings_panel, theme,
+    observability_panel, settings_panel, theme, workspace_bar,
 )
 
 theme.inject()
@@ -29,6 +29,8 @@ PAGES = {
 with st.sidebar:
     st.title("Aryx")
     st.caption("Knowledge graph platform")
+    st.divider()
+    workspace_bar.render()
     st.divider()
     page = st.radio("Navigate", list(PAGES.keys()), label_visibility="collapsed")
     st.divider()

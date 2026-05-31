@@ -82,7 +82,8 @@ def read_files(doc_paths: list[Path], tabular: list[tuple[bytes, str]],
 
 
 def ingest_confirmed(data: dict[str, Any], approved_types: list[str],
-                     approved_files: list[str], broker: Broker, jobs, job_id: str) -> None:
+                     approved_files: list[str], broker: Broker, jobs, job_id: str,
+                     workspace_id: int = 1) -> None:
     """Resolve + project the approved discovered types and tabular files."""
     settings = get_settings()
     total = max(len(approved_types) + len(approved_files), 1)
@@ -94,7 +95,8 @@ def ingest_confirmed(data: dict[str, Any], approved_types: list[str],
         if recs:
             run_pipeline(connector=RecordsConnector(recs), dsn=settings.rdb_dsn,
                          system="document", dataset=otype, ontology_type=otype,
-                         match_keys=["name"], graph_url=settings.graph_url, broker=broker)
+                         match_keys=["name"], graph_url=settings.graph_url, broker=broker,
+                         workspace_id=workspace_id)
     for fname in approved_files:
         step += 1
         plan = next((p for p in data["tabular"] if p["filename"] == fname), None)
@@ -111,4 +113,4 @@ def ingest_confirmed(data: dict[str, Any], approved_types: list[str],
         run_pipeline(connector=conn, dsn=settings.rdb_dsn,
                      system=Path(fname).suffix.lstrip("."), dataset=Path(fname).stem,
                      ontology_type=plan["ontology_type"], match_keys=plan["match_keys"],
-                     graph_url=settings.graph_url, broker=broker)
+                     graph_url=settings.graph_url, broker=broker, workspace_id=workspace_id)

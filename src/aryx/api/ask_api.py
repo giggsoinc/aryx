@@ -10,7 +10,6 @@ from __future__ import annotations
 import json
 import logging
 import time
-from functools import lru_cache
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -19,13 +18,13 @@ from aryx import llm_runtime
 from aryx.config import get_settings
 from aryx.graph import GraphReader
 from aryx.graph.retrieve import all_types, retrieve
+from aryx.workspaces import ws_graph
 
 logger = logging.getLogger(__name__)
 
 
-@lru_cache(maxsize=1)
-def _reader() -> GraphReader:
-    return GraphReader(get_settings().graph_url)
+def _reader(workspace_id: int = 1) -> GraphReader:
+    return GraphReader(get_settings().graph_url, ws_graph(workspace_id))
 
 
 class Turn(BaseModel):
@@ -36,6 +35,7 @@ class Turn(BaseModel):
 class AskRequest(BaseModel):
     question: str
     history: list[Turn] = []
+    workspace_id: int = 1
 
 
 def _strip_think(text: str) -> str:
@@ -101,7 +101,7 @@ def ask_router() -> APIRouter:
 
     @router.post("/ask")
     def ask(req: AskRequest) -> dict:
-        reader = _reader()
+        reader = _reader(req.workspace_id)
         types = all_types(reader)
         try:
             terms, p_in, p_out, p_ms = _extract_terms(req.question, types, req.history)

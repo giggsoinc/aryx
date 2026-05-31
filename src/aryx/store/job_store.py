@@ -35,10 +35,10 @@ class JobStore:
         """Close the underlying connection."""
         self._conn.close()
 
-    def create(self, job_id: str, system: str, dataset: str) -> None:
-        """Open a queued job row."""
+    def create(self, job_id: str, system: str, dataset: str, workspace_id: int = 1) -> None:
+        """Open a queued job row in a workspace."""
         with self._conn.cursor() as cur:
-            cur.execute(load("insert_job"), (job_id, system, dataset))
+            cur.execute(load("insert_job"), (workspace_id, job_id, system, dataset))
 
     def update_stage(self, job_id: str, stage: str, pct: int, detail: str) -> None:
         """Record the current stage and append it to the event log."""
@@ -59,10 +59,10 @@ class JobStore:
             row = cur.fetchone()
         return _row(row) if row else None
 
-    def list_recent(self) -> list[dict[str, Any]]:
-        """Return the most recent jobs (newest first)."""
+    def list_recent(self, workspace_id: int = 1) -> list[dict[str, Any]]:
+        """Return the most recent jobs in a workspace (newest first)."""
         with self._conn.cursor() as cur:
-            cur.execute(load("select_recent_jobs"))
+            cur.execute(load("select_recent_jobs"), (workspace_id,))
             return [_row(r) for r in cur.fetchall()]
 
     def archive_old(self, days: int = 30) -> int:

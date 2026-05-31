@@ -1,1 +1,1 @@
-SELECT status, count(*) FROM aryx_job GROUP BY status
+SELECT status, count(*) FROM aryx_job WHERE workspace_id = %s GROUP BY status
