@@ -75,7 +75,7 @@ def render() -> None:
     with tab_db:
         ingest_rdb.render(context)
     with tab_docs:
-        ingest_files.render()
+        ingest_files.render(context)
     if st.session_state.get("active_job"):
         st.divider()
         st.subheader("Ingestion progress")

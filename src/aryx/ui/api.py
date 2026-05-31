@@ -76,28 +76,30 @@ def ask(question: str, history: list[dict] | None = None) -> dict[str, Any]:
     return _post("/ask", {"question": question, "history": history or []}, timeout=180)
 
 
-def ingest_files(files: list, ontology_type: str,
-                 match_keys: str, fk_links: str = "[]") -> dict[str, Any]:
-    """Upload multiple files to /admin/ingest/file (multipart)."""
-    boundary = "----AryxBoundary"
-    parts: list[bytes] = []
-    for name, value in [("ontology_type", ontology_type),
-                        ("match_keys", match_keys), ("fk_links", fk_links)]:
-        parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n{value}\r\n".encode())
+def _multipart(path: str, fields: dict[str, str], files: list) -> dict[str, Any]:
+    """POST a multipart form (text fields + uploaded files) and return JSON."""
+    b = "----AryxBoundary"
+    parts: list[bytes] = [
+        f"--{b}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n{v}\r\n".encode()
+        for k, v in fields.items()
+    ]
     for f in files:
         fname = getattr(f, "name", "upload")
         data = f.getvalue() if hasattr(f, "getvalue") else f.read()
-        parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"files\"; filename=\"{fname}\"\r\nContent-Type: application/octet-stream\r\n\r\n".encode())
-        parts.append(data)
-        parts.append(b"\r\n")
-    parts.append(f"--{boundary}--\r\n".encode())
-    body = b"".join(parts)
-    req = urllib.request.Request(
-        f"{_BASE}/admin/ingest/file", data=body,
-        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
-    )
-    with urllib.request.urlopen(req, timeout=60) as r:  # noqa: S310
+        parts.append(f"--{b}\r\nContent-Disposition: form-data; name=\"files\"; "
+                     f"filename=\"{fname}\"\r\nContent-Type: application/octet-stream\r\n\r\n".encode())
+        parts.append(data + b"\r\n")
+    parts.append(f"--{b}--\r\n".encode())
+    req = urllib.request.Request(f"{_BASE}{path}", data=b"".join(parts),
+                                 headers={"Content-Type": f"multipart/form-data; boundary={b}"})
+    with urllib.request.urlopen(req, timeout=120) as r:  # noqa: S310
         return json.loads(r.read())
+
+
+def ingest_files(files: list, ontology_type: str,
+                 match_keys: str, fk_links: str = "[]") -> dict[str, Any]:
+    return _multipart("/admin/ingest/file", {"ontology_type": ontology_type,
+                      "match_keys": match_keys, "fk_links": fk_links}, files)
 
 
 def get_llm_config() -> dict[str, Any]:
@@ -123,3 +125,17 @@ def db_discover(connection_id: str, context: str) -> dict[str, Any]:
 def ingest_multi(connection_id: str, tables: list[dict], edges: list[dict]) -> dict[str, Any]:
     return _post("/admin/ingest/multi",
                  {"connection_id": connection_id, "tables": tables, "edges": edges})
+
+
+def docs_read(files: list, context: str) -> dict[str, Any]:
+    """Upload files for self-discovery (multipart) with an optional context."""
+    return _multipart("/admin/docs/read", {"context": context}, files)
+
+
+def docs_summary(discovery_id: str) -> dict[str, Any]:
+    return _get(f"/admin/docs/summary/{discovery_id}")
+
+
+def docs_confirm(discovery_id: str, approved_types: list[str], approved_files: list[str]) -> dict[str, Any]:
+    return _post("/admin/docs/confirm", {"discovery_id": discovery_id,
+                 "approved_types": approved_types, "approved_files": approved_files})

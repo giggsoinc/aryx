@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from aryx.api.admin_api import admin_router
 from aryx.api.ask_api import ask_router
 from aryx.api.connect_api import connect_router
+from aryx.api.doc_discover_api import doc_discover_router
 from aryx.api.file_ingest_api import file_ingest_router
 from aryx.api.graph_api import graph_router
 from aryx.api.jobs_api import jobs_router
@@ -20,6 +21,7 @@ def create_app() -> FastAPI:
     app.include_router(jobs_router())
     app.include_router(file_ingest_router())
     app.include_router(connect_router())
+    app.include_router(doc_discover_router())
     app.include_router(observability_router())
     return app
 
