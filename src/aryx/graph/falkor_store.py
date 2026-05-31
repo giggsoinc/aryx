@@ -14,6 +14,25 @@ from falkordb import FalkorDB
 
 logger = logging.getLogger(__name__)
 
+_NAME_KEYS = ("name", "full_name", "title", "label", "ticket_ref", "ref",
+              "sku", "code", "email", "username")
+
+
+def _display_name(attributes: dict[str, Any]) -> str:
+    """Pick a human label for a node, working across arbitrary entity types.
+
+    Tries common identifying keys, then the first short string value, so a
+    ticket shows its ref/issue and a product shows its name — not a blank node.
+    """
+    for key in _NAME_KEYS:
+        value = attributes.get(key)
+        if value:
+            return str(value)
+    for value in attributes.values():
+        if isinstance(value, str) and 0 < len(value) <= 80:
+            return value
+    return ""
+
 
 class FalkorStore:
     """Writes entity / provenance / relationship graph elements to FalkorDB."""
@@ -43,7 +62,7 @@ class FalkorStore:
         self._graph.query(
             "MERGE (e:Entity {id: $id}) SET e.type = $type, e.name = $name",
             {"id": entity_id, "type": ontology_type,
-             "name": str(attributes.get("name") or attributes.get("full_name", ""))},
+             "name": _display_name(attributes) or f"#{entity_id}"},
         )
 
     def add_provenance(self, entity_id: int, system: str, dataset: str,
