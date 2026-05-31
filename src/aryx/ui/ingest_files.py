@@ -43,6 +43,7 @@ def _extract_context_text(context_file) -> str:
 
 
 def _wait_for_read(did: str) -> bool:
+    """Poll job status until complete, showing progress in UI."""
     placeholder = st.empty()
     for _ in range(200):
         try:
@@ -64,6 +65,7 @@ def _wait_for_read(did: str) -> bool:
 
 
 def _summary_form(did: str) -> None:
+    """Show discovered entity types/files; let user select and confirm ingest."""
     summary = st.session_state.get("docs_summary") or {}
     types = summary.get("types", [])
     files = summary.get("files", [])
@@ -96,6 +98,7 @@ def _summary_form(did: str) -> None:
 
 
 def render(context: str) -> None:
+    """Two-step form: (1) provide context, (2) upload files. Both required before discovery."""
     st.subheader("Step 1 — Context", divider=True)
     st.markdown("**What are you building?** — Tell the agent about these files so it knows what "
                 "entities to find.")
