@@ -9,6 +9,7 @@ _DIALECTS = ["postgresql", "mysql", "mariadb", "oracle", "sqlite"]
 
 
 def _connect_form() -> None:
+    """Form to collect database connection details; stores connection_id in session."""
     with st.form("db_connect"):
         col1, col2, col3 = st.columns([2, 2, 1])
         dialect = col1.selectbox("RDBMS", _DIALECTS)
@@ -32,8 +33,9 @@ def _connect_form() -> None:
 
 
 def _discover(context: str) -> None:
+    """Run discovery agent with context against the connected database schema."""
     if not context.strip():
-        st.warning("Describe what you're building in the context box above first.")
+        st.warning("Describe what you're building in the context above first.")
         return
     if st.button("🤖 Run discovery agent"):
         with st.spinner("Agent reading the schema against your context…"):
@@ -44,6 +46,7 @@ def _discover(context: str) -> None:
 
 
 def _review_and_ingest() -> None:
+    """Let user edit proposed entities/types/keys; trigger ingest job."""
     disc = st.session_state.get("rdb_disc")
     if not disc:
         return
@@ -71,11 +74,18 @@ def _review_and_ingest() -> None:
             st.error(f"Ingest failed: {exc}")
 
 
-def render(context: str) -> None:
-    st.markdown("##### 1 · Connect")
+def render() -> None:
+    """Two-step form: (1) connect to database, (2) discover entities from schema."""
+    st.markdown("**1 · What are you building?** — Tell the agent about these tables so it knows "
+                "what entities to find.")
+    context = st.text_area(
+        "Context", key="rdb_context",
+        placeholder="e.g., Customer accounts from Q2: include names, company, industry, deal amount",
+        height=80)
+    st.markdown("**2 · Connect**")
     _connect_form()
     if st.session_state.get("rdb_conn"):
-        st.markdown("##### 2 · Auto-discover")
+        st.markdown("**3 · Auto-discover**")
         _discover(context)
-        st.markdown("##### 3 · Review & ingest")
+        st.markdown("**4 · Review & ingest**")
         _review_and_ingest()

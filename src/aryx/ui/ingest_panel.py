@@ -61,21 +61,15 @@ def _sources() -> None:
 
 
 def render() -> None:
-    st.title("Add a Data Source")
-    st.caption("Step 1 — say what you're building. Step 2 — connect a database "
-               "(the agent finds the right tables) or upload documents.")
-    context = st.text_area(
-        "What are you building? — context for the discovery agent",
-        key="ingest_context",
-        placeholder="e.g. A customer-support knowledge graph linking customers "
-                    "to their support tickets and the products they use.",
-    )
+    st.title("Ingest")
+    st.markdown("**Add data sources** — Connect a database (agent auto-discovers tables) "
+                "or upload documents (agent finds entities).")
     st.divider()
     tab_db, tab_docs = st.tabs(["🗄 Database (auto-discover)", "📄 Documents (folder)"])
     with tab_db:
-        ingest_rdb.render(context)
+        ingest_rdb.render()
     with tab_docs:
-        ingest_files.render(context)
+        ingest_files.render("")
     if st.session_state.get("active_job"):
         st.divider()
         st.subheader("Ingestion progress")
