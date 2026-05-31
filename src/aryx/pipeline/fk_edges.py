@@ -41,13 +41,13 @@ def link_by_attribute(
         Number of relationships saved (existing edges are not deduped here).
     """
     entities = estore.list_entities()
-    targets: dict[str, int] = {}
+    targets: dict[str, list[int]] = {}
     for tid, ttype, payload in entities:
         if ttype != target_type:
             continue
         key = _attr(payload, target_attr)
         if key:
-            targets.setdefault(key.lower(), tid)
+            targets.setdefault(key.lower(), []).append(tid)
 
     rels: list[Relationship] = []
     for sid, stype, payload in entities:
@@ -56,12 +56,12 @@ def link_by_attribute(
         ref = _attr(payload, source_attr)
         if not ref:
             continue
-        tid = targets.get(ref.lower())
-        if tid and tid != sid:
-            rels.append(Relationship(
-                source_entity_id=tid, target_entity_id=sid,
-                name=name, confidence=1.0,
-            ))
+        for tid in targets.get(ref.lower(), []):
+            if tid != sid:
+                rels.append(Relationship(
+                    source_entity_id=tid, target_entity_id=sid,
+                    name=name, confidence=1.0,
+                ))
     if rels:
         estore.save_relationships(rels)
     logger.info("fk-edges %s.%s -> %s.%s name=%s saved=%d",
