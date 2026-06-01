@@ -57,7 +57,9 @@
       "presidio-anonymizer~",
       "spacy~",
       "pgvector~",
-      "mcp~"
+      "mcp~",
+      "streamlit~",
+      "rdflib~"
     ]
   },
   "raven_version": "3.3.0",

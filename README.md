@@ -26,12 +26,17 @@ docker compose up -d
 
 First time? Go to **Ingest tab** → provide context (e.g., "Customer support data") → connect a Postgres database or upload CSVs.
 
+**📊 Architecture Diagrams:**
+- [Business View](docs/diagrams/business-view.html) — What users see and backend flow
+- [Technical Flow](docs/diagrams/technical-flow.html) — 4-layer system architecture
+
 ## Documentation
 
 - **[Install Guide](docs/INSTALL.md)** — Setup locally or on EC2
 - **[User Guide](docs/USER_GUIDE.md)** — Walk through UI, ingest workflow, querying
 - **[Ingestion Guide](docs/INGESTION_GUIDE.md)** — Step-by-step for database and document ingest
 - **[Architecture](docs/ARCHITECTURE.md)** — System design, components, data flow
+- **[RDF Export & Integration](docs/RDF_EXPORT_GUIDE.md)** — Export to semantic web tools, SPARQL, data lakes, LLM pipelines
 
 ## Stack
 

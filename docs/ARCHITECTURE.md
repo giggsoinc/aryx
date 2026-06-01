@@ -8,109 +8,15 @@ Aryx is a knowledge graph platform that ingests records from heterogeneous sourc
 
 ## Architecture Diagrams
 
-### 1. Business View (What Users See)
+### Interactive Diagrams (Click to open in browser)
 
-```
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃                    📊 ARYX PLATFORM                   ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-                              │
-        ┌─────────────────────┼─────────────────────┐
-        │                     │                     │
-    ┌───▼─────┐          ┌────▼────┐          ┌───▼─────┐
-    │📥 INGEST│          │💬 ASK   │          │📊 GRAPH │
-    │         │          │         │          │         │
-    │Database │          │Natural  │          │Visual   │
-    │Documents│          │Language │          │Explorer │
-    └─┬───────┘          └──┬─────┘           └──┬──────┘
-      │                      │                   │
-      │ [Context +           │ [Question]        │ [Drill-down]
-      │  Data] ✓             │ ✓                 │
-      │                      │                   │
-      ├──────────────────────┼───────────────────┤
-      │                                          │
-      ▼                                          ▼
-   [BACKEND PIPELINE]          [BACKEND PIPELINE]
-   • Extract & Land             • Search & Query
-   • Auto-discover types        • LLM reasoning
-   • Merge duplicates           • Source tracking
-   • Build relationships        
-   • Project to graph           
-      │                                          │
-      └──────────────────────┬───────────────────┘
-                             │
-                    ┏━━━━━━━━▼━━━━━━━┓
-                    ┃ 🗄️ KNOWLEDGE   ┃
-                    ┃   GRAPH        ┃
-                    ┃                ┃
-                    ┃ Entities       ┃
-                    ┃ Relationships  ┃
-                    ┃ Provenance     ┃
-                    ┗━━━━━━━━━━━━━━━━┛
-```
+**📊 [Business View Diagram](diagrams/business-view.html)** — What users see and what happens behind the scenes
 
-**Business Flow Explanation:**
-- **Ingest path:** User provides context (who/what is this data?) + connects source → system auto-discovers entity types, merges duplicates, builds graph
-- **Ask path:** User asks natural-language question → LLM retrieves relevant entities from graph, reasons, returns answer with source links
-- **Graph path:** User explores entities visually → drill down to relationships, provenance, linked records
+**🏗️ [Technical Flow Diagram](diagrams/technical-flow.html)** — 4-layer system architecture with all components
+
+Both diagrams are interactive SVG with hover effects. Open in any web browser.
 
 ---
-
-### 2. Technical Flow (System Architecture)
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        🖥️  USER INTERFACE LAYER                 │
-├─────────────────────────────────────────────────────────────────┤
-│  📱 Streamlit UI (8501)  │  🔌 REST API / FastAPI (8088)        │
-│  - Home, Ingest, Ask     │  - /entities, /ask, /ingest          │
-│  - Graph, Settings       │  - /jobs, /graph, /workspaces        │
-└──────────┬───────────────┴───────────┬──────────────────────────┘
-           │                           │
-           └─────────────┬─────────────┘
-                         │
-┌─────────────────────────▼──────────────────────────────────────┐
-│                    ⚙️  ORCHESTRATION LAYER                      │
-├─────────────────┬─────────────────┬──────────────┬──────────────┤
-│  Pipeline       │  LLM Broker     │  Job Queue   │  Workspace   │
-│  Orchestrate    │  (Tier routing) │  (async)     │  Manager     │
-│  • Extract      │  • Local        │              │              │
-│  • Land         │  • Cheap        │              │              │
-│  • Tag          │  • Frontier     │              │              │
-│  • Resolve      │                 │              │              │
-│  • Project      │                 │              │              │
-└────┬────────────┼────────┬────────┴──────────────┴──────────────┘
-     │            │        │
-     │    ┌───────▼────────▼──────┐
-     │    │   🧠 MODEL LAYER      │
-     │    ├───────────────────────┤
-     │    │ • Ollama (local)      │
-     │    │ • Claude API          │
-     │    │ • OpenAI compatible   │
-     │    │ • Embeddings service  │
-     │    └───────────────────────┘
-     │
-┌────▼──────────────────────────────────────────────────────────┐
-│              💾 DATA STORAGE LAYER                             │
-├──────────────────────────┬──────────────────────────────────┤
-│  🗄️  Postgres            │  📊 FalkorDB (Graph)             │
-│  (Source of Truth)       │  (Rebuildable Projection)        │
-│                          │                                  │
-│  • aryx_entity           │  • Named graph per workspace    │
-│  • aryx_relationship     │  • Entities (nodes)             │
-│  • aryx_landed_record    │  • Relationships (edges)        │
-│  • aryx_entity_member    │  • Provenance threads          │
-│  • aryx_job              │                                 │
-│  • workspace (isolated   │  ↑ Wipe & rebuild safe         │
-│    via LIST partitions)  │    (data in Postgres)          │
-└──────────────────────────┴──────────────────────────────────┘
-```
-
-**Technical Flow Explanation:**
-1. **User Interface** — Streamlit (UI) and FastAPI (API) accept user requests
-2. **Orchestration** — Pipeline runs the 7-stage ingest; LLM Broker routes queries to appropriate model tier; Job Queue manages async work
-3. **Models** — Local Ollama (tagging, scoring), frontier APIs (Claude for hard decisions)
-4. **Storage** — Postgres = source of truth (all records, provenance, workspace isolation); FalkorDB = interactive graph (rebuilt from Postgres as needed)
 
 ## Data Flow Pipeline (7-Stage Ingest)
 
