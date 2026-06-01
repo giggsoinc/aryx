@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from aryx.ui import api
+from aryx.ui import ingest_client
 
 _DIALECTS = ["postgresql", "mysql", "mariadb", "oracle", "sqlite"]
 
@@ -22,7 +22,7 @@ def _connect_form() -> None:
         connect = st.form_submit_button("Connect & introspect", type="primary")
     if connect:
         try:
-            res = api.db_connect({"dialect": dialect, "host": host, "port": port,
+            res = ingest_client.db_connect({"dialect": dialect, "host": host, "port": port,
                                   "database": database, "user": user, "password": password})
             st.session_state.rdb_conn = res["connection_id"]
             st.session_state.rdb_tables = res.get("tables", [])
@@ -40,7 +40,7 @@ def _discover(context: str) -> None:
     if st.button("🤖 Run discovery agent"):
         with st.spinner("Agent reading the schema against your context…"):
             try:
-                st.session_state.rdb_disc = api.db_discover(st.session_state.rdb_conn, context)
+                st.session_state.rdb_disc = ingest_client.db_discover(st.session_state.rdb_conn, context)
             except Exception as exc:
                 st.error(f"Discovery failed: {exc}")
 
@@ -68,7 +68,7 @@ def _review_and_ingest() -> None:
         st.caption(f"Relationships found: {rels}")
     if st.button("Ingest selected tables", type="primary") and chosen:
         try:
-            resp = api.ingest_multi(st.session_state.rdb_conn, chosen, edges)
+            resp = ingest_client.ingest_multi(st.session_state.rdb_conn, chosen, edges)
             st.session_state.active_job = resp.get("job_id")
         except Exception as exc:
             st.error(f"Ingest failed: {exc}")

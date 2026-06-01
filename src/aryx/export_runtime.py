@@ -14,6 +14,7 @@ _DEFAULT_FORMATS = ["turtle", "json-ld"]
 
 
 def _initial_formats() -> list[str]:
+    """Read the startup format selection from the environment, or default."""
     raw = os.environ.get("ARYX_ONTOLOGY_FORMATS", "")
     picked = [f.strip() for f in raw.split(",") if f.strip() in FORMATS]
     return picked or list(_DEFAULT_FORMATS)

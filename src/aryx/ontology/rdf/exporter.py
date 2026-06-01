@@ -60,6 +60,7 @@ def build_graph(bundle: GraphBundle, base_uri: str,
     declared_props: set[str] = set()
 
     def ensure_class(type_name: str) -> URIRef:
+        """Declare an owl:Class for a type once; return its IRI."""
         node = onto[slug(type_name)]
         if type_name not in declared_classes:
             graph.add((node, RDF.type, OWL.Class))
@@ -68,6 +69,7 @@ def build_graph(bundle: GraphBundle, base_uri: str,
         return node
 
     def ensure_datatype_prop(attr: str, domain: URIRef) -> URIRef:
+        """Declare an owl:DatatypeProperty once with its domain; return its IRI."""
         node = onto[slug(attr)]
         if attr not in declared_props:
             graph.add((node, RDF.type, OWL.DatatypeProperty))

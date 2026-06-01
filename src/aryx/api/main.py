@@ -16,6 +16,7 @@ from aryx.api.workspace_api import workspace_router
 
 
 def create_app() -> FastAPI:
+    """Build the Aryx FastAPI app with every router mounted."""
     app = FastAPI(title="Aryx API", version="1.0")
     app.include_router(graph_router())
     app.include_router(admin_router())

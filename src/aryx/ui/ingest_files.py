@@ -10,7 +10,7 @@ import time
 
 import streamlit as st
 
-from aryx.ui import api, upload
+from aryx.ui import api, ingest_client, upload
 
 _TYPES = ["json", "csv", "pdf", "pptx", "ppt", "docx", "doc", "rtf",
           "jpg", "jpeg", "png", "tiff", "tif", "bmp"]
@@ -89,7 +89,7 @@ def _summary_form(did: str) -> None:
                                      value=True, key=f"df_{f['filename']}")]
     if st.button("Confirm & add to graph", type="primary") and (approved_types or approved_files):
         try:
-            resp = api.docs_confirm(did, approved_types, approved_files)
+            resp = ingest_client.docs_confirm(did, approved_types, approved_files)
             st.session_state.active_job = resp.get("job_id")
             for key in ("docs_did", "docs_summary"):
                 st.session_state.pop(key, None)
@@ -143,7 +143,7 @@ def render(context: str) -> None:
     did = st.session_state.get("docs_did")
     if did and "docs_summary" not in st.session_state and _wait_for_read(did):
         try:
-            st.session_state.docs_summary = api.docs_summary(did)
+            st.session_state.docs_summary = ingest_client.docs_summary(did)
         except Exception as exc:
             st.error(f"Could not load summary: {exc}")
     if st.session_state.get("docs_did") and "docs_summary" in st.session_state:

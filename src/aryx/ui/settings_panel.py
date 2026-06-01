@@ -25,6 +25,7 @@ _DEFAULT_ENDPOINT = {
 
 
 def _current() -> dict:
+    """Fetch the active LLM config, surfacing API errors inline."""
     try:
         return api.get_llm_config()
     except Exception as exc:
@@ -33,6 +34,7 @@ def _current() -> dict:
 
 
 def render() -> None:
+    """Render the Settings page: LLM provider + ontology interchange config."""
     st.title("Settings — Model Provider")
     st.caption("Pick the engine that answers questions. Local needs no key; "
                "cloud providers need an API key. Ask works the same either way.")
