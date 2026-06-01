@@ -38,3 +38,5 @@ streamlit-agraph~=0.0.45
 mcp~=1.6
 sse-starlette~=2.2
 starlette~=0.41
+# RDF/OWL interchange plugin — export graph + import ontologies (rdflib).
+rdflib~=7.0

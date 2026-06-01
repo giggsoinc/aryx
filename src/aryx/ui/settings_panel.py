@@ -8,6 +8,7 @@ from __future__ import annotations
 import streamlit as st
 
 from aryx.ui import api
+from aryx.ui import ontology_client
 
 _PROVIDERS = {
     "Local (Ollama)": "ollama",
@@ -58,5 +59,50 @@ def render() -> None:
         try:
             new = api.set_llm_config({k: v for k, v in cfg.items() if v})
             st.success(f"Saved. Ask now uses **{new.get('provider')}** · `{new.get('answer_model')}`.")
+        except Exception as exc:
+            st.error(f"Failed to save: {exc}")
+
+    st.divider()
+    _ontology_section()
+
+
+def _ontology_section() -> None:
+    """Enable + configure the RDF/OWL interchange plugin (export & import)."""
+    st.subheader("Ontology interchange (RDF / OWL)")
+    st.caption("Turn this on to export your graph for semantic-web tools "
+               "(Protégé, GraphDB, Apache Jena) and import external ontologies. "
+               "When enabled, an **Ontology** page appears in the sidebar.")
+
+    try:
+        cur = ontology_client.config()
+    except Exception as exc:
+        st.error(f"Cannot reach API: {exc}")
+        return
+
+    available = cur.get("available", [])
+    if cur.get("enabled"):
+        st.success(f"Enabled · formats: {', '.join(cur.get('formats', [])) or '—'}")
+    else:
+        st.info("Disabled — turn on below to expose export/import.")
+
+    with st.form("ontology_settings"):
+        enabled = st.checkbox("Enable ontology export & import",
+                              value=bool(cur.get("enabled")))
+        formats = st.multiselect("Export formats", options=available,
+                                 default=cur.get("formats", []))
+        base_uri = st.text_input("Base URI (IRI prefix for exported terms)",
+                                 value=cur.get("base_uri", "https://aryx.local/"))
+        include_prov = st.checkbox("Include provenance (source records) in export",
+                                   value=bool(cur.get("include_provenance", True)))
+        saved = st.form_submit_button("Save ontology settings", type="primary")
+
+    if saved:
+        try:
+            new = ontology_client.set_config({
+                "enabled": enabled, "formats": formats,
+                "base_uri": base_uri, "include_provenance": include_prov,
+            })
+            state = "on" if new.get("enabled") else "off"
+            st.success(f"Saved. Ontology interchange is **{state}**.")
         except Exception as exc:
             st.error(f"Failed to save: {exc}")

@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aryx — Technical Flow Architecture</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 1400px;
+            padding: 40px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #1a1a1a;
+            font-size: 32px;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 40px;
+        }
+
+        svg {
+            display: block;
+            margin: 0 auto;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .layer-title {
+            font-weight: 700;
+            font-size: 16px;
+            fill: white;
+        }
+
+        .component-box {
+            stroke-width: 2;
+            transition: all 0.3s ease;
+        }
+
+        .component-box:hover {
+            filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.2));
+        }
+
+        .ui-layer .component-box {
+            stroke: #06b6d4;
+            fill: #f0f9fa;
+        }
+
+        .ui-layer .component-box:hover {
+            fill: #cffafe;
+            stroke: #0891b2;
+        }
+
+        .ui-title {
+            fill: #0891b2;
+            font-weight: 700;
+        }
+
+        .orchestration-layer .component-box {
+            stroke: #6366f1;
+            fill: #eef2ff;
+        }
+
+        .orchestration-layer .component-box:hover {
+            fill: #e0e7ff;
+            stroke: #4f46e5;
+        }
+
+        .orchestration-title {
+            fill: #4f46e5;
+            font-weight: 700;
+        }
+
+        .models-layer .component-box {
+            stroke: #8b5cf6;
+            fill: #faf5ff;
+        }
+
+        .models-layer .component-box:hover {
+            fill: #f3e8ff;
+            stroke: #7c3aed;
+        }
+
+        .models-title {
+            fill: #7c3aed;
+            font-weight: 700;
+        }
+
+        .storage-layer .component-box {
+            stroke: #10b981;
+            fill: #f0fdf4;
+        }
+
+        .storage-layer .component-box:hover {
+            fill: #dcfce7;
+            stroke: #059669;
+        }
+
+        .storage-title {
+            fill: #059669;
+            font-weight: 700;
+        }
+
+        .component-label {
+            font-size: 13px;
+            font-weight: 600;
+            fill: #1a1a1a;
+        }
+
+        .component-desc {
+            font-size: 11px;
+            fill: #666;
+        }
+
+        .icon {
+            font-size: 24px;
+        }
+
+        .arrow {
+            stroke: #999;
+            stroke-width: 2;
+            fill: none;
+            marker-end: url(#arrowhead);
+        }
+
+        .connection-label {
+            font-size: 11px;
+            fill: #999;
+            font-style: italic;
+        }
+
+        .legend {
+            margin-top: 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 20px;
+            font-size: 13px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #f9fafb;
+            border-radius: 6px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 2px solid;
+        }
+
+        .ui-color {
+            background: #f0f9fa;
+            border-color: #06b6d4;
+        }
+
+        .orchestration-color {
+            background: #eef2ff;
+            border-color: #6366f1;
+        }
+
+        .models-color {
+            background: #faf5ff;
+            border-color: #8b5cf6;
+        }
+
+        .storage-color {
+            background: #f0fdf4;
+            border-color: #10b981;
+        }
+
+        .explanation {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+
+        .explanation h3 {
+            color: #1a1a1a;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .explanation ul {
+            list-style-position: inside;
+            color: #555;
+            line-height: 1.8;
+        }
+
+        .explanation li {
+            margin-bottom: 8px;
+        }
+
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            color: #999;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏗️ Aryx — Technical Flow Architecture</h1>
+        <p class="subtitle">4-Layer system design with components and data flow</p>
+
+        <svg viewBox="0 0 1400 900" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                    <polygon points="0 0, 10 3, 0 6" fill="#999"/>
+                </marker>
+            </defs>
+
+            <!-- LAYER 1: UI LAYER -->
+            <g class="ui-layer">
+                <!-- Layer Background -->
+                <rect x="50" y="50" width="1300" height="150" rx="8" style="fill: #ecf0f1; stroke: #bdc3c7; stroke-width: 2; opacity: 0.3;"/>
+
+                <!-- Layer Title -->
+                <rect x="50" y="50" width="1300" height="35" rx="8" style="fill: #06b6d4;"/>
+                <text x="70" y="75" class="layer-title">🖥️  UI LAYER — User Interface</text>
+
+                <!-- Streamlit Box -->
+                <rect x="100" y="110" width="280" height="70" rx="6" class="component-box ui-layer"/>
+                <text x="120" y="130" class="icon">📱</text>
+                <text x="160" y="132" class="component-label">Streamlit UI (8501)</text>
+                <text x="160" y="150" class="component-desc">Home, Ingest, Ask, Graph, Settings</text>
+
+                <!-- FastAPI Box -->
+                <rect x="450" y="110" width="280" height="70" rx="6" class="component-box ui-layer"/>
+                <text x="470" y="130" class="icon">🔌</text>
+                <text x="510" y="132" class="component-label">REST API / FastAPI (8088)</text>
+                <text x="510" y="150" class="component-desc">/entities, /ask, /ingest, /export</text>
+
+                <!-- Arrow down -->
+                <line x1="700" y1="180" x2="700" y2="220" class="arrow"/>
+            </g>
+
+            <!-- LAYER 2: ORCHESTRATION LAYER -->
+            <g class="orchestration-layer">
+                <!-- Layer Background -->
+                <rect x="50" y="230" width="1300" height="160" rx="8" style="fill: #ecf0f1; stroke: #bdc3c7; stroke-width: 2; opacity: 0.3;"/>
+
+                <!-- Layer Title -->
+                <rect x="50" y="230" width="1300" height="35" rx="8" style="fill: #6366f1;"/>
+                <text x="70" y="255" class="layer-title">⚙️  ORCHESTRATION LAYER</text>
+
+                <!-- Pipeline Box -->
+                <rect x="80" y="285" width="220" height="90" rx="6" class="component-box orchestration-layer"/>
+                <text x="100" y="305" class="icon">🔗</text>
+                <text x="145" y="307" class="orchestration-title" style="font-size: 12px;">Pipeline</text>
+                <text x="145" y="325" class="component-desc">• Extract</text>
+                <text x="145" y="340" class="component-desc">• Land • Tag • Map</text>
+                <text x="145" y="355" class="component-desc">• Resolve • Project</text>
+
+                <!-- LLM Broker Box -->
+                <rect x="340" y="285" width="220" height="90" rx="6" class="component-box orchestration-layer"/>
+                <text x="360" y="305" class="icon">🧠</text>
+                <text x="405" y="307" class="orchestration-title" style="font-size: 12px;">LLM Broker</text>
+                <text x="405" y="325" class="component-desc">Tier routing:</text>
+                <text x="405" y="340" class="component-desc">• Local • Cheap</text>
+                <text x="405" y="355" class="component-desc">• Frontier</text>
+
+                <!-- Job Queue Box -->
+                <rect x="600" y="285" width="220" height="90" rx="6" class="component-box orchestration-layer"/>
+                <text x="620" y="305" class="icon">📋</text>
+                <text x="665" y="307" class="orchestration-title" style="font-size: 12px;">Job Queue</text>
+                <text x="665" y="325" class="component-desc">Async task</text>
+                <text x="665" y="340" class="component-desc">management</text>
+                <text x="665" y="355" class="component-desc">& scheduling</text>
+
+                <!-- Workspace Manager Box -->
+                <rect x="860" y="285" width="220" height="90" rx="6" class="component-box orchestration-layer"/>
+                <text x="880" y="305" class="icon">🏠</text>
+                <text x="925" y="307" class="orchestration-title" style="font-size: 12px;">Workspace Manager</text>
+                <text x="925" y="325" class="component-desc">Isolation</text>
+                <text x="925" y="340" class="component-desc">& multi-tenancy</text>
+                <text x="925" y="355" class="component-desc">controls</text>
+
+                <!-- Arrow down -->
+                <line x1="700" y1="375" x2="700" y2="420" class="arrow"/>
+            </g>
+
+            <!-- LAYER 3: MODELS LAYER -->
+            <g class="models-layer">
+                <!-- Layer Background -->
+                <rect x="50" y="430" width="1300" height="140" rx="8" style="fill: #ecf0f1; stroke: #bdc3c7; stroke-width: 2; opacity: 0.3;"/>
+
+                <!-- Layer Title -->
+                <rect x="50" y="430" width="1300" height="35" rx="8" style="fill: #8b5cf6;"/>
+                <text x="70" y="455" class="layer-title">🧬 MODELS LAYER — LLM Providers</text>
+
+                <!-- Ollama Box -->
+                <rect x="150" y="485" width="240" height="70" rx="6" class="component-box models-layer"/>
+                <text x="170" y="505" class="icon">🎯</text>
+                <text x="220" y="523" class="component-label">Ollama (Local)</text>
+                <text x="220" y="540" class="component-desc">Tagging, scoring (free)</text>
+
+                <!-- Claude API Box -->
+                <rect x="450" y="485" width="240" height="70" rx="6" class="component-box models-layer"/>
+                <text x="470" y="505" class="icon">🤖</text>
+                <text x="520" y="523" class="component-label">Claude API</text>
+                <text x="520" y="540" class="component-desc">Frontier tier decisions</text>
+
+                <!-- OpenAI Box -->
+                <rect x="750" y="485" width="240" height="70" rx="6" class="component-box models-layer"/>
+                <text x="770" y="505" class="icon">⚡</text>
+                <text x="820" y="523" class="component-label">OpenAI/Compatible</text>
+                <text x="820" y="540" class="component-desc">Optional: GPT-4, Gemini</text>
+
+                <!-- Embeddings Box -->
+                <rect x="1050" y="485" width="240" height="70" rx="6" class="component-box models-layer"/>
+                <text x="1070" y="505" class="icon">📊</text>
+                <text x="1120" y="523" class="component-label">Embeddings</text>
+                <text x="1120" y="540" class="component-desc">Vector search, semantic</text>
+
+                <!-- Arrow down -->
+                <line x1="700" y1="555" x2="700" y2="600" class="arrow"/>
+            </g>
+
+            <!-- LAYER 4: STORAGE LAYER -->
+            <g class="storage-layer">
+                <!-- Layer Background -->
+                <rect x="50" y="610" width="1300" height="150" rx="8" style="fill: #ecf0f1; stroke: #bdc3c7; stroke-width: 2; opacity: 0.3;"/>
+
+                <!-- Layer Title -->
+                <rect x="50" y="610" width="1300" height="35" rx="8" style="fill: #10b981;"/>
+                <text x="70" y="635" class="layer-title">💾 DATA STORAGE LAYER</text>
+
+                <!-- Postgres Box -->
+                <rect x="150" y="665" width="380" height="80" rx="6" class="component-box storage-layer"/>
+                <text x="170" y="685" class="icon">🗄️</text>
+                <text x="240" y="703" class="component-label">PostgreSQL 16 (Source of Truth)</text>
+                <text x="240" y="722" class="component-desc">• aryx_entity  • aryx_relationship  • aryx_landed_record</text>
+                <text x="240" y="737" class="component-desc">• LIST-partitioned by workspace (isolation, purge)</text>
+
+                <!-- FalkorDB Box -->
+                <rect x="580" y="665" width="380" height="80" rx="6" class="component-box storage-layer"/>
+                <text x="600" y="685" class="icon">📈</text>
+                <text x="670" y="703" class="component-label">FalkorDB Graph (Projection)</text>
+                <text x="670" y="722" class="component-desc">• Named graph per workspace  • Interactive queries</text>
+                <text x="670" y="737" class="component-desc">• Wipe & rebuild safe (data in Postgres)</text>
+
+                <!-- Redis Box -->
+                <rect x="1010" y="665" width="230" height="80" rx="6" class="component-box storage-layer"/>
+                <text x="1030" y="685" class="icon">⚡</text>
+                <text x="1080" y="703" class="component-label">Redis Cache</text>
+                <text x="1080" y="722" class="component-desc">• Session data</text>
+                <text x="1080" y="737" class="component-desc">• Query results</text>
+            </g>
+
+            <!-- Side annotations -->
+            <g style="opacity: 0.7;">
+                <text x="20" y="125" style="font-size: 12px; fill: #666; text-anchor: end; font-weight: 600;">User</text>
+                <text x="20" y="125" style="font-size: 12px; fill: #666; text-anchor: end; font-weight: 600;">Facing</text>
+
+                <text x="20" y="310" style="font-size: 12px; fill: #666; text-anchor: end; font-weight: 600;">Task</text>
+                <text x="20" y="325" style="font-size: 12px; fill: #666; text-anchor: end; font-weight: 600;">Coord.</text>
+
+                <text x="20" y="520" style="font-size: 12px; fill: #666; text-anchor: end; font-weight: 600;">Models</text>
+
+                <text x="20" y="705" style="font-size: 12px; fill: #666; text-anchor: end; font-weight: 600;">Data</text>
+                <text x="20" y="720" style="font-size: 12px; fill: #666; text-anchor: end; font-weight: 600;">Persistence</text>
+            </g>
+        </svg>
+
+        <!-- Explanation -->
+        <div class="explanation">
+            <h3>Architecture Overview</h3>
+            <ul>
+                <li><strong>UI Layer:</strong> Streamlit (web interface) and FastAPI (REST API) accept user requests</li>
+                <li><strong>Orchestration Layer:</strong> Pipeline runs 7-stage ingest; LLM Broker routes queries; Job Queue manages async work; Workspace Manager handles multi-tenancy</li>
+                <li><strong>Models Layer:</strong> Local Ollama handles cheap tagging & scoring; frontier APIs (Claude, OpenAI) handle hard decisions (~1–5%); embeddings for semantic search</li>
+                <li><strong>Storage Layer:</strong> PostgreSQL = source of truth (all records, provenance, workspace isolation); FalkorDB = interactive graph (rebuilt from Postgres as needed); Redis = session cache</li>
+            </ul>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color ui-color"></div>
+                <span><strong>UI:</strong> User interface</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color orchestration-color"></div>
+                <span><strong>Orchestration:</strong> Task coordination</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color models-color"></div>
+                <span><strong>Models:</strong> LLM providers</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color storage-color"></div>
+                <span><strong>Storage:</strong> Data persistence</span>
+            </div>
+        </div>
+
+        <div class="footer">
+            Aryx Knowledge Graph Platform — Technical Flow Architecture
+        </div>
+    </div>
+</body>
+</html>
