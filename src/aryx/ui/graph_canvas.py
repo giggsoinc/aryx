@@ -6,20 +6,22 @@ from typing import Any
 from streamlit_agraph import Config, Edge, Node
 
 TYPE_COLORS: dict[str, str] = {
-    "Customer": "#4A90E2",
-    "SupportTicket": "#E8775A",
-    "Organization": "#50C878",
-    "Person": "#9B59B6",
-    "Contract": "#F1C40F",
-    "Vendor": "#1ABC9C",
+    "Customer":      "#2D7DFF",
+    "SupportTicket": "#FF7A5C",
+    "Organization":  "#1E3A8A",
+    "Person":        "#3FB6FF",
+    "Contract":      "#5A6FFB",
+    "Vendor":        "#7B5BFF",
+    "Product":       "#00A8D8",
+    "Document":      "#94A3D4",
 }
-DEFAULT_COLOR = "#95A5A6"
-PATH_COLOR = "#F7C948"
-PATH_EDGE_COLOR = "#F7C948"
-NODE_FONT = {"size": 18, "color": "#FFFFFF", "face": "Inter, sans-serif",
-             "strokeWidth": 4, "strokeColor": "#0e1117"}
-EDGE_FONT = {"size": 14, "color": "#C8D0DC",
-             "strokeWidth": 4, "strokeColor": "#0e1117"}
+DEFAULT_COLOR = "#94A3D4"
+PATH_COLOR = "#FFD24A"
+PATH_EDGE_COLOR = "#FFD24A"
+NODE_FONT = {"size": 18, "color": "#FFFFFF", "face": "Montserrat, Inter, sans-serif",
+             "strokeWidth": 4, "strokeColor": "#0B1430"}
+EDGE_FONT = {"size": 14, "color": "#0B1430",
+             "strokeWidth": 4, "strokeColor": "#FFFFFF"}
 
 
 def _degree(entities: list[dict], rels: list[dict]) -> dict[int, int]:

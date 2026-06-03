@@ -18,6 +18,11 @@ logger = logging.getLogger(__name__)
 class WorkspaceRequest(BaseModel):
     name: str
     description: str = ""
+    context: str = ""
+
+
+class ContextRequest(BaseModel):
+    context: str = ""
 
 
 def workspace_router() -> APIRouter:
@@ -37,9 +42,17 @@ def workspace_router() -> APIRouter:
         apply_migrations(get_settings().rdb_dsn)
         store = WorkspaceStore(get_settings().rdb_dsn)
         try:
-            return store.create(req.name, req.description)
+            return store.create(req.name, req.description, req.context)
         except Exception as exc:  # noqa: BLE001 — duplicate name, etc.
             raise HTTPException(400, f"could not create workspace: {exc}") from exc
+        finally:
+            store.close()
+
+    @router.patch("/{workspace_id}/context")
+    def set_context(workspace_id: int, req: ContextRequest) -> dict[str, Any]:
+        store = WorkspaceStore(get_settings().rdb_dsn)
+        try:
+            return store.set_context(workspace_id, req.context)
         finally:
             store.close()
 

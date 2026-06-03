@@ -9,7 +9,7 @@ import time
 
 import streamlit as st
 
-from aryx.ui import api, ingest_files, ingest_rdb
+from aryx.ui import api, ingest_files, ingest_rdb, workspace_summary
 
 _TERMINAL = {"complete", "failed"}
 _ICON = {"complete": "✅", "failed": "❌", "running": "⏳", "queued": "🕓"}
@@ -38,41 +38,57 @@ def _progress(job_id: str) -> None:
     st.info("Still running — check Sources below.")
 
 
+def _ws_name(workspaces: dict[int, str], wid: int) -> str:
+    return workspaces.get(int(wid or 0), f"ws-{wid}")
+
+
 def _sources() -> None:
-    """Show table of recent ingestion jobs with status, source, stage, and progress."""
+    """Show table of recent ingestion jobs scoped by workspace."""
     head, btn = st.columns([4, 1])
-    head.subheader("Sources & runs")
+    head.subheader("Sources & Runs")
     if btn.button("Refresh"):
         st.rerun()
     try:
         jobs = api.list_jobs()
+        ws_map = {int(w["id"]): w["name"] for w in api.list_workspaces()}
     except Exception as exc:
         st.error(f"Cannot load jobs: {exc}")
         return
     if not jobs:
         st.info("No ingestion jobs yet.")
         return
+    only_active = st.checkbox(
+        "Only show jobs in active workspace",
+        value=True, key="jobs_only_active",
+    )
+    active = api.current_workspace()
+    rows = [j for j in jobs
+            if not only_active or int(j.get("workspace_id", 1)) == int(active)]
     st.dataframe(
-        [{"Status": f"{_ICON.get(j.get('status', ''), '⚪')} {j.get('status', '')}",
+        [{"Workspace": _ws_name(ws_map, j.get("workspace_id", 1)),
+          "Status": f"{_ICON.get(j.get('status', ''), '⚪')} {j.get('status', '')}",
           "Source": f"{j['source_system']}.{j['source_dataset']}",
           "Stage": j.get("stage"), "%": j.get("pct"),
           "Started": j.get("started_at"), "Run": j.get("run_id")}
-         for j in jobs],
+         for j in rows],
         use_container_width=True, hide_index=True,
     )
 
 
 def render() -> None:
-    """Main ingest page: tabs for database/documents, progress monitor, and job history."""
+    """Main ingest page: tabs for database/documents, progress monitor, jobs."""
     st.title("Ingest")
+    ws = workspace_summary.render("Ingest")
     st.markdown("**Add data sources** — Connect a database (agent auto-discovers tables) "
-                "or upload documents (agent finds entities).")
+                "or upload documents (agent finds entities). The agent uses your "
+                "workspace's business context to know what to look for.")
     st.divider()
+    ctx = ws.get("context", "") or ""
     tab_db, tab_docs = st.tabs(["🗄 Database (auto-discover)", "📄 Documents (folder)"])
     with tab_db:
-        ingest_rdb.render()
+        ingest_rdb.render(ctx)
     with tab_docs:
-        ingest_files.render("")
+        ingest_files.render(ctx)
     if st.session_state.get("active_job"):
         st.divider()
         st.subheader("Ingestion progress")

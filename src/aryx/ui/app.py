@@ -28,9 +28,6 @@ PAGES = {
 }
 
 with st.sidebar:
-    st.title("Aryx")
-    st.caption("Knowledge graph platform")
-    st.divider()
     workspace_bar.render()
     st.divider()
     page = st.radio("Navigate", list(PAGES.keys()), label_visibility="collapsed")

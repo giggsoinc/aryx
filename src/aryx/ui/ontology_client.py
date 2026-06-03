@@ -42,3 +42,8 @@ def import_doc(content: str, fmt: str = "", filename: str = "") -> dict[str, Any
     return api._post("/ontology/import",
                      {"content": content, "format": fmt, "filename": filename},
                      timeout=120)
+
+
+def list_types() -> dict[str, Any]:
+    """Browse: types + relationships + entity count for the active workspace."""
+    return api._get("/ontology/types")

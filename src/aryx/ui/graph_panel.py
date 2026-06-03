@@ -4,7 +4,7 @@ from __future__ import annotations
 import streamlit as st
 from streamlit_agraph import agraph
 
-from aryx.ui import api
+from aryx.ui import api, workspace_summary
 from aryx.ui.graph_canvas import (
     build_edges, build_nodes, canvas_config, derive_degree, legend_html,
 )
@@ -43,6 +43,7 @@ def _visible_ids(entities: list[dict], rels: list[dict], selected: list[str],
 
 def render() -> None:
     st.title("Knowledge Graph")
+    workspace_summary.render("Graph")
     try:
         data = api.full_graph()
     except Exception as exc:
@@ -50,11 +51,20 @@ def render() -> None:
         return
     entities = data.get("entities", [])
     rels = data.get("relationships", [])
+    if not entities:
+        st.warning("Nothing to render yet — ingest data on the **Ingest** tab "
+                   "and entities will appear here automatically.")
+        return
     all_types = sorted({e["type"] for e in entities})
 
     selected, search, hide_iso = _toolbar(all_types)
+    cols = st.columns([1, 1, 4])
+    if cols[0].button("🔄 Reset view"):
+        for k in ("focus_id", "selected_id"):
+            st.session_state.pop(k, None)
+        st.rerun()
     focus = st.session_state.get("focus_id")
-    if focus is not None and st.button("✕ Clear focus", type="secondary"):
+    if focus is not None and cols[1].button("✕ Clear focus"):
         st.session_state.pop("focus_id", None)
         focus = None
 
