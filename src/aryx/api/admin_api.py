@@ -11,6 +11,7 @@ import psycopg
 from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel
 
+from aryx import llm_runtime
 from aryx.broker import Broker, ModelSpec, Registry, TokenGovernor
 from aryx.config import get_settings
 from aryx.connectors.postgres import PostgresConnector
@@ -20,24 +21,35 @@ from aryx.store.migrate import apply_migrations
 
 
 def _local_broker() -> Broker:
-    """Local-only broker so the pipeline never tries Claude without a key.
+    """Pipeline broker — honours Settings → LLM Provider (live, no restart).
 
-    The embed_config is required for the doc ingest pipeline (chunks →
-    embeddings → store). Defaults to nomic-embed-text on the local Ollama;
-    override with ARYX_EMBED_MODEL / ARYX_EMBED_ENDPOINT.
+    Reads aryx.llm_runtime.status() so the doc ingest pipeline + the Ask API
+    share ONE config. Switching provider/model in the Settings panel now
+    drives both. Embeddings stay on local Ollama (nomic-embed-text) — text
+    similarity is provider-agnostic for the demo path.
     """
-    endpoint = os.environ.get("ARYX_LLM_BASE_URL", "http://ollama:11434")
-    menial = os.environ.get("ARYX_LLM_MENIAL_MODEL", "qwen3.5:0.8b")
-    reason = os.environ.get("ARYX_LLM_REASON_MODEL", "qwen3.5:0.8b")
+    cfg = llm_runtime.status()
+    provider = str(cfg.get("provider") or "ollama")
+    endpoint = str(cfg.get("endpoint") or "http://ollama:11434")
+    menial = str(cfg.get("menial_model") or "qwen3.5:0.8b")
+    answer = str(cfg.get("answer_model") or "lfm2.5-thinking:latest")
+    is_ollama = provider == "ollama"
+    api_key_ref = None if is_ollama else llm_runtime._KEY_REF
     embed_model = os.environ.get("ARYX_EMBED_MODEL", "nomic-embed-text")
-    embed_endpoint = os.environ.get("ARYX_EMBED_ENDPOINT", endpoint)
+    embed_endpoint = os.environ.get(
+        "ARYX_EMBED_ENDPOINT",
+        endpoint if is_ollama else "http://ollama:11434",
+    )
     registry = Registry()
-    for name, tier in ((menial, "cheap"), (reason, "frontier")):
-        registry.add(ModelSpec(name=name, provider="ollama", tier=tier,
-                               local=True, endpoint=endpoint))
-    return Broker(registry, TokenGovernor({}),
-                  embed_config={"model": embed_model,
-                                "endpoint": embed_endpoint})
+    for name, tier in ((menial, "cheap"), (answer, "frontier")):
+        registry.add(ModelSpec(name=name, provider=provider, tier=tier,
+                               local=is_ollama, endpoint=endpoint,
+                               api_key_ref=api_key_ref))
+    return Broker(
+        registry, TokenGovernor({}),
+        secrets=llm_runtime._RuntimeSecrets(),
+        embed_config={"model": embed_model, "endpoint": embed_endpoint},
+    )
 
 logger = logging.getLogger(__name__)
 

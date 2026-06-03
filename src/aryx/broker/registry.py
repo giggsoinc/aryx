@@ -12,8 +12,14 @@ class Registry:
         self._models: list[ModelSpec] = []
 
     def add(self, spec: ModelSpec) -> None:
-        """Register a model, replacing any existing entry with the same name."""
-        self._models = [m for m in self._models if m.name != spec.name]
+        """Register a model.
+
+        Deduplicates by (name, tier) so the same physical model can be served
+        under multiple tiers (e.g. one Ollama model assigned to both cheap and
+        frontier). Re-adding the same (name, tier) replaces the prior entry.
+        """
+        self._models = [m for m in self._models
+                        if not (m.name == spec.name and m.tier == spec.tier)]
         self._models.append(spec)
 
     def by_tier(self, tier: Tier) -> list[ModelSpec]:
