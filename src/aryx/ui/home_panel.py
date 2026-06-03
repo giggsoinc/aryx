@@ -1,9 +1,14 @@
 """Home panel — welcome screen with a plain-English summary and how-to steps."""
 from __future__ import annotations
 
+from pathlib import Path
+
 import streamlit as st
 
 from aryx.ui import api
+
+_ASSETS = Path(__file__).parent / "assets"
+_BANNER = _ASSETS / "Aryx_Banner.png"
 
 _STEPS = [
     ("Ingest", "Point Aryx at a database table (or drop a file). It reads the rows, "
@@ -28,6 +33,8 @@ def _stat_row() -> None:
 
 
 def render() -> None:
+    if _BANNER.is_file():
+        st.image(str(_BANNER), use_container_width=True)
     st.markdown(
         '<div class="aryx-brandbar">'
         '<h1>ARYX</h1>'

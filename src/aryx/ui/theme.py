@@ -20,31 +20,40 @@ _CSS = """
 
 html, body, [class*="css"] {
   font-family: 'Montserrat', 'Inter', -apple-system, sans-serif !important;
-  font-size: 16px;
+  font-size: 18px;
 }
 
-.block-container { padding-top: 2.0rem; max-width: 1280px; }
+.block-container { padding-top: 2.0rem; max-width: 1320px; }
 
-h1 { font-size: 2.4rem !important; font-weight: 800 !important;
+p, li, .stMarkdown { font-size: 1.05rem !important; line-height: 1.55; }
+
+h1 { font-size: 3.0rem !important; font-weight: 800 !important;
      letter-spacing: -0.02em; color: var(--aryx-primary-2) !important; }
-h2 { font-size: 1.7rem !important; font-weight: 700 !important;
+h2 { font-size: 2.1rem !important; font-weight: 700 !important;
      color: var(--aryx-primary) !important; }
-h3 { font-size: 1.3rem !important; font-weight: 600 !important;
+h3 { font-size: 1.55rem !important; font-weight: 600 !important;
      color: var(--aryx-ink) !important; }
 
-section[data-testid="stSidebar"] { min-width: 280px;
+section[data-testid="stSidebar"] { min-width: 300px;
   background: linear-gradient(180deg, #F4F6FB 0%, #E7ECF7 100%); }
-section[data-testid="stSidebar"] h1 { font-size: 1.6rem !important;
+section[data-testid="stSidebar"] h1 { font-size: 1.8rem !important;
   color: var(--aryx-primary-2) !important; }
+section[data-testid="stSidebar"] .stMarkdown,
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] [data-baseweb="select"] {
+  font-size: 1.05rem !important; }
 
-label, .stRadio label p { font-size: 1.0rem !important; font-weight: 500; }
-.stRadio [role="radiogroup"] label { padding: 0.35rem 0; }
+label, .stRadio label p { font-size: 1.1rem !important; font-weight: 500; }
+.stRadio [role="radiogroup"] label { padding: 0.45rem 0; }
 
-div[data-testid="stMetricValue"] { font-size: 2.0rem !important;
+div[data-testid="stMetricValue"] { font-size: 2.3rem !important;
   color: var(--aryx-primary) !important; }
+div[data-testid="stMetricLabel"] { font-size: 1.0rem !important; }
 
-.stButton button { font-size: 1.0rem; font-weight: 600;
-  padding: 0.5rem 1.4rem; border-radius: 8px; }
+.stButton button { font-size: 1.1rem; font-weight: 600;
+  padding: 0.6rem 1.6rem; border-radius: 8px; }
+.stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
+  font-size: 1.05rem !important; }
 
 .aryx-step { background: var(--aryx-paper-2); border: 1px solid #D9DEEB;
   border-radius: 12px; padding: 1.1rem 1.3rem; margin-bottom: 0.8rem; }
