@@ -23,9 +23,10 @@ _KEY_REF = "ARYX_RUNTIME_KEY"
 _state: dict[str, str] = {
     "provider": os.environ.get("ARYX_LLM_PROVIDER", "ollama"),
     "menial_model": os.environ.get("ARYX_LLM_MENIAL_MODEL", "qwen3.5:0.8b"),
-    "answer_model": os.environ.get("ARYX_LLM_REASON_MODEL", "qwen3.5:0.8b"),
-    "endpoint": os.environ.get("ARYX_LLM_BASE_URL", "http://localhost:11434"),
-    "api_key": "",
+    "answer_model": os.environ.get(
+        "ARYX_LLM_REASON_MODEL", "lfm2.5-thinking:latest"),
+    "endpoint": os.environ.get("ARYX_LLM_BASE_URL", "http://ollama:11434"),
+    "api_key": os.environ.get("ARYX_LLM_API_KEY", ""),
 }
 
 

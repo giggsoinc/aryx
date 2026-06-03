@@ -69,8 +69,15 @@ services:
     build: .
     env_file: .env
     command: ["uvicorn", "aryx.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    # ARYX_LLM_* vars come from .env so the doc ingest + Ask API can be
+    # pointed at any provider (Ollama / Gemini / Anthropic) without editing
+    # this file. Defaults to local Ollama if the .env doesn't set them.
     environment:
-      - ARYX_LLM_BASE_URL=http://ollama:11434
+      - ARYX_LLM_BASE_URL=${ARYX_LLM_BASE_URL:-http://ollama:11434}
+      - ARYX_LLM_PROVIDER=${ARYX_LLM_PROVIDER:-ollama}
+      - ARYX_LLM_MENIAL_MODEL=${ARYX_LLM_MENIAL_MODEL:-qwen3.5:0.8b}
+      - ARYX_LLM_REASON_MODEL=${ARYX_LLM_REASON_MODEL:-lfm2.5-thinking:latest}
+      - ARYX_LLM_API_KEY=${ARYX_LLM_API_KEY:-}
     ports:
       - "8088:8000"
     depends_on:
