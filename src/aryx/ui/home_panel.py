@@ -33,18 +33,22 @@ def _stat_row() -> None:
 
 
 def render() -> None:
+    # Banner image already contains "ARYX · A Fortress of Structured Knowledge
+    # · Turn messy enterprise knowledge…" — only show the CSS brandbar when
+    # the image is missing, so the same message never appears twice.
     if _BANNER.is_file():
         st.image(str(_BANNER), use_container_width=True)
-    st.markdown(
-        '<div class="aryx-brandbar">'
-        '<h1>ARYX</h1>'
-        '<span class="tag">A Fortress of Structured Knowledge</span>'
-        '<p class="aryx-hero" style="color:#E7ECF7;margin-top:0.9rem;">'
-        "Turn messy enterprise knowledge into <b>structured intelligence</b> — "
-        "a single knowledge graph you can query in plain English and explore "
-        "visually.</p></div>",
-        unsafe_allow_html=True,
-    )
+    else:
+        st.markdown(
+            '<div class="aryx-brandbar">'
+            '<h1>ARYX</h1>'
+            '<span class="tag">A Fortress of Structured Knowledge</span>'
+            '<p class="aryx-hero" style="color:#E7ECF7;margin-top:0.9rem;">'
+            "Turn messy enterprise knowledge into "
+            "<b>structured intelligence</b> — a single knowledge graph you "
+            "can query in plain English and explore visually.</p></div>",
+            unsafe_allow_html=True,
+        )
 
     _stat_row()
     st.divider()

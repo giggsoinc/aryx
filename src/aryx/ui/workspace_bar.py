@@ -12,18 +12,15 @@ _LOGO = _ASSETS / "Aryx_logo.png"
 
 
 def _brand_mark() -> None:
-    """Render the ARYX logo + tagline at the top of the sidebar."""
+    """Render the ARYX logo (image — wordmark + tagline baked in) or fallback."""
     if _LOGO.is_file():
         st.image(str(_LOGO), use_container_width=True)
-    else:
-        st.markdown(
-            '<div class="aryx-sidebar-mark">'
-            '<div class="word">ARYX</div></div>',
-            unsafe_allow_html=True,
-        )
+        return
     st.markdown(
         '<div class="aryx-sidebar-mark">'
-        '<div class="tagline">A Fortress of Structured Knowledge</div></div>',
+        '<div class="word">ARYX</div>'
+        '<div class="tagline">A Fortress of Structured Knowledge</div>'
+        "</div>",
         unsafe_allow_html=True,
     )
 
