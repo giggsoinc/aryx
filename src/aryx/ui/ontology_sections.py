@@ -7,7 +7,7 @@ from __future__ import annotations
 import streamlit as st
 
 from aryx.ui import (
-    api, ontology_client, ontology_editor, ontology_publish,
+    api, ontology_client, ontology_diagram, ontology_editor, ontology_publish,
     toast as _toast,
 )
 
@@ -55,23 +55,32 @@ def browse() -> None:
             with cols[2]:
                 _approve_button(t.get("name", "?"), f"appr_{t.get('name')}")
         st.divider()
-    st.markdown(f"### ✅ Approved entity types ({len(approved)})")
+    st.markdown(f"### ✅ Approved entity types · owl:Class ({len(approved)})")
     if approved:
         st.dataframe(
-            [{"Type": t.get("name"), "Instances": t.get("instance_count", 0),
+            [{"owl:Class": t.get("name"),
+              "Instances": t.get("instance_count", 0),
               "Source": t.get("source") or "approved",
-              "Attributes": ", ".join((t.get("attributes") or {}).keys())[:60]}
+              "owl:DatatypeProperty": ", ".join(
+                  (t.get("attributes") or {}).keys())[:60]}
              for t in approved],
             use_container_width=True, hide_index=True,
         )
     else:
-        st.caption("No approved types yet — approve some from the Pending list above.")
-    st.markdown("### 🔗 Relationship types")
+        st.caption("No approved types yet — approve some above.")
+    st.markdown("### 🔗 Relationship types · owl:ObjectProperty")
     if rels:
-        st.dataframe(rels, use_container_width=True, hide_index=True)
+        st.dataframe(
+            [{"owl:ObjectProperty": r.get("name"),
+              "Count": r.get("count", 0)} for r in rels],
+            use_container_width=True, hide_index=True,
+        )
     else:
         st.caption("No relationships yet.")
     st.divider()
+    with st.expander("🖼  Lightweight ontology — schema diagram",
+                     expanded=True):
+        ontology_diagram.render(types, rels)
     ontology_editor.render_add_type_form()
 
 

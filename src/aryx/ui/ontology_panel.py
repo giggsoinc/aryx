@@ -1,8 +1,14 @@
-"""Ontology page — browse, export, and import the workspace ontology.
+"""Ontology page — staged lifecycle view.
 
-Browse shows what's in the ontology today (types, relationships) so the page
-is useful before a user even thinks about RDF. Export and Import become
-secondary tabs for semantic-web tool interop.
+Lifecycle (matches the deck's slides 5/6/8 and the user's brief):
+    Brief → Ingest → 🟦 Lightweight (observed)
+                      ↓ HITL review
+                     🟪 Heavyweight (governed)
+                      ↓ Rules + Versions
+                     📤 Publish
+
+Each tab below is one stage. The Brief stage lives on its own top-nav
+page; Ingest is upstream of this view; everything else surfaces here.
 """
 from __future__ import annotations
 
@@ -23,36 +29,44 @@ def _config() -> dict:
 
 
 def _what_is() -> None:
-    with st.expander("ℹ️  What is this page for?", expanded=False):
+    with st.expander("ℹ️  Ontology lifecycle — Brief → Lightweight → "
+                     "HITL → Heavyweight → Publish", expanded=False):
         st.markdown(
-            "**Types & relationships = your business vocabulary.** "
-            "An ontology defines what 'Customer', 'Contract', 'Ticket' mean "
-            "to *your* business and how they connect.\n\n"
-            "- **Browse** — see the vocabulary Aryx has learned from your data.\n"
-            "- **Export** — open it in Protégé / GraphDB / load into a SPARQL store.\n"
-            "- **Import** — bring a standard vocabulary (schema.org, FIBO) so "
-            "Aryx classifies your data using it."
+            "**1 · Brief** (top-nav) — competency questions ground intent.\n"
+            "**2 · Ingest** (top-nav) — sources feed the discovery agent.\n"
+            "**3 · 🟦 Lightweight (observed)** — proposed `owl:Class` + "
+            "`owl:ObjectProperty` Aryx surfaced from the data + brief.\n"
+            "**4 · 👤 HITL Review** — human approves / edits proposed types.\n"
+            "**5 · 🟪 Heavyweight (governed)** — rules + versioned "
+            "snapshots. Inferred edges (`INF_*`) come from this stage.\n"
+            "**6 · 📤 Publish** — serialise to Turtle / JSON-LD / RDF-XML "
+            "for Protégé, GraphDB, Apache Jena, any SPARQL store."
         )
 
 
 def render() -> None:
-    """Ontology page — Browse / Export / Import."""
-    st.title("Ontology")
+    """Ontology page — staged lifecycle tabs."""
+    st.title("🦉 Ontology")
     workspace_summary.render("Ontology")
     _what_is()
     cfg = _config()
     if not cfg:
         return
     if not cfg.get("enabled"):
-        st.info("Ontology interchange is **disabled** in Settings — "
-                "you can still Browse below.")
+        st.info("Publish + Import are disabled in Settings — Lightweight "
+                "and Heavyweight stages remain available.")
     try:
         ext_by_format = {f["name"]: f["extension"]
                          for f in ontology_client.formats()}
     except Exception:
         ext_by_format = {}
-    tabs = st.tabs(["🔎 Browse", "🧠 Rules", "🕘 Versions",
-                    "📤 Export", "📥 Import"])
+    tabs = st.tabs([
+        "🟦 Lightweight (observed)",
+        "🟪 Heavyweight: Rules",
+        "🟪 Heavyweight: Versions",
+        "📤 Publish",
+        "📥 Import vocabulary",
+    ])
     with tabs[0]:
         ontology_sections.browse()
     with tabs[1]:
@@ -63,9 +77,9 @@ def render() -> None:
         if cfg.get("enabled"):
             ontology_sections.export_(cfg, ext_by_format)
         else:
-            st.warning("Enable ontology interchange in Settings to export.")
+            st.warning("Enable interchange in Settings to publish.")
     with tabs[4]:
         if cfg.get("enabled"):
             ontology_sections.import_()
         else:
-            st.warning("Enable ontology interchange in Settings to import.")
+            st.warning("Enable interchange in Settings to import.")
