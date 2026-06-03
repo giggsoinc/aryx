@@ -97,13 +97,18 @@ def _sources() -> None:
 
 def render() -> None:
     """Main ingest page: tabs for database/documents, progress monitor, jobs."""
+    from aryx import brief as brief_lib
     st.title("Ingest")
     ws = workspace_summary.render("Ingest")
+    if not brief_lib.is_populated(ws.get("brief")):
+        st.warning("📋 Brief is empty — entity extraction will fall back to "
+                   "generic NER. Fill the Brief tab first for domain-specific "
+                   "types.")
     st.markdown("**Add data sources** — Connect a database (agent auto-discovers tables) "
                 "or upload documents (agent finds entities). The agent uses your "
-                "workspace's business context to know what to look for.")
+                "Brief + business context to know what to look for.")
     st.divider()
-    ctx = ws.get("context", "") or ""
+    ctx = brief_lib.merge_with_context(ws.get("brief"), ws.get("context", ""))
     tab_db, tab_docs, tab_api = st.tabs([
         "🗄 Database (auto-discover)", "📄 Documents (folder)",
         "🔌 API / REST",

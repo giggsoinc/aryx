@@ -25,6 +25,16 @@ class ContextRequest(BaseModel):
     context: str = ""
 
 
+class BriefRequest(BaseModel):
+    """Knowledge-modelling brief — 5 METHONTOLOGY-style competency questions."""
+
+    domain: str = ""
+    aim: str = ""
+    objectives: list[str] = []
+    scope: str = ""
+    roles: list[str] = []
+
+
 def workspace_router() -> APIRouter:
     router = APIRouter(prefix="/admin/workspaces")
 
@@ -53,6 +63,14 @@ def workspace_router() -> APIRouter:
         store = WorkspaceStore(get_settings().rdb_dsn)
         try:
             return store.set_context(workspace_id, req.context)
+        finally:
+            store.close()
+
+    @router.patch("/{workspace_id}/brief")
+    def set_brief(workspace_id: int, req: BriefRequest) -> dict[str, Any]:
+        store = WorkspaceStore(get_settings().rdb_dsn)
+        try:
+            return store.set_brief(workspace_id, req.model_dump())
         finally:
             store.close()
 

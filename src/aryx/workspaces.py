@@ -12,6 +12,7 @@ from typing import Any
 
 import psycopg
 from psycopg import sql
+from psycopg.types.json import Json
 
 from aryx.queries import load
 
@@ -47,32 +48,43 @@ class WorkspaceStore:
             self._conn.execute(sql.SQL(template).format(
                 child=sql.Identifier(f"{base}_ws{wid}")))
 
-    def create(self, name: str, description: str = "",
-               context: str = "") -> dict[str, Any]:
+    def create(self, name: str, description: str = "", context: str = "",
+               brief: dict | None = None) -> dict[str, Any]:
         with self._conn.cursor() as cur:
-            cur.execute(load("insert_workspace"), (name, description, context))
+            cur.execute(load("insert_workspace"),
+                        (name, description, context, Json(brief or {})))
             row = cur.fetchone()
         wid = int(row[0])
         self._attach_partitions(wid)
         logger.info("workspace created id=%d name=%s", wid, name)
         return {"id": wid, "name": row[1], "description": row[2],
-                "context": row[3], "created_at": row[4]}
+                "context": row[3], "brief": row[4] or {}, "created_at": row[5]}
 
     def list_all(self) -> list[dict[str, Any]]:
         with self._conn.cursor() as cur:
             cur.execute(load("select_workspaces"))
             return [{"id": r[0], "name": r[1], "description": r[2],
-                     "context": r[3], "created_at": r[4]}
+                     "context": r[3], "brief": r[4] or {}, "created_at": r[5]}
                     for r in cur.fetchall()]
 
     def set_context(self, wid: int, context: str) -> dict[str, Any]:
-        """Update the workspace-level business context."""
+        """Update the free-text business context override."""
         with self._conn.cursor() as cur:
             cur.execute(load("update_workspace_context"), (context, int(wid)))
             row = cur.fetchone()
-        logger.info("workspace context updated id=%s len=%d", wid, len(context))
         return {"id": row[0], "name": row[1], "description": row[2],
-                "context": row[3], "created_at": row[4]}
+                "context": row[3], "brief": {}, "created_at": row[4]}
+
+    def set_brief(self, wid: int, brief: dict) -> dict[str, Any]:
+        """Update the structured knowledge-modelling brief (5 questions)."""
+        with self._conn.cursor() as cur:
+            cur.execute(load("update_workspace_brief"),
+                        (Json(brief or {}), int(wid)))
+            row = cur.fetchone()
+        logger.info("workspace brief updated id=%s keys=%d", wid, len(brief))
+        return {"id": row[0], "name": row[1], "description": row[2],
+                "context": row[3], "brief": row[4] or {},
+                "created_at": row[5]}
 
     def delete(self, wid: int) -> None:
         """Physically purge a workspace: drop partitions + its run/job rows."""

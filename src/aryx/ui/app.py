@@ -11,14 +11,15 @@ st.set_page_config(
 )
 
 from aryx.ui import (  # noqa: E402
-    ask_panel, graph_panel, home_panel, ingest_panel, observability_panel,
-    ontology_panel, settings_panel, theme, workspace_bar,
+    ask_panel, brief_panel, graph_panel, home_panel, ingest_panel,
+    observability_panel, ontology_panel, settings_panel, theme, workspace_bar,
 )
 
 theme.inject()
 
 PAGES = {
     "🏠  Home": home_panel,
+    "📋  Brief": brief_panel,
     "➕  Ingest": ingest_panel,
     "💬  Ask": ask_panel,
     "🕸️  Graph": graph_panel,
