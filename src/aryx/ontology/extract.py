@@ -76,7 +76,11 @@ def extract_mentions(chunks: list[DocumentChunk], broker: Broker) -> list[RawRec
                            chunk.chunk_index, chunk.doc_id[:8], exc)
             continue
 
-        for i, mention in enumerate(result.get("mentions", [])):
+        # Tolerate both shapes: Ollama wraps in {"mentions": [...]}; Gemini's
+        # OpenAI-compatible JSON mode often returns the bare list. Either is
+        # acceptable provider output — the consumer doesn't care.
+        mentions = result if isinstance(result, list) else result.get("mentions", [])
+        for i, mention in enumerate(mentions):
             if not _verbatim_ok(mention["name"], mention["span"]):
                 rejected += 1
                 logger.debug("verbatim-span gate rejected name=%r chunk=%d",
