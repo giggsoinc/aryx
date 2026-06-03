@@ -28,14 +28,16 @@ def _stat_row() -> None:
 
 
 def render() -> None:
-    st.title("Aryx")
     st.markdown(
-        '<p class="aryx-hero">Aryx turns your scattered data — database tables, '
-        "support tickets, documents — into a single <b>knowledge graph</b> you can "
-        "query in plain language and explore visually.</p>",
+        '<div class="aryx-brandbar">'
+        '<h1>ARYX</h1>'
+        '<span class="tag">A Fortress of Structured Knowledge</span>'
+        '<p class="aryx-hero" style="color:#E7ECF7;margin-top:0.9rem;">'
+        "Turn messy enterprise knowledge into <b>structured intelligence</b> — "
+        "a single knowledge graph you can query in plain English and explore "
+        "visually.</p></div>",
         unsafe_allow_html=True,
     )
-    st.divider()
 
     _stat_row()
     st.divider()

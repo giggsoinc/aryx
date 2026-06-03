@@ -74,18 +74,35 @@ def _review_and_ingest() -> None:
             st.error(f"Ingest failed: {exc}")
 
 
-def render() -> None:
-    """Two-step form: (1) connect to database, (2) discover entities from schema."""
-    st.markdown("**1 · What are you building?** — Tell the agent about these tables so it knows "
-                "what entities to find.")
-    context = st.text_area(
-        "Context", key="rdb_context",
-        placeholder="e.g., Customer accounts from Q2: include names, company, industry, deal amount",
-        height=80)
-    st.markdown("**2 · Connect**")
+def render(workspace_context: str = "") -> None:
+    """Connect → discover → ingest, using workspace-level business context."""
+    if workspace_context.strip():
+        st.markdown(
+            f'<div class="aryx-ws-summary">📝 <b>Workspace context:</b> '
+            f'<i>{workspace_context}</i></div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.warning(
+            "No business context for this workspace yet — open **Manage "
+            "workspace** in the sidebar to add one. The discovery agent needs "
+            "it to identify entity types."
+        )
+    extra = st.text_area(
+        "Extra context for THIS connection (optional)",
+        key="rdb_extra_ctx", height=70,
+        placeholder="e.g., Focus on Q3 customer onboarding tables only.",
+    )
+    context = f"{workspace_context}\n{extra}".strip()
+    st.markdown("**Connect**")
     _connect_form()
     if st.session_state.get("rdb_conn"):
-        st.markdown("**3 · Auto-discover**")
+        st.markdown("**Auto-discover**")
         _discover(context)
-        st.markdown("**4 · Review & ingest**")
+        st.markdown("**Review & ingest**")
         _review_and_ingest()
+        st.divider()
+        if st.button("➕ Add more tables from this connection",
+                     key="rdb_add_more"):
+            st.session_state.pop("rdb_disc", None)
+            st.rerun()

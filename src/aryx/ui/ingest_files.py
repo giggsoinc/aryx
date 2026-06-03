@@ -12,8 +12,8 @@ import streamlit as st
 
 from aryx.ui import api, ingest_client, upload
 
-_TYPES = ["json", "csv", "pdf", "pptx", "ppt", "docx", "doc", "rtf",
-          "jpg", "jpeg", "png", "tiff", "tif", "bmp"]
+_TYPES = ["json", "csv", "xml", "html", "htm", "pdf", "pptx", "ppt",
+          "docx", "doc", "rtf", "jpg", "jpeg", "png", "tiff", "tif", "bmp"]
 
 
 def _extract_context_text(context_file) -> str:
@@ -98,46 +98,41 @@ def _summary_form(did: str) -> None:
 
 
 def render(context: str) -> None:
-    """Two-step form: (1) provide context, (2) upload files. Both required before discovery."""
-    st.subheader("Step 1 — Context", divider=True)
-    st.markdown("**What are you building?** — Tell the agent about these files so it knows what "
-                "entities to find.")
-    col_text, col_file = st.columns([1.5, 1])
-    with col_text:
-      text_context = st.text_area(
-          "Context (text)", value=context, placeholder="e.g., Customer accounts from Q2: include "
-          "names, company, industry, deal amount", key="ctx_text", height=80)
-    with col_file:
-      context_file = st.file_uploader(
-          "Or upload context file", type=["txt", "pdf", "docx", "doc"], key="ctx_file")
-    effective_context = text_context
-    if context_file:
-      file_text = _extract_context_text(context_file)
-      effective_context = f"{text_context}\n{file_text}" if text_context else file_text
-      if context_file:
-        st.caption(f"📎 {context_file.name} loaded")
-    st.subheader("Step 2 — Documents", divider=True)
+    """Upload files; agent uses workspace context to identify entities."""
+    if context.strip():
+        st.markdown(
+            f'<div class="aryx-ws-summary">📝 <b>Workspace context:</b> '
+            f'<i>{context}</i></div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.warning("No business context for this workspace yet — open **Manage "
+                   "workspace** in the sidebar to add one.")
+    st.subheader("Upload documents", divider=True)
     uploaded = st.file_uploader(
-        "Drop your files here — I'll read them and tell you what's inside "
-        "(max 50 files, 2 MB each)", type=_TYPES, accept_multiple_files=True)
-    has_context = bool(effective_context.strip())
+        "Drop files — JSON, CSV, XML, HTML, PDF, Word, PowerPoint, RTF, "
+        "or images (max 50 files, 2 MB each)",
+        type=_TYPES, accept_multiple_files=True)
+    has_context = bool(context.strip())
     has_files = bool(uploaded)
     col_btn, col_status = st.columns([1, 2])
     with col_btn:
-      if st.button("Read & discover", type="primary", disabled=not (has_context and has_files)):
+      if st.button("Read & discover", type="primary",
+                   disabled=not (has_context and has_files)):
         if not has_context:
-            st.error("Add context in Step 1 first.")
+            st.error("Set workspace business context in the sidebar first.")
         elif not has_files:
-            st.error("Upload at least one file in Step 2.")
+            st.error("Upload at least one file.")
         else:
             try:
-                st.session_state.docs_did = upload.docs_read(uploaded, effective_context).get("discovery_id")
+                st.session_state.docs_did = upload.docs_read(
+                    uploaded, context).get("discovery_id")
                 st.session_state.pop("docs_summary", None)
             except Exception as exc:
                 st.error(f"Failed: {exc}")
     with col_status:
       if not has_context:
-        st.caption("⚠️ Provide context first")
+        st.caption("⚠️ Set workspace context first")
       elif not has_files:
         st.caption("⚠️ Upload files first")
     did = st.session_state.get("docs_did")

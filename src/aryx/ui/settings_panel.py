@@ -7,8 +7,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from aryx.ui import api
-from aryx.ui import ontology_client
+from aryx.ui import api, ontology_client, settings_mcp, settings_tokens
 
 _PROVIDERS = {
     "Local (Ollama)": "ollama",
@@ -66,6 +65,10 @@ def render() -> None:
 
     st.divider()
     _ontology_section()
+    st.divider()
+    settings_mcp.render()
+    st.divider()
+    settings_tokens.render()
 
 
 def _ontology_section() -> None:

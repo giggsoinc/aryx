@@ -36,6 +36,24 @@ def graph_router() -> APIRouter:
             "relationships": reader.all_relationships(),
         }
 
+    @router.post("/graph/cypher")
+    def cypher_read(body: dict[str, Any]) -> dict[str, Any]:
+        """Run a read-only Cypher MATCH; rejects writes (server.py also guards)."""
+        import re as _re
+        q = str(body.get("query") or "")
+        if _re.search(r"\b(CREATE|MERGE|DELETE|SET|REMOVE|DROP|DETACH)\b",
+                      q, _re.IGNORECASE):
+            raise HTTPException(400, "read-only — write keywords rejected")
+        wid = int(body.get("workspace_id", 1))
+        from aryx.graph.falkor_store import FalkorStore
+        from aryx.workspaces import ws_graph
+        store = FalkorStore(get_settings().graph_url, ws_graph(wid))
+        try:
+            rows = store.run(q, params={})
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(400, f"cypher failed: {exc}") from exc
+        return {"rows": rows[: int(body.get("limit", 50))]}
+
     @router.get("/entities/{entity_id}")
     def get_entity(
         entity_id: int, reader: GraphReader = Depends(_reader)

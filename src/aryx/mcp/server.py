@@ -1,24 +1,15 @@
-"""Aryx MCP server (Inc 11) — stdio transport, read-only, 4 tools.
+"""Aryx MCP server (Inc 11+) — stdio + SSE, read-only, 8 tools.
 
-Wraps the live Aryx REST API so Claude Desktop can query the knowledge graph.
+Wraps the live Aryx REST API so any MCP-compatible agent (Claude Desktop,
+Claude Code, Cursor, Continue) can query the knowledge graph.
 Set ARYX_API_URL to point at the running API instance.
-
-Claude Desktop config (~/.config/claude/claude_desktop_config.json):
-  {
-    "mcpServers": {
-      "aryx": {
-        "command": "python",
-        "args": ["-m", "aryx.mcp"],
-        "env": { "ARYX_API_URL": "http://ec2-3-91-73-197.compute-1.amazonaws.com:8088" }
-      }
-    }
-  }
 """
 from __future__ import annotations
 
 import json
 import logging
 import os
+import re
 import urllib.parse
 import urllib.request
 from typing import Any
@@ -27,113 +18,95 @@ import mcp.types as types
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 
+from aryx.mcp.tools import tool_specs
+
 logger = logging.getLogger(__name__)
 
 _API_URL = os.environ.get("ARYX_API_URL", "http://localhost:8088").rstrip("/")
-
 server = Server("aryx")
+
+_WRITE_RX = re.compile(
+    r"\b(CREATE|MERGE|DELETE|SET|REMOVE|DROP|DETACH)\b", re.IGNORECASE
+)
+
+
+def _qs(args: dict[str, Any], extras: dict[str, Any]) -> str:
+    """Build a query string merging tool args + extras (workspace_id first)."""
+    out = [f"workspace_id={int(args.get('workspace_id', 1))}"]
+    for k, v in extras.items():
+        if v is not None and v != "":
+            out.append(f"{k}={urllib.parse.quote(str(v))}")
+    return "?" + "&".join(out)
 
 
 def _get(path: str) -> Any:
     url = f"{_API_URL}{path}"
-    with urllib.request.urlopen(url, timeout=10) as resp:  # noqa: S310
+    with urllib.request.urlopen(url, timeout=20) as resp:  # noqa: S310
+        return json.loads(resp.read().decode())
+
+
+def _post(path: str, body: dict) -> Any:
+    data = json.dumps(body).encode()
+    req = urllib.request.Request(
+        f"{_API_URL}{path}", data=data,
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=180) as resp:  # noqa: S310
         return json.loads(resp.read().decode())
 
 
 @server.list_tools()
 async def list_tools() -> list[types.Tool]:
-    return [
-        types.Tool(
-            name="search_entities",
-            description=(
-                "Search the Aryx knowledge graph for entities by name or type. "
-                "Returns id, type, and name for each match."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string", "description": "Name substring to search for."},
-                    "type": {"type": "string", "description": "Ontology type filter, e.g. 'Customer'."},
-                    "limit": {"type": "integer", "default": 20},
-                },
-            },
-        ),
-        types.Tool(
-            name="get_entity",
-            description="Get full details for one entity by its numeric id.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "id": {"type": "integer", "description": "Entity id."},
-                },
-                "required": ["id"],
-            },
-        ),
-        types.Tool(
-            name="get_neighbors",
-            description=(
-                "Return one-hop relationships from an entity in both directions. "
-                "Each result includes the related entity and the relationship name."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "id": {"type": "integer", "description": "Entity id."},
-                },
-                "required": ["id"],
-            },
-        ),
-        types.Tool(
-            name="get_provenance",
-            description=(
-                "Return the source records an entity was resolved from — "
-                "which system, dataset, and record it came from."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "id": {"type": "integer", "description": "Entity id."},
-                },
-                "required": ["id"],
-            },
-        ),
-    ]
+    """Return the static tool specs."""
+    return tool_specs()
+
+
+def _dispatch(name: str, a: dict) -> Any:
+    """Route a tool call to the right REST endpoint."""
+    if name == "list_workspaces":
+        return _get("/admin/workspaces?workspace_id=1")
+    if name == "list_types":
+        return _get("/ontology/types" + _qs(a, {}))
+    if name == "search_entities":
+        return _get("/entities" + _qs(a, {
+            "name": a.get("name"), "type": a.get("type"),
+            "limit": a.get("limit", 20),
+        }))
+    if name == "get_entity":
+        return _get(f"/entities/{int(a['id'])}" + _qs(a, {}))
+    if name == "get_neighbors":
+        return _get(f"/entities/{int(a['id'])}/neighbors" + _qs(a, {}))
+    if name == "get_provenance":
+        return _get(f"/entities/{int(a['id'])}/provenance" + _qs(a, {}))
+    if name == "ask":
+        return _post("/ask", {
+            "question": a["question"],
+            "history": a.get("history") or [],
+            "workspace_id": int(a.get("workspace_id", 1)),
+        })
+    if name == "cypher_read":
+        q = str(a.get("query") or "")
+        if _WRITE_RX.search(q):
+            return {"error": "read-only — write keywords rejected"}
+        return _post("/graph/cypher", {
+            "query": q, "limit": int(a.get("limit", 50)),
+            "workspace_id": int(a.get("workspace_id", 1)),
+        })
+    return {"error": f"unknown tool: {name}"}
 
 
 @server.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
+    """Single dispatch surface; convert REST errors into structured text."""
     try:
-        if name == "search_entities":
-            params: list[str] = []
-            if arguments.get("name"):
-                params.append(f"name={urllib.parse.quote(arguments['name'])}")
-            if arguments.get("type"):
-                params.append(f"type={urllib.parse.quote(arguments['type'])}")
-            params.append(f"limit={arguments.get('limit', 20)}")
-            result = _get(f"/entities?{'&'.join(params)}")
-
-        elif name == "get_entity":
-            result = _get(f"/entities/{int(arguments['id'])}")
-
-        elif name == "get_neighbors":
-            result = _get(f"/entities/{int(arguments['id'])}/neighbors")
-
-        elif name == "get_provenance":
-            result = _get(f"/entities/{int(arguments['id'])}/provenance")
-
-        else:
-            result = {"error": f"unknown tool: {name}"}
-
-    except Exception as exc:
-        result = {"error": str(exc)}
-
-    return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
+        result = _dispatch(name, arguments or {})
+    except Exception as exc:  # noqa: BLE001
+        result = {"error": str(exc), "tool": name}
+    return [types.TextContent(type="text",
+                              text=json.dumps(result, indent=2, default=str))]
 
 
 async def main() -> None:
-    async with stdio_server() as (read_stream, write_stream):
-        await server.run(
-            read_stream,
-            write_stream,
-            server.create_initialization_options(),
-        )
+    """Run as a stdio MCP server (for local Claude Desktop)."""
+    async with stdio_server() as (r, w):
+        await server.run(r, w, server.create_initialization_options())

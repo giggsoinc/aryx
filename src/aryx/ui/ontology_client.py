@@ -42,3 +42,20 @@ def import_doc(content: str, fmt: str = "", filename: str = "") -> dict[str, Any
     return api._post("/ontology/import",
                      {"content": content, "format": fmt, "filename": filename},
                      timeout=120)
+
+
+def list_types() -> dict[str, Any]:
+    """Browse: types + relationships + entity count for the active workspace."""
+    return api._get("/ontology/types")
+
+
+def approve_type(name: str) -> dict[str, Any]:
+    """Approve a proposed type via the HITL review gate."""
+    return api._post(f"/ontology/types/{urllib.parse.quote(name)}/approve", {})
+
+
+def add_type(name: str, attributes: dict[str, str]) -> dict[str, Any]:
+    """Manually add a new ontology type."""
+    return api._post("/ontology/types",
+                     {"name": name, "attributes": attributes,
+                      "status": "approved"})

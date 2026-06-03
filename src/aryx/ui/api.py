@@ -52,14 +52,26 @@ def list_workspaces() -> list[dict]:
     return _get("/admin/workspaces")
 
 
-def create_workspace(name: str, description: str = "") -> dict:
-    """Create a workspace with the given name and optional description."""
-    return _post("/admin/workspaces", {"name": name, "description": description})
+def create_workspace(name: str, description: str = "", context: str = "") -> dict:
+    """Create a workspace with the given name, description, and context."""
+    return _post("/admin/workspaces",
+                 {"name": name, "description": description, "context": context})
 
 
 def delete_workspace(workspace_id: int) -> dict:
     """Delete a workspace and physically purge its data."""
     return _delete(f"/admin/workspaces/{workspace_id}")
+
+
+def set_workspace_context(workspace_id: int, context: str) -> dict:
+    """Update the workspace-level business context."""
+    data = json.dumps({"context": context}).encode()
+    req = urllib.request.Request(
+        f"{_BASE}/admin/workspaces/{workspace_id}/context",
+        data=data, headers={"Content-Type": "application/json"}, method="PATCH",
+    )
+    with urllib.request.urlopen(req, timeout=15) as r:  # noqa: S310
+        return json.loads(r.read())
 
 
 def full_graph() -> dict[str, Any]:

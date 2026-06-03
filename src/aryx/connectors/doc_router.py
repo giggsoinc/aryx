@@ -11,6 +11,7 @@ from aryx.broker import Broker
 from aryx.connectors.base import Connector
 from aryx.connectors.docx import DocxConnector
 from aryx.connectors.image import ImageConnector, SUPPORTED_EXTENSIONS as IMAGE_EXTS
+from aryx.connectors.markup import MarkupConnector
 from aryx.connectors.pdf import PdfConnector
 from aryx.connectors.pptx import PptxConnector
 from aryx.models import RawRecord, SourceRef
@@ -26,6 +27,7 @@ _EXT_MAP: dict[str, type] = {
     ".pdf": PdfConnector,
     ".pptx": PptxConnector, ".ppt": PptxConnector,
     ".docx": DocxConnector, ".doc": DocxConnector, ".rtf": DocxConnector,
+    ".xml": MarkupConnector, ".html": MarkupConnector, ".htm": MarkupConnector,
     **{ext: ImageConnector for ext in IMAGE_EXTS},
 }
 

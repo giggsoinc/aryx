@@ -4,7 +4,7 @@ from __future__ import annotations
 import streamlit as st
 from streamlit_agraph import agraph
 
-from aryx.ui import api
+from aryx.ui import api, workspace_summary
 from aryx.ui.graph_canvas import (
     build_edges, build_nodes, canvas_config, derive_degree, legend_html,
 )
@@ -22,10 +22,19 @@ def _toolbar(types: list[str]) -> tuple[list[str], str, bool]:
 
 
 def _visible_ids(entities: list[dict], rels: list[dict], selected: list[str],
-                 search: str, hide_iso: bool, focus: int | None) -> set[int]:
+                 search: str, hide_iso: bool, focus: int | None,
+                 focus_ids: list[int] | None = None) -> set[int]:
     """Resolve which entity ids the canvas should render right now."""
+    if focus_ids:
+        keep: set[int] = set(int(x) for x in focus_ids)
+        for r in rels:
+            if r["source"] in keep:
+                keep.add(r["target"])
+            if r["target"] in keep:
+                keep.add(r["source"])
+        return keep
     if focus is not None:
-        keep: set[int] = {focus}
+        keep = {focus}
         for r in rels:
             if r["source"] == focus:
                 keep.add(r["target"])
@@ -43,6 +52,7 @@ def _visible_ids(entities: list[dict], rels: list[dict], selected: list[str],
 
 def render() -> None:
     st.title("Knowledge Graph")
+    workspace_summary.render("Graph")
     try:
         data = api.full_graph()
     except Exception as exc:
@@ -50,15 +60,30 @@ def render() -> None:
         return
     entities = data.get("entities", [])
     rels = data.get("relationships", [])
+    if not entities:
+        st.warning("Nothing to render yet — ingest data on the **Ingest** tab "
+                   "and entities will appear here automatically.")
+        return
     all_types = sorted({e["type"] for e in entities})
 
     selected, search, hide_iso = _toolbar(all_types)
+    focus_ids = st.session_state.get("focus_ids")
+    if focus_ids:
+        st.info(f"🔍 Focused on {len(focus_ids)} "
+                f"entit{'y' if len(focus_ids) == 1 else 'ies'} from your "
+                "last question. Use **Reset view** to see everything.")
+    cols = st.columns([1, 1, 4])
+    if cols[0].button("🔄 Reset view"):
+        for k in ("focus_id", "selected_id", "focus_ids"):
+            st.session_state.pop(k, None)
+        st.rerun()
     focus = st.session_state.get("focus_id")
-    if focus is not None and st.button("✕ Clear focus", type="secondary"):
+    if focus is not None and cols[1].button("✕ Clear focus"):
         st.session_state.pop("focus_id", None)
         focus = None
 
-    visible = _visible_ids(entities, rels, selected, search, hide_iso, focus)
+    visible = _visible_ids(entities, rels, selected, search, hide_iso, focus,
+                           focus_ids)
     st.markdown(legend_html(selected), unsafe_allow_html=True)
     st.caption(f"Showing {len(visible)} of {len(entities)} entities · "
                f"{sum(1 for r in rels if r['source'] in visible and r['target'] in visible)} "

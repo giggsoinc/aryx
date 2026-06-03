@@ -47,20 +47,32 @@ class WorkspaceStore:
             self._conn.execute(sql.SQL(template).format(
                 child=sql.Identifier(f"{base}_ws{wid}")))
 
-    def create(self, name: str, description: str = "") -> dict[str, Any]:
+    def create(self, name: str, description: str = "",
+               context: str = "") -> dict[str, Any]:
         with self._conn.cursor() as cur:
-            cur.execute(load("insert_workspace"), (name, description))
+            cur.execute(load("insert_workspace"), (name, description, context))
             row = cur.fetchone()
         wid = int(row[0])
         self._attach_partitions(wid)
         logger.info("workspace created id=%d name=%s", wid, name)
-        return {"id": wid, "name": row[1], "description": row[2], "created_at": row[3]}
+        return {"id": wid, "name": row[1], "description": row[2],
+                "context": row[3], "created_at": row[4]}
 
     def list_all(self) -> list[dict[str, Any]]:
         with self._conn.cursor() as cur:
             cur.execute(load("select_workspaces"))
-            return [{"id": r[0], "name": r[1], "description": r[2], "created_at": r[3]}
+            return [{"id": r[0], "name": r[1], "description": r[2],
+                     "context": r[3], "created_at": r[4]}
                     for r in cur.fetchall()]
+
+    def set_context(self, wid: int, context: str) -> dict[str, Any]:
+        """Update the workspace-level business context."""
+        with self._conn.cursor() as cur:
+            cur.execute(load("update_workspace_context"), (context, int(wid)))
+            row = cur.fetchone()
+        logger.info("workspace context updated id=%s len=%d", wid, len(context))
+        return {"id": row[0], "name": row[1], "description": row[2],
+                "context": row[3], "created_at": row[4]}
 
     def delete(self, wid: int) -> None:
         """Physically purge a workspace: drop partitions + its run/job rows."""
