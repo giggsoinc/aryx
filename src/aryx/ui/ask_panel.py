@@ -1,9 +1,25 @@
 """Ask panel — LLM-backed chat over the graph via the REST /ask endpoint."""
 from __future__ import annotations
 
+import re
+
 import streamlit as st
 
-from aryx.ui import api, workspace_summary
+from aryx.ui import api, ask_export, workspace_summary
+
+
+def _entity_ids_from(resp: dict) -> list[int]:
+    """Pull entity ids out of the response (tools_called + plain answer)."""
+    ids: set[int] = set()
+    for blob in resp.get("tools_called", []) or []:
+        for m in re.findall(r"\bid[\s:=]+(\d+)", str(blob)):
+            ids.add(int(m))
+        for m in re.findall(r"\bentit(?:y|ies)[^0-9]*(\d+)", str(blob), re.I):
+            ids.add(int(m))
+    text = resp.get("answer", "") or ""
+    for m in re.findall(r"#(\d+)\b", text):
+        ids.add(int(m))
+    return sorted(ids)[:25]
 
 _GENERIC_SAMPLES = [
     "List the entity types in this workspace",
@@ -51,13 +67,21 @@ def _render_usage(usage: dict) -> None:
     cols[2].caption(f"🧠 {usage.get('answer_model', '?')}")
 
 
-def _render_msg(msg: dict) -> None:
+def _render_msg(msg: dict, idx: int = 0) -> None:
     with st.chat_message(msg["role"]):
         st.markdown(msg["text"])
         if msg.get("tools"):
             with st.expander(f"Graph calls ({len(msg['tools'])})"):
                 for t in msg["tools"]:
                     st.code(t, language="text")
+        ids = msg.get("entity_ids") or []
+        if ids and st.button(
+            f"🔍 View {len(ids)} entit{'y' if len(ids) == 1 else 'ies'} in Graph",
+            key=f"viewgraph_{idx}", type="secondary",
+        ):
+            st.session_state["focus_ids"] = ids
+            st.session_state["nav_target"] = "🕸️  Graph"
+            st.rerun()
         if msg.get("usage"):
             _render_usage(msg["usage"])
 
@@ -72,8 +96,12 @@ def render() -> None:
     if not st.session_state.chat:
         _sample_chips()
 
-    for msg in st.session_state.chat:
-        _render_msg(msg)
+    for idx, msg in enumerate(st.session_state.chat):
+        _render_msg(msg, idx)
+
+    if st.session_state.chat:
+        with st.expander("⬇️  Download this conversation", expanded=False):
+            ask_export.download_buttons(st.session_state.chat)
 
     queued = st.session_state.pop("queued_question", None)
     question = queued or st.chat_input("Ask anything about your graph…")
@@ -104,5 +132,6 @@ def render() -> None:
         "role": "assistant",
         "text": resp.get("answer", "(no answer)"),
         "tools": tools,
+        "entity_ids": _entity_ids_from(resp),
         "usage": resp.get("usage", {}),
     })

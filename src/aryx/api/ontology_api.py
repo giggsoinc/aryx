@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel
 
 from aryx import export_runtime
-from aryx.api.ontology_browse import list_browse
+from aryx.api.ontology_browse import approve as approve_browse, list_browse
 from aryx.config import get_settings
 from aryx.ontology.rdf import (
     GraphBundle,
@@ -94,6 +94,11 @@ def ontology_router() -> APIRouter:
     def list_types(workspace_id: int = 1) -> dict:
         """Return ontology types + relationships in this workspace (Browse tab)."""
         return list_browse(workspace_id)
+
+    @router.post("/types/{name}/approve")
+    def approve_type(name: str) -> dict:
+        """Approve a proposed type — flips status to 'approved'."""
+        return approve_browse(name)
 
     @router.get("/export")
     def export_graph(workspace_id: int = 1, format: str = "turtle") -> Response:

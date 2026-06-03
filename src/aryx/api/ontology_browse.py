@@ -12,6 +12,16 @@ from aryx.store.entity_store import EntityStore
 from aryx.store.ontology_store import OntologyStore
 
 
+def approve(name: str) -> dict[str, Any]:
+    """Approve a proposed ontology type via the HITL gate."""
+    store = OntologyStore(get_settings().rdb_dsn)
+    try:
+        store.approve_type(name)
+    finally:
+        store.close()
+    return {"status": "approved", "name": name}
+
+
 def list_browse(workspace_id: int) -> dict[str, Any]:
     """Return ontology types + relationship counts + entity count for one workspace."""
     settings = get_settings()

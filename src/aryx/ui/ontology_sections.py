@@ -20,8 +20,19 @@ _MEDIA_BY_EXT = {
 }
 
 
+def _approve_button(name: str, key: str) -> None:
+    """Approve button + spinner; reloads on success."""
+    if st.button(f"✅ Approve '{name}'", key=key, type="primary"):
+        try:
+            ontology_client.approve_type(name)
+            st.success(f"Approved {name}.")
+            st.rerun()
+        except Exception as exc:
+            st.error(f"Approve failed: {exc}")
+
+
 def browse() -> None:
-    """List entity types + attributes + relationship types in this workspace."""
+    """List approved types + relationships; surface proposed types for review."""
     try:
         data = ontology_client.list_types()
     except Exception as exc:
@@ -33,18 +44,33 @@ def browse() -> None:
         st.info("No ontology defined yet — run **Ingest** and Aryx will "
                 "propose types, or **Import** a vocabulary.")
         return
-    st.markdown("**Entity types**")
-    if types:
+    proposed = [t for t in types if t.get("status") == "proposed"]
+    approved = [t for t in types if t.get("status") != "proposed"]
+    if proposed:
+        st.markdown(f"### 🟡 Pending review ({len(proposed)})")
+        st.caption("These types were proposed by ingest discovery or an "
+                   "import. Approve them to make them part of the ontology.")
+        for t in proposed:
+            cols = st.columns([3, 2, 2])
+            cols[0].markdown(f"**{t.get('name')}** · "
+                             f"_{(t.get('source') or 'discovery')}_")
+            cols[1].caption(f"attrs: "
+                            f"{', '.join((t.get('attributes') or {}).keys()) or '—'}")
+            with cols[2]:
+                _approve_button(t.get("name", "?"), f"appr_{t.get('name')}")
+        st.divider()
+    st.markdown(f"### ✅ Approved entity types ({len(approved)})")
+    if approved:
         st.dataframe(
-            [{"Type": t.get("name"), "Status": t.get("status", "approved"),
-              "Instances": t.get("instance_count", 0),
-              "Description": (t.get("description") or "")[:80]}
-             for t in types],
+            [{"Type": t.get("name"), "Instances": t.get("instance_count", 0),
+              "Source": t.get("source") or "approved",
+              "Attributes": ", ".join((t.get("attributes") or {}).keys())[:60]}
+             for t in approved],
             use_container_width=True, hide_index=True,
         )
     else:
-        st.caption("No types yet.")
-    st.markdown("**Relationship types**")
+        st.caption("No approved types yet — approve some from the Pending list above.")
+    st.markdown("### 🔗 Relationship types")
     if rels:
         st.dataframe(rels, use_container_width=True, hide_index=True)
     else:

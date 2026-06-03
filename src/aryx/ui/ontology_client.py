@@ -47,3 +47,8 @@ def import_doc(content: str, fmt: str = "", filename: str = "") -> dict[str, Any
 def list_types() -> dict[str, Any]:
     """Browse: types + relationships + entity count for the active workspace."""
     return api._get("/ontology/types")
+
+
+def approve_type(name: str) -> dict[str, Any]:
+    """Approve a proposed type via the HITL review gate."""
+    return api._post(f"/ontology/types/{urllib.parse.quote(name)}/approve", {})

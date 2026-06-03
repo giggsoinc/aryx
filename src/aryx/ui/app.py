@@ -27,10 +27,14 @@ PAGES = {
     "⚙️  Settings": settings_panel,
 }
 
+_nav_target = st.session_state.pop("nav_target", None)
 with st.sidebar:
     workspace_bar.render()
     st.divider()
-    page = st.radio("Navigate", list(PAGES.keys()), label_visibility="collapsed")
+    _labels = list(PAGES.keys())
+    _idx = _labels.index(_nav_target) if _nav_target in _labels else 0
+    page = st.radio("Navigate", _labels, index=_idx,
+                    label_visibility="collapsed", key="nav_radio")
     st.divider()
     st.caption("v1.0 · [Graph API](/docs)")
 
