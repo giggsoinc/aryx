@@ -3,6 +3,10 @@
 Runs on cheap tier; verbatim-span gate is a deterministic, free control:
 any mention whose name is absent from its cited span is rejected before it
 can reach resolution or the graph.
+
+Provider-shape quirks (Gemini's bare-list envelope, field renames like
+entity_type / verbatim_span) are absorbed by aryx.llm_normalize at the
+complete_json boundary — this module sees the canonical schema shape only.
 """
 from __future__ import annotations
 
@@ -76,24 +80,11 @@ def extract_mentions(chunks: list[DocumentChunk], broker: Broker) -> list[RawRec
                            chunk.chunk_index, chunk.doc_id[:8], exc)
             continue
 
-        # Tolerate both shapes: Ollama wraps in {"mentions": [...]}; Gemini's
-        # OpenAI-compatible JSON mode often returns the bare list. Either is
-        # acceptable provider output — the consumer doesn't care.
-        mentions = result if isinstance(result, list) else result.get("mentions", [])
-        for i, mention in enumerate(mentions):
-            if not isinstance(mention, dict):
+        for i, mention in enumerate(result.get("mentions", [])):
+            name = mention.get("name", "")
+            span = mention.get("span", "") or name
+            if not name or not mention.get("type") or not _verbatim_ok(name, span):
                 rejected += 1
-                continue
-            name = str(mention.get("name", "")).strip()
-            mtype = str(mention.get("type", "")).strip()
-            span = str(mention.get("span", "") or name)
-            if not name or not mtype:
-                rejected += 1
-                continue
-            if not _verbatim_ok(name, span):
-                rejected += 1
-                logger.debug("verbatim-span gate rejected name=%r chunk=%d",
-                             name, chunk.chunk_index)
                 continue
             mention_id = f"{chunk.doc_id}:{chunk.chunk_index}:{i}"
             records.append(RawRecord(
@@ -103,7 +94,7 @@ def extract_mentions(chunks: list[DocumentChunk], broker: Broker) -> list[RawRec
                     record_id=mention_id,
                 ),
                 payload={
-                    "type": mtype,
+                    "type": mention["type"],
                     "name": name,
                     "chunk_index": chunk.chunk_index,
                     "span": span,

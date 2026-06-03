@@ -16,6 +16,7 @@ from typing import Any
 
 from aryx.broker import Broker
 from aryx.broker.specs import ModelSpec, Tier
+from aryx.llm_normalize import normalize as _normalize_json
 
 logger = logging.getLogger(__name__)
 
@@ -142,4 +143,6 @@ def complete_json(
     broker.charge(tier, in_tok + out_tok)
     logger.info("complete tier=%s provider=%s model=%s tokens=%d", tier,
                 spec.provider, spec.name, in_tok + out_tok)
-    return data
+    # Provider-quirk normalization: list-vs-dict envelope + synonym rename.
+    # Callers see ONE canonical shape regardless of which provider answered.
+    return _normalize_json(data, schema)
