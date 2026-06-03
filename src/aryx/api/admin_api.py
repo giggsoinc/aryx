@@ -20,15 +20,24 @@ from aryx.store.migrate import apply_migrations
 
 
 def _local_broker() -> Broker:
-    """Local-only broker so the pipeline never tries Claude without a key."""
+    """Local-only broker so the pipeline never tries Claude without a key.
+
+    The embed_config is required for the doc ingest pipeline (chunks →
+    embeddings → store). Defaults to nomic-embed-text on the local Ollama;
+    override with ARYX_EMBED_MODEL / ARYX_EMBED_ENDPOINT.
+    """
     endpoint = os.environ.get("ARYX_LLM_BASE_URL", "http://ollama:11434")
     menial = os.environ.get("ARYX_LLM_MENIAL_MODEL", "qwen3.5:0.8b")
     reason = os.environ.get("ARYX_LLM_REASON_MODEL", "qwen3.5:0.8b")
+    embed_model = os.environ.get("ARYX_EMBED_MODEL", "nomic-embed-text")
+    embed_endpoint = os.environ.get("ARYX_EMBED_ENDPOINT", endpoint)
     registry = Registry()
     for name, tier in ((menial, "cheap"), (reason, "frontier")):
         registry.add(ModelSpec(name=name, provider="ollama", tier=tier,
                                local=True, endpoint=endpoint))
-    return Broker(registry, TokenGovernor({}))
+    return Broker(registry, TokenGovernor({}),
+                  embed_config={"model": embed_model,
+                                "endpoint": embed_endpoint})
 
 logger = logging.getLogger(__name__)
 
