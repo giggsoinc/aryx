@@ -1,5 +1,5 @@
 SELECT job_id, source_system, source_dataset, status, stage, pct, detail,
-       run_id, error, started_at, updated_at, finished_at
+       run_id, error, started_at, updated_at, finished_at, workspace_id
 FROM aryx_job
 WHERE workspace_id = %s
 ORDER BY started_at DESC

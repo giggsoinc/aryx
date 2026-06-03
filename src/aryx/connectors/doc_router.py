@@ -46,7 +46,7 @@ def _connector_for(path: Path):
 def ingest_document(
     path: Path, system: str, broker: Broker, chunk_store: ChunkStore,
     chunk_size: int, chunk_overlap: int, expected_embed_dim: int,
-    run_pii: bool = True,
+    run_pii: bool = True, context: str = "",
 ) -> list[RawRecord]:
     doc_id = _content_hash(path)
     source = SourceRef(system=system, dataset=path.stem, record_id=doc_id)
@@ -63,7 +63,7 @@ def ingest_document(
     chunk_db_ids = chunk_store.save_chunks(doc_db_id, chunks)
     embeddings = embed_chunks(chunks, broker, expected_dim=expected_embed_dim)
     chunk_store.save_embeddings(chunk_db_ids, embeddings)
-    records = extract_mentions(chunks, broker)
+    records = extract_mentions(chunks, broker, context=context)
     logger.info("ingest_document path=%s doc_id=%s chunks=%d mentions=%d",
                 path.name, doc_id[:8], len(chunks), len(records))
     return records
@@ -76,7 +76,7 @@ class DocumentRouterConnector(Connector):
         self, paths: list[Path], system: str, broker: Broker,
         chunk_store: ChunkStore, chunk_size: int = 1000,
         chunk_overlap: int = 100, expected_embed_dim: int = 768,
-        run_pii: bool = True,
+        run_pii: bool = True, context: str = "",
     ) -> None:
         self._paths = paths
         self._system = system
@@ -86,6 +86,7 @@ class DocumentRouterConnector(Connector):
         self._chunk_overlap = chunk_overlap
         self._expected_embed_dim = expected_embed_dim
         self._run_pii = run_pii
+        self._context = context
 
     def extract(self) -> Iterator[RawRecord]:
         for path in self._paths:
@@ -94,6 +95,7 @@ class DocumentRouterConnector(Connector):
                     path, self._system, self._broker, self._chunk_store,
                     self._chunk_size, self._chunk_overlap,
                     self._expected_embed_dim, self._run_pii,
+                    context=self._context,
                 )
             except Exception as exc:
                 logger.error("ingest failed path=%s error=%s", path.name, exc)

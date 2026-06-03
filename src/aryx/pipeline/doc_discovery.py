@@ -64,7 +64,8 @@ def read_files(doc_paths: list[Path], tabular: list[tuple[bytes, str]],
         connector = DocumentRouterConnector(
             paths=doc_paths, system="document", broker=broker,
             chunk_store=ChunkStore(settings.rdb_dsn), chunk_size=settings.chunk_size,
-            chunk_overlap=settings.chunk_overlap, expected_embed_dim=settings.embed_dim)
+            chunk_overlap=settings.chunk_overlap, expected_embed_dim=settings.embed_dim,
+            context=context)
         mentions = list(connector.extract())
 
     tab_plans = [{"filename": n, "data": d,

@@ -19,15 +19,39 @@ from aryx.models import DocumentChunk, RawRecord, SourceRef
 
 logger = logging.getLogger(__name__)
 
-_SYSTEM = (
-    "You extract named entity mentions from document text. "
-    "For each mention return the entity type (Organization, Person, Location, Product, "
-    "Date, or other relevant type), the exact name as it literally appears in the text, "
-    "any typed attributes (e.g. founded, role, country), and a verbatim span — a short "
-    "excerpt from the text that contains the name. "
+_SYSTEM_BASE = (
+    "You extract entity mentions from document text for a domain-specific "
+    "knowledge graph. For each mention return: "
+    "(1) `type` — a singular PascalCase noun that names the REAL-WORLD CONCEPT "
+    "being referenced. Use domain-specific types when warranted (Goal, Scope, "
+    "Aim, Initiative, Capability, ValueProposition, CustomerSegment, "
+    "Milestone, Metric, Feature, Risk, Pricing, MarketSegment, Strategy, "
+    "Partner, Competitor, Dataset, KPI, RoadmapItem, etc.). Fall back to "
+    "generic NER (Organization, Person, Product, Location, Date) ONLY when "
+    "no domain-specific type fits. NEVER use generic words (Entity, Item, "
+    "Thing, Concept). "
+    "(2) `name` — the exact name as it literally appears in the text. "
+    "(3) `attributes` — typed attributes (role, founded, value, owner, etc.). "
+    "(4) `span` — a short verbatim excerpt from the text that contains the "
+    "name word-for-word. "
     "Only emit a mention when the name appears word-for-word inside the span. "
-    "Be conservative: prefer fewer high-confidence mentions over many uncertain ones."
+    "Prefer rich domain types over generic NER. Prefer fewer high-confidence "
+    "mentions over many uncertain ones."
 )
+
+
+def _system_prompt(context: str) -> str:
+    """Prepend the workspace business context so extraction is domain-aware."""
+    if not context.strip():
+        return _SYSTEM_BASE
+    return (
+        f"WORKSPACE CONTEXT (what this knowledge graph is about):\n{context.strip()}\n\n"
+        + _SYSTEM_BASE
+        + "\n\nUse the workspace context above to decide which entity types "
+        "matter. Pull domain-specific concepts (Goal, Scope, Aim, "
+        "Initiative, Capability, etc.) when relevant — NOT just generic "
+        "Organization/Person/Date."
+    )
 
 _SCHEMA: dict = {
     "type": "object",
@@ -56,12 +80,16 @@ def _verbatim_ok(name: str, span: str) -> bool:
     return name.lower() in span.lower()
 
 
-def extract_mentions(chunks: list[DocumentChunk], broker: Broker) -> list[RawRecord]:
+def extract_mentions(chunks: list[DocumentChunk], broker: Broker,
+                     context: str = "") -> list[RawRecord]:
     """Extract entity mentions from document chunks via the cheap LLM tier.
 
     Args:
         chunks: PII-screened chunks from clean_text.chunk_pages().
         broker: Model broker; extraction runs on the cheap tier.
+        context: Workspace business context — folded into the system prompt
+            so the LLM extracts domain-specific entity types instead of
+            generic NER categories.
 
     Returns:
         RawRecord list where each record is one entity mention that passed the
@@ -70,11 +98,12 @@ def extract_mentions(chunks: list[DocumentChunk], broker: Broker) -> list[RawRec
     """
     records: list[RawRecord] = []
     rejected = 0
+    system_prompt = _system_prompt(context)
 
     for chunk in chunks:
         user = json.dumps({"chunk_index": chunk.chunk_index, "text": chunk.text})
         try:
-            result = complete_json(broker, "cheap", _SYSTEM, user, _SCHEMA)
+            result = complete_json(broker, "cheap", system_prompt, user, _SCHEMA)
         except Exception as exc:
             logger.warning("extraction failed chunk=%d doc=%s error=%s",
                            chunk.chunk_index, chunk.doc_id[:8], exc)
