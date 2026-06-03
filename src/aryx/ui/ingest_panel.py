@@ -9,7 +9,9 @@ import time
 
 import streamlit as st
 
-from aryx.ui import api, ingest_files, ingest_rdb, workspace_summary
+from aryx.ui import (
+    api, ingest_api_source, ingest_files, ingest_rdb, workspace_summary,
+)
 
 _TERMINAL = {"complete", "failed"}
 _ICON = {"complete": "✅", "failed": "❌", "running": "⏳", "queued": "🕓"}
@@ -84,11 +86,16 @@ def render() -> None:
                 "workspace's business context to know what to look for.")
     st.divider()
     ctx = ws.get("context", "") or ""
-    tab_db, tab_docs = st.tabs(["🗄 Database (auto-discover)", "📄 Documents (folder)"])
+    tab_db, tab_docs, tab_api = st.tabs([
+        "🗄 Database (auto-discover)", "📄 Documents (folder)",
+        "🔌 API / REST",
+    ])
     with tab_db:
         ingest_rdb.render(ctx)
     with tab_docs:
         ingest_files.render(ctx)
+    with tab_api:
+        ingest_api_source.render(ctx)
     if st.session_state.get("active_job"):
         st.divider()
         st.subheader("Ingestion progress")

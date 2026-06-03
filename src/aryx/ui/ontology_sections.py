@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from aryx.ui import api, ontology_client
+from aryx.ui import api, ontology_client, ontology_editor
 
 _TOOL_HINTS = {
     "turtle": "Protégé, GraphDB, Apache Jena, Stardog",
@@ -75,6 +75,8 @@ def browse() -> None:
         st.dataframe(rels, use_container_width=True, hide_index=True)
     else:
         st.caption("No relationships yet.")
+    st.divider()
+    ontology_editor.render_add_type_form()
 
 
 def export_(cfg: dict, ext_by_format: dict[str, str]) -> None:

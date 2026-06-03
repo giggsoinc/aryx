@@ -22,6 +22,40 @@ def approve(name: str) -> dict[str, Any]:
     return {"status": "approved", "name": name}
 
 
+def add_type(name: str, attributes: dict, status: str = "approved",
+             source: str = "manual") -> dict[str, Any]:
+    """Manually create an ontology type (governance editor entry-point)."""
+    from aryx.models import OntologyType
+    store = OntologyStore(get_settings().rdb_dsn)
+    try:
+        store.seed_types([OntologyType(name=name, attributes=attributes or {},
+                                       status=status, source=source)])
+    finally:
+        store.close()
+    return {"status": "ok", "name": name}
+
+
+def import_doc(content: str, fmt_hint: str, filename: str) -> dict[str, Any]:
+    """Parse RDF/OWL content into proposed types; returns counts + names."""
+    from aryx.ontology.rdf import format_for_extension, parse_ontology
+    fmt = fmt_hint or format_for_extension(filename) or "turtle"
+    try:
+        types = parse_ontology(content, fmt)
+    except ValueError as exc:
+        raise ValueError(str(exc)) from exc
+    if not types:
+        return {"imported": 0, "types": [], "format": fmt,
+                "message": "no owl:Class / rdfs:Class declarations found"}
+    onto = OntologyStore(get_settings().rdb_dsn)
+    try:
+        onto.seed_types(types)
+    finally:
+        onto.close()
+    return {"imported": len(types), "types": [t.name for t in types],
+            "format": fmt,
+            "message": "imported as 'proposed' — approve in the review gate"}
+
+
 def list_browse(workspace_id: int) -> dict[str, Any]:
     """Return ontology types + relationship counts + entity count for one workspace."""
     settings = get_settings()

@@ -8,7 +8,10 @@ from __future__ import annotations
 
 import streamlit as st
 
-from aryx.ui import ontology_client, ontology_sections, workspace_summary
+from aryx.ui import (
+    ontology_client, ontology_rules, ontology_sections, ontology_versions,
+    workspace_summary,
+)
 
 
 def _config() -> dict:
@@ -48,16 +51,20 @@ def render() -> None:
                          for f in ontology_client.formats()}
     except Exception:
         ext_by_format = {}
-    tab_browse, tab_export, tab_import = st.tabs(
-        ["🔎 Browse", "📤 Export (RDF/OWL)", "📥 Import"])
-    with tab_browse:
+    tabs = st.tabs(["🔎 Browse", "🧠 Rules", "🕘 Versions",
+                    "📤 Export", "📥 Import"])
+    with tabs[0]:
         ontology_sections.browse()
-    with tab_export:
+    with tabs[1]:
+        ontology_rules.render()
+    with tabs[2]:
+        ontology_versions.render()
+    with tabs[3]:
         if cfg.get("enabled"):
             ontology_sections.export_(cfg, ext_by_format)
         else:
             st.warning("Enable ontology interchange in Settings to export.")
-    with tab_import:
+    with tabs[4]:
         if cfg.get("enabled"):
             ontology_sections.import_()
         else:

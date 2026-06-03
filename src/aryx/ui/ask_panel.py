@@ -5,7 +5,7 @@ import re
 
 import streamlit as st
 
-from aryx.ui import api, ask_export, workspace_summary
+from aryx.ui import api, ask_export, ask_history_panel, workspace_summary
 
 
 def _entity_ids_from(resp: dict) -> list[int]:
@@ -102,6 +102,8 @@ def render() -> None:
     if st.session_state.chat:
         with st.expander("⬇️  Download this conversation", expanded=False):
             ask_export.download_buttons(st.session_state.chat)
+    with st.expander("🗂  Past conversations (persisted)", expanded=False):
+        ask_history_panel.render()
 
     queued = st.session_state.pop("queued_question", None)
     question = queued or st.chat_input("Ask anything about your graph…")

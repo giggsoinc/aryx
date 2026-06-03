@@ -18,6 +18,7 @@ from aryx import llm_runtime
 from aryx.config import get_settings
 from aryx.graph import GraphReader
 from aryx.graph.retrieve import all_types, retrieve
+from aryx.store.ask_history_store import AskHistoryStore
 from aryx.workspaces import ws_graph
 
 logger = logging.getLogger(__name__)
@@ -112,18 +113,24 @@ def ask_router() -> APIRouter:
             return {"answer": f"LLM unavailable: {exc}", "terms": [],
                     "tools_called": [], "usage": {}}
         cfg = llm_runtime.status()
-        return {
-            "answer": answer or "No answer produced.",
-            "terms": terms,
-            "tools_called": calls,
-            "usage": {
-                "prompt_tokens": p_in + s_in,
-                "completion_tokens": p_out + s_out,
-                "latency_ms": p_ms + s_ms,
-                "menial_model": cfg["menial_model"],
-                "answer_model": cfg["answer_model"],
-            },
+        usage = {
+            "prompt_tokens": p_in + s_in,
+            "completion_tokens": p_out + s_out,
+            "latency_ms": p_ms + s_ms,
+            "menial_model": cfg["menial_model"],
+            "answer_model": cfg["answer_model"],
         }
+        try:
+            hstore = AskHistoryStore(get_settings().rdb_dsn)
+            try:
+                hstore.append(req.workspace_id, req.question,
+                              answer or "", calls, [], usage)
+            finally:
+                hstore.close()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("ask history persist failed: %s", exc)
+        return {"answer": answer or "No answer produced.", "terms": terms,
+                "tools_called": calls, "usage": usage}
 
     @router.get("/llm/config")
     def get_llm_config() -> dict:

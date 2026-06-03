@@ -52,3 +52,10 @@ def list_types() -> dict[str, Any]:
 def approve_type(name: str) -> dict[str, Any]:
     """Approve a proposed type via the HITL review gate."""
     return api._post(f"/ontology/types/{urllib.parse.quote(name)}/approve", {})
+
+
+def add_type(name: str, attributes: dict[str, str]) -> dict[str, Any]:
+    """Manually add a new ontology type."""
+    return api._post("/ontology/types",
+                     {"name": name, "attributes": attributes,
+                      "status": "approved"})
