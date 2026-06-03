@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from aryx.ui import api_ext
+from aryx.ui import api, api_ext, toast as _toast
 
 _OPS = [">", ">=", "<", "<=", "==", "!=", "contains"]
 _ACTIONS = ["set_label", "add_relationship"]
@@ -43,10 +43,14 @@ def _rule_form() -> None:
                 "target_type": target_type, "target_name": target}
     try:
         api_ext.upsert_rule(name, when, then, enabled=enabled)
-        st.success(f"Saved rule '{name}'.")
+        _toast.notify(f"Rule '{name}' saved (Heavyweight)", kind="ok",
+                      stage="Heavyweight", action="upsert_rule", target=name,
+                      workspace_id=api.current_workspace())
         st.rerun()
     except Exception as exc:
-        st.error(f"Save failed: {exc}")
+        _toast.notify(f"Save failed: {exc}", kind="error",
+                      stage="Heavyweight", action="upsert_rule", target=name,
+                      workspace_id=api.current_workspace())
 
 
 def _rules_table(rules: list[dict]) -> None:
@@ -93,11 +97,14 @@ def render() -> None:
     if st.button("▶ Run evaluator now", type="primary"):
         try:
             res = api_ext.evaluate_rules()
-            st.success(
-                f"Evaluator ran. {res.get('rules_evaluated', 0)} rule(s) "
-                f"checked · {res.get('total_fires', 0)} inferences written. "
-                "Open the Graph tab to see them."
+            _toast.notify(
+                f"Evaluator: {res.get('rules_evaluated', 0)} rule(s), "
+                f"{res.get('total_fires', 0)} inferences",
+                kind="stage", stage="Heavyweight", action="evaluate_rules",
+                workspace_id=api.current_workspace(),
             )
             st.json(res.get("per_rule") or {})
         except Exception as exc:
-            st.error(f"Evaluator failed: {exc}")
+            _toast.notify(f"Evaluator failed: {exc}", kind="error",
+                          stage="Heavyweight", action="evaluate_rules",
+                          workspace_id=api.current_workspace())

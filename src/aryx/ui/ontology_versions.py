@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from aryx.ui import api_ext
+from aryx.ui import api, api_ext, toast as _toast
 
 
 def _snapshot_form() -> None:
@@ -15,10 +15,17 @@ def _snapshot_form() -> None:
     if st.button("📸 Take snapshot", type="primary", key="ver_snap"):
         try:
             row = api_ext.snapshot_version(label or "manual")
-            st.success(f"Snapshot v{row.get('version_no')} created.")
+            _toast.notify(
+                f"Snapshot v{row.get('version_no')} created (Heavyweight)",
+                kind="stage", stage="Heavyweight", action="snapshot",
+                target=f"v{row.get('version_no')}",
+                workspace_id=api.current_workspace(),
+            )
             st.rerun()
         except Exception as exc:
-            st.error(f"Snapshot failed: {exc}")
+            _toast.notify(f"Snapshot failed: {exc}", kind="error",
+                          stage="Heavyweight", action="snapshot",
+                          workspace_id=api.current_workspace())
 
 
 def _versions_table(versions: list[dict]) -> None:

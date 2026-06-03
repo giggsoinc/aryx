@@ -6,29 +6,25 @@ from __future__ import annotations
 
 import streamlit as st
 
-from aryx.ui import api, ontology_client, ontology_editor
-
-_TOOL_HINTS = {
-    "turtle": "Protégé, GraphDB, Apache Jena, Stardog",
-    "json-ld": "Web apps, Google Rich Results, JSON-LD playground",
-    "xml": "Protégé, legacy RDF stores, OWL API tools",
-    "n-triples": "Bulk loaders, line-by-line streaming, dump/diff",
-}
-_MEDIA_BY_EXT = {
-    "ttl": "text/turtle", "jsonld": "application/ld+json",
-    "rdf": "application/rdf+xml", "nt": "application/n-triples",
-}
+from aryx.ui import (
+    api, ontology_client, ontology_editor, ontology_publish,
+    toast as _toast,
+)
 
 
 def _approve_button(name: str, key: str) -> None:
-    """Approve button + spinner; reloads on success."""
-    if st.button(f"✅ Approve '{name}'", key=key, type="primary"):
-        try:
-            ontology_client.approve_type(name)
-            st.success(f"Approved {name}.")
-            st.rerun()
-        except Exception as exc:
-            st.error(f"Approve failed: {exc}")
+    """Approve a proposed type — HITL stage transition."""
+    if not st.button(f"✅ Approve '{name}'", key=key, type="primary"):
+        return
+    ws = api.current_workspace()
+    try:
+        ontology_client.approve_type(name)
+        _toast.notify(f"Approved '{name}' (HITL)", kind="ok", stage="HITL",
+                      action="approve_type", target=name, workspace_id=ws)
+        st.rerun()
+    except Exception as exc:
+        _toast.notify(f"Approve failed: {exc}", kind="error", stage="HITL",
+                      action="approve_type", target=name, workspace_id=ws)
 
 
 def browse() -> None:
@@ -80,47 +76,8 @@ def browse() -> None:
 
 
 def export_(cfg: dict, ext_by_format: dict[str, str]) -> None:
-    """Render the export controls: pick a format, generate, download."""
-    formats = cfg.get("formats", [])
-    if not formats:
-        st.warning("No export formats enabled. Add some in Settings.")
-        return
-    try:
-        live = ontology_client.list_types()
-        n_types = len(live.get("types", []) or [])
-        n_ents = int(live.get("entity_count", 0))
-    except Exception:
-        n_types = n_ents = -1
-    if n_types == 0 and n_ents == 0:
-        st.warning("This workspace has nothing to export yet — ingest data "
-                   "or import a vocabulary.")
-        return
-    fmt = st.selectbox("Format", formats,
-                       format_func=lambda f: f"{f}  ·  {_TOOL_HINTS.get(f, '')}")
-    st.caption(f"Opens in: {_TOOL_HINTS.get(fmt, 'any RDF tool')}")
-    if st.button("Generate export", type="primary"):
-        try:
-            payload = ontology_client.export(fmt)
-        except Exception as exc:
-            st.error(f"Export failed: {exc}")
-            return
-        ext = ext_by_format.get(fmt, "ttl")
-        st.session_state["onto_export"] = {
-            "bytes": payload, "ext": ext,
-            "mime": _MEDIA_BY_EXT.get(ext, "application/octet-stream"),
-        }
-        st.success(f"Generated {len(payload):,} bytes of {fmt} "
-                   f"({n_types} classes · {n_ents} individuals).")
-    blob = st.session_state.get("onto_export")
-    if blob:
-        ws = api.current_workspace()
-        st.download_button(
-            "⬇️  Download ontology file", data=blob["bytes"],
-            file_name=f"aryx_ws{ws}.{blob['ext']}", mime=blob["mime"],
-        )
-        with st.expander("Preview (first 1,500 chars)"):
-            st.code(blob["bytes"].decode("utf-8", errors="replace")[:1500],
-                    language="turtle")
+    """Publish stage — delegated to ontology_publish.render()."""
+    ontology_publish.render(cfg, ext_by_format)
 
 
 def import_() -> None:
@@ -133,9 +90,9 @@ def import_() -> None:
     fmt = st.selectbox("Format", ["auto", "turtle", "json-ld", "xml", "n-triples"])
     if st.button("Import ontology") and uploaded is not None:
         content = uploaded.getvalue().decode("utf-8", errors="replace")
-        sent_fmt = "" if fmt == "auto" else fmt
         try:
-            result = ontology_client.import_doc(content, sent_fmt, uploaded.name)
+            result = ontology_client.import_doc(
+                content, "" if fmt == "auto" else fmt, uploaded.name)
         except Exception as exc:
             st.error(f"Import failed: {exc}")
             return

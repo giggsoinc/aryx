@@ -10,7 +10,8 @@ import time
 import streamlit as st
 
 from aryx.ui import (
-    api, ingest_api_source, ingest_files, ingest_rdb, workspace_summary,
+    api, ingest_api_source, ingest_files, ingest_rdb, toast as _toast,
+    workspace_summary,
 )
 
 _TERMINAL = {"complete", "failed"}
@@ -18,22 +19,39 @@ _ICON = {"complete": "✅", "failed": "❌", "running": "⏳", "queued": "🕓"}
 
 
 def _progress(job_id: str) -> None:
-    """Poll job status and show live progress bar until complete or failed."""
+    """Poll job status; fire a toast on every stage transition; update bar."""
     placeholder = st.empty()
+    last_stage_key = f"stage_seen_{job_id}"
     for _ in range(160):
         try:
             job = api.get_job(job_id)
         except Exception as exc:
             placeholder.error(f"Lost track of job: {exc}")
             return
+        stage_now = job.get("stage", "")
+        if stage_now and st.session_state.get(last_stage_key) != stage_now:
+            st.session_state[last_stage_key] = stage_now
+            _toast.notify(
+                f"Ingest · {stage_now} — {job.get('detail', '')} "
+                f"({int(job.get('pct', 0))}%)",
+                kind="stage", stage="Ingest", action=f"stage_{stage_now}",
+                target=job_id, workspace_id=api.current_workspace(),
+            )
         with placeholder.container():
             st.progress(min(int(job.get("pct", 0)), 100),
-                        text=f"**{job.get('stage', '')}** — {job.get('detail', '')}")
+                        text=f"**{stage_now}** — {job.get('detail', '')}")
         if job.get("status") in _TERMINAL:
+            ws = api.current_workspace()
             if job["status"] == "complete":
-                st.success(f"Ingestion complete — {job.get('detail', '')}")
+                _toast.notify(f"Ingestion complete — {job.get('detail', '')}",
+                              kind="stage", stage="Ingest",
+                              action="ingest_complete", target=job_id,
+                              workspace_id=ws)
             else:
-                st.error(f"Ingestion failed: {job.get('error', 'unknown')}")
+                _toast.notify(f"Ingestion failed: {job.get('error', 'unknown')}",
+                              kind="error", stage="Ingest",
+                              action="ingest_failed", target=job_id,
+                              workspace_id=ws)
             st.session_state.pop("active_job", None)
             return
         time.sleep(1.5)

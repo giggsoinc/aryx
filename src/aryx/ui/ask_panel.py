@@ -5,7 +5,9 @@ import re
 
 import streamlit as st
 
-from aryx.ui import api, ask_export, ask_history_panel, workspace_summary
+from aryx.ui import (
+    api, ask_export, ask_history_panel, toast as _toast, workspace_summary,
+)
 
 
 def _entity_ids_from(resp: dict) -> list[int]:
@@ -137,3 +139,9 @@ def render() -> None:
         "entity_ids": _entity_ids_from(resp),
         "usage": resp.get("usage", {}),
     })
+    _toast.notify(
+        f"Ask answered ({resp.get('usage', {}).get('latency_ms', 0)} ms)",
+        kind="info", stage="Ask", action="ask",
+        target=question[:80], workspace_id=api.current_workspace(),
+        audit_event=True,
+    )
