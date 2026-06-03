@@ -81,10 +81,19 @@ def extract_mentions(chunks: list[DocumentChunk], broker: Broker) -> list[RawRec
         # acceptable provider output — the consumer doesn't care.
         mentions = result if isinstance(result, list) else result.get("mentions", [])
         for i, mention in enumerate(mentions):
-            if not _verbatim_ok(mention["name"], mention["span"]):
+            if not isinstance(mention, dict):
+                rejected += 1
+                continue
+            name = str(mention.get("name", "")).strip()
+            mtype = str(mention.get("type", "")).strip()
+            span = str(mention.get("span", "") or name)
+            if not name or not mtype:
+                rejected += 1
+                continue
+            if not _verbatim_ok(name, span):
                 rejected += 1
                 logger.debug("verbatim-span gate rejected name=%r chunk=%d",
-                             mention["name"], chunk.chunk_index)
+                             name, chunk.chunk_index)
                 continue
             mention_id = f"{chunk.doc_id}:{chunk.chunk_index}:{i}"
             records.append(RawRecord(
@@ -94,11 +103,11 @@ def extract_mentions(chunks: list[DocumentChunk], broker: Broker) -> list[RawRec
                     record_id=mention_id,
                 ),
                 payload={
-                    "type": mention["type"],
-                    "name": mention["name"],
+                    "type": mtype,
+                    "name": name,
                     "chunk_index": chunk.chunk_index,
-                    "span": mention["span"],
-                    **mention.get("attributes", {}),
+                    "span": span,
+                    **(mention.get("attributes") or {}),
                 },
             ))
 
