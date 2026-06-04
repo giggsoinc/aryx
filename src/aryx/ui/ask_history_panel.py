@@ -41,4 +41,4 @@ def render() -> None:
             },
         })
     with st.expander("⬇️ Download all history"):
-        ask_export.download_buttons(chat)
+        ask_export.download_buttons(chat, key_suffix="history")

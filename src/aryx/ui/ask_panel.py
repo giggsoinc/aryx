@@ -103,7 +103,7 @@ def render() -> None:
 
     if st.session_state.chat:
         with st.expander("⬇️  Download this conversation", expanded=False):
-            ask_export.download_buttons(st.session_state.chat)
+            ask_export.download_buttons(st.session_state.chat, key_suffix="current")
     with st.expander("🗂  Past conversations (persisted)", expanded=False):
         ask_history_panel.render()
 
