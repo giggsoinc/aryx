@@ -1,22 +1,19 @@
-"""Global CSS injection — Aryx brand, light-mode LOCKED.
+"""Global CSS injection — Aryx brand, light-mode LOCKED via CSS only.
 
 Pins the page to a single colour scheme so the UI never flickers between
 day and night, even when the host browser advertises a dark preference.
-Three layers of lock are applied:
-  1. <meta name="color-scheme" content="light"> tells the user agent
-     "do not even consider dark mode" — eliminates the FOUC.
-  2. CSS `color-scheme: only light` on :root for the same reason at the
-     CSS layer (defensive — covers older Safari).
-  3. An overriding @media (prefers-color-scheme: dark) ruleset that
-     re-pins every brand colour to its light value — so even when a
-     downstream component injects `[data-theme="dark"]` we win.
+
+NOTE: only a single top-level <style> block is injected. A previous
+attempt added a <meta name="color-scheme"> tag BEFORE the <style> block,
+which broke Streamlit's markdown parser — the whole CSS body was
+rendered as visible TEXT on the page. The CSS `color-scheme: only light`
+declaration on :root does the same job from inside the stylesheet.
 """
 from __future__ import annotations
 
 import streamlit as st
 
 _CSS = """
-<meta name="color-scheme" content="light">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;700;800&display=swap');
 
