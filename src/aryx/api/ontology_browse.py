@@ -71,15 +71,25 @@ def list_browse(workspace_id: int) -> dict[str, Any]:
         rels = store.list_relationships()
     finally:
         store.close()
+    def _field(row: Any, key: str, idx: int) -> str:
+        """Read attr from a dict-row OR tuple-row (entity_store returns tuples)."""
+        if isinstance(row, dict):
+            return str(row.get(key) or row.get("ontology_type") or "?")
+        try:
+            return str(row[idx])
+        except (IndexError, TypeError):
+            return "?"
+
     per_type: dict[str, int] = {}
     for e in ents:
-        key = e.get("type") or e.get("ontology_type") or "?"
+        key = _field(e, "type", 1)
         per_type[key] = per_type.get(key, 0) + 1
     for t in type_rows:
         t["instance_count"] = per_type.get(t.get("name"), 0)
     rel_types: dict[str, int] = {}
     for r in rels:
-        rel_types[r.get("name", "?")] = rel_types.get(r.get("name", "?"), 0) + 1
+        key = _field(r, "name", 2)
+        rel_types[key] = rel_types.get(key, 0) + 1
     return {
         "types": type_rows,
         "relationships": [{"name": k, "count": v} for k, v in rel_types.items()],

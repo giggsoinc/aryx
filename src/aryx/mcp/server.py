@@ -57,32 +57,40 @@ def _enrich_workspace(ws: dict) -> dict:
     """Add entity/relationship counts + type breakdown for one workspace."""
     wid = int(ws.get("id", 1))
     try:
-        types_doc = _get(f"/ontology/types?workspace_id={wid}")
+        types_doc = _get(f"/ontology/types?workspace_id={wid}") or {}
     except Exception as exc:  # noqa: BLE001
-        return {**ws, "stats_error": str(exc)}
-    ent_types = types_doc.get("entity_types") or types_doc.get("types") or []
-    rel_types = types_doc.get("relationship_types") or types_doc.get("rels") or []
+        return {
+            "id": wid, "name": ws.get("name", ""),
+            "description": ws.get("description", ""),
+            "brief": ws.get("brief", {}),
+            "entity_count": 0, "relationship_count": 0,
+            "entity_types": [], "relationship_types": [],
+            "stats_error": str(exc),
+        }
 
-    def _norm(items: list) -> list[dict]:
+    def _norm(items: list, count_key: str) -> list[dict]:
         out: list[dict] = []
-        for t in items:
+        for t in items or []:
             if isinstance(t, dict):
                 out.append({
                     "name": t.get("name") or t.get("type") or "",
-                    "count": int(t.get("count") or t.get("n") or 0),
+                    "count": int(t.get(count_key) or t.get("count") or 0),
                 })
             else:
                 out.append({"name": str(t), "count": 0})
-        return out
+        return [t for t in out if t["name"]]
 
-    ents = _norm(ent_types)
-    rels = _norm(rel_types)
+    ents = _norm(types_doc.get("types") or types_doc.get("entity_types"),
+                 "instance_count")
+    rels = _norm(types_doc.get("relationships")
+                 or types_doc.get("relationship_types"), "count")
     return {
         "id": wid,
         "name": ws.get("name", ""),
         "description": ws.get("description", ""),
         "brief": ws.get("brief", {}),
-        "entity_count": sum(t["count"] for t in ents),
+        "entity_count": int(types_doc.get("entity_count")
+                            or sum(t["count"] for t in ents)),
         "relationship_count": sum(t["count"] for t in rels),
         "entity_types": ents,
         "relationship_types": rels,
