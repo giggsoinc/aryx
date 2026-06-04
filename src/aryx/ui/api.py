@@ -79,7 +79,7 @@ def set_workspace_brief(workspace_id: int, brief: dict) -> dict:
     data = json.dumps(brief).encode()
     req = urllib.request.Request(
         f"{_BASE}/admin/workspaces/{workspace_id}/brief",
-        data=data, headers={"Content-Type": "application/json"}, method="POST",
+        data=data, headers={"Content-Type": "application/json"}, method="PATCH",
     )
     with urllib.request.urlopen(req, timeout=15) as r:  # noqa: S310
         return json.loads(r.read())
