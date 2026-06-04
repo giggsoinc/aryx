@@ -34,14 +34,33 @@ h2 { font-size: 2.1rem !important; font-weight: 700 !important;
 h3 { font-size: 1.55rem !important; font-weight: 600 !important;
      color: var(--aryx-ink) !important; }
 
+/* Sidebar — pinned light regardless of browser dark-mode preference. */
 section[data-testid="stSidebar"] { min-width: 300px;
-  background: linear-gradient(180deg, #F4F6FB 0%, #E7ECF7 100%); }
+  background: linear-gradient(180deg, #F4F6FB 0%, #E7ECF7 100%) !important;
+  color: var(--aryx-ink) !important; }
+section[data-testid="stSidebar"] *,
+section[data-testid="stSidebar"] .stRadio label p,
+section[data-testid="stSidebar"] .stMarkdown,
+section[data-testid="stSidebar"] .stMarkdown p,
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] [data-baseweb="select"] span {
+  color: var(--aryx-ink) !important;
+  font-size: 1.05rem !important; }
 section[data-testid="stSidebar"] h1 { font-size: 1.8rem !important;
   color: var(--aryx-primary-2) !important; }
-section[data-testid="stSidebar"] .stMarkdown,
-section[data-testid="stSidebar"] label,
-section[data-testid="stSidebar"] [data-baseweb="select"] {
-  font-size: 1.05rem !important; }
+
+/* Main area — also pin light so dark-mode browsers don't murder contrast. */
+[data-testid="stAppViewContainer"] {
+  background: var(--aryx-paper) !important;
+  color: var(--aryx-ink) !important; }
+[data-testid="stAppViewContainer"] h1,
+[data-testid="stAppViewContainer"] h2,
+[data-testid="stAppViewContainer"] h3,
+[data-testid="stAppViewContainer"] p,
+[data-testid="stAppViewContainer"] li {
+  color: var(--aryx-ink) !important; }
+[data-testid="stAppViewContainer"] h1 { color: var(--aryx-primary-2) !important; }
+[data-testid="stAppViewContainer"] h2 { color: var(--aryx-primary) !important; }
 
 label, .stRadio label p { font-size: 1.1rem !important; font-weight: 500; }
 .stRadio [role="radiogroup"] label { padding: 0.45rem 0; }

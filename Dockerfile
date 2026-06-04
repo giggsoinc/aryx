@@ -14,4 +14,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY src/ ./src/
 
+# Streamlit theme config — must live at /app/.streamlit so the UI process
+# (started from WORKDIR=/app) picks it up instead of falling back to the
+# browser's prefers-color-scheme (which renders dark and kills sidebar
+# contrast against our light gradient).
+COPY .streamlit ./.streamlit
+
 CMD ["python", "-m", "aryx"]
