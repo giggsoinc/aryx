@@ -23,6 +23,8 @@ from aryx.mcp.tools import tool_specs
 logger = logging.getLogger(__name__)
 
 _API_URL = os.environ.get("ARYX_API_URL", "http://localhost:8088").rstrip("/")
+_DEFAULT_WS = int(os.environ.get("ARYX_MCP_DEFAULT_WORKSPACE", "1"))
+_POST_TIMEOUT = int(os.environ.get("ARYX_MCP_POST_TIMEOUT", "50"))
 server = Server("aryx")
 
 _WRITE_RX = re.compile(
@@ -30,9 +32,14 @@ _WRITE_RX = re.compile(
 )
 
 
+def _ws(args: dict[str, Any]) -> int:
+    """Resolve workspace_id from args or env default."""
+    return int(args.get("workspace_id") or _DEFAULT_WS)
+
+
 def _qs(args: dict[str, Any], extras: dict[str, Any]) -> str:
     """Build a query string merging tool args + extras (workspace_id first)."""
-    out = [f"workspace_id={int(args.get('workspace_id', 1))}"]
+    out = [f"workspace_id={_ws(args)}"]
     for k, v in extras.items():
         if v is not None and v != "":
             out.append(f"{k}={urllib.parse.quote(str(v))}")
@@ -51,7 +58,7 @@ def _post(path: str, body: dict) -> Any:
         f"{_API_URL}{path}", data=data,
         headers={"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=180) as resp:  # noqa: S310
+    with urllib.request.urlopen(req, timeout=_POST_TIMEOUT) as resp:  # noqa: S310
         return json.loads(resp.read().decode())
 
 
@@ -82,7 +89,7 @@ def _dispatch(name: str, a: dict) -> Any:
         return _post("/ask", {
             "question": a["question"],
             "history": a.get("history") or [],
-            "workspace_id": int(a.get("workspace_id", 1)),
+            "workspace_id": _ws(a),
         })
     if name == "cypher_read":
         q = str(a.get("query") or "")
@@ -90,7 +97,7 @@ def _dispatch(name: str, a: dict) -> Any:
             return {"error": "read-only — write keywords rejected"}
         return _post("/graph/cypher", {
             "query": q, "limit": int(a.get("limit", 50)),
-            "workspace_id": int(a.get("workspace_id", 1)),
+            "workspace_id": _ws(a),
         })
     return {"error": f"unknown tool: {name}"}
 
