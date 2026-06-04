@@ -29,8 +29,13 @@ class AryxDemoOnboarder:
         url = f"{self.api}{path}"
         try:
             resp = self.session.post(url, json=data, timeout=30)
+            if resp.status_code >= 400:
+                self.log(f"Response: {resp.text}", "⚠️")
             resp.raise_for_status()
-            return resp.json()
+            try:
+                return resp.json()
+            except:
+                return {"status": "ok"}
         except Exception as e:
             self.err(f"POST {path}: {e}")
 
@@ -40,7 +45,10 @@ class AryxDemoOnboarder:
         try:
             resp = self.session.get(url, params=params, timeout=30)
             resp.raise_for_status()
-            return resp.json()
+            try:
+                return resp.json()
+            except:
+                return {"status": "ok"}
         except Exception as e:
             self.err(f"GET {path}: {e}")
 
@@ -49,7 +57,7 @@ class AryxDemoOnboarder:
         self.log("STEP 1: Creating workspace 'demo_support_ticket'")
 
         result = self.post(
-            "/api/admin/workspaces",
+            "/admin/workspaces",
             {
                 "name": "demo_support_ticket",
                 "description": "Radio equipment enterprise support case demo",
