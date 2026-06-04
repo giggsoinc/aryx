@@ -1,16 +1,14 @@
-"""Aryx MCP server (Inc 11+) — stdio + SSE, read-only, 8 tools.
+"""Aryx MCP server — stdio + SSE, read-only, 2 tools: list + ask.
 
 Wraps the live Aryx REST API so any MCP-compatible agent (Claude Desktop,
-Claude Code, Cursor, Continue) can query the knowledge graph.
-Set ARYX_API_URL to point at the running API instance.
+Claude Code, Cursor, Continue) can discover workspaces and ask questions
+against the knowledge graph. Set ARYX_API_URL to point at the API.
 """
 from __future__ import annotations
 
 import json
 import logging
 import os
-import re
-import urllib.parse
 import urllib.request
 from typing import Any
 
@@ -27,23 +25,10 @@ _DEFAULT_WS = int(os.environ.get("ARYX_MCP_DEFAULT_WORKSPACE", "1"))
 _POST_TIMEOUT = int(os.environ.get("ARYX_MCP_POST_TIMEOUT", "50"))
 server = Server("aryx")
 
-_WRITE_RX = re.compile(
-    r"\b(CREATE|MERGE|DELETE|SET|REMOVE|DROP|DETACH)\b", re.IGNORECASE
-)
-
 
 def _ws(args: dict[str, Any]) -> int:
     """Resolve workspace_id from args or env default."""
     return int(args.get("workspace_id") or _DEFAULT_WS)
-
-
-def _qs(args: dict[str, Any], extras: dict[str, Any]) -> str:
-    """Build a query string merging tool args + extras (workspace_id first)."""
-    out = [f"workspace_id={_ws(args)}"]
-    for k, v in extras.items():
-        if v is not None and v != "":
-            out.append(f"{k}={urllib.parse.quote(str(v))}")
-    return "?" + "&".join(out)
 
 
 def _get(path: str) -> Any:
@@ -68,35 +53,51 @@ async def list_tools() -> list[types.Tool]:
     return tool_specs()
 
 
+def _enrich_workspace(ws: dict) -> dict:
+    """Add entity/relationship counts + type breakdown for one workspace."""
+    wid = int(ws.get("id", 1))
+    try:
+        types_doc = _get(f"/ontology/types?workspace_id={wid}")
+    except Exception as exc:  # noqa: BLE001
+        return {**ws, "stats_error": str(exc)}
+    ent_types = types_doc.get("entity_types") or types_doc.get("types") or []
+    rel_types = types_doc.get("relationship_types") or types_doc.get("rels") or []
+
+    def _norm(items: list) -> list[dict]:
+        out: list[dict] = []
+        for t in items:
+            if isinstance(t, dict):
+                out.append({
+                    "name": t.get("name") or t.get("type") or "",
+                    "count": int(t.get("count") or t.get("n") or 0),
+                })
+            else:
+                out.append({"name": str(t), "count": 0})
+        return out
+
+    ents = _norm(ent_types)
+    rels = _norm(rel_types)
+    return {
+        "id": wid,
+        "name": ws.get("name", ""),
+        "description": ws.get("description", ""),
+        "brief": ws.get("brief", {}),
+        "entity_count": sum(t["count"] for t in ents),
+        "relationship_count": sum(t["count"] for t in rels),
+        "entity_types": ents,
+        "relationship_types": rels,
+    }
+
+
 def _dispatch(name: str, a: dict) -> Any:
-    """Route a tool call to the right REST endpoint."""
-    if name == "list_workspaces":
-        return _get("/admin/workspaces?workspace_id=1")
-    if name == "list_types":
-        return _get("/ontology/types" + _qs(a, {}))
-    if name == "search_entities":
-        return _get("/entities" + _qs(a, {
-            "name": a.get("name"), "type": a.get("type"),
-            "limit": a.get("limit", 20),
-        }))
-    if name == "get_entity":
-        return _get(f"/entities/{int(a['id'])}" + _qs(a, {}))
-    if name == "get_neighbors":
-        return _get(f"/entities/{int(a['id'])}/neighbors" + _qs(a, {}))
-    if name == "get_provenance":
-        return _get(f"/entities/{int(a['id'])}/provenance" + _qs(a, {}))
+    """Route a tool call. Only `list` and `ask` are exposed."""
+    if name == "list":
+        workspaces = _get("/admin/workspaces?workspace_id=1") or []
+        return [_enrich_workspace(ws) for ws in workspaces]
     if name == "ask":
         return _post("/ask", {
             "question": a["question"],
             "history": a.get("history") or [],
-            "workspace_id": _ws(a),
-        })
-    if name == "cypher_read":
-        q = str(a.get("query") or "")
-        if _WRITE_RX.search(q):
-            return {"error": "read-only — write keywords rejected"}
-        return _post("/graph/cypher", {
-            "query": q, "limit": int(a.get("limit", 50)),
             "workspace_id": _ws(a),
         })
     return {"error": f"unknown tool: {name}"}
