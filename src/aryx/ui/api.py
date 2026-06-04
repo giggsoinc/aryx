@@ -74,6 +74,17 @@ def set_workspace_context(workspace_id: int, context: str) -> dict:
         return json.loads(r.read())
 
 
+def set_workspace_brief(workspace_id: int, brief: dict) -> dict:
+    """Update the workspace brief (5 competency questions)."""
+    data = json.dumps(brief).encode()
+    req = urllib.request.Request(
+        f"{_BASE}/admin/workspaces/{workspace_id}/brief",
+        data=data, headers={"Content-Type": "application/json"}, method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=15) as r:  # noqa: S310
+        return json.loads(r.read())
+
+
 def full_graph() -> dict[str, Any]:
     """Return all entities and relationships for the graph canvas."""
     return _get("/graph")
