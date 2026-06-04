@@ -15,15 +15,22 @@ def all_types(reader: GraphReader) -> list[str]:
 
 
 def _lookup(reader: GraphReader, term: str) -> list[dict]:
-    """Find entities for a term; if a phrase misses, retry on its longest words.
+    """Find entities for a term.
 
-    Handles phrasing drift ('umbrella company' -> entity 'Umbrella Co') that a
-    plain substring match would miss.
+    Tries in order: (1) numeric id lookup ('378' -> entity id=378), (2) substring
+    name match, (3) fallback to the longest word in a phrase. Numeric-id lookup
+    is needed because pipeline-derived entity names are often a non-id column
+    (e.g. ticket.status='open'), so plain name search misses 'ticket 378'.
     """
+    digits = "".join(ch for ch in term if ch.isdigit())
+    if digits and len(digits) <= 9:
+        ent = reader.get_entity(int(digits))
+        if ent:
+            return [ent]
     hits = reader.find_entities(name=term, limit=5)
     if not hits and " " in term:
         for word in sorted(term.split(), key=len, reverse=True):
-            if len(word) > 2:
+            if len(word) > 2 and not word.isdigit():
                 hits = reader.find_entities(name=word, limit=5)
                 if hits:
                     break
@@ -40,7 +47,11 @@ def retrieve(reader: GraphReader, terms: list[str]) -> tuple[str, list[str]]:
     blocks: list[str] = []
 
     for term in terms[:5]:
-        calls.append(f"search_entities(name={term!r})")
+        digits = "".join(ch for ch in term if ch.isdigit())
+        if digits and len(digits) <= 9:
+            calls.append(f"get_entity(id={int(digits)})")
+        else:
+            calls.append(f"search_entities(name={term!r})")
         for ent in _lookup(reader, term):
             eid = ent["id"]
             if eid in seen:
