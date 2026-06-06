@@ -136,4 +136,9 @@ user=aryx, password=<POSTGRES_PASSWORD from EC2 .env>`) → **Run discovery agen
 Switch workspaces → data is isolated. Delete a workspace → physical purge. Default cannot be deleted.
 
 **Start a new session by:** invoking `raven:fastapi-specialist`, reading `CLAUDE.md` +
-`.raven/manifest.json` + this file, then `git -C <repo> log --oneline -20` to see the latest state.
+`.raven/manifest.json` + this file + **`Current_State_Aryx.md`** (repo root, gitignored — the
+living tech-scope snapshot covering the 12 pipeline stages, 8 LLM agents, MCP 2-tool surface,
+resolution funnel thresholds, and per-workspace Falkor isolation). Then
+`git -C <repo> log --oneline -20` to see the latest state. **Append** new findings to
+`Current_State_Aryx.md`'s "Session Log" section — never rewrite the top sections unless a
+sweeping refactor lands.
