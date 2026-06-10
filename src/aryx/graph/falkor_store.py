@@ -7,6 +7,7 @@ provenance edges link entities to source records; REL edges connect entities.
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 from urllib.parse import urlparse
 
@@ -16,6 +17,31 @@ logger = logging.getLogger(__name__)
 
 _NAME_KEYS = ("name", "full_name", "title", "label", "ticket_ref", "ref",
               "sku", "code", "email", "username")
+
+_LABEL_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_MAX_LABELS = 6  # cap to avoid label-bloat on deep hierarchies
+
+
+def _safe_labels(labels: list[str] | None) -> list[str]:
+    """Filter labels to safe Cypher identifiers and cap depth.
+
+    FalkorDB does not support parameter-bound labels, so the label list is
+    spliced into the query string — every entry must be a strict identifier
+    or it gets dropped (with a warning) to prevent Cypher injection.
+    """
+    out: list[str] = []
+    for raw in labels or []:
+        if not raw:
+            continue
+        if not _LABEL_RE.match(raw):
+            logger.warning("dropping invalid label %r (not a Cypher identifier)", raw)
+            continue
+        if raw in out:
+            continue
+        out.append(raw)
+        if len(out) >= _MAX_LABELS:
+            break
+    return out
 
 
 def _display_name(attributes: dict[str, Any]) -> str:
@@ -57,12 +83,37 @@ class FalkorStore:
             pass
 
     def add_entity(self, entity_id: int, ontology_type: str,
-                   attributes: dict[str, Any]) -> None:
-        """Create or update an entity node labelled by its ontology type."""
+                   attributes: dict[str, Any],
+                   labels: list[str] | None = None,
+                   iri: str | None = None) -> None:
+        """Create or update an entity node with its ontology type and ancestor labels.
+
+        Args:
+            entity_id: Stable numeric id from EntityStore.
+            ontology_type: Canonical type name (also stored as attribute).
+            attributes: Golden-record attributes for display-name derivation.
+            labels: Optional ancestor type names (rdfs:subClassOf chain) to
+                attach as additional Cypher labels. ``ontology_type`` is added
+                automatically if it passes label validation.
+            iri: Optional stable IRI to write as ``e.iri`` for self-describing
+                nodes — frozen for the entity's lifetime (derived from
+                workspace_id + entity_id by the projector).
+        """
+        chain = [ontology_type] + list(labels or [])
+        safe = _safe_labels(chain)
+        label_clause = "".join(f":{lbl}" for lbl in safe)
+        params: dict[str, Any] = {
+            "id": entity_id, "type": ontology_type,
+            "name": _display_name(attributes) or f"#{entity_id}",
+        }
+        set_iri = ""
+        if iri:
+            params["iri"] = iri
+            set_iri = ", e.iri = $iri"
         self._graph.query(
-            "MERGE (e:Entity {id: $id}) SET e.type = $type, e.name = $name",
-            {"id": entity_id, "type": ontology_type,
-             "name": _display_name(attributes) or f"#{entity_id}"},
+            f"MERGE (e:Entity{label_clause} {{id: $id}}) "
+            f"SET e.type = $type, e.name = $name{set_iri}",
+            params,
         )
 
     def add_provenance(self, entity_id: int, system: str, dataset: str,

@@ -56,13 +56,29 @@ def import_doc(content: str, fmt_hint: str, filename: str) -> dict[str, Any]:
             "message": "imported as 'proposed' — approve in the review gate"}
 
 
+def set_parent(name: str, parent: str | None) -> dict[str, Any]:
+    """Set or clear the parent_type for a type (rdfs:subClassOf)."""
+    store = OntologyStore(get_settings().rdb_dsn)
+    try:
+        store.set_parent(name, parent)
+    finally:
+        store.close()
+    return {"status": "ok", "name": name, "parent_type": parent}
+
+
 def list_browse(workspace_id: int) -> dict[str, Any]:
     """Return ontology types + relationship counts + entity count for one workspace."""
     settings = get_settings()
     onto = OntologyStore(settings.rdb_dsn)
     try:
+        type_objs = onto.list_types()
         type_rows = [t.__dict__ if hasattr(t, "__dict__") else dict(t)
-                     for t in onto.list_types()]
+                     for t in type_objs]
+        for row in type_rows:
+            if row.get("parent_type"):
+                row["ancestors"] = onto.ancestors(row["name"])
+            else:
+                row["ancestors"] = []
     finally:
         onto.close()
     store = EntityStore(settings.rdb_dsn, workspace_id)

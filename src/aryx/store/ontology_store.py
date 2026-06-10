@@ -39,9 +39,24 @@ class OntologyStore:
             cur.execute(load("select_ontology_types"))
             rows = cur.fetchall()
         return [
-            OntologyType(name=r[0], attributes=r[1], status=r[2], source=r[3])
+            OntologyType(name=r[0], attributes=r[1], status=r[2], source=r[3],
+                         parent_type=r[4])
             for r in rows
         ]
+
+    def set_parent(self, name: str, parent: str | None) -> None:
+        """Set or clear the parent_type for a type (rdfs:subClassOf)."""
+        with self._conn.cursor() as cur:
+            cur.execute(load("set_ontology_parent"), (parent, name))
+        self._conn.commit()
+        logger.info("ontology parent set name=%s parent=%s", name, parent)
+
+    def ancestors(self, name: str) -> list[str]:
+        """Return ancestor type names from nearest parent to root (excludes self)."""
+        with self._conn.cursor() as cur:
+            cur.execute(load("select_type_ancestors"), (name,))
+            rows = cur.fetchall()
+        return [r[0] for r in rows]
 
     def save_mappings(self, run_id: int, mappings: list[SchemaMapping]) -> None:
         """Persist schema mappings produced for a run."""

@@ -89,6 +89,9 @@ def _fire(graph: FalkorStore, entity: dict, then: dict) -> int:
     return 0
 
 
+from aryx.reasoning.edge_axioms import apply_edge_axiom as _apply_edge_axiom
+
+
 def evaluate_workspace(workspace_id: int) -> dict[str, Any]:
     """Apply every enabled rule against the workspace; return per-rule fire counts."""
     settings = get_settings()
@@ -110,10 +113,16 @@ def evaluate_workspace(workspace_id: int) -> dict[str, Any]:
     bumps = RuleStore(settings.rdb_dsn)
     try:
         for rule in rules:
-            fires = 0
-            for ent in ents:
-                if _match(ent, rule.get("when") or {}):
-                    fires += _fire(graph, ent, rule.get("then") or {})
+            when = rule.get("when") or {}
+            then = rule.get("then") or {}
+            if "edge" in when:
+                # Edge-scoped axiom (inverse_of / symmetric / transitive).
+                fires = _apply_edge_axiom(graph, str(when["edge"]), then)
+            else:
+                fires = 0
+                for ent in ents:
+                    if _match(ent, when):
+                        fires += _fire(graph, ent, then)
             per_rule[rule["name"]] = fires
             total += fires
             if fires:

@@ -66,6 +66,10 @@ class OntologyType(BaseModel):
         default="proposed", description="HITL gate: new types start 'proposed'."
     )
     source: str = Field(default="agent", description="Origin: agent/dd/mdm/schema.org.")
+    parent_type: str | None = Field(
+        default=None,
+        description="Parent type name for hierarchy (rdfs:subClassOf semantics).",
+    )
 
 
 class SchemaMapping(BaseModel):

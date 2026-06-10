@@ -94,6 +94,15 @@ def ontology_router() -> APIRouter:
         """Approve a proposed type."""
         return _ob.approve(name)
 
+    @router.post("/types/{name}/parent")
+    def set_parent(name: str, body: dict) -> dict:
+        """Set or clear the parent_type for a type (rdfs:subClassOf).
+
+        Body: ``{"parent_type": "Vehicle"}`` or ``{"parent_type": null}`` to clear.
+        """
+        parent = body.get("parent_type")
+        return _ob.set_parent(name, str(parent) if parent else None)
+
     @router.post("/types")
     def add_type(body: dict) -> dict:
         """Create a new ontology type manually."""

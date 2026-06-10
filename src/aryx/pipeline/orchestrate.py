@@ -21,6 +21,7 @@ from aryx.project import project_graph
 from aryx.relationships import infer_relationship
 from aryx.resolve_entities import resolve_run
 from aryx.store.entity_store import EntityStore
+from aryx.store.ontology_store import OntologyStore
 from aryx.store.postgres_store import PostgresStore
 from aryx.workspaces import ws_graph
 
@@ -33,6 +34,23 @@ def _emit(cb: Progress | None, stage: str, pct: int, detail: str) -> None:
     """Report a pipeline stage to an optional progress callback."""
     if cb is not None:
         cb(stage, pct, detail)
+
+
+def _build_type_ancestors(dsn: str) -> dict[str, list[str]]:
+    """Resolve ancestor chains for every declared type via OntologyStore."""
+    ostore = OntologyStore(dsn)
+    try:
+        types = ostore.list_types()
+        out: dict[str, list[str]] = {}
+        for t in types:
+            if t.parent_type:
+                out[t.name] = ostore.ancestors(t.name)
+        return out
+    except Exception as exc:  # noqa: BLE001 — hierarchy is additive, never block projection
+        logger.warning("type ancestors lookup failed; projecting without labels: %s", exc)
+        return {}
+    finally:
+        ostore.close()
 
 
 def _relate(store: EntityStore, broker: Broker, max_pairs: int) -> int:
@@ -116,7 +134,11 @@ def run_pipeline(
                     spec["target_type"], spec["target_attr"], spec["name"],
                 )
         _emit(on_progress, "Project", 90, "Projecting entities and edges to the graph")
-        counts = project_graph(estore, FalkorStore(graph_url, ws_graph(workspace_id)))
+        type_ancestors = _build_type_ancestors(dsn)
+        counts = project_graph(
+            estore, FalkorStore(graph_url, ws_graph(workspace_id)),
+            type_ancestors=type_ancestors, workspace_id=workspace_id,
+        )
     finally:
         estore.close()
 

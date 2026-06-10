@@ -79,10 +79,14 @@ def build_graph(bundle: GraphBundle, base_uri: str,
         return node
 
     # 1) Declared ontology types -> owl:Class + their attribute properties.
+    #    parent_type -> rdfs:subClassOf so Protege renders the hierarchy.
     for otype in bundle.types:
         cls = ensure_class(otype.name)
         for attr in otype.attributes:
             ensure_datatype_prop(attr, cls)
+        parent = getattr(otype, "parent_type", None)
+        if parent:
+            graph.add((cls, RDFS.subClassOf, ensure_class(parent)))
 
     # 2) Resolved entities -> individuals with typed attribute literals.
     for entity_id, type_name, attributes in bundle.entities:
