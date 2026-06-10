@@ -65,8 +65,10 @@ def _enrich_workspace(ws: dict) -> dict:
             "brief": ws.get("brief", {}),
             "entity_count": 0, "relationship_count": 0,
             "entity_types": [], "relationship_types": [],
+            "axiom_count": 0, "axiom_kinds": {},
             "stats_error": str(exc),
         }
+    axiom_count, axiom_kinds = _axiom_summary(wid)
 
     def _norm(items: list, count_key: str) -> list[dict]:
         out: list[dict] = []
@@ -94,7 +96,24 @@ def _enrich_workspace(ws: dict) -> dict:
         "relationship_count": sum(t["count"] for t in rels),
         "entity_types": ents,
         "relationship_types": rels,
+        "axiom_count": axiom_count,
+        "axiom_kinds": axiom_kinds,
     }
+
+
+def _axiom_summary(workspace_id: int) -> tuple[int, dict]:
+    """Return ``(total, {kind: count})`` for the workspace's axioms."""
+    try:
+        doc = _get(f"/ontology/axioms?workspace_id={workspace_id}") or {}
+    except Exception:  # noqa: BLE001 — axioms are advisory in the MCP card
+        return 0, {}
+    axioms = doc.get("axioms") or []
+    kinds: dict[str, int] = {}
+    for ax in axioms:
+        k = str(ax.get("kind") or "")
+        if k:
+            kinds[k] = kinds.get(k, 0) + 1
+    return len(axioms), kinds
 
 
 def _dispatch(name: str, a: dict) -> Any:

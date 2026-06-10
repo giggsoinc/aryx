@@ -13,9 +13,11 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 
+from aryx import export_runtime
 from aryx.config import get_settings
+from aryx.ontology.rdf.shapes import build_shapes_graph
 from aryx.store.axiom_store import VALID_KINDS, AxiomStore
 
 logger = logging.getLogger(__name__)
@@ -75,5 +77,39 @@ def axioms_router() -> APIRouter:
         """Run the axiom-validation pass; record + return a summary."""
         from aryx.reasoning.axiom_validator import validate_workspace
         return validate_workspace(workspace_id, get_settings().rdb_dsn)
+
+    return router
+
+
+def shapes_router() -> APIRouter:
+    """Build the ``/ontology/shapes`` SHACL endpoint."""
+    router = APIRouter(prefix="/ontology/shapes")
+
+    @router.get("")
+    def get_shapes(workspace_id: int = 1, format: str = "turtle") -> Response:
+        """Serve a SHACL shapes graph derived from the workspace's axioms."""
+        if not export_runtime.is_enabled():
+            raise HTTPException(403, "ontology export is disabled "
+                                "— enable it in Settings")
+        store = AxiomStore(get_settings().rdb_dsn)
+        try:
+            axioms = store.list_(workspace_id)
+        finally:
+            store.close()
+        cfg = export_runtime.status()
+        graph = build_shapes_graph(axioms, str(cfg["base_uri"]))
+        fmt_map = {"turtle": ("turtle", "text/turtle", "ttl"),
+                   "n-triples": ("nt", "application/n-triples", "nt"),
+                   "json-ld": ("json-ld", "application/ld+json", "jsonld")}
+        if format not in fmt_map:
+            raise HTTPException(400, f"unsupported format '{format}'")
+        rdflib_fmt, media, ext = fmt_map[format]
+        payload = graph.serialize(format=rdflib_fmt, encoding="utf-8")
+        if isinstance(payload, str):
+            payload = payload.encode("utf-8")
+        filename = f"aryx_ws{workspace_id}_shapes.{ext}"
+        return Response(content=payload, media_type=media,
+                        headers={"Content-Disposition":
+                                 f'attachment; filename="{filename}"'})
 
     return router

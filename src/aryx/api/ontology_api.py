@@ -142,7 +142,8 @@ def ontology_router() -> APIRouter:
         if not export_runtime.is_enabled():
             raise HTTPException(403, "ontology import disabled — enable in Settings")
         try:
-            return _ob.import_doc(req.content, req.format, req.filename)
+            return _ob.import_doc(req.content, req.format, req.filename,
+                                  req.workspace_id)
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
 
