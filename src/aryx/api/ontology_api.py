@@ -16,6 +16,7 @@ from aryx import export_runtime
 from aryx.api import ontology_browse as _ob
 from aryx.config import get_settings
 from aryx.ontology.rdf import GraphBundle, available_formats, serialize
+from aryx.store.axiom_store import AxiomStore
 from aryx.store.entity_store import EntityStore
 from aryx.store.ontology_store import OntologyStore
 
@@ -54,10 +55,11 @@ def _load_bundle(workspace_id: int, include_provenance: bool) -> GraphBundle:
     finally:
         store.close()
     onto = OntologyStore(settings.rdb_dsn)
-    try:
-        bundle.types = onto.list_types()
-    finally:
-        onto.close()
+    try: bundle.types = onto.list_types()
+    finally: onto.close()
+    axiom_store = AxiomStore(settings.rdb_dsn)
+    try: bundle.axioms = axiom_store.list_(workspace_id)
+    finally: axiom_store.close()
     return bundle
 
 

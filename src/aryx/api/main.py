@@ -8,6 +8,7 @@ from fastapi import FastAPI, HTTPException
 
 from aryx.api.admin_api import admin_router
 from aryx.api.ask_api import ask_router
+from aryx.api.axioms_api import axioms_router
 from aryx.api.ask_history_api import ask_history_router
 from aryx.api.connect_api import connect_router
 from aryx.api.demo_ingest_api import demo_ingest_router
@@ -90,6 +91,7 @@ def create_app() -> FastAPI:
     app.include_router(workspace_router())
     app.include_router(observability_router())
     app.include_router(ontology_router())
+    app.include_router(axioms_router())
     app.include_router(rules_router())
     app.include_router(rest_ingest_router())
     app.include_router(versions_router())

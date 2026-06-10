@@ -18,12 +18,8 @@ import logging
 from rdflib import Graph, Literal, Namespace, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, XSD
 
-from aryx.ontology.rdf.model import (
-    FORMATS,
-    GraphBundle,
-    entity_label,
-    slug,
-)
+from aryx.ontology.rdf.axioms import emit_axioms
+from aryx.ontology.rdf.model import FORMATS, GraphBundle, entity_label, slug
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +103,9 @@ def build_graph(bundle: GraphBundle, base_uri: str,
                 if ent_id == entity_id:
                     src = f"{system}:{dataset}:{record_id}"
                     graph.add((individual, onto["source"], Literal(src)))
+
+    # 2.5) Axioms -> OWL/RDFS triples so Protégé enforces them on import.
+    emit_axioms(graph, onto, bundle.axioms or [], ensure_class)
 
     # 3) Relationships -> owl:ObjectProperty assertions between individuals.
     declared_edges: set[str] = set()

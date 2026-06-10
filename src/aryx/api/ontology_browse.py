@@ -22,13 +22,24 @@ def approve(name: str) -> dict[str, Any]:
     return {"status": "approved", "name": name}
 
 
-def add_type(name: str, attributes: dict, status: str = "approved",
+def add_type(name: str, attributes: Any, status: str = "approved",
              source: str = "manual") -> dict[str, Any]:
-    """Manually create an ontology type (governance editor entry-point)."""
+    """Manually create an ontology type (governance editor entry-point).
+
+    ``attributes`` accepts either a ``list[str]`` of attribute names or a
+    ``dict`` whose keys are attribute names (values ignored). Older callers
+    pass ``{}`` from JSON bodies — coerce to a list so OntologyType validates.
+    """
     from aryx.models import OntologyType
+    if isinstance(attributes, dict):
+        attrs = [str(k) for k in attributes.keys()]
+    elif isinstance(attributes, list):
+        attrs = [str(x) for x in attributes]
+    else:
+        attrs = []
     store = OntologyStore(get_settings().rdb_dsn)
     try:
-        store.seed_types([OntologyType(name=name, attributes=attributes or {},
+        store.seed_types([OntologyType(name=name, attributes=attrs,
                                        status=status, source=source)])
     finally:
         store.close()

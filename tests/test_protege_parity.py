@@ -6,7 +6,7 @@ spins up docker-compose.
 """
 from __future__ import annotations
 
-from rdflib.namespace import RDFS
+from rdflib.namespace import OWL, RDFS
 
 from aryx.graph.falkor_store import _safe_labels
 from aryx.models import OntologyType
@@ -116,3 +116,5 @@ def test_apply_edge_axiom_dispatch_combines() -> None:
     )
     assert fired == 1
     assert len(g.calls) == 2  # hops 2..3
+
+

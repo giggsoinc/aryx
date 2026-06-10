@@ -48,6 +48,7 @@ class GraphBundle:
     relationships: list[tuple[int, int, str]] = field(default_factory=list)
     types: list[OntologyType] = field(default_factory=list)
     provenance: list[tuple[int, str, str, str]] = field(default_factory=list)
+    axioms: list[dict] = field(default_factory=list)
 
 
 def slug(text: str) -> str:
