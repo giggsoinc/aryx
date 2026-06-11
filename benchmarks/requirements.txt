@@ -1,0 +1,4 @@
+# Benchmark-only dependencies — NOT needed by the production pipeline.
+# Install: pip install -r benchmarks/requirements.txt
+# recordlinkage ships Febrl 1-4 as importable labeled datasets (no network fetch).
+recordlinkage~=0.16
