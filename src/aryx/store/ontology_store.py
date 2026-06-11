@@ -8,11 +8,11 @@ from __future__ import annotations
 
 import logging
 
-import psycopg
 from psycopg.types.json import Json
 
 from aryx.models import OntologyType, SchemaMapping
 from aryx.queries import load
+from aryx.store.pool import get_pool
 
 logger = logging.getLogger(__name__)
 
@@ -21,23 +21,25 @@ class OntologyStore:
     """Reads and writes ontology types and schema mappings."""
 
     def __init__(self, dsn: str) -> None:
-        """Open a connection to the ontology store."""
-        self._conn = psycopg.connect(dsn, autocommit=False)
+        """Acquire the shared connection pool for this DSN."""
+        self._pool = get_pool(dsn)
 
     def seed_types(self, types: list[OntologyType]) -> None:
         """Insert types, ignoring any whose name already exists."""
-        with self._conn.cursor() as cur:
-            cur.executemany(
-                load("upsert_ontology_type"),
-                [(t.name, Json(t.attributes), t.status, t.source) for t in types],
-            )
-        self._conn.commit()
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.executemany(
+                    load("upsert_ontology_type"),
+                    [(t.name, Json(t.attributes), t.status, t.source)
+                     for t in types],
+                )
 
     def list_types(self) -> list[OntologyType]:
         """Return all known ontology types (grounding for the agent)."""
-        with self._conn.cursor() as cur:
-            cur.execute(load("select_ontology_types"))
-            rows = cur.fetchall()
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(load("select_ontology_types"))
+                rows = cur.fetchall()
         return [
             OntologyType(name=r[0], attributes=r[1], status=r[2], source=r[3],
                          parent_type=r[4])
@@ -46,38 +48,35 @@ class OntologyStore:
 
     def set_parent(self, name: str, parent: str | None) -> None:
         """Set or clear the parent_type for a type (rdfs:subClassOf)."""
-        with self._conn.cursor() as cur:
-            cur.execute(load("set_ontology_parent"), (parent, name))
-        self._conn.commit()
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(load("set_ontology_parent"), (parent, name))
         logger.info("ontology parent set name=%s parent=%s", name, parent)
 
     def ancestors(self, name: str) -> list[str]:
         """Return ancestor type names from nearest parent to root (excludes self)."""
-        with self._conn.cursor() as cur:
-            cur.execute(load("select_type_ancestors"), (name,))
-            rows = cur.fetchall()
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(load("select_type_ancestors"), (name,))
+                rows = cur.fetchall()
         return [r[0] for r in rows]
 
     def save_mappings(self, run_id: int, mappings: list[SchemaMapping]) -> None:
         """Persist schema mappings produced for a run."""
-        with self._conn.cursor() as cur:
-            cur.executemany(
-                load("insert_schema_mapping"),
-                [
-                    (run_id, m.source_system, m.source_dataset, m.source_field,
-                     m.ontology_type, m.ontology_attribute, m.confidence)
-                    for m in mappings
-                ],
-            )
-        self._conn.commit()
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.executemany(
+                    load("insert_schema_mapping"),
+                    [
+                        (run_id, m.source_system, m.source_dataset, m.source_field,
+                         m.ontology_type, m.ontology_attribute, m.confidence)
+                        for m in mappings
+                    ],
+                )
 
     def approve_type(self, name: str) -> None:
         """Approve a proposed type — the human review gate."""
-        with self._conn.cursor() as cur:
-            cur.execute(load("approve_ontology_type"), (name,))
-        self._conn.commit()
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(load("approve_ontology_type"), (name,))
         logger.info("ontology type approved name=%s", name)
-
-    def close(self) -> None:
-        """Close the database connection."""
-        self._conn.close()

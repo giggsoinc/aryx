@@ -39,13 +39,10 @@ def _bearer_ok(request) -> bool:
         from aryx.config import get_settings
         from aryx.store.mcp_token_store import McpTokenStore
         store = McpTokenStore(get_settings().rdb_dsn)
-        try:
-            tokens = store.list_()
-            if not any(not t.get("revoked_at") for t in tokens):
-                return True
-            return store.verify(token)
-        finally:
-            store.close()
+        tokens = store.list_()
+        if not any(not t.get("revoked_at") for t in tokens):
+            return True
+        return store.verify(token)
     except Exception as exc:  # noqa: BLE001
         logger.error("mcp auth check failed — failing closed: %s", exc)
         return False
@@ -81,6 +78,8 @@ def _mount_mcp(app: FastAPI) -> None:
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     yield
+    from aryx.store.pool import close_all
+    close_all()
 
 
 def create_app() -> FastAPI:
