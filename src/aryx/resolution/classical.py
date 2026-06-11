@@ -2,17 +2,13 @@
 from __future__ import annotations
 
 import math
-import re
 from difflib import SequenceMatcher
 
 from aryx.models import ResolutionRecord
+from aryx.resolution.blocking import MultiKeyBlocker, normalize  # noqa: F401  (re-export)
 
-_WS = re.compile(r"\s+")
-
-
-def normalize(value: str) -> str:
-    """Lowercase, strip, and collapse internal whitespace for matching."""
-    return _WS.sub(" ", value.lower().strip())
+# normalize is imported from blocking and re-exported for backward compatibility.
+__all__ = ["normalize", "block_key", "block", "string_score", "cosine", "score_pair"]
 
 
 def block_key(text: str) -> str:
@@ -24,12 +20,14 @@ def block_key(text: str) -> str:
     return normalize(text)[:4]
 
 
-def block(records: list[ResolutionRecord]) -> dict[str, list[ResolutionRecord]]:
-    """Group records into candidate blocks by block key."""
-    blocks: dict[str, list[ResolutionRecord]] = {}
-    for record in records:
-        blocks.setdefault(block_key(record.text), []).append(record)
-    return blocks
+def block(records: list[ResolutionRecord], max_block_size: int = 5000) -> dict[str, list[ResolutionRecord]]:
+    """Group records into candidate blocks (shim for MultiKeyBlocker).
+
+    Delegates to MultiKeyBlocker so all three key families (prefix, token-set,
+    Soundex) are used.  Existing callers that import this function are
+    unaffected.
+    """
+    return MultiKeyBlocker(max_block_size).block(records)
 
 
 def string_score(left: str, right: str) -> float:
