@@ -5,8 +5,8 @@
 | G2  | block-smith     | DONE | gap/g2-block  | —         | 6cb7799 | n/a |
 | G3  | survivor-smith  | DONE | gap/g3-golden | —         | 1ba642c | n/a |
 | G12 | pool-fitter     | DONE | gap/g12-pool  | —         | 3655ad5 | n/a |
-| G9  | bench-master    | BLOCKED     | —             | G2        | —       | —   |
-| G10 | adjudicator     | BLOCKED     | —             | G2,G9     | —       | —   |
+| G9  | bench-master    | DONE        | gap/g9-bench  | —         | a4932e3 | febrl1 P=1.00 R=0.59 |
+| G10 | adjudicator     | READY       | —             | —         | —       | —   |
 | G1+G5 | stream-scaler | BLOCKED   | —             | G2        | —       | n/a |
 | G7  | confidence-smith| BLOCKED     | —             | G2        | —       | —   |
 | G8  | projector       | BLOCKED     | —             | G1+G5     | —       | —   |
