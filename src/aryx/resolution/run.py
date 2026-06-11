@@ -7,7 +7,7 @@ from aryx.broker import Broker
 from aryx.models import EntityMember, ResolutionRecord, ResolvedEntity
 from aryx.resolution.adjudicate import adjudicate
 from aryx.resolution.classical import block, score_pair
-from aryx.resolution.cluster import UnionFind, golden_record
+from aryx.resolution.cluster import UnionFind, golden_record_weighted
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +48,7 @@ def resolve(
     """
     by_id = {r.record_id: r for r in records}
     union = UnionFind()
+    pair_scores: dict[tuple[int, int], float] = {}
     for record in records:
         union.add(record.record_id)
 
@@ -59,6 +60,7 @@ def resolve(
                 score = score_pair(left.text, right.text,
                                    embeddings.get(left.record_id),
                                    embeddings.get(right.record_id))
+                pair_scores[(left.record_id, right.record_id)] = score
                 if score >= _AUTO_MERGE:
                     union.union(left.record_id, right.record_id)
                 elif score >= _ADJUDICATE_FROM and adjudicate(left, right, broker):
@@ -67,10 +69,15 @@ def resolve(
     results: list[tuple[ResolvedEntity, list[EntityMember]]] = []
     for member_ids in union.groups().values():
         records_in = [by_id[mid] for mid in member_ids]
+        merged = golden_record_weighted(
+            [r.payload for r in records_in], member_ids, pair_scores,
+        )
+        provenance = merged.pop("_provenance", None)
         entity = ResolvedEntity(
             ontology_type=ontology_type,
-            attributes=golden_record([r.payload for r in records_in]),
+            attributes=merged,
             confidence=1.0 if len(member_ids) > 1 else 0.5,
+            provenance=provenance,
         )
         members = [EntityMember(landed_record_id=mid) for mid in member_ids]
         results.append((entity, members))
