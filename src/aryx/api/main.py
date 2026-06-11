@@ -4,6 +4,8 @@ from __future__ import annotations
 import logging
 import os
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException
 
 from aryx.api.admin_api import admin_router
@@ -76,9 +78,16 @@ def _mount_mcp(app: FastAPI) -> None:
         logger.warning("MCP mount failed: %s", exc)
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    yield
+    from aryx.store.pool import close_all
+    close_all()
+
+
 def create_app() -> FastAPI:
     """Build the Aryx FastAPI app with every router + MCP mounted."""
-    app = FastAPI(title="Aryx API", version="1.0")
+    app = FastAPI(title="Aryx API", version="1.0", lifespan=_lifespan)
     app.include_router(graph_router())
     app.include_router(admin_router())
     app.include_router(ask_router())
