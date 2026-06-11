@@ -4,6 +4,8 @@ from __future__ import annotations
 import logging
 import os
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException
 
 from aryx.api.admin_api import admin_router
@@ -45,8 +47,8 @@ def _bearer_ok(request) -> bool:
         finally:
             store.close()
     except Exception as exc:  # noqa: BLE001
-        logger.warning("mcp auth check failed: %s", exc)
-        return True
+        logger.error("mcp auth check failed — failing closed: %s", exc)
+        return False
 
 
 def _mount_mcp(app: FastAPI) -> None:
@@ -76,9 +78,16 @@ def _mount_mcp(app: FastAPI) -> None:
         logger.warning("MCP mount failed: %s", exc)
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    yield
+
+
 def create_app() -> FastAPI:
     """Build the Aryx FastAPI app with every router + MCP mounted."""
-    app = FastAPI(title="Aryx API", version="1.0")
+    from aryx.api.security import ApiKeyMiddleware
+    app = FastAPI(title="Aryx API", version="1.0", lifespan=_lifespan)
+    app.add_middleware(ApiKeyMiddleware)
     app.include_router(graph_router())
     app.include_router(admin_router())
     app.include_router(ask_router())
