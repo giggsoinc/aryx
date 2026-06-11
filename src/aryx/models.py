@@ -97,6 +97,10 @@ class ResolvedEntity(BaseModel):
     ontology_type: str
     attributes: dict[str, Any] = Field(description="Golden record (merged values).")
     confidence: float = 0.0
+    provenance: dict[str, int] | None = Field(
+        default=None,
+        description="Maps each attribute to the record_id that contributed it.",
+    )
 
 
 class EntityMember(BaseModel):

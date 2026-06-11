@@ -37,10 +37,22 @@ class UnionFind:
 
 
 def golden_record(payloads: list[dict[str, Any]]) -> dict[str, Any]:
-    """Merge cluster payloads into one record: first non-empty value per key."""
-    merged: dict[str, Any] = {}
-    for payload in payloads:
-        for key, value in payload.items():
-            if key not in merged and value not in (None, "", []):
-                merged[key] = value
+    """Merge cluster payloads: first non-empty value per key (legacy shim).
+
+    Strips the internal ``_provenance`` key before returning so callers that
+    don't expect it are unaffected.
+    """
+    from aryx.resolution.survivor import survivors
+    merged = survivors(payloads, [], {})
+    merged.pop("_provenance", None)
     return merged
+
+
+def golden_record_weighted(
+    payloads: list[dict[str, Any]],
+    record_ids: list[int],
+    pair_scores: dict[tuple[int, int], float],
+) -> dict[str, Any]:
+    """Confidence-weighted merge with conflict detection and provenance."""
+    from aryx.resolution.survivor import survivors
+    return survivors(payloads, record_ids, pair_scores)
