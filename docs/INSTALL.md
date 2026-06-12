@@ -106,7 +106,46 @@ docker compose ps
 docker logs -f aryx-ui-1  # Watch UI startup
 ```
 
-### 5. Access
+### 5. Updating a running deployment (git-only flow)
+
+Never `docker run`/`scp` ad-hoc changes. All updates flow through git:
+
+```bash
+ssh -i ~/.ssh/aryx-key.pem ec2-user@<instance-ip>
+cd /home/ec2-user/aryx
+git pull origin main
+docker compose build
+docker compose up -d
+```
+
+If behaviour doesn't match the new code (compose served a stale layer),
+force a clean rebuild and verify:
+
+```bash
+docker compose build --no-cache
+docker compose up -d --force-recreate
+docker compose exec api python -c "import aryx.resolution.confidence; print('ok')"
+```
+
+Database migrations (`src/aryx/store/migrations/*.sql`, currently 0001-0023)
+are idempotent and apply automatically on API startup — no manual step.
+
+### 6. Tuning (optional .env keys)
+
+```bash
+# REST auth: off | optional (default) | required
+ARYX_API_AUTH=optional
+# ER funnel thresholds (defaults from the G9 measured sweep)
+ARYX_ER_AUTO_MERGE=0.92
+ARYX_ER_ADJUDICATE=0.90
+ARYX_ER_REVIEW=0.75
+# Chunked resolution kicks in above this record count
+ARYX_ER_CHUNK_THRESHOLD=100000
+# Incremental projection when dirty-set below this fraction
+ARYX_PROJECT_DIRTY_MAX=0.30
+```
+
+### 7. Access
 
 - **UI:** http://<instance-ip>:8501
 - **API:** http://<instance-ip>:8088
