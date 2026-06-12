@@ -51,7 +51,7 @@ def browse() -> None:
             cols[0].markdown(f"**{t.get('name')}** · "
                              f"_{(t.get('source') or 'discovery')}_")
             cols[1].caption(f"attrs: "
-                            f"{', '.join((t.get('attributes') or {}).keys()) or '—'}")
+                            f"{', '.join(t.get('attributes') or []) or '—'}")
             with cols[2]:
                 _approve_button(t.get("name", "?"), f"appr_{t.get('name')}")
         st.divider()
@@ -62,7 +62,7 @@ def browse() -> None:
               "Instances": t.get("instance_count", 0),
               "Source": t.get("source") or "approved",
               "owl:DatatypeProperty": ", ".join(
-                  (t.get("attributes") or {}).keys())[:60]}
+                  t.get("attributes") or [])[:60]}
              for t in approved],
             use_container_width=True, hide_index=True,
         )
