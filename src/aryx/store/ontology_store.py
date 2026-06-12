@@ -80,3 +80,6 @@ class OntologyStore:
             with conn.cursor() as cur:
                 cur.execute(load("approve_ontology_type"), (name,))
         logger.info("ontology type approved name=%s", name)
+
+    def close(self) -> None:
+        """No-op: connections are managed by the shared pool (G12)."""

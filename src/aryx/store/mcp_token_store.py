@@ -67,3 +67,6 @@ class McpTokenStore:
             return {}
         logger.info("mcp token revoked id=%s", row[0])
         return {"id": row[0], "label": row[1]}
+
+    def close(self) -> None:
+        """No-op: connections are managed by the shared pool (G12)."""

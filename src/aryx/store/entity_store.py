@@ -50,11 +50,12 @@ class EntityStore:
                 cur.execute(load("select_landed_by_run"), (run_id, self._ws))
                 rows = cur.fetchall()
         records = []
-        for record_id, payload in rows:
+        for record_id, payload, source_system, cleaned_at in rows:
             text = " ".join(str(payload.get(a, "")) for a in key_attrs).strip()
-            records.append(
-                ResolutionRecord(record_id=record_id, text=text, payload=payload)
-            )
+            records.append(ResolutionRecord(
+                record_id=record_id, text=text, payload=payload,
+                source_system=source_system, cleaned_at=cleaned_at,
+            ))
         return records
 
     def save(self, results: list[tuple[ResolvedEntity, list[EntityMember]]]) -> int:
@@ -79,6 +80,14 @@ class EntityStore:
                             (self._ws, entity_id, member.landed_record_id,
                              member.confidence),
                         )
+                    for conflict in entity.conflicts or []:
+                        cur.execute(
+                            load("insert_attribute_conflict"),
+                            (self._ws, entity_id, conflict["attribute"],
+                             Json(conflict["winning_value"], dumps=_dumps),
+                             Json(conflict["losing_values"], dumps=_dumps),
+                             conflict["strategy"]),
+                        )
                     count += 1
         logger.info("entities saved count=%d", count)
         return count
@@ -87,7 +96,7 @@ class EntityStore:
         """Persist inferred relationships between entities (stage 8)."""
         with self._pool.connection() as conn:
             with conn.cursor() as cur:
-                conn.cursor().executemany(
+                cur.executemany(
                     load("insert_relationship"),
                     [(self._ws, r.source_entity_id, r.target_entity_id,
                       r.name, r.confidence) for r in relationships],
@@ -113,3 +122,6 @@ class EntityStore:
             with conn.cursor() as cur:
                 cur.execute(load("select_relationships"), (self._ws,))
                 return [(r[0], r[1], r[2]) for r in cur.fetchall()]
+
+    def close(self) -> None:
+        """No-op: connections are managed by the shared pool (G12)."""

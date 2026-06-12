@@ -80,3 +80,6 @@ class AxiomStore:
                     load("insert_axiom_violation"),
                     (workspace_id, entity_id, axiom_id, reason),
                 )
+
+    def close(self) -> None:
+        """No-op: connections are managed by the shared pool (G12)."""

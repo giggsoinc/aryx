@@ -51,3 +51,6 @@ class AskHistoryStore:
             "prompt_tokens": r[7], "completion_tokens": r[8],
             "latency_ms": r[9], "answer_model": r[10],
         } for r in rows]
+
+    def close(self) -> None:
+        """No-op: connections are managed by the shared pool (G12)."""

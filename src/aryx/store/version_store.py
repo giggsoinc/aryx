@@ -70,3 +70,6 @@ class VersionStore:
                  "op": r[3], "target_kind": r[4], "target_name": r[5],
                  "before": r[6], "after": r[7], "changed_at": r[8]}
                 for r in rows]
+
+    def close(self) -> None:
+        """No-op: connections are managed by the shared pool (G12)."""

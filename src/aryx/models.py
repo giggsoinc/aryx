@@ -89,6 +89,10 @@ class ResolutionRecord(BaseModel):
     record_id: int = Field(description="aryx_landed_record.id (provenance link).")
     text: str = Field(description="Key text built from match attributes.")
     payload: dict[str, Any] = Field(description="Full payload for the golden record.")
+    source_system: str | None = Field(
+        default=None, description="Originating system (survivorship source rank).")
+    cleaned_at: Any = Field(
+        default=None, description="Landed-record cleanse time (record-level recency).")
 
 
 class ResolvedEntity(BaseModel):
@@ -100,6 +104,10 @@ class ResolvedEntity(BaseModel):
     provenance: dict[str, int] | None = Field(
         default=None,
         description="Maps each attribute to the record_id that contributed it.",
+    )
+    conflicts: list[dict[str, Any]] | None = Field(
+        default=None,
+        description="Attribute conflicts found during survivorship (audit rows).",
     )
 
 

@@ -75,3 +75,6 @@ class ChunkStore:
                 f"embed model mismatch: stored=({stored_model}, {stored_dim}) "
                 f"configured=({model_id}, {dim}). Re-embed or update config."
             )
+
+    def close(self) -> None:
+        """No-op: connections are managed by the shared pool (G12)."""

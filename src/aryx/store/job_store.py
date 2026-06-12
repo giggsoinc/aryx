@@ -78,3 +78,6 @@ class JobStore:
                 cur.execute(load("delete_old_job_events"), (days,))
         logger.info("archived/purged jobs older than %d days: %d", days, deleted)
         return deleted
+
+    def close(self) -> None:
+        """No-op: connections are managed by the shared pool (G12)."""

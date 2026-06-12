@@ -99,3 +99,6 @@ class PostgresStore:
         with self._pool.connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(load("finish_run"), (record_count, run_id))
+
+    def close(self) -> None:
+        """No-op: connections are managed by the shared pool (G12)."""

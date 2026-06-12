@@ -68,3 +68,6 @@ class RuleStore:
             with conn.cursor() as cur:
                 cur.execute(load("bump_rule_fires"),
                             (int(fires), int(workspace_id), name))
+
+    def close(self) -> None:
+        """No-op: connections are managed by the shared pool (G12)."""
