@@ -1,10 +1,4 @@
-"""Workspaces: create/list/delete logically + physically isolated spaces.
-
-Each workspace owns a LIST partition (FOR VALUES IN (id)) of every resolution
-table and its own FalkorDB named graph. Create attaches partitions; delete
-drops them (instant physical purge). Dynamic identifiers are built with
-psycopg.sql so the workspace id is never string-interpolated unsafely.
-"""
+"""Workspaces: CRUD + purge/nuke over LIST-partitioned isolated spaces."""
 from __future__ import annotations
 
 import logging
@@ -27,7 +21,7 @@ def ws_graph(workspace_id: int) -> str:
 
 
 class WorkspaceStore:
-    """CRUD over workspaces plus their per-workspace table partitions."""
+    """CRUD + purge/nuke over workspaces and their table partitions."""
 
     def __init__(self, dsn: str) -> None:
         self._conn = psycopg.connect(dsn, autocommit=True)
@@ -68,7 +62,6 @@ class WorkspaceStore:
                     for r in cur.fetchall()]
 
     def set_context(self, wid: int, context: str) -> dict[str, Any]:
-        """Update the free-text business context override."""
         with self._conn.cursor() as cur:
             cur.execute(load("update_workspace_context"), (context, int(wid)))
             row = cur.fetchone()
@@ -76,7 +69,6 @@ class WorkspaceStore:
                 "context": row[3], "brief": {}, "created_at": row[4]}
 
     def set_brief(self, wid: int, brief: dict) -> dict[str, Any]:
-        """Update the structured knowledge-modelling brief (5 questions)."""
         with self._conn.cursor() as cur:
             cur.execute(load("update_workspace_brief"),
                         (Json(brief or {}), int(wid)))
@@ -87,20 +79,59 @@ class WorkspaceStore:
                 "created_at": row[5]}
 
     def get_survivorship(self, wid: int) -> dict[str, Any]:
-        """Return the workspace's survivorship policy JSON (G3)."""
         with self._conn.cursor() as cur:
             cur.execute(load("select_workspace_survivorship"), (int(wid),))
             row = cur.fetchone()
         return (row[0] or {}) if row else {}
 
     def set_survivorship(self, wid: int, policy: dict) -> dict[str, Any]:
-        """Replace the workspace's survivorship policy JSON (G3)."""
         with self._conn.cursor() as cur:
             cur.execute(load("update_workspace_survivorship"),
                         (Json(policy or {}), int(wid)))
             row = cur.fetchone()
         logger.info("survivorship policy updated ws=%s", wid)
         return {"id": row[0], "survivorship": row[1] or {}}
+
+    def purge_data(self, wid: int) -> dict[str, Any]:
+        """Truncate partition children + delete non-partitioned rows by wid."""
+        wid = int(wid)
+        for base in _PARTITIONED:
+            child = f"{base}_ws{wid}"
+            try:
+                self._conn.execute(
+                    sql.SQL("TRUNCATE {} CASCADE").format(sql.Identifier(child)))
+            except psycopg.errors.UndefinedTable:
+                self._conn.rollback()
+        stmts = load("purge_workspace_data")
+        for stmt in stmts.split(";"):
+            stmt = stmt.strip()
+            if stmt and not stmt.startswith("--"):
+                self._conn.execute(stmt, {"wid": wid})
+        with self._conn.cursor() as cur:
+            cur.execute(load("delete_profiles_by_workspace"), (wid,))
+            cur.execute(load("delete_tags_by_workspace"), (wid,))
+        self._conn.execute(load("reset_workspace_context"), {"wid": wid})
+        logger.info("workspace purged id=%s", wid)
+        return {"status": "purged", "workspace_id": wid}
+
+    def nuke(self) -> dict[str, Any]:
+        """Factory reset: truncate everything, drop non-Default workspaces."""
+        self._conn.execute(load("nuke_system"))
+        for base in _PARTITIONED:
+            for row in self._conn.execute(
+                    load("select_partition_children"),
+                    {"parent": base}).fetchall():
+                self._conn.execute(
+                    sql.SQL("TRUNCATE {} CASCADE").format(
+                        sql.Identifier(row[0])))
+        non_default = self._conn.execute(
+            load("select_non_default_workspace_ids")).fetchall()
+        for (wid,) in non_default:
+            self._drop_partitions(wid)
+        self._conn.execute(load("delete_non_default_workspaces"))
+        self._conn.execute(load("reset_workspace_context"), {"wid": 1})
+        logger.info("system nuked — factory reset complete")
+        return {"status": "nuked", "workspaces_removed": len(non_default)}
 
     def delete(self, wid: int) -> None:
         """Physically purge a workspace: drop partitions + its run/job rows."""

@@ -94,6 +94,37 @@ def workspace_router() -> APIRouter:
         finally:
             store.close()
 
+    @router.post("/nuke")
+    def nuke_system() -> dict[str, Any]:
+        """Factory reset: truncate all data, drop non-Default workspaces."""
+        store = WorkspaceStore(get_settings().rdb_dsn)
+        try:
+            result = store.nuke()
+        finally:
+            store.close()
+        for wid in (1, 2, 3):
+            try:
+                g = FalkorStore(get_settings().graph_url, ws_graph(wid))
+                g.clear()
+            except Exception:  # noqa: BLE001
+                pass
+        return result
+
+    @router.post("/{workspace_id}/purge")
+    def purge_workspace(workspace_id: int) -> dict[str, Any]:
+        """Delete all data in a workspace but keep the workspace itself."""
+        store = WorkspaceStore(get_settings().rdb_dsn)
+        try:
+            result = store.purge_data(workspace_id)
+        finally:
+            store.close()
+        try:
+            FalkorStore(get_settings().graph_url,
+                        ws_graph(workspace_id)).clear()
+        except Exception:  # noqa: BLE001
+            logger.debug("graph clear skipped ws=%s", workspace_id)
+        return result
+
     @router.delete("/{workspace_id}")
     def delete_workspace(workspace_id: int) -> dict[str, Any]:
         store = WorkspaceStore(get_settings().rdb_dsn)

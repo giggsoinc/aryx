@@ -78,10 +78,30 @@ def render() -> None:
                 st.rerun()
             except Exception as exc:
                 st.error(f"Create failed: {exc}")
-        if chosen["id"] != 1 and st.button(f"Delete '{choice}'", key="ws_del"):
-            try:
-                api.delete_workspace(chosen["id"])
-                api.set_workspace(1)
-                st.rerun()
-            except Exception as exc:
-                st.error(f"Delete failed: {exc}")
+        st.divider()
+        p1, p2 = st.columns(2)
+        with p1:
+            if st.button("🗑 Purge data", key="ws_purge",
+                          help="Delete all data but keep this workspace"):
+                st.session_state["_purge_confirm"] = chosen["id"]
+        with p2:
+            if chosen["id"] != 1 and st.button(
+                    f"Delete '{choice}'", key="ws_del"):
+                try:
+                    api.delete_workspace(chosen["id"])
+                    api.set_workspace(1)
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"Delete failed: {exc}")
+        if st.session_state.get("_purge_confirm") == chosen["id"]:
+            st.warning(f"⚠️ This will permanently delete ALL data in "
+                       f"**{choice}** (entities, jobs, ontology, graph).")
+            if st.button("Yes, purge everything", key="ws_purge_yes",
+                          type="primary"):
+                try:
+                    api.purge_workspace(chosen["id"])
+                    st.session_state.pop("_purge_confirm", None)
+                    st.success("Workspace purged — all data deleted.")
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"Purge failed: {exc}")

@@ -69,6 +69,37 @@ def render() -> None:
     settings_mcp.render()
     st.divider()
     settings_tokens.render()
+    st.divider()
+    _danger_zone()
+
+
+def _danger_zone() -> None:
+    """Factory reset — wipe all data and non-Default workspaces."""
+    st.subheader("Danger zone")
+    st.caption("Factory reset deletes **all** data across every workspace: "
+               "entities, relationships, jobs, ontology, graph, actions, "
+               "adjudication queue, ask history. Only the Default workspace "
+               "survives (empty). This cannot be undone.")
+    if st.button("☢️ Factory Reset (Nuke)", key="nuke_btn"):
+        st.session_state["_nuke_confirm"] = True
+    if st.session_state.get("_nuke_confirm"):
+        st.error("⚠️ **This will permanently delete ALL data in ALL "
+                 "workspaces.** Type `NUKE` to confirm.")
+        confirm = st.text_input("Type NUKE to confirm", key="nuke_text")
+        if st.button("Confirm factory reset", key="nuke_yes",
+                      type="primary"):
+            if confirm.strip() == "NUKE":
+                try:
+                    result = api.nuke_system()
+                    st.session_state.pop("_nuke_confirm", None)
+                    removed = result.get("workspaces_removed", 0)
+                    st.success(f"Factory reset complete. "
+                               f"{removed} workspace(s) removed.")
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"Nuke failed: {exc}")
+            else:
+                st.warning("Type exactly `NUKE` to confirm.")
 
 
 def _ontology_section() -> None:
