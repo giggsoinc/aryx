@@ -5,14 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aryx — Business View Architecture</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
@@ -21,7 +16,6 @@
             justify-content: center;
             padding: 40px 20px;
         }
-
         .container {
             background: white;
             border-radius: 16px;
@@ -29,255 +23,186 @@
             max-width: 1200px;
             padding: 40px;
         }
-
-        h1 {
-            text-align: center;
-            color: #1a1a1a;
-            font-size: 32px;
-            margin-bottom: 10px;
-            font-weight: 700;
-        }
-
-        .subtitle {
-            text-align: center;
-            color: #666;
-            font-size: 16px;
-            margin-bottom: 40px;
-        }
-
-        svg {
-            display: block;
-            margin: 0 auto;
-            width: 100%;
-            max-width: 1000px;
-        }
-
-        .box {
-            stroke: #667eea;
-            stroke-width: 2;
-            fill: #f0f4ff;
-            transition: all 0.3s ease;
-        }
-
-        .box:hover {
-            fill: #e6edff;
-            stroke: #764ba2;
-            filter: drop-shadow(0 4px 12px rgba(102, 126, 234, 0.3));
-        }
-
-        .icon {
-            font-size: 32px;
-            font-weight: bold;
-        }
-
-        .label {
-            font-weight: 600;
-            fill: #1a1a1a;
-            font-size: 14px;
-        }
-
-        .description {
-            fill: #555;
-            font-size: 12px;
-        }
-
-        .arrow {
-            stroke: #999;
-            stroke-width: 2;
-            fill: none;
-            marker-end: url(#arrowhead);
-        }
-
-        .pipeline-box {
-            stroke: #10b981;
-            stroke-width: 2;
-            fill: #f0fdf4;
-        }
-
-        .pipeline-box:hover {
-            fill: #dcfce7;
-            stroke: #059669;
-        }
-
-        .pipeline-label {
-            fill: #10b981;
-            font-weight: 700;
-            font-size: 12px;
-        }
-
-        .core-label {
-            fill: #667eea;
-            font-weight: 700;
-            font-size: 13px;
-        }
-
-        .legend {
-            margin-top: 40px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            font-size: 14px;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .legend-box {
-            width: 24px;
-            height: 24px;
-            border-radius: 4px;
-            border: 2px solid;
-        }
-
-        .user-path {
-            border-color: #667eea;
-            background: #f0f4ff;
-        }
-
-        .backend-path {
-            border-color: #10b981;
-            background: #f0fdf4;
-        }
-
-        .footer {
-            margin-top: 20px;
-            text-align: center;
-            color: #999;
-            font-size: 12px;
-        }
+        h1 { text-align: center; color: #1a1a1a; font-size: 32px; margin-bottom: 10px; }
+        .subtitle { text-align: center; color: #666; font-size: 16px; margin-bottom: 40px; }
+        svg { display: block; margin: 0 auto; width: 100%; max-width: 1100px; }
+        .box { stroke: #667eea; stroke-width: 2; fill: #f0f4ff; transition: all 0.3s ease; }
+        .box:hover { fill: #e6edff; stroke: #764ba2; filter: drop-shadow(0 4px 12px rgba(102, 126, 234, 0.3)); }
+        .icon { font-size: 32px; font-weight: bold; }
+        .label { font-weight: 600; fill: #1a1a1a; font-size: 14px; }
+        .description { fill: #555; font-size: 12px; }
+        .arrow { stroke: #999; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+        .pipeline-box { stroke: #10b981; stroke-width: 2; fill: #f0fdf4; transition: all 0.3s ease; }
+        .pipeline-box:hover { fill: #dcfce7; stroke: #059669; filter: drop-shadow(0 4px 12px rgba(16, 185, 129, 0.3)); }
+        .hitl-box { stroke: #f59e0b; stroke-width: 2; fill: #fffbeb; transition: all 0.3s ease; }
+        .hitl-box:hover { fill: #fef3c7; stroke: #d97706; filter: drop-shadow(0 4px 12px rgba(245, 158, 11, 0.3)); }
+        .action-box { stroke: #ef4444; stroke-width: 2; fill: #fef2f2; transition: all 0.3s ease; }
+        .action-box:hover { fill: #fee2e2; stroke: #dc2626; filter: drop-shadow(0 4px 12px rgba(239, 68, 68, 0.3)); }
+        .pipeline-label { fill: #10b981; font-weight: 700; font-size: 12px; }
+        .hitl-label { fill: #b45309; font-weight: 700; font-size: 12px; }
+        .action-label { fill: #dc2626; font-weight: 700; font-size: 12px; }
+        .legend { margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; font-size: 13px; }
+        .legend-item { display: flex; align-items: center; gap: 10px; padding: 8px; background: #f9fafb; border-radius: 6px; }
+        .legend-box { width: 20px; height: 20px; border-radius: 4px; border: 2px solid; }
+        .user-path { border-color: #667eea; background: #f0f4ff; }
+        .backend-path { border-color: #10b981; background: #f0fdf4; }
+        .hitl-path { border-color: #f59e0b; background: #fffbeb; }
+        .action-path { border-color: #ef4444; background: #fef2f2; }
+        .footer { margin-top: 20px; text-align: center; color: #999; font-size: 12px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎯 Aryx — Business View Architecture</h1>
-        <p class="subtitle">What users see → What happens behind the scenes</p>
+        <h1>Aryx — Business View Architecture</h1>
+        <p class="subtitle">User paths, HITL gates, and the knowledge graph</p>
 
-        <svg viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg">
+        <svg viewBox="0 0 1100 820" xmlns="http://www.w3.org/2000/svg">
             <defs>
                 <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
                     <polygon points="0 0, 10 3, 0 6" fill="#999"/>
                 </marker>
+                <marker id="arrowhead-amber" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                    <polygon points="0 0, 10 3, 0 6" fill="#f59e0b"/>
+                </marker>
             </defs>
 
-            <!-- Title Section -->
-            <text x="500" y="30" text-anchor="middle" style="font-size: 20px; font-weight: bold; fill: #1a1a1a;">
-                ARYX PLATFORM
-            </text>
+            <text x="550" y="30" text-anchor="middle" style="font-size: 20px; font-weight: bold; fill: #1a1a1a;">ARYX PLATFORM</text>
 
-            <!-- Three User Paths -->
+            <!-- Four User Paths -->
             <g id="ingest-path">
-                <!-- Ingest Box -->
-                <rect x="50" y="80" width="140" height="100" rx="8" class="box"/>
-                <text x="120" y="110" text-anchor="middle" class="icon">📥</text>
-                <text x="120" y="135" text-anchor="middle" class="label">INGEST</text>
-                <text x="120" y="155" text-anchor="middle" class="description">Database</text>
-                <text x="120" y="168" text-anchor="middle" class="description">Documents</text>
-
-                <!-- Input annotation -->
-                <text x="120" y="200" text-anchor="middle" style="font-size: 11px; fill: #667eea;">Context + Data</text>
+                <rect x="30" y="60" width="140" height="100" rx="8" class="box"/>
+                <text x="100" y="90" text-anchor="middle" class="icon">📥</text>
+                <text x="100" y="115" text-anchor="middle" class="label">INGEST</text>
+                <text x="100" y="135" text-anchor="middle" class="description">Database</text>
+                <text x="100" y="148" text-anchor="middle" class="description">Documents</text>
             </g>
 
             <g id="ask-path">
-                <!-- Ask Box -->
-                <rect x="430" y="80" width="140" height="100" rx="8" class="box"/>
-                <text x="500" y="110" text-anchor="middle" class="icon">💬</text>
-                <text x="500" y="135" text-anchor="middle" class="label">ASK</text>
-                <text x="500" y="155" text-anchor="middle" class="description">Natural</text>
-                <text x="500" y="168" text-anchor="middle" class="description">Language</text>
-
-                <!-- Input annotation -->
-                <text x="500" y="200" text-anchor="middle" style="font-size: 11px; fill: #667eea;">Question</text>
+                <rect x="290" y="60" width="140" height="100" rx="8" class="box"/>
+                <text x="360" y="90" text-anchor="middle" class="icon">💬</text>
+                <text x="360" y="115" text-anchor="middle" class="label">ASK</text>
+                <text x="360" y="135" text-anchor="middle" class="description">Natural</text>
+                <text x="360" y="148" text-anchor="middle" class="description">Language</text>
             </g>
 
             <g id="graph-path">
-                <!-- Graph Box -->
-                <rect x="810" y="80" width="140" height="100" rx="8" class="box"/>
-                <text x="880" y="110" text-anchor="middle" class="icon">📊</text>
-                <text x="880" y="135" text-anchor="middle" class="label">GRAPH</text>
-                <text x="880" y="155" text-anchor="middle" class="description">Visual</text>
-                <text x="880" y="168" text-anchor="middle" class="description">Explorer</text>
-
-                <!-- Input annotation -->
-                <text x="880" y="200" text-anchor="middle" style="font-size: 11px; fill: #667eea;">Drill-down</text>
+                <rect x="550" y="60" width="140" height="100" rx="8" class="box"/>
+                <text x="620" y="90" text-anchor="middle" class="icon">📊</text>
+                <text x="620" y="115" text-anchor="middle" class="label">GRAPH</text>
+                <text x="620" y="135" text-anchor="middle" class="description">Visual</text>
+                <text x="620" y="148" text-anchor="middle" class="description">Explorer</text>
             </g>
 
-            <!-- Arrows pointing down to backend -->
-            <line x1="120" y1="180" x2="120" y2="240" class="arrow"/>
-            <line x1="500" y1="180" x2="500" y2="240" class="arrow"/>
-            <line x1="880" y1="180" x2="880" y2="240" class="arrow"/>
+            <g id="mcp-path">
+                <rect x="810" y="60" width="140" height="100" rx="8" class="box"/>
+                <text x="880" y="90" text-anchor="middle" class="icon">🤖</text>
+                <text x="880" y="115" text-anchor="middle" class="label">MCP</text>
+                <text x="880" y="135" text-anchor="middle" class="description">AI Agent</text>
+                <text x="880" y="148" text-anchor="middle" class="description">Tools</text>
+            </g>
 
-            <!-- Backend Pipeline Boxes -->
+            <!-- Arrows down -->
+            <line x1="100" y1="160" x2="100" y2="210" class="arrow"/>
+            <line x1="360" y1="160" x2="360" y2="380" class="arrow"/>
+            <line x1="620" y1="160" x2="620" y2="380" class="arrow"/>
+            <line x1="880" y1="160" x2="880" y2="210" class="arrow"/>
+
+            <!-- Backend Pipeline (Ingest) -->
             <g id="ingest-backend">
-                <rect x="50" y="250" width="140" height="120" rx="8" class="pipeline-box"/>
-                <text x="120" y="275" text-anchor="middle" class="pipeline-label">BACKEND</text>
-                <text x="120" y="295" text-anchor="middle" class="description">PIPELINE</text>
-                <text x="120" y="320" text-anchor="middle" class="description">• Extract & Land</text>
-                <text x="120" y="338" text-anchor="middle" class="description">• Auto-discover</text>
-                <text x="120" y="356" text-anchor="middle" class="description">• Merge duplicates</text>
+                <rect x="20" y="220" width="160" height="130" rx="8" class="pipeline-box"/>
+                <text x="100" y="245" text-anchor="middle" class="pipeline-label">RESOLVE</text>
+                <text x="100" y="265" text-anchor="middle" class="description">Block (multi-key)</text>
+                <text x="100" y="280" text-anchor="middle" class="description">Score (cheap LLM)</text>
+                <text x="100" y="295" text-anchor="middle" class="description">Route (4 bands)</text>
+                <text x="100" y="310" text-anchor="middle" class="description">Cluster + merge</text>
+                <text x="100" y="325" text-anchor="middle" class="description">Golden record</text>
             </g>
 
-            <g id="ask-backend">
-                <rect x="430" y="250" width="140" height="120" rx="8" class="pipeline-box"/>
-                <text x="500" y="275" text-anchor="middle" class="pipeline-label">BACKEND</text>
-                <text x="500" y="295" text-anchor="middle" class="description">PIPELINE</text>
-                <text x="500" y="320" text-anchor="middle" class="description">• Search & Query</text>
-                <text x="500" y="338" text-anchor="middle" class="description">• LLM reasoning</text>
-                <text x="500" y="356" text-anchor="middle" class="description">• Source tracking</text>
+            <!-- HITL: Adjudication Queue -->
+            <g id="hitl-queue">
+                <rect x="220" y="220" width="200" height="100" rx="8" class="hitl-box"/>
+                <text x="320" y="248" text-anchor="middle" class="hitl-label">HUMAN-IN-THE-LOOP</text>
+                <text x="320" y="268" text-anchor="middle" class="description">Ambiguous pairs (0.75-0.90)</text>
+                <text x="320" y="283" text-anchor="middle" class="description">Steward approve / reject</text>
+                <text x="320" y="298" text-anchor="middle" class="description">Labeled training data</text>
             </g>
 
-            <g id="graph-backend">
-                <rect x="810" y="250" width="140" height="120" rx="8" class="pipeline-box"/>
-                <text x="880" y="275" text-anchor="middle" class="pipeline-label">BACKEND</text>
-                <text x="880" y="295" text-anchor="middle" class="description">PIPELINE</text>
-                <text x="880" y="320" text-anchor="middle" class="description">• Graph traversal</text>
-                <text x="880" y="338" text-anchor="middle" class="description">• Relationships</text>
-                <text x="880" y="356" text-anchor="middle" class="description">• Provenance</text>
+            <!-- Arrow from resolve to HITL -->
+            <line x1="180" y1="270" x2="220" y2="270" class="arrow" style="stroke: #f59e0b; marker-end: url(#arrowhead-amber);"/>
+
+            <!-- HITL back to resolve -->
+            <path d="M 320 320 L 320 360 L 100 360 L 100 350" class="arrow" style="stroke: #f59e0b; marker-end: url(#arrowhead-amber);"/>
+            <text x="210" y="373" text-anchor="middle" style="font-size: 10px; fill: #b45309; font-style: italic;">decisions feed back</text>
+
+            <!-- Action Layer -->
+            <g id="action-layer">
+                <rect x="720" y="220" width="200" height="100" rx="8" class="action-box"/>
+                <text x="820" y="248" text-anchor="middle" class="action-label">ACTIONS</text>
+                <text x="820" y="268" text-anchor="middle" class="description">Guard → params → effects</text>
+                <text x="820" y="283" text-anchor="middle" class="description">Human approval gate</text>
+                <text x="820" y="298" text-anchor="middle" class="description">Before/after audit log</text>
             </g>
 
-            <!-- Arrows converging to center -->
-            <line x1="120" y1="370" x2="300" y2="480" class="arrow"/>
-            <line x1="500" y1="370" x2="500" y2="480" class="arrow"/>
-            <line x1="880" y1="370" x2="700" y2="480" class="arrow"/>
+            <!-- Arrows converging to knowledge graph -->
+            <line x1="100" y1="350" x2="350" y2="540" class="arrow"/>
+            <line x1="360" y1="380" x2="430" y2="540" class="arrow"/>
+            <line x1="620" y1="380" x2="570" y2="540" class="arrow"/>
+            <line x1="820" y1="320" x2="650" y2="540" class="arrow"/>
+
+            <!-- Confidence annotation -->
+            <g id="confidence-note">
+                <rect x="460" y="420" width="180" height="60" rx="6" style="fill: #f0f9ff; stroke: #3b82f6; stroke-width: 1; stroke-dasharray: 4 2;"/>
+                <text x="550" y="442" text-anchor="middle" style="font-size: 11px; fill: #1d4ed8; font-weight: 600;">Confidence scores</text>
+                <text x="550" y="458" text-anchor="middle" style="font-size: 10px; fill: #3b82f6;">Every entity: [0.5, 0.99]</text>
+                <text x="550" y="472" text-anchor="middle" style="font-size: 10px; fill: #3b82f6;">Weakest merge-edge</text>
+            </g>
 
             <!-- Central Knowledge Graph Box -->
-            <rect x="350" y="480" width="300" height="140" rx="8" style="stroke: #f59e0b; stroke-width: 3; fill: #fffbeb;"/>
-            <text x="500" y="510" text-anchor="middle" style="font-size: 24px;">🗄️</text>
-            <text x="500" y="535" text-anchor="middle" class="core-label" style="fill: #b45309;">KNOWLEDGE GRAPH</text>
-            <text x="500" y="560" text-anchor="middle" class="description">Entities • Relationships</text>
-            <text x="500" y="578" text-anchor="middle" class="description">Provenance • Searchable</text>
-            <text x="500" y="600" text-anchor="middle" style="font-size: 11px; fill: #92400e; font-weight: 600;">
-                Single source of truth for all organization data
-            </text>
+            <rect x="330" y="540" width="340" height="130" rx="8" style="stroke: #f59e0b; stroke-width: 3; fill: #fffbeb;"/>
+            <text x="500" y="570" text-anchor="middle" style="font-size: 24px;">🗄️</text>
+            <text x="500" y="595" text-anchor="middle" style="fill: #b45309; font-weight: 700; font-size: 14px;">KNOWLEDGE GRAPH</text>
+            <text x="500" y="615" text-anchor="middle" class="description">Entities (with confidence) · Relationships</text>
+            <text x="500" y="633" text-anchor="middle" class="description">Provenance · Conflict audit · Searchable</text>
+            <text x="500" y="655" text-anchor="middle" style="font-size: 11px; fill: #92400e; font-weight: 600;">Single source of truth — Postgres-first, FalkorDB projection</text>
+
+            <!-- Survivorship annotation -->
+            <g id="survivorship-note">
+                <rect x="30" y="420" width="200" height="70" rx="6" style="fill: #f0fdf4; stroke: #10b981; stroke-width: 1; stroke-dasharray: 4 2;"/>
+                <text x="130" y="442" text-anchor="middle" style="font-size: 11px; fill: #059669; font-weight: 600;">Survivorship policies</text>
+                <text x="130" y="458" text-anchor="middle" style="font-size: 10px; fill: #059669;">source_priority · most_recent</text>
+                <text x="130" y="472" text-anchor="middle" style="font-size: 10px; fill: #059669;">most_complete · most_frequent</text>
+                <text x="130" y="484" text-anchor="middle" style="font-size: 10px; fill: #059669;">Per-attribute overrides</text>
+            </g>
+
+            <!-- Projection mode annotation -->
+            <g id="projection-note">
+                <rect x="770" y="420" width="180" height="55" rx="6" style="fill: #faf5ff; stroke: #8b5cf6; stroke-width: 1; stroke-dasharray: 4 2;"/>
+                <text x="860" y="442" text-anchor="middle" style="font-size: 11px; fill: #7c3aed; font-weight: 600;">Projection</text>
+                <text x="860" y="458" text-anchor="middle" style="font-size: 10px; fill: #7c3aed;">Auto: full or incremental</text>
+                <text x="860" y="470" text-anchor="middle" style="font-size: 10px; fill: #7c3aed;">&lt;30% dirty → incremental</text>
+            </g>
         </svg>
 
-        <!-- Explanation -->
         <div style="margin-top: 30px; padding: 20px; background: #f9fafb; border-radius: 8px;">
             <h3 style="color: #1a1a1a; margin-bottom: 15px; font-size: 16px;">How It Works</h3>
             <ul style="list-style-position: inside; color: #555; line-height: 1.8;">
-                <li><strong>Ingest path:</strong> User provides context + connects database/uploads files → system auto-discovers entity types, merges duplicates, builds graph</li>
-                <li><strong>Ask path:</strong> User asks natural-language question → LLM retrieves relevant entities, reasons, returns answer with source links</li>
-                <li><strong>Graph path:</strong> User explores entities visually → drill down to relationships, provenance, linked records</li>
-                <li><strong>All paths converge:</strong> Single, deduplicated knowledge graph → no inconsistent data, full traceability</li>
+                <li><strong>Ingest path:</strong> Connect database or upload files → auto-discover entity types → resolve duplicates via four-band funnel → build graph</li>
+                <li><strong>Ask path:</strong> Natural-language question → LLM retrieves entities, reasons, returns answer with source provenance</li>
+                <li><strong>Graph path:</strong> Explore entities visually → drill down to relationships, confidence scores, provenance chain</li>
+                <li><strong>MCP path:</strong> AI agents browse (list), query (ask), or request mutations (act) — actions always require human approval</li>
+                <li><strong>HITL loop:</strong> Ambiguous pairs queue for human steward; decisions persist as labeled training data (data moat)</li>
+                <li><strong>Actions:</strong> Declarative mutations with guard conditions, human approval gate, and full audit trail</li>
             </ul>
         </div>
 
         <div class="legend">
-            <div class="legend-item">
-                <div class="legend-box user-path"></div>
-                <span><strong>User Interface:</strong> What you interact with</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-box backend-path"></div>
-                <span><strong>Backend Pipeline:</strong> What happens automatically</span>
-            </div>
+            <div class="legend-item"><div class="legend-box user-path"></div><span><strong>User:</strong> Interface</span></div>
+            <div class="legend-item"><div class="legend-box backend-path"></div><span><strong>Backend:</strong> Pipeline</span></div>
+            <div class="legend-item"><div class="legend-box hitl-path"></div><span><strong>HITL:</strong> Human gate</span></div>
+            <div class="legend-item"><div class="legend-box action-path"></div><span><strong>Action:</strong> Mutations</span></div>
         </div>
 
-        <div class="footer">
-            Aryx Knowledge Graph Platform — Business View Architecture
-        </div>
+        <div class="footer">Aryx Knowledge Graph Platform — Business View Architecture</div>
     </div>
 </body>
 </html>

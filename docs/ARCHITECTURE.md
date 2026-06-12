@@ -2,203 +2,201 @@
 
 ## System Overview
 
-Aryx is a knowledge graph platform that ingests records from heterogeneous sources (databases, files), resolves duplicate records into single entities, infers relationships, and builds a queryable graph.
+Aryx is a knowledge graph platform that ingests records from heterogeneous sources (databases, files), resolves duplicates into single entities, infers relationships, and builds a queryable graph.
 
-**Core principle:** Postgres is the source of truth; FalkorDB is a rebuildable projection. Cheap, deterministic stages (blocking, scoring) shrink the search space so frontier LLMs only touch the hard ~1–5% of decisions.
+**Core principle:** Postgres is the source of truth; FalkorDB is a rebuildable projection. Cheap, deterministic stages (blocking, scoring) shrink the search space so frontier LLMs only touch the hard ~1-5% of decisions.
 
-## Architecture Diagrams
+## Interactive Diagrams
 
-### Interactive Diagrams (Click to open in browser)
-
-**📊 [Business View Diagram](diagrams/business-view.html)** — What users see and what happens behind the scenes
-
-**🏗️ [Technical Flow Diagram](diagrams/technical-flow.html)** — 4-layer system architecture with all components
-
-Both diagrams are interactive SVG with hover effects. Open in any web browser.
+- **[Business View](diagrams/business-view.html)** — User paths and backend flow
+- **[Technical Flow](diagrams/technical-flow.html)** — 4-layer system architecture with all components
 
 ---
 
-## Data Flow Pipeline (7-Stage Ingest)
+## Resolution Funnel
+
+The ER pipeline is the core differentiator. Records flow through five stages:
 
 ```
-    SOURCE DATA
-    (Database, Files, Documents)
-           │
-           ▼
-    ┌──────────────────┐
-    │ 1️⃣  EXTRACT      │
-    ├──────────────────┤
-    │ Connectors read  │
-    │ stream 1 record  │
-    │ at a time        │
-    │ (memory safe)    │
-    └────────┬─────────┘
-             │
-             ▼
-    ┌──────────────────┐
-    │ 2️⃣  LAND         │
-    ├──────────────────┤
-    │ Store raw record │
-    │ in Postgres      │
-    │ + provenance     │
-    │ (source tracking)│
-    └────────┬─────────┘
-             │
-             ▼
-    ┌──────────────────┐
-    │ 3️⃣  TAG          │
-    ├──────────────────┤
-    │ Cheap AI (Ollama)│
-    │ labels fields    │
-    │ (email, phone,   │
-    │  date, currency) │
-    └────────┬─────────┘
-             │
-             ▼
-    ┌──────────────────┐
-    │ 4️⃣  MAP          │
-    ├──────────────────┤
-    │ Agent maps       │
-    │ table → entity   │
-    │ type (Person,    │
-    │ Company, etc.)   │
-    │ HITL gate        │
-    └────────┬─────────┘
-             │
-             ▼
-    ┌──────────────────┐
-    │ 5️⃣  RESOLVE      │
-    ├──────────────────┤
-    │ a) Block         │
-    │    (group by     │
-    │     exact match) │
-    │ b) Score        │
-    │    (cheap model) │
-    │ c) Adjudicate    │
-    │    (frontier LLM │
-    │     on 1-5%      │
-    │     ambiguous)   │
-    │ d) Cluster      │
-    │    (merge into   │
-    │     entities)    │
-    └────────┬─────────┘
-             │
-             ▼
-    ┌──────────────────┐
-    │ 6️⃣  RELATE       │
-    ├──────────────────┤
-    │ Infer edges      │
-    │ • FKs (fast)     │
-    │ • Co-occurrence  │
-    │ • LLM (opt.)     │
-    └────────┬─────────┘
-             │
-             ▼
-    ┌──────────────────┐
-    │ 7️⃣  PROJECT      │
-    ├──────────────────┤
-    │ Build interactive│
-    │ graph in FalkorDB│
-    │ (rebuildable)    │
-    └────────┬─────────┘
-             │
-             ▼
-         📊 GRAPH
-    (Queryable, Explorable)
+  LANDED RECORDS
+       │
+  ┌────▼──────────────────────────────────────────────┐
+  │ 1. BLOCK — MultiKeyBlocker                        │
+  │    Prefix + token-set + Soundex keys               │
+  │    Block-size cap prevents cartesian explosion      │
+  │    Chunked mode: 3-pass streaming for large data    │
+  └────┬──────────────────────────────────────────────┘
+       │ candidate pairs
+  ┌────▼──────────────────────────────────────────────┐
+  │ 2. SCORE — cheap LLM (Ollama)                      │
+  │    Pairwise similarity → float [0, 1]              │
+  └────┬──────────────────────────────────────────────┘
+       │ scored pairs
+  ┌────▼──────────────────────────────────────────────┐
+  │ 3. ROUTE — four-band adjudication                  │
+  │    >=0.92  AUTO_MERGE (no human needed)             │
+  │    0.90-0.92  ADJUDICATE (frontier LLM decides)    │
+  │    0.75-0.90  REVIEW (queued for human steward)    │
+  │    <0.75  REJECT                                    │
+  │    Thresholds from measured sweep (DEC-003)         │
+  └────┬──────────────────────────────────────────────┘
+       │ merge decisions
+  ┌────▼──────────────────────────────────────────────┐
+  │ 4. CLUSTER — transitive closure                    │
+  │    confidence = min merge-edge, clamp [0.5, 0.99]  │
+  │    human edges → 0.99; singletons → 0.5            │
+  └────┬──────────────────────────────────────────────┘
+       │ entity clusters
+  ┌────▼──────────────────────────────────────────────┐
+  │ 5. GOLDEN RECORD — survivorship policy             │
+  │    5 strategies: first_non_empty, source_priority,  │
+  │    most_recent, most_complete, most_frequent        │
+  │    Per-attribute overrides; conflict audit trail     │
+  └───────────────────────────────────────────────────┘
 ```
 
-**Stage Details:**
+**Key files:** `resolution/run.py`, `resolution/blocking.py`, `resolution/survivorship.py`, `resolution/golden.py`, `resolution/confidence.py`, `resolution/chunked.py`, `resolution/review_queue.py`
 
-| Stage | What | Why | Cost |
-|-------|------|-----|------|
-| **1. Extract** | Read from source (DB, files) | Stream 1 record at a time | Free (connectors) |
-| **2. Land** | Store raw + provenance | Track where data came from | Postgres writes |
-| **3. Tag** | Semantic field labels | Cheap AI understands field types | Ollama (local, free) |
-| **4. Map** | Source → entity types | Human + AI agree on ontology | Frontier LLM (expensive) |
-| **5. Resolve** | Find & merge duplicates | Clean data → single entities | Mix cheap + frontier |
-| **6. Relate** | Infer entity→entity edges | Link entities via FK or meaning | Deterministic + optional LLM |
-| **7. Project** | Build FalkorDB graph | Interactive visualization | FalkorDB writes |
+## Pipeline Stages (7-stage ingest)
 
-## Key Components
+| # | Stage | What | Cost |
+|---|-------|------|------|
+| 1 | **Extract** | Stream from DB connector or file reader | Free |
+| 2 | **Land** | Store raw record + provenance in Postgres | PG write |
+| 3 | **Tag** | Semantic field labels (email, phone, currency) | Ollama (free) |
+| 4 | **Map** | Source → entity type; HITL approval gate | Frontier LLM |
+| 5 | **Resolve** | Block → score → adjudicate → cluster → golden | Mix |
+| 6 | **Relate** | FK links, co-occurrence, optional LLM inference | Deterministic + LLM |
+| 7 | **Project** | Write entities + edges to FalkorDB graph | FalkorDB write |
 
-### Connectors (pluggable readers)
+Stage checkpoints (`StageTracker`) track running/done/failed per stage. Crashed pipelines resume from the last completed stage — leftover "running" on resume is treated as "failed".
 
-- **PostgresConnector** — JDBC-style, reads tables streaming
-- **FileConnector** — CSV, JSON, PDF, PPTX, DOCX, images
-- Protocol: `extract() -> Iterator[Record]`
+**Chunked mode:** When record count exceeds `ARYX_ER_CHUNK_THRESHOLD` (default 100k), resolution switches to 3-pass streaming (key → score → cluster) via `ChunkBackend` protocol. Memory bound = largest block.
 
-### Pipeline Spine
+## Action Layer (Kinetic)
 
-- **run_spine()** — streaming transform: extract → clean → profile → land
-- One record at a time (no full-dataset load)
-- Cheap tagging + blocking happens as records flow through
+Declarative mutations defined as JSON with guard conditions (reusing the rules engine `_match`):
 
-### Store (Postgres)
+```
+definition → validate → check_guard → apply_effects → audit log
+```
 
-- **aryx_entity** — canonical entities (id, type, properties)
-- **aryx_relationship** — edges (source_id, target_id, type, properties)
-- **aryx_landed_record** — raw landed records (provenance link)
-- **aryx_entity_member** — which records resolved into each entity
-- **aryx_ontology** — type + field catalog
-- All tables **LIST-PARTITIONED** by workspace_id for isolation + physical purge
+- Effects: `set_attribute`, `get_attribute`, `find_entity`, `add_relationship`, `remove_relationship`
+- All effects write Postgres-first with before/after snapshots
+- MCP `act` tool is always-pending for agent-initiated mutations (human approves via API)
+- Mirrors the adjudication queue shape: enqueue → page → decide
 
-### LLM Broker (provider-agnostic routing)
+**Key files:** `actions/engine.py`, `store/action_store.py`, `api/actions_api.py`, `mcp/act.py`
 
-- **Registry** — ModelSpec by Tier (local/cheap/frontier)
-- **Governor** — token budget, rate-limiting
-- Supports: Ollama (local), Anthropic Claude, OpenAI, OpenAI-compatible
-- **Secrets** — AWS Secrets Manager / SSM Parameter Store
+## Incremental Projection
 
-### FalkorDB Projection
+FalkorDB is never the source of truth — it is a projection of Postgres state.
 
-- One **named graph** per workspace (ws_1, ws_2, etc.)
-- Nodes: entities (id, type, name)
-- Edges: relationships (type, properties)
-- Provenance threads: trace any node back to source records
-- Wipe-and-rebuild safe: Postgres has the real data
+- `project_auto()` checks the dirty-set size: <30% dirty → incremental, else full rebuild
+- Dirty-set computation uses Postgres watermark + `aryx_projected_entity` side table
+- Tombstones handle deleted entities (DETACH DELETE in FalkorDB)
+- Full rebuild: wipe named graph, re-project all entities + relationships
+
+**Key files:** `project.py`, `store/projection_store.py`, `graph/falkor_store.py`
+
+## API Layer
+
+23 routers registered in `api/main.py`:
+
+| Router | Prefix | Purpose |
+|--------|--------|---------|
+| workspace | /workspaces | CRUD + survivorship policy |
+| connect | /connect | Database introspection |
+| rest_ingest | /ingest | Trigger ingest jobs |
+| file_ingest | /ingest/files | Document upload + discovery |
+| doc_discover | /discover | Document entity discovery |
+| jobs | /jobs | Job status, resume |
+| entities (admin) | /admin | Entity CRUD |
+| graph | /graph | FalkorDB queries, paths |
+| ask | /ask | NL question answering |
+| ask_history | /ask/history | Chat history |
+| ontology | /ontology | Type management, import/export |
+| ontology_browse | /ontology/browse | OWL-style browse |
+| rules | /rules | Business rules engine |
+| axioms | /axioms | OWL axiom management |
+| observability | /observability | Job metrics, LLM usage |
+| versions | /versions | Schema versioning |
+| mcp_tokens | /mcp | MCP token management |
+| adjudication | /adjudication | Human review queue |
+| actions | /actions | Kinetic action CRUD + execute |
+| demo_ingest | /demo | Synthetic support data |
+| security | — | Auth middleware |
+
+**Auth:** `ApiKeyMiddleware` with three modes (off/optional/required). `_bearer_ok` returns False on any exception (fail-closed, DEC-006).
+
+## MCP Integration
+
+3 tools exposed over SSE (`mcp/server.py`):
+
+| Tool | Purpose |
+|------|---------|
+| `list` | Browse entities and relationships |
+| `ask` | Natural-language graph queries |
+| `act` | Request mutations (always-pending, human-approved) |
+
+## Storage
+
+### Postgres (source of truth)
+
+23 idempotent migrations (0001-0023), auto-applied on API startup.
+
+Key tables:
+- `aryx_entity` — canonical entities with confidence score
+- `aryx_relationship` — typed edges with properties
+- `aryx_landed_record` — raw records with source provenance
+- `aryx_entity_member` — record-to-entity resolution mapping
+- `aryx_ontology` — type catalog (proposed/approved status)
+- `aryx_attribute_conflict` — survivorship conflict audit trail
+- `aryx_adjudication` — human review queue with labeled-data semantics
+- `aryx_run_stage` — pipeline stage checkpoints
+- `aryx_projection_state` — watermark for incremental projection
+- `aryx_action` / `aryx_action_execution` — kinetic action definitions and audit log
+- `aryx_block_member`, `aryx_block_done`, `aryx_match_edge` — chunked resolution state
+
+All entity tables LIST-partitioned by workspace_id for isolation and physical purge.
+
+### FalkorDB (graph projection)
+
+- Named graph per workspace (`ws_1`, `ws_2`, etc.)
+- Nodes = entities, edges = relationships
+- Wipe-and-rebuild safe; Postgres has the real data
+
+### Connection Pooling
+
+`psycopg3` shared pool singleton per DSN (`store/pool.py`). All 10 stores borrow from the pool instead of opening individual connections.
 
 ## Technology Stack
 
 | Layer | Tech | Why |
 |---|---|---|
-| **Language** | Python 3.13 | Type safety + async; SQL in .sql files (DB-Guard) |
-| **API** | FastAPI | Async routes; auto-OpenAPI docs; Pydantic validation |
-| **UI** | Streamlit | Rapid prototyping; live updates without JS |
-| **Database** | Postgres 16 | ACID, full-text search, partitioning, JSON |
-| **Graph** | FalkorDB | Fast traversal; easy to wipe/rebuild |
-| **Local LLM** | Ollama | Private data; offline; 0-cost inference (cheap stages) |
-| **Cloud LLM** | Anthropic, OpenAI | Frontier tier (hard decisions only) |
-| **Deployment** | Docker Compose | Reproducible, works local + EC2 + K8s |
-| **IaC** | Terraform (planned) | AWS infrastructure versioning |
+| Language | Python 3.13 | Type hints; SQL in .sql files (DB-Guard enforced) |
+| API | FastAPI | Async; auto-OpenAPI; Pydantic validation |
+| UI | Streamlit | Rapid iteration; live updates without JS |
+| Database | PostgreSQL 16 | ACID, FTS, partitioning, JSONB |
+| Graph | FalkorDB | Fast traversal; wipe/rebuild safe |
+| Local LLM | Ollama | Private data; offline; zero-cost inference |
+| Cloud LLM | Anthropic, OpenAI, Gemini | Frontier tier for hard decisions |
+| Deploy | Docker Compose | Reproducible; local + EC2 |
+| Pool | psycopg3 + psycopg_pool | Connection reuse across stores |
 
 ## Architectural Decisions
 
-| Decision | Rationale | Date |
-|---|---|---|
-| Postgres source of truth; FalkorDB rebuildable | Graph can be wiped anytime; no graph-only state | 2026-05-28 |
-| Streaming one-record-at-a-time | Code path serves small tables + TB datasets; memory-bounded | 2026-05-28 |
-| Resolution funnel (block → score → adjudicate) | Cheap/deterministic layers shrink search space; ration frontier spend | 2026-05-28 |
-| Provider-agnostic Broker | Decouple from vendor lock-in | 2026-05-28 |
-| Ollama embeddings locally | Anthropic has no API; keeps private data on-box | 2026-05-28 |
-| HITL gate for new ontology types | Nothing untraceable; human decisions become training labels | 2026-05-28 |
-| Workspaces + LIST partitioning | Instant isolation + physical purge | 2026-05-28 |
-
-## Scaling Notes
-
-- **10x data:** Streaming pipeline stays memory-bounded; Postgres partitioning + FalkorDB indexing scale to 100M entities
-- **10x users:** REST API scales horizontally (stateless); Postgres connection pooling; async IO bounds
-- **10x models:** Broker routes by tier; Ollama queue manages parallel inference; frontier costs stay ~1–5% via funnel
-
-## Security
-
-- **Secrets:** AWS Secrets Manager / SSM Parameter Store (never in code)
-- **SQL injection:** Parameterized queries via SQLAlchemy ORM + SQL files
-- **Data isolation:** Workspace LIST partitioning; delete cascade on workspace removal
-- **Access:** API basic auth (placeholder); Streamlit session-based
-- **Audit:** Job table logs all ingest + LLM calls with provenance
+| ID | Decision | Rationale | Date |
+|---|---|---|---|
+| DEC-001 | Postgres source of truth; FalkorDB rebuildable | No graph-only state; safe to wipe | 2026-05-28 |
+| DEC-002 | Streaming one-record-at-a-time | Same code path for small tables and TB datasets | 2026-05-28 |
+| DEC-003 | Four-band thresholds from measured sweep | 0.92/0.90/0.75 from Febrl benchmark, not opinion | 2026-06-11 |
+| DEC-004 | Survivorship policies over first-non-empty | Order-independent merge; auditable conflicts | 2026-06-11 |
+| DEC-005 | Review-band pairs are non-merge (conservative) | False positive worse than false negative for ER | 2026-06-11 |
+| DEC-006 | Auth fail-closed; _bearer_ok returns False on exception | Security over availability for auth path | 2026-06-11 |
 
 ## Next Steps
 
 - [Install Guide](INSTALL.md) — Get running locally
 - [User Guide](USER_GUIDE.md) — Navigate the UI
-- [Ingestion Guide](INGESTION_GUIDE.md) — Deep-dive on pipeline stages
+- [Feature Matrix](FEATURES.md) — All capabilities at a glance

@@ -212,8 +212,40 @@ streamlit run src/aryx/ui/main.py --server.port=8501
 
 (Requires external Postgres + FalkorDB + Ollama. See `docker-compose.yml` for connection strings.)
 
+## Verification Checklist
+
+After starting services, verify everything is healthy:
+
+```bash
+# 1. All containers running
+docker compose ps
+# Expect: postgres, falkordb, ollama, api, worker, ui — all "Up"
+
+# 2. API health
+curl http://localhost:8088/health
+# Returns: {"status": "ok"}
+
+# 3. Migrations applied (23 expected)
+docker compose exec api python -c "
+from aryx.store.migrate import applied_count
+print(f'Migrations: {applied_count()}')"
+
+# 4. Ollama model available
+docker compose exec ollama ollama list
+# Should show nomic-embed-text (pulled by ollama-init)
+
+# 5. FalkorDB reachable
+docker compose exec api python -c "
+from aryx.graph.falkor_store import FalkorStore
+fs = FalkorStore(); print(f'FalkorDB: ok')"
+
+# 6. UI loads
+# Open http://localhost:8501 — should show workspace selector
+```
+
 ## Next Steps
 
-- [User Guide](USER_GUIDE.md) — Navigate the UI
+- [User Guide](USER_GUIDE.md) — Navigate the UI, adjudication queue, actions
+- [Feature Matrix](FEATURES.md) — All capabilities at a glance
 - [Ingestion Guide](INGESTION_GUIDE.md) — Detailed ingest workflow
 - [Architecture](ARCHITECTURE.md) — System design deep-dive

@@ -5,14 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aryx — Technical Flow Architecture</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
@@ -21,7 +16,6 @@
             justify-content: center;
             padding: 40px 20px;
         }
-
         .container {
             background: white;
             border-radius: 16px;
@@ -29,405 +23,238 @@
             max-width: 1400px;
             padding: 40px;
         }
-
-        h1 {
-            text-align: center;
-            color: #1a1a1a;
-            font-size: 32px;
-            margin-bottom: 10px;
-            font-weight: 700;
-        }
-
-        .subtitle {
-            text-align: center;
-            color: #666;
-            font-size: 16px;
-            margin-bottom: 40px;
-        }
-
-        svg {
-            display: block;
-            margin: 0 auto;
-            width: 100%;
-            max-width: 1200px;
-        }
-
-        .layer-title {
-            font-weight: 700;
-            font-size: 16px;
-            fill: white;
-        }
-
-        .component-box {
-            stroke-width: 2;
-            transition: all 0.3s ease;
-        }
-
-        .component-box:hover {
-            filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.2));
-        }
-
-        .ui-layer .component-box {
-            stroke: #06b6d4;
-            fill: #f0f9fa;
-        }
-
-        .ui-layer .component-box:hover {
-            fill: #cffafe;
-            stroke: #0891b2;
-        }
-
-        .ui-title {
-            fill: #0891b2;
-            font-weight: 700;
-        }
-
-        .orchestration-layer .component-box {
-            stroke: #6366f1;
-            fill: #eef2ff;
-        }
-
-        .orchestration-layer .component-box:hover {
-            fill: #e0e7ff;
-            stroke: #4f46e5;
-        }
-
-        .orchestration-title {
-            fill: #4f46e5;
-            font-weight: 700;
-        }
-
-        .models-layer .component-box {
-            stroke: #8b5cf6;
-            fill: #faf5ff;
-        }
-
-        .models-layer .component-box:hover {
-            fill: #f3e8ff;
-            stroke: #7c3aed;
-        }
-
-        .models-title {
-            fill: #7c3aed;
-            font-weight: 700;
-        }
-
-        .storage-layer .component-box {
-            stroke: #10b981;
-            fill: #f0fdf4;
-        }
-
-        .storage-layer .component-box:hover {
-            fill: #dcfce7;
-            stroke: #059669;
-        }
-
-        .storage-title {
-            fill: #059669;
-            font-weight: 700;
-        }
-
-        .component-label {
-            font-size: 13px;
-            font-weight: 600;
-            fill: #1a1a1a;
-        }
-
-        .component-desc {
-            font-size: 11px;
-            fill: #666;
-        }
-
-        .icon {
-            font-size: 24px;
-        }
-
-        .arrow {
-            stroke: #999;
-            stroke-width: 2;
-            fill: none;
-            marker-end: url(#arrowhead);
-        }
-
-        .connection-label {
-            font-size: 11px;
-            fill: #999;
-            font-style: italic;
-        }
-
-        .legend {
-            margin-top: 40px;
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr 1fr;
-            gap: 20px;
-            font-size: 13px;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px;
-            background: #f9fafb;
-            border-radius: 6px;
-        }
-
-        .legend-color {
-            width: 20px;
-            height: 20px;
-            border-radius: 4px;
-            border: 2px solid;
-        }
-
-        .ui-color {
-            background: #f0f9fa;
-            border-color: #06b6d4;
-        }
-
-        .orchestration-color {
-            background: #eef2ff;
-            border-color: #6366f1;
-        }
-
-        .models-color {
-            background: #faf5ff;
-            border-color: #8b5cf6;
-        }
-
-        .storage-color {
-            background: #f0fdf4;
-            border-color: #10b981;
-        }
-
-        .explanation {
-            margin-top: 30px;
-            padding: 20px;
-            background: #f9fafb;
-            border-radius: 8px;
-        }
-
-        .explanation h3 {
-            color: #1a1a1a;
-            margin-bottom: 15px;
-            font-size: 16px;
-        }
-
-        .explanation ul {
-            list-style-position: inside;
-            color: #555;
-            line-height: 1.8;
-        }
-
-        .explanation li {
-            margin-bottom: 8px;
-        }
-
-        .footer {
-            margin-top: 20px;
-            text-align: center;
-            color: #999;
-            font-size: 12px;
-        }
+        h1 { text-align: center; color: #1a1a1a; font-size: 32px; margin-bottom: 10px; }
+        .subtitle { text-align: center; color: #666; font-size: 16px; margin-bottom: 40px; }
+        svg { display: block; margin: 0 auto; width: 100%; max-width: 1300px; }
+        .layer-title { font-weight: 700; font-size: 15px; fill: white; }
+        .component-box { stroke-width: 2; transition: all 0.3s ease; cursor: default; }
+        .component-box:hover { filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.2)); }
+        .ui-box { stroke: #06b6d4; fill: #f0f9fa; }
+        .ui-box:hover { fill: #cffafe; stroke: #0891b2; }
+        .orch-box { stroke: #6366f1; fill: #eef2ff; }
+        .orch-box:hover { fill: #e0e7ff; stroke: #4f46e5; }
+        .model-box { stroke: #8b5cf6; fill: #faf5ff; }
+        .model-box:hover { fill: #f3e8ff; stroke: #7c3aed; }
+        .store-box { stroke: #10b981; fill: #f0fdf4; }
+        .store-box:hover { fill: #dcfce7; stroke: #059669; }
+        .hitl-box { stroke: #f59e0b; fill: #fffbeb; }
+        .hitl-box:hover { fill: #fef3c7; stroke: #d97706; }
+        .component-label { font-size: 12px; font-weight: 600; fill: #1a1a1a; }
+        .component-desc { font-size: 10px; fill: #666; }
+        .arrow { stroke: #999; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+        .legend { margin-top: 30px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; font-size: 12px; }
+        .legend-item { display: flex; align-items: center; gap: 8px; padding: 8px; background: #f9fafb; border-radius: 6px; }
+        .legend-color { width: 16px; height: 16px; border-radius: 3px; border: 2px solid; flex-shrink: 0; }
+        .explanation { margin-top: 25px; padding: 20px; background: #f9fafb; border-radius: 8px; }
+        .explanation h3 { color: #1a1a1a; margin-bottom: 12px; font-size: 15px; }
+        .explanation ul { list-style-position: inside; color: #555; line-height: 1.7; font-size: 14px; }
+        .footer { margin-top: 20px; text-align: center; color: #999; font-size: 12px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🏗️ Aryx — Technical Flow Architecture</h1>
-        <p class="subtitle">4-Layer system design with components and data flow</p>
+        <h1>Aryx — Technical Flow Architecture</h1>
+        <p class="subtitle">5-layer system: UI, orchestration, HITL, models, storage</p>
 
-        <svg viewBox="0 0 1400 900" xmlns="http://www.w3.org/2000/svg">
+        <svg viewBox="0 0 1300 1050" xmlns="http://www.w3.org/2000/svg">
             <defs>
                 <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
                     <polygon points="0 0, 10 3, 0 6" fill="#999"/>
                 </marker>
             </defs>
 
-            <!-- LAYER 1: UI LAYER -->
-            <g class="ui-layer">
-                <!-- Layer Background -->
-                <rect x="50" y="50" width="1300" height="150" rx="8" style="fill: #ecf0f1; stroke: #bdc3c7; stroke-width: 2; opacity: 0.3;"/>
+            <!-- LAYER 1: UI -->
+            <rect x="40" y="30" width="1220" height="130" rx="8" style="fill: #ecf0f1; stroke: #bdc3c7; stroke-width: 1; opacity: 0.3;"/>
+            <rect x="40" y="30" width="1220" height="30" rx="8" style="fill: #06b6d4;"/>
+            <text x="60" y="52" class="layer-title">UI LAYER</text>
 
-                <!-- Layer Title -->
-                <rect x="50" y="50" width="1300" height="35" rx="8" style="fill: #06b6d4;"/>
-                <text x="70" y="75" class="layer-title">🖥️  UI LAYER — User Interface</text>
+            <rect x="60" y="75" width="200" height="65" rx="6" class="component-box ui-box"/>
+            <text x="160" y="97" text-anchor="middle" class="component-label">Streamlit UI (:8501)</text>
+            <text x="160" y="112" text-anchor="middle" class="component-desc">Home, Ingest, Ask, Graph</text>
+            <text x="160" y="124" text-anchor="middle" class="component-desc">Ontology, Settings</text>
 
-                <!-- Streamlit Box -->
-                <rect x="100" y="110" width="280" height="70" rx="6" class="component-box ui-layer"/>
-                <text x="120" y="130" class="icon">📱</text>
-                <text x="160" y="132" class="component-label">Streamlit UI (8501)</text>
-                <text x="160" y="150" class="component-desc">Home, Ingest, Ask, Graph, Settings</text>
+            <rect x="290" y="75" width="200" height="65" rx="6" class="component-box ui-box"/>
+            <text x="390" y="97" text-anchor="middle" class="component-label">REST API / FastAPI (:8088)</text>
+            <text x="390" y="112" text-anchor="middle" class="component-desc">23 routers, OpenAPI docs</text>
+            <text x="390" y="124" text-anchor="middle" class="component-desc">ApiKeyMiddleware (fail-closed)</text>
 
-                <!-- FastAPI Box -->
-                <rect x="450" y="110" width="280" height="70" rx="6" class="component-box ui-layer"/>
-                <text x="470" y="130" class="icon">🔌</text>
-                <text x="510" y="132" class="component-label">REST API / FastAPI (8088)</text>
-                <text x="510" y="150" class="component-desc">/entities, /ask, /ingest, /export</text>
+            <rect x="520" y="75" width="200" height="65" rx="6" class="component-box ui-box"/>
+            <text x="620" y="97" text-anchor="middle" class="component-label">MCP Server (SSE)</text>
+            <text x="620" y="112" text-anchor="middle" class="component-desc">3 tools: list, ask, act</text>
+            <text x="620" y="124" text-anchor="middle" class="component-desc">Agent protocol</text>
 
-                <!-- Arrow down -->
-                <line x1="700" y1="180" x2="700" y2="220" class="arrow"/>
-            </g>
+            <rect x="750" y="75" width="200" height="65" rx="6" class="component-box ui-box"/>
+            <text x="850" y="97" text-anchor="middle" class="component-label">Adjudication UI</text>
+            <text x="850" y="112" text-anchor="middle" class="component-desc">Review queue, decide</text>
+            <text x="850" y="124" text-anchor="middle" class="component-desc">Stats dashboard</text>
 
-            <!-- LAYER 2: ORCHESTRATION LAYER -->
-            <g class="orchestration-layer">
-                <!-- Layer Background -->
-                <rect x="50" y="230" width="1300" height="160" rx="8" style="fill: #ecf0f1; stroke: #bdc3c7; stroke-width: 2; opacity: 0.3;"/>
+            <rect x="980" y="75" width="200" height="65" rx="6" class="component-box ui-box"/>
+            <text x="1080" y="97" text-anchor="middle" class="component-label">Actions UI</text>
+            <text x="1080" y="112" text-anchor="middle" class="component-desc">Define, execute, approve</text>
+            <text x="1080" y="124" text-anchor="middle" class="component-desc">Audit log viewer</text>
 
-                <!-- Layer Title -->
-                <rect x="50" y="230" width="1300" height="35" rx="8" style="fill: #6366f1;"/>
-                <text x="70" y="255" class="layer-title">⚙️  ORCHESTRATION LAYER</text>
+            <line x1="650" y1="160" x2="650" y2="195" class="arrow"/>
 
-                <!-- Pipeline Box -->
-                <rect x="80" y="285" width="220" height="90" rx="6" class="component-box orchestration-layer"/>
-                <text x="100" y="305" class="icon">🔗</text>
-                <text x="145" y="307" class="orchestration-title" style="font-size: 12px;">Pipeline</text>
-                <text x="145" y="325" class="component-desc">• Extract</text>
-                <text x="145" y="340" class="component-desc">• Land • Tag • Map</text>
-                <text x="145" y="355" class="component-desc">• Resolve • Project</text>
+            <!-- LAYER 2: ORCHESTRATION -->
+            <rect x="40" y="200" width="1220" height="160" rx="8" style="fill: #ecf0f1; stroke: #bdc3c7; stroke-width: 1; opacity: 0.3;"/>
+            <rect x="40" y="200" width="1220" height="30" rx="8" style="fill: #6366f1;"/>
+            <text x="60" y="222" class="layer-title">ORCHESTRATION LAYER</text>
 
-                <!-- LLM Broker Box -->
-                <rect x="340" y="285" width="220" height="90" rx="6" class="component-box orchestration-layer"/>
-                <text x="360" y="305" class="icon">🧠</text>
-                <text x="405" y="307" class="orchestration-title" style="font-size: 12px;">LLM Broker</text>
-                <text x="405" y="325" class="component-desc">Tier routing:</text>
-                <text x="405" y="340" class="component-desc">• Local • Cheap</text>
-                <text x="405" y="355" class="component-desc">• Frontier</text>
+            <rect x="60" y="245" width="180" height="95" rx="6" class="component-box orch-box"/>
+            <text x="150" y="265" text-anchor="middle" class="component-label">Pipeline</text>
+            <text x="150" y="280" text-anchor="middle" class="component-desc">7-stage: extract → project</text>
+            <text x="150" y="293" text-anchor="middle" class="component-desc">StageTracker checkpoints</text>
+            <text x="150" y="306" text-anchor="middle" class="component-desc">Resume from failure</text>
+            <text x="150" y="319" text-anchor="middle" class="component-desc">Chunked mode (>100k)</text>
 
-                <!-- Job Queue Box -->
-                <rect x="600" y="285" width="220" height="90" rx="6" class="component-box orchestration-layer"/>
-                <text x="620" y="305" class="icon">📋</text>
-                <text x="665" y="307" class="orchestration-title" style="font-size: 12px;">Job Queue</text>
-                <text x="665" y="325" class="component-desc">Async task</text>
-                <text x="665" y="340" class="component-desc">management</text>
-                <text x="665" y="355" class="component-desc">& scheduling</text>
+            <rect x="265" y="245" width="180" height="95" rx="6" class="component-box orch-box"/>
+            <text x="355" y="265" text-anchor="middle" class="component-label">Resolution Funnel</text>
+            <text x="355" y="280" text-anchor="middle" class="component-desc">Block (multi-key)</text>
+            <text x="355" y="293" text-anchor="middle" class="component-desc">Score (cheap LLM)</text>
+            <text x="355" y="306" text-anchor="middle" class="component-desc">Route (4 bands)</text>
+            <text x="355" y="319" text-anchor="middle" class="component-desc">Cluster + golden record</text>
 
-                <!-- Workspace Manager Box -->
-                <rect x="860" y="285" width="220" height="90" rx="6" class="component-box orchestration-layer"/>
-                <text x="880" y="305" class="icon">🏠</text>
-                <text x="925" y="307" class="orchestration-title" style="font-size: 12px;">Workspace Manager</text>
-                <text x="925" y="325" class="component-desc">Isolation</text>
-                <text x="925" y="340" class="component-desc">& multi-tenancy</text>
-                <text x="925" y="355" class="component-desc">controls</text>
+            <rect x="470" y="245" width="180" height="95" rx="6" class="component-box orch-box"/>
+            <text x="560" y="265" text-anchor="middle" class="component-label">LLM Broker</text>
+            <text x="560" y="280" text-anchor="middle" class="component-desc">Tier routing:</text>
+            <text x="560" y="293" text-anchor="middle" class="component-desc">Local → Cheap → Frontier</text>
+            <text x="560" y="306" text-anchor="middle" class="component-desc">Token budget + governor</text>
+            <text x="560" y="319" text-anchor="middle" class="component-desc">Provider-agnostic</text>
 
-                <!-- Arrow down -->
-                <line x1="700" y1="375" x2="700" y2="420" class="arrow"/>
-            </g>
+            <rect x="675" y="245" width="180" height="95" rx="6" class="component-box orch-box"/>
+            <text x="765" y="265" text-anchor="middle" class="component-label">Action Engine</text>
+            <text x="765" y="280" text-anchor="middle" class="component-desc">JSON DSL definitions</text>
+            <text x="765" y="293" text-anchor="middle" class="component-desc">Guard → params → effects</text>
+            <text x="765" y="306" text-anchor="middle" class="component-desc">Before/after audit</text>
+            <text x="765" y="319" text-anchor="middle" class="component-desc">MCP always-pending</text>
 
-            <!-- LAYER 3: MODELS LAYER -->
-            <g class="models-layer">
-                <!-- Layer Background -->
-                <rect x="50" y="430" width="1300" height="140" rx="8" style="fill: #ecf0f1; stroke: #bdc3c7; stroke-width: 2; opacity: 0.3;"/>
+            <rect x="880" y="245" width="180" height="95" rx="6" class="component-box orch-box"/>
+            <text x="970" y="265" text-anchor="middle" class="component-label">Workspace Manager</text>
+            <text x="970" y="280" text-anchor="middle" class="component-desc">LIST-partition isolation</text>
+            <text x="970" y="293" text-anchor="middle" class="component-desc">Survivorship policies</text>
+            <text x="970" y="306" text-anchor="middle" class="component-desc">Ontology per workspace</text>
+            <text x="970" y="319" text-anchor="middle" class="component-desc">Physical purge</text>
 
-                <!-- Layer Title -->
-                <rect x="50" y="430" width="1300" height="35" rx="8" style="fill: #8b5cf6;"/>
-                <text x="70" y="455" class="layer-title">🧬 MODELS LAYER — LLM Providers</text>
+            <rect x="1085" y="245" width="150" height="95" rx="6" class="component-box orch-box"/>
+            <text x="1160" y="265" text-anchor="middle" class="component-label">Projection</text>
+            <text x="1160" y="280" text-anchor="middle" class="component-desc">Full rebuild</text>
+            <text x="1160" y="293" text-anchor="middle" class="component-desc">Incremental (dirty-set)</text>
+            <text x="1160" y="306" text-anchor="middle" class="component-desc">Auto mode select</text>
+            <text x="1160" y="319" text-anchor="middle" class="component-desc">&lt;30% → incremental</text>
 
-                <!-- Ollama Box -->
-                <rect x="150" y="485" width="240" height="70" rx="6" class="component-box models-layer"/>
-                <text x="170" y="505" class="icon">🎯</text>
-                <text x="220" y="523" class="component-label">Ollama (Local)</text>
-                <text x="220" y="540" class="component-desc">Tagging, scoring (free)</text>
+            <line x1="650" y1="360" x2="650" y2="395" class="arrow"/>
 
-                <!-- Claude API Box -->
-                <rect x="450" y="485" width="240" height="70" rx="6" class="component-box models-layer"/>
-                <text x="470" y="505" class="icon">🤖</text>
-                <text x="520" y="523" class="component-label">Claude API</text>
-                <text x="520" y="540" class="component-desc">Frontier tier decisions</text>
+            <!-- LAYER 3: HITL -->
+            <rect x="40" y="400" width="1220" height="120" rx="8" style="fill: #ecf0f1; stroke: #bdc3c7; stroke-width: 1; opacity: 0.3;"/>
+            <rect x="40" y="400" width="1220" height="30" rx="8" style="fill: #f59e0b;"/>
+            <text x="60" y="422" class="layer-title">HUMAN-IN-THE-LOOP LAYER</text>
 
-                <!-- OpenAI Box -->
-                <rect x="750" y="485" width="240" height="70" rx="6" class="component-box models-layer"/>
-                <text x="770" y="505" class="icon">⚡</text>
-                <text x="820" y="523" class="component-label">OpenAI/Compatible</text>
-                <text x="820" y="540" class="component-desc">Optional: GPT-4, Gemini</text>
+            <rect x="60" y="445" width="230" height="60" rx="6" class="component-box hitl-box"/>
+            <text x="175" y="467" text-anchor="middle" class="component-label">Adjudication Queue</text>
+            <text x="175" y="482" text-anchor="middle" class="component-desc">Review-band pairs (0.75-0.90)</text>
+            <text x="175" y="494" text-anchor="middle" class="component-desc">Approve / reject → labeled data</text>
 
-                <!-- Embeddings Box -->
-                <rect x="1050" y="485" width="240" height="70" rx="6" class="component-box models-layer"/>
-                <text x="1070" y="505" class="icon">📊</text>
-                <text x="1120" y="523" class="component-label">Embeddings</text>
-                <text x="1120" y="540" class="component-desc">Vector search, semantic</text>
+            <rect x="320" y="445" width="230" height="60" rx="6" class="component-box hitl-box"/>
+            <text x="435" y="467" text-anchor="middle" class="component-label">Ontology Gate</text>
+            <text x="435" y="482" text-anchor="middle" class="component-desc">Proposed → approved types</text>
+            <text x="435" y="494" text-anchor="middle" class="component-desc">OWL import review</text>
 
-                <!-- Arrow down -->
-                <line x1="700" y1="555" x2="700" y2="600" class="arrow"/>
-            </g>
+            <rect x="580" y="445" width="230" height="60" rx="6" class="component-box hitl-box"/>
+            <text x="695" y="467" text-anchor="middle" class="component-label">Action Approval</text>
+            <text x="695" y="482" text-anchor="middle" class="component-desc">MCP-initiated → always-pending</text>
+            <text x="695" y="494" text-anchor="middle" class="component-desc">Human approve / reject</text>
 
-            <!-- LAYER 4: STORAGE LAYER -->
-            <g class="storage-layer">
-                <!-- Layer Background -->
-                <rect x="50" y="610" width="1300" height="150" rx="8" style="fill: #ecf0f1; stroke: #bdc3c7; stroke-width: 2; opacity: 0.3;"/>
+            <rect x="840" y="445" width="230" height="60" rx="6" class="component-box hitl-box"/>
+            <text x="955" y="467" text-anchor="middle" class="component-label">Survivorship Config</text>
+            <text x="955" y="482" text-anchor="middle" class="component-desc">5 strategies, per-attr override</text>
+            <text x="955" y="494" text-anchor="middle" class="component-desc">Conflict resolution rules</text>
 
-                <!-- Layer Title -->
-                <rect x="50" y="610" width="1300" height="35" rx="8" style="fill: #10b981;"/>
-                <text x="70" y="635" class="layer-title">💾 DATA STORAGE LAYER</text>
+            <line x1="650" y1="520" x2="650" y2="555" class="arrow"/>
 
-                <!-- Postgres Box -->
-                <rect x="150" y="665" width="380" height="80" rx="6" class="component-box storage-layer"/>
-                <text x="170" y="685" class="icon">🗄️</text>
-                <text x="240" y="703" class="component-label">PostgreSQL 16 (Source of Truth)</text>
-                <text x="240" y="722" class="component-desc">• aryx_entity  • aryx_relationship  • aryx_landed_record</text>
-                <text x="240" y="737" class="component-desc">• LIST-partitioned by workspace (isolation, purge)</text>
+            <!-- LAYER 4: MODELS -->
+            <rect x="40" y="560" width="1220" height="120" rx="8" style="fill: #ecf0f1; stroke: #bdc3c7; stroke-width: 1; opacity: 0.3;"/>
+            <rect x="40" y="560" width="1220" height="30" rx="8" style="fill: #8b5cf6;"/>
+            <text x="60" y="582" class="layer-title">MODELS LAYER — LLM Providers</text>
 
-                <!-- FalkorDB Box -->
-                <rect x="580" y="665" width="380" height="80" rx="6" class="component-box storage-layer"/>
-                <text x="600" y="685" class="icon">📈</text>
-                <text x="670" y="703" class="component-label">FalkorDB Graph (Projection)</text>
-                <text x="670" y="722" class="component-desc">• Named graph per workspace  • Interactive queries</text>
-                <text x="670" y="737" class="component-desc">• Wipe & rebuild safe (data in Postgres)</text>
+            <rect x="80" y="605" width="230" height="55" rx="6" class="component-box model-box"/>
+            <text x="195" y="627" text-anchor="middle" class="component-label">Ollama (Local)</text>
+            <text x="195" y="645" text-anchor="middle" class="component-desc">Tagging, scoring, embeddings (free)</text>
 
-                <!-- Redis Box -->
-                <rect x="1010" y="665" width="230" height="80" rx="6" class="component-box storage-layer"/>
-                <text x="1030" y="685" class="icon">⚡</text>
-                <text x="1080" y="703" class="component-label">Redis Cache</text>
-                <text x="1080" y="722" class="component-desc">• Session data</text>
-                <text x="1080" y="737" class="component-desc">• Query results</text>
-            </g>
+            <rect x="350" y="605" width="200" height="55" rx="6" class="component-box model-box"/>
+            <text x="450" y="627" text-anchor="middle" class="component-label">Claude API</text>
+            <text x="450" y="645" text-anchor="middle" class="component-desc">Frontier tier decisions</text>
 
-            <!-- Side annotations -->
-            <g style="opacity: 0.7;">
-                <text x="20" y="125" style="font-size: 12px; fill: #666; text-anchor: end; font-weight: 600;">User</text>
-                <text x="20" y="125" style="font-size: 12px; fill: #666; text-anchor: end; font-weight: 600;">Facing</text>
+            <rect x="590" y="605" width="200" height="55" rx="6" class="component-box model-box"/>
+            <text x="690" y="627" text-anchor="middle" class="component-label">OpenAI / Compatible</text>
+            <text x="690" y="645" text-anchor="middle" class="component-desc">GPT-4, Gemini (optional)</text>
 
-                <text x="20" y="310" style="font-size: 12px; fill: #666; text-anchor: end; font-weight: 600;">Task</text>
-                <text x="20" y="325" style="font-size: 12px; fill: #666; text-anchor: end; font-weight: 600;">Coord.</text>
+            <rect x="830" y="605" width="200" height="55" rx="6" class="component-box model-box"/>
+            <text x="930" y="627" text-anchor="middle" class="component-label">Embeddings</text>
+            <text x="930" y="645" text-anchor="middle" class="component-desc">nomic-embed-text (local)</text>
 
-                <text x="20" y="520" style="font-size: 12px; fill: #666; text-anchor: end; font-weight: 600;">Models</text>
+            <rect x="1070" y="605" width="160" height="55" rx="6" class="component-box model-box"/>
+            <text x="1150" y="627" text-anchor="middle" class="component-label">Rules Engine</text>
+            <text x="1150" y="645" text-anchor="middle" class="component-desc">Guard conditions</text>
 
-                <text x="20" y="705" style="font-size: 12px; fill: #666; text-anchor: end; font-weight: 600;">Data</text>
-                <text x="20" y="720" style="font-size: 12px; fill: #666; text-anchor: end; font-weight: 600;">Persistence</text>
-            </g>
+            <line x1="650" y1="680" x2="650" y2="715" class="arrow"/>
+
+            <!-- LAYER 5: STORAGE -->
+            <rect x="40" y="720" width="1220" height="160" rx="8" style="fill: #ecf0f1; stroke: #bdc3c7; stroke-width: 1; opacity: 0.3;"/>
+            <rect x="40" y="720" width="1220" height="30" rx="8" style="fill: #10b981;"/>
+            <text x="60" y="742" class="layer-title">DATA STORAGE LAYER</text>
+
+            <rect x="60" y="765" width="480" height="95" rx="6" class="component-box store-box"/>
+            <text x="300" y="787" text-anchor="middle" class="component-label">PostgreSQL 16 (Source of Truth)</text>
+            <text x="300" y="803" text-anchor="middle" class="component-desc">23 migrations (0001-0023) · auto-apply on startup · idempotent</text>
+            <text x="300" y="818" text-anchor="middle" class="component-desc">aryx_entity · aryx_relationship · aryx_landed_record · aryx_adjudication</text>
+            <text x="300" y="833" text-anchor="middle" class="component-desc">aryx_action · aryx_run_stage · aryx_projection_state · aryx_attribute_conflict</text>
+            <text x="300" y="848" text-anchor="middle" class="component-desc">LIST-partitioned by workspace · psycopg3 pool (10 stores)</text>
+
+            <rect x="570" y="765" width="350" height="95" rx="6" class="component-box store-box"/>
+            <text x="745" y="787" text-anchor="middle" class="component-label">FalkorDB Graph (Projection)</text>
+            <text x="745" y="803" text-anchor="middle" class="component-desc">Named graph per workspace (ws_1, ws_2, ...)</text>
+            <text x="745" y="818" text-anchor="middle" class="component-desc">Nodes = entities · Edges = relationships</text>
+            <text x="745" y="833" text-anchor="middle" class="component-desc">Incremental or full rebuild</text>
+            <text x="745" y="848" text-anchor="middle" class="component-desc">Wipe-safe (data lives in Postgres)</text>
+
+            <rect x="950" y="765" width="280" height="95" rx="6" class="component-box store-box"/>
+            <text x="1090" y="787" text-anchor="middle" class="component-label">SQL Queries (DB-Guard)</text>
+            <text x="1090" y="803" text-anchor="middle" class="component-desc">All SQL in .sql files</text>
+            <text x="1090" y="818" text-anchor="middle" class="component-desc">queries/ directory</text>
+            <text x="1090" y="833" text-anchor="middle" class="component-desc">No inline SQL in Python</text>
+            <text x="1090" y="848" text-anchor="middle" class="component-desc">Parameterized (injection-safe)</text>
+
+            <!-- Stats bar -->
+            <rect x="40" y="900" width="1220" height="40" rx="6" style="fill: #f1f5f9; stroke: #e2e8f0; stroke-width: 1;"/>
+            <text x="100" y="925" text-anchor="middle" style="font-size: 12px; fill: #475569; font-weight: 600;">174 .py files</text>
+            <text x="280" y="925" text-anchor="middle" style="font-size: 12px; fill: #475569; font-weight: 600;">23 API routers</text>
+            <text x="450" y="925" text-anchor="middle" style="font-size: 12px; fill: #475569; font-weight: 600;">3 MCP tools</text>
+            <text x="620" y="925" text-anchor="middle" style="font-size: 12px; fill: #475569; font-weight: 600;">23 migrations</text>
+            <text x="790" y="925" text-anchor="middle" style="font-size: 12px; fill: #475569; font-weight: 600;">121 tests</text>
+            <text x="960" y="925" text-anchor="middle" style="font-size: 12px; fill: #475569; font-weight: 600;">10 pooled stores</text>
+            <text x="1140" y="925" text-anchor="middle" style="font-size: 12px; fill: #475569; font-weight: 600;">14 test files</text>
         </svg>
 
-        <!-- Explanation -->
         <div class="explanation">
             <h3>Architecture Overview</h3>
             <ul>
-                <li><strong>UI Layer:</strong> Streamlit (web interface) and FastAPI (REST API) accept user requests</li>
-                <li><strong>Orchestration Layer:</strong> Pipeline runs 7-stage ingest; LLM Broker routes queries; Job Queue manages async work; Workspace Manager handles multi-tenancy</li>
-                <li><strong>Models Layer:</strong> Local Ollama handles cheap tagging & scoring; frontier APIs (Claude, OpenAI) handle hard decisions (~1–5%); embeddings for semantic search</li>
-                <li><strong>Storage Layer:</strong> PostgreSQL = source of truth (all records, provenance, workspace isolation); FalkorDB = interactive graph (rebuilt from Postgres as needed); Redis = session cache</li>
+                <li><strong>UI Layer:</strong> Streamlit web UI, FastAPI REST (23 routers), MCP server (3 tools over SSE), adjudication + actions UIs</li>
+                <li><strong>Orchestration:</strong> 7-stage pipeline with StageTracker checkpoints; resolution funnel (block → score → 4-band route → cluster → golden); action engine; incremental projection; workspace isolation with survivorship policies</li>
+                <li><strong>HITL Layer:</strong> Adjudication queue (review-band pairs), ontology approval gate, action approval (MCP always-pending), survivorship configuration</li>
+                <li><strong>Models:</strong> Ollama (local, free) for cheap stages; Claude/OpenAI/Gemini for frontier decisions (~1-5%); rules engine for guard conditions</li>
+                <li><strong>Storage:</strong> PostgreSQL = source of truth (23 idempotent migrations, LIST-partitioned, psycopg3 pool); FalkorDB = rebuildable graph projection; all SQL in .sql files (DB-Guard enforced)</li>
             </ul>
         </div>
 
         <div class="legend">
-            <div class="legend-item">
-                <div class="legend-color ui-color"></div>
-                <span><strong>UI:</strong> User interface</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color orchestration-color"></div>
-                <span><strong>Orchestration:</strong> Task coordination</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color models-color"></div>
-                <span><strong>Models:</strong> LLM providers</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color storage-color"></div>
-                <span><strong>Storage:</strong> Data persistence</span>
-            </div>
+            <div class="legend-item"><div class="legend-color" style="background: #f0f9fa; border-color: #06b6d4;"></div><span><strong>UI</strong></span></div>
+            <div class="legend-item"><div class="legend-color" style="background: #eef2ff; border-color: #6366f1;"></div><span><strong>Orchestration</strong></span></div>
+            <div class="legend-item"><div class="legend-color" style="background: #fffbeb; border-color: #f59e0b;"></div><span><strong>HITL</strong></span></div>
+            <div class="legend-item"><div class="legend-color" style="background: #faf5ff; border-color: #8b5cf6;"></div><span><strong>Models</strong></span></div>
+            <div class="legend-item"><div class="legend-color" style="background: #f0fdf4; border-color: #10b981;"></div><span><strong>Storage</strong></span></div>
         </div>
 
-        <div class="footer">
-            Aryx Knowledge Graph Platform — Technical Flow Architecture
-        </div>
+        <div class="footer">Aryx Knowledge Graph Platform — Technical Flow Architecture</div>
     </div>
 </body>
 </html>
