@@ -20,6 +20,7 @@ from aryx.models import EntityMember, ResolutionRecord, ResolvedEntity
 from aryx.resolution.adjudicate import adjudicate
 from aryx.resolution.classical import block, score_pair
 from aryx.resolution.cluster import UnionFind, golden_record_weighted
+from aryx.resolution.confidence import cluster_confidence, cluster_edges
 from aryx.resolution.golden import golden_record_with_policy
 from aryx.resolution.review_queue import ReviewSink
 from aryx.resolution.survivorship import SurvivorshipPolicy
@@ -92,9 +93,11 @@ def _materialize(member_ids: list[int], by_id: dict[int, ResolutionRecord],
             [r.payload for r in records_in], member_ids, pair_scores)
         provenance = merged.pop("_provenance", None)
         conflicts = None
+    edges = cluster_edges(member_ids, pair_scores,
+                          _threshold("ARYX_ER_ADJUDICATE", 0.90))
     return ResolvedEntity(
         ontology_type=ontology_type, attributes=merged,
-        confidence=1.0 if len(member_ids) > 1 else 0.5,
+        confidence=cluster_confidence(edges, len(member_ids)),
         provenance=provenance, conflicts=conflicts or None,
     )
 

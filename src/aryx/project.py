@@ -70,3 +70,80 @@ def project_graph(
     logger.info("graph projected %s labels_used=%d",
                 counts, sum(1 for v in ancestors_for.values() if v))
     return counts
+
+
+def project_incremental(
+    store: "EntityStore",
+    pstore,
+    graph: "FalkorStore",
+    type_ancestors: dict[str, list[str]] | None = None,
+    workspace_id: int | None = None,
+    base_uri: str = "https://aryx.local/",
+) -> dict[str, int]:
+    """Update the graph in place from the Postgres dirty set (G8).
+
+    Never calls ``clear()`` — the graph stays queryable throughout. Upserts
+    dirty entities (MERGE is idempotent), re-MERGEs their provenance and
+    relationship edges, DETACH-DELETEs tombstones, advances the watermark.
+    ``pstore`` is a ProjectionStore; other args match ``project_graph``.
+
+    Returns:
+        Counts of {entities, provenance, relationships, tombstones} written.
+    """
+    since = pstore.watermark()
+    ancestors_for = type_ancestors or {}
+    dirty = pstore.dirty_entities(since)
+    for entity_id, ontology_type, attributes in dirty:
+        labels = ancestors_for.get(ontology_type, [])
+        iri = _entity_iri(base_uri, workspace_id, entity_id)
+        graph.add_entity(entity_id, ontology_type, attributes,
+                         labels=labels, iri=iri)
+    dirty_ids = [e[0] for e in dirty]
+    provenance = pstore.provenance_for(dirty_ids) if dirty_ids else []
+    for entity_id, system, dataset, record_id in provenance:
+        graph.add_provenance(entity_id, system, dataset, record_id)
+    relationships = pstore.relationships_for(dirty_ids) if dirty_ids else []
+    for source_id, target_id, name in relationships:
+        graph.add_relationship(source_id, target_id, name)
+    tombstones = pstore.tombstones()
+    for entity_id in tombstones:
+        graph.remove_entity(entity_id)
+    pstore.mark_projected(dirty_ids)
+    pstore.unmark_projected(tombstones)
+    pstore.advance_watermark()
+    counts = {"entities": len(dirty), "provenance": len(provenance),
+              "relationships": len(relationships),
+              "tombstones": len(tombstones)}
+    logger.info("graph incrementally projected %s", counts)
+    return counts
+
+
+def project_auto(
+    store: "EntityStore",
+    pstore,
+    graph: "FalkorStore",
+    dirty_ratio_max: float = 0.30,
+    **kwargs,
+) -> dict[str, int]:
+    """Pick incremental vs full rebuild (G8 mode=auto).
+
+    Incremental when a watermark exists AND the dirty set is under
+    ``dirty_ratio_max`` (env ARYX_PROJECT_DIRTY_MAX overrides) of all
+    entities; full rebuild otherwise — it remains the correctness anchor.
+    """
+    import os
+    try:
+        dirty_ratio_max = float(os.environ.get("ARYX_PROJECT_DIRTY_MAX",
+                                               dirty_ratio_max))
+    except ValueError:
+        pass
+    since = pstore.watermark()
+    if since is not None:
+        total = pstore.total_entities()
+        dirty = len(pstore.dirty_entities(since))
+        if total and dirty / total < dirty_ratio_max:
+            return project_incremental(store, pstore, graph, **kwargs)
+    counts = project_graph(store, graph, **kwargs)
+    pstore.mark_projected([e[0] for e in store.list_entities()])
+    pstore.advance_watermark()
+    return counts

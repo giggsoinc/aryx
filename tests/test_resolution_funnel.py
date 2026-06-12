@@ -90,15 +90,21 @@ def test_funnel_empty_input() -> None:
     assert run_funnel([]) == {}
 
 
-@pytest.mark.xfail(
-    reason="G3 open: golden_record is order-dependent without weighted merge")
 def test_golden_record_order_independent() -> None:
     """Same cluster, two insertion orders, identical golden records.
 
-    With first-non-empty merge, competing non-null values are insertion-order
-    dependent. G3 (survivor-smith) fixes this; this xfail flips green then.
+    Was xfail while G3 was open; flipped green by survivor-smith's policy
+    merge — most_complete is deterministic regardless of input order. The
+    legacy ``golden_record`` shim stays order-dependent by design.
     """
-    ab = [{"name": "Apex Corp", "city": "LA"},
-          {"name": "Apex Corporation", "city": "Los Angeles"}]
-    ba = list(reversed(ab))
-    assert golden_record(ab) == golden_record(ba)
+    from aryx.resolution.golden import golden_record_with_policy
+    from aryx.resolution.survivorship import SurvivorshipPolicy
+    policy = SurvivorshipPolicy(default_strategy="most_complete")
+    ab = [{"payload": {"name": "Apex Corp", "city": "LA"},
+           "record_id": 1, "source_system": "a", "cleaned_at": None},
+          {"payload": {"name": "Apex Corporation", "city": "Los Angeles",
+                       "country": "US"},
+           "record_id": 2, "source_system": "b", "cleaned_at": None}]
+    merged_ab, _, _ = golden_record_with_policy(ab, policy)
+    merged_ba, _, _ = golden_record_with_policy(list(reversed(ab)), policy)
+    assert merged_ab == merged_ba

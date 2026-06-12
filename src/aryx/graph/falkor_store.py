@@ -125,6 +125,12 @@ class FalkorStore:
             {"sys": system, "ds": dataset, "rid": record_id, "id": entity_id},
         )
 
+    def remove_entity(self, entity_id: int) -> None:
+        """Tombstone one entity node and all its edges (incremental delete)."""
+        self._graph.query(
+            "MATCH (e:Entity {id: $id}) DETACH DELETE e", {"id": entity_id},
+        )
+
     def add_relationship(self, source_id: int, target_id: int, name: str) -> None:
         """Create a typed edge between two entities."""
         self._graph.query(

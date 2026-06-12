@@ -117,7 +117,7 @@ def _axiom_summary(workspace_id: int) -> tuple[int, dict]:
 
 
 def _dispatch(name: str, a: dict) -> Any:
-    """Route a tool call. Only `list` and `ask` are exposed."""
+    """Route a tool call: list, ask, or act (request-only)."""
     if name == "list":
         workspaces = _get("/admin/workspaces?workspace_id=1") or []
         return [_enrich_workspace(ws) for ws in workspaces]
@@ -127,6 +127,9 @@ def _dispatch(name: str, a: dict) -> Any:
             "history": a.get("history") or [],
             "workspace_id": _ws(a),
         })
+    if name == "act":
+        from aryx.mcp.act import _act
+        return _act(a)
     return {"error": f"unknown tool: {name}"}
 
 

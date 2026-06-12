@@ -8,6 +8,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 
+from aryx.api.actions_api import actions_router
+from aryx.api.adjudication_api import adjudication_router
 from aryx.api.admin_api import admin_router
 from aryx.api.ask_api import ask_router
 from aryx.api.axioms_api import axioms_router, shapes_router
@@ -105,6 +107,8 @@ def create_app() -> FastAPI:
     app.include_router(rest_ingest_router())
     app.include_router(versions_router())
     app.include_router(mcp_tokens_router())
+    app.include_router(adjudication_router())
+    app.include_router(actions_router())
     _mount_mcp(app)
     return app
 

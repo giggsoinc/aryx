@@ -86,6 +86,22 @@ class WorkspaceStore:
                 "context": row[3], "brief": row[4] or {},
                 "created_at": row[5]}
 
+    def get_survivorship(self, wid: int) -> dict[str, Any]:
+        """Return the workspace's survivorship policy JSON (G3)."""
+        with self._conn.cursor() as cur:
+            cur.execute(load("select_workspace_survivorship"), (int(wid),))
+            row = cur.fetchone()
+        return (row[0] or {}) if row else {}
+
+    def set_survivorship(self, wid: int, policy: dict) -> dict[str, Any]:
+        """Replace the workspace's survivorship policy JSON (G3)."""
+        with self._conn.cursor() as cur:
+            cur.execute(load("update_workspace_survivorship"),
+                        (Json(policy or {}), int(wid)))
+            row = cur.fetchone()
+        logger.info("survivorship policy updated ws=%s", wid)
+        return {"id": row[0], "survivorship": row[1] or {}}
+
     def delete(self, wid: int) -> None:
         """Physically purge a workspace: drop partitions + its run/job rows."""
         if int(wid) == 1:

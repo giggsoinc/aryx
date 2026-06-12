@@ -53,9 +53,8 @@ def golden_record_with_policy(
     provenance: dict[str, int] = {}
     conflicts: list[dict[str, Any]] = []
     for attr, contribs in by_attr.items():
-        value, conflict = resolve_attribute(attr, contribs, policy)
-        merged[attr] = value
-        winner = next(c for c in contribs if repr(c.value) == repr(value))
+        winner, conflict = resolve_attribute(attr, contribs, policy)
+        merged[attr] = winner.value
         provenance[attr] = winner.record_id
         if conflict is not None:
             conflicts.append(conflict)

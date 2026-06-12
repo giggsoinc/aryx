@@ -66,6 +66,26 @@ def workspace_router() -> APIRouter:
         finally:
             store.close()
 
+    @router.get("/{workspace_id}/survivorship")
+    def get_survivorship(workspace_id: int) -> dict[str, Any]:
+        """Return the workspace survivorship policy (G3)."""
+        store = WorkspaceStore(get_settings().rdb_dsn)
+        try:
+            return {"workspace_id": workspace_id,
+                    "survivorship": store.get_survivorship(workspace_id)}
+        finally:
+            store.close()
+
+    @router.put("/{workspace_id}/survivorship")
+    def set_survivorship(workspace_id: int,
+                         policy: dict[str, Any]) -> dict[str, Any]:
+        """Replace the workspace survivorship policy (G3, skill hook)."""
+        store = WorkspaceStore(get_settings().rdb_dsn)
+        try:
+            return store.set_survivorship(workspace_id, policy)
+        finally:
+            store.close()
+
     @router.patch("/{workspace_id}/brief")
     def set_brief(workspace_id: int, req: BriefRequest) -> dict[str, Any]:
         store = WorkspaceStore(get_settings().rdb_dsn)

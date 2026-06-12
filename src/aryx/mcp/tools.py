@@ -1,4 +1,4 @@
-"""MCP tool definitions — 2 tools only: list + ask.
+"""MCP tool definitions — 3 tools: list + ask + act.
 
 `list` returns every workspace with its entity/relationship counts and type
 breakdown — enough for an external agent to pick the right workspace_id
@@ -11,7 +11,7 @@ import mcp.types as types
 
 
 def tool_specs() -> list[types.Tool]:
-    """Return the 2 read-only tools the MCP server exposes."""
+    """Return the tools the MCP server exposes (act is request-only)."""
     return [
         types.Tool(
             name="list",
@@ -47,6 +47,30 @@ def tool_specs() -> list[types.Tool]:
                     },
                 },
                 "required": ["question"],
+            },
+        ),
+        types.Tool(
+            name="act",
+            description=(
+                "REQUEST an Aryx action on an entity. Agent-initiated "
+                "mutations ALWAYS create a pending execution for human "
+                "approval — they never auto-apply, regardless of the "
+                "action's approval flag (DEC: trust posture). Returns the "
+                "pending execution id."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string",
+                               "description": "Action name."},
+                    "entity_id": {"type": "integer",
+                                  "description": "Target entity id."},
+                    "params": {"type": "object",
+                               "description": "Action parameters."},
+                    "workspace_id": {"type": "integer",
+                                     "description": "From `list`."},
+                },
+                "required": ["action", "entity_id"],
             },
         ),
     ]

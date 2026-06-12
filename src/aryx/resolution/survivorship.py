@@ -91,8 +91,8 @@ def resolve_attribute(
     attribute: str,
     contributions: list[Contribution],
     policy: SurvivorshipPolicy,
-) -> tuple[Any, dict[str, Any] | None]:
-    """Pick the surviving value for one attribute; report any conflict.
+) -> tuple[Contribution, dict[str, Any] | None]:
+    """Pick the surviving contribution for one attribute; report any conflict.
 
     Args:
         attribute: Attribute name.
@@ -100,8 +100,8 @@ def resolve_attribute(
         policy: Effective survivorship policy.
 
     Returns:
-        (winning_value, conflict_row_or_None). The conflict row carries the
-        losing values with their source/record provenance for the audit table.
+        (winning_contribution, conflict_row_or_None). The conflict row carries
+        the losing values with their source/record provenance for the audit.
     """
     strategy = policy.strategy_for(attribute)
     winner = _pick(contributions, strategy, policy)
@@ -118,4 +118,4 @@ def resolve_attribute(
             ],
             "strategy": strategy,
         }
-    return winner.value, conflict
+    return winner, conflict

@@ -6,9 +6,10 @@
 | G3  | survivor-smith  | DONE | gap/g3-golden | —         | 1ba642c | n/a |
 | G12 | pool-fitter     | DONE | gap/g12-pool  | —         | 3655ad5 | n/a |
 | G9  | bench-master    | DONE        | gap/g9-bench  | —         | a4932e3 | febrl1 P=1.00 R=0.59 |
-| G10 | adjudicator     | READY       | —             | —         | —       | —   |
-| G1+G5 | stream-scaler | BLOCKED   | —             | G2        | —       | n/a |
-| G7  | confidence-smith| BLOCKED     | —             | G2        | —       | —   |
-| G8  | projector       | BLOCKED     | —             | G1+G5     | —       | —   |
-| G13 | action-architect| BLOCKED     | —             | G10       | —       | n/a |
+| G10 | adjudicator     | DONE | gap/g1g5-g10-g3x | —      | PR #5   | —   |
+| G1+G5 | stream-scaler | DONE | gap/g1g5-g10-g3x | —      | PR #5   | n/a |
+| G7  | confidence-smith| DONE | gap/g1g5-g10-g3x | —      | PR #5   | quick unchanged |
+| G8  | projector       | DONE* | gap/g1g5-g10-g3x | —     | PR #5   | —   |
+| G13 | action-architect| DONE | gap/g1g5-g10-g3x | —      | PR #5   | n/a |
 Statuses: READY | IN_PROGRESS | REVIEW | DONE | BLOCKED | FAILED
+*G8: code complete; live-FalkorDB equivalence gate pending Docker stack (see gaps/G8.md)

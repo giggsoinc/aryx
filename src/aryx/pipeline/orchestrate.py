@@ -15,13 +15,13 @@ from aryx.broker import Broker
 from aryx.connectors.base import Connector
 from aryx.discover import discover
 from aryx.graph import FalkorStore
-from aryx.models import Relationship
+from aryx.pipeline.enrich import _build_type_ancestors, _relate
 from aryx.pipeline.fk_edges import link_by_attribute
+from aryx.pipeline.stages import StageRunner
+from aryx.store.checkpoint_store import StageTracker
 from aryx.project import project_graph
-from aryx.relationships import infer_relationship
 from aryx.resolve_entities import resolve_run
 from aryx.store.entity_store import EntityStore
-from aryx.store.ontology_store import OntologyStore
 from aryx.store.postgres_store import PostgresStore
 from aryx.workspaces import ws_graph
 
@@ -34,47 +34,6 @@ def _emit(cb: Progress | None, stage: str, pct: int, detail: str) -> None:
     """Report a pipeline stage to an optional progress callback."""
     if cb is not None:
         cb(stage, pct, detail)
-
-
-def _build_type_ancestors(dsn: str) -> dict[str, list[str]]:
-    """Resolve ancestor chains for every declared type via OntologyStore."""
-    ostore = OntologyStore(dsn)
-    try:
-        types = ostore.list_types()
-        out: dict[str, list[str]] = {}
-        for t in types:
-            if t.parent_type:
-                out[t.name] = ostore.ancestors(t.name)
-        return out
-    except Exception as exc:  # noqa: BLE001 — hierarchy is additive, never block projection
-        logger.warning("type ancestors lookup failed; projecting without labels: %s", exc)
-        return {}
-    finally:
-        ostore.close()
-
-
-def _relate(store: EntityStore, broker: Broker, max_pairs: int) -> int:
-    """Infer relationships over candidate entity pairs (frontier tier).
-
-    A naive all-pairs candidate strategy capped at max_pairs; deterministic
-    FK/co-occurrence pair selection is a later increment.
-    """
-    entities = store.list_entities()
-    rels: list[Relationship] = []
-    pairs = 0
-    for i in range(len(entities)):
-        for j in range(i + 1, len(entities)):
-            if pairs >= max_pairs:
-                break
-            left, right = entities[i], entities[j]
-            name, conf = infer_relationship(left[2], right[2], broker)
-            if name:
-                rels.append(Relationship(
-                    source_entity_id=left[0], target_entity_id=right[0],
-                    name=name, confidence=conf))
-            pairs += 1
-    store.save_relationships(rels)
-    return len(rels)
 
 
 def run_pipeline(
@@ -92,6 +51,7 @@ def run_pipeline(
     on_progress: Progress | None = None,
     fk_links: list[dict] | None = None,
     workspace_id: int = 1,
+    resume_run_id: int | None = None,
 ) -> dict[str, int]:
     """Run a source from extraction through to the FalkorDB projection.
 
@@ -107,38 +67,56 @@ def run_pipeline(
         tag: Run cheap-tier field tagging during discovery.
         relate: Infer relationships between resolved entities (frontier tier).
         max_pairs: Cap on candidate pairs when relate is enabled.
+        resume_run_id: Resume a crashed run — done stages skip, the landed
+            data of that run is reused (no re-extract).
 
     Returns:
         Summary of {run_id, entities, relationships} plus graph projection counts.
     """
-    _emit(on_progress, "Discover", 10, "Extracting, profiling and landing source records")
-    store = PostgresStore(dsn, workspace_id)
-    try:
-        run_id = discover(connector, store, system, dataset,
-                          broker=broker if tag else None)
-    finally:
-        store.close()
+    if resume_run_id is not None:
+        run_id = resume_run_id
+        runner = StageRunner(dsn, run_id, resume=True)
+        logger.info("resuming run_id=%s", run_id)
+    else:
+        _emit(on_progress, "Discover", 10, "Extracting, profiling and landing source records")
+        store = PostgresStore(dsn, workspace_id)
+        try:
+            run_id = discover(connector, store, system, dataset,
+                              broker=broker if tag else None)
+        finally:
+            store.close()
+        runner = StageRunner(dsn, run_id, resume=False)
+        tracker = StageTracker(dsn)
+        tracker.start(run_id, "discover")
+        tracker.finish(run_id, "discover")
 
     estore = EntityStore(dsn, workspace_id)
+    entities = relationships = 0
     try:
-        _emit(on_progress, "Resolve", 50, "Resolving records into canonical entities")
-        entities = resolve_run(run_id, ontology_type, match_keys, estore, broker)
-        if relate:
+        if not runner.skip("resolve_cluster"):
+            _emit(on_progress, "Resolve", 50, "Resolving records into canonical entities")
+            with runner.stage("resolve_cluster"):
+                entities = resolve_run(run_id, ontology_type, match_keys,
+                                       estore, broker)
+        if relate and not runner.skip("relate"):
             _emit(on_progress, "Relate", 75, "Inferring relationships between entities")
-        relationships = _relate(estore, broker, max_pairs) if relate else 0
-        if fk_links:
+            with runner.stage("relate"):
+                relationships = _relate(estore, broker, max_pairs)
+        if fk_links and not runner.skip("fk_link"):
             _emit(on_progress, "Link", 80, "Linking entities by foreign-key attributes")
-            for spec in fk_links:
-                relationships += link_by_attribute(
-                    estore, spec["source_type"], spec["source_attr"],
-                    spec["target_type"], spec["target_attr"], spec["name"],
-                )
+            with runner.stage("fk_link"):
+                for spec in fk_links:
+                    relationships += link_by_attribute(
+                        estore, spec["source_type"], spec["source_attr"],
+                        spec["target_type"], spec["target_attr"], spec["name"],
+                    )
         _emit(on_progress, "Project", 90, "Projecting entities and edges to the graph")
-        type_ancestors = _build_type_ancestors(dsn)
-        counts = project_graph(
-            estore, FalkorStore(graph_url, ws_graph(workspace_id)),
-            type_ancestors=type_ancestors, workspace_id=workspace_id,
-        )
+        with runner.stage("project"):
+            type_ancestors = _build_type_ancestors(dsn)
+            counts = project_graph(
+                estore, FalkorStore(graph_url, ws_graph(workspace_id)),
+                type_ancestors=type_ancestors, workspace_id=workspace_id,
+            )
     finally:
         estore.close()
 

@@ -1,0 +1,32 @@
+{
+  "session_id": "6cdf9ee8-a716-4df7-a39c-0c912a373316",
+  "timestamp": "2026-06-12T03:11:22.191223Z",
+  "model": "claude-haiku-4-5",
+  "raven_code": {
+    "tokens": 0,
+    "input": 0,
+    "output": 0,
+    "cache_read": 0,
+    "cache_creation": 0,
+    "cost_usd": 0.0,
+    "calls": 0
+  },
+  "user_work": {
+    "tokens": 314,
+    "input": 4,
+    "output": 310,
+    "cache_read": 61072,
+    "cache_creation": 0,
+    "cost_usd": 0.07661200000000001,
+    "calls": 2
+  },
+  "total": {
+    "tokens": 314,
+    "input": 4,
+    "output": 310,
+    "cache_read": 61072,
+    "cache_creation": 0,
+    "cost_usd": 0.0766,
+    "calls": 2
+  }
+}
