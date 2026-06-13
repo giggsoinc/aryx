@@ -1,9 +1,4 @@
-"""Aryx MCP server — stdio + SSE, read-only, 2 tools: list + ask.
-
-Wraps the live Aryx REST API so any MCP-compatible agent (Claude Desktop,
-Claude Code, Cursor, Continue) can discover workspaces and ask questions
-against the knowledge graph. Set ARYX_API_URL to point at the API.
-"""
+"""Aryx MCP server — stdio + SSE. Wraps REST so any MCP host can drive it."""
 from __future__ import annotations
 
 import json
@@ -130,6 +125,9 @@ def _dispatch(name: str, a: dict) -> Any:
     if name == "act":
         from aryx.mcp.act import _act
         return _act(a)
+    if name.startswith("workspace_") or name.startswith("brief_"):
+        from aryx.mcp.onboard import dispatch as _onboard
+        return _onboard(name, a)
     return {"error": f"unknown tool: {name}"}
 
 

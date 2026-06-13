@@ -1,17 +1,23 @@
-"""MCP tool definitions — 3 tools: list + ask + act.
+"""MCP tool definitions — read, act, and onboarding (Slice 1).
 
-`list` returns every workspace with its entity/relationship counts and type
-breakdown — enough for an external agent to pick the right workspace_id
-without making a second call. `ask` runs a natural-language question
-against one workspace's graph.
+Read: ``list``, ``ask``. Act: ``act`` (G13). Onboarding: workspace_list /
+workspace_create / workspace_select / brief_get / brief_draft / brief_set /
+brief_save — together these let an agent drive the setup quiz with the user.
 """
 from __future__ import annotations
 
 import mcp.types as types
 
+from aryx.mcp.tools_onboard import onboard_tool_specs
+
 
 def tool_specs() -> list[types.Tool]:
-    """Return the tools the MCP server exposes (act is request-only)."""
+    """Return every MCP tool: read + act + onboarding."""
+    return _read_act_specs() + onboard_tool_specs()
+
+
+def _read_act_specs() -> list[types.Tool]:
+    """The original read/act tools — list, ask, act."""
     return [
         types.Tool(
             name="list",
