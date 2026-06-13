@@ -7,6 +7,7 @@ import { MessageList } from "@/components/ask/MessageList";
 import { FollowupChips } from "@/components/ask/FollowupChips";
 import { api } from "@/lib/api";
 import { streamReveal } from "@/lib/stream";
+import { useWorkspace } from "@/lib/workspace";
 import type { ChatTurn, Citation } from "@/lib/types";
 
 const STARTERS = [
@@ -27,7 +28,7 @@ function uid() {
 }
 
 export default function HomePage() {
-  const [workspaceId, setWorkspaceId] = useState(1);
+  const { workspaceId } = useWorkspace();
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -102,13 +103,7 @@ export default function HomePage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header
-        workspaceId={workspaceId}
-        onWorkspaceChange={(id) => {
-          setWorkspaceId(id);
-          setTurns([]);
-        }}
-      />
+      <Header />
 
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-6 py-10">
         {empty ? (
