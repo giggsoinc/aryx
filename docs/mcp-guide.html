@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Aryx · MCP guide — drive the whole flow from chat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy-50:#F2F5FB; --navy-100:#E4EAF4; --navy-200:#C2CFE3;
+    --navy-300:#94A8CB; --navy-500:#3A578C; --navy-700:#1A2F55;
+    --navy-800:#0F1F3D; --navy-900:#0A1530; --navy-950:#050B1C;
+    --steel-400:#5F8AD2; --steel-500:#4068A8; --steel-600:#2D4B8A;
+    --canvas:#F8F9FC; --ink:#0F1726; --subtle:#5A6478;
+    --emerald:#10B981; --amber:#F59E0B; --rose:#E11D48;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { scroll-behavior: smooth; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: var(--canvas); color: var(--ink); -webkit-font-smoothing: antialiased; line-height: 1.55; }
+
+  .topbar { position: sticky; top: 0; z-index: 50; background: rgba(248,249,252,0.85); backdrop-filter: blur(10px); border-bottom: 1px solid var(--navy-100); }
+  .topbar-inner { max-width: 1100px; margin: 0 auto; padding: 14px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .brand { display: inline-flex; align-items: center; gap: 12px; }
+  .brand img { width: 30px; height: 30px; }
+  .brand .name { font-weight: 600; letter-spacing: 0.28em; color: var(--navy-900); font-size: 13px; }
+  .nav { display: flex; gap: 22px; font-size: 13px; }
+  .nav a { color: var(--subtle); text-decoration: none; font-weight: 500; }
+  .nav a:hover { color: var(--navy-800); }
+
+  .hero { padding: 64px 32px 24px; text-align: center; max-width: 880px; margin: 0 auto; }
+  .hero .label { display: inline-block; padding: 4px 14px; background: var(--navy-800); color: white; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+  .hero h1 { font-family: 'Fraunces', Georgia, serif; font-size: 2.6rem; line-height: 1.1; letter-spacing: -0.01em; color: var(--navy-900); margin-top: 18px; }
+  .hero .lede { font-size: 16px; color: var(--subtle); margin-top: 18px; max-width: 640px; margin-left: auto; margin-right: auto; }
+
+  section { max-width: 1000px; margin: 64px auto; padding: 0 32px; }
+  .sec-label { display: inline-block; padding: 4px 12px; border-radius: 999px; background: var(--navy-50); color: var(--navy-700); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+  h2.sec-h { font-family: 'Fraunces', Georgia, serif; font-size: 1.8rem; color: var(--navy-900); margin-top: 12px; letter-spacing: -0.01em; }
+  .sec-lede { color: var(--subtle); font-size: 14px; max-width: 640px; margin-top: 8px; }
+
+  /* What is MCP */
+  .what-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 28px; }
+  .what-card { background: white; border: 1px solid var(--navy-100); border-radius: 16px; padding: 22px 24px; }
+  .what-card h3 { font-family: 'Fraunces', serif; font-size: 1.05rem; color: var(--navy-900); margin-bottom: 8px; }
+  .what-card p { font-size: 13.5px; color: var(--navy-700); line-height: 1.6; }
+  .what-card .pos { margin-top: 10px; font-size: 12px; color: var(--steel-600); font-style: italic; }
+
+  /* Flow steps */
+  .flow { background: white; border: 1px solid var(--navy-100); border-radius: 18px; padding: 26px; margin-top: 24px; }
+  .flow-step { display: grid; grid-template-columns: 90px 1fr 2fr; gap: 18px; padding: 16px 0; border-bottom: 1px dashed var(--navy-100); align-items: flex-start; }
+  .flow-step:last-child { border-bottom: none; }
+  .flow-step .num { display: inline-flex; size: 32px; width: 32px; height: 32px; align-items: center; justify-content: center; border-radius: 10px; background: var(--navy-800); color: white; font-weight: 700; font-size: 14px; font-family: 'Fraunces', serif; }
+  .flow-step .title { font-weight: 700; color: var(--navy-900); font-size: 15px; }
+  .flow-step .desc { color: var(--subtle); font-size: 12.5px; margin-top: 3px; line-height: 1.5; }
+  .flow-step .tools { display: flex; flex-direction: column; gap: 6px; }
+  .flow-step .tool { display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px; background: var(--canvas); border: 1px solid var(--navy-100); border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--navy-800); }
+  .flow-step .tool .arrow { color: var(--subtle); }
+
+  /* Tools table */
+  .tools-cat { background: white; border: 1px solid var(--navy-100); border-radius: 16px; padding: 22px 24px; margin-top: 14px; }
+  .tools-cat h3 { font-family: 'Fraunces', serif; font-size: 1rem; color: var(--navy-900); display: flex; align-items: center; gap: 10px; }
+  .tools-cat .count { background: var(--navy-50); color: var(--steel-600); padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; font-family: 'Inter', sans-serif; }
+  .tool-row { display: grid; grid-template-columns: 220px 1fr; gap: 16px; padding: 10px 0; border-top: 1px dashed var(--navy-100); align-items: baseline; }
+  .tool-row:nth-of-type(2) { border-top: none; }
+  .tool-row .name { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--navy-900); font-weight: 600; }
+  .tool-row .desc { font-size: 12.5px; color: var(--subtle); line-height: 1.5; }
+
+  /* Connection paths */
+  .conn-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-top: 24px; }
+  .conn-card { background: white; border: 1.5px solid var(--navy-100); border-radius: 16px; padding: 22px; position: relative; }
+  .conn-card.best { border-color: var(--emerald); }
+  .conn-card .ribbon { position: absolute; top: -10px; right: 14px; background: var(--emerald); color: white; padding: 3px 10px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+  .conn-card .ico { font-size: 26px; }
+  .conn-card h3 { font-family: 'Fraunces', serif; font-size: 1.1rem; color: var(--navy-900); margin-top: 10px; }
+  .conn-card .time { font-size: 11px; color: var(--subtle); margin-top: 2px; font-family: 'JetBrains Mono', monospace; }
+  .conn-card .body { font-size: 12.5px; color: var(--navy-700); margin-top: 10px; line-height: 1.55; }
+
+  /* Code block */
+  .code { background: var(--navy-950); color: #C2CFE3; border-radius: 14px; padding: 22px 24px; margin-top: 18px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.7; overflow-x: auto; }
+  .code .cmt { color: #5F8AD2; }
+  .code .ok { color: #6EE7B7; }
+  .code .cmd::before { content: "$ "; color: var(--steel-400); }
+
+  /* Prompts */
+  .prompts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 22px; }
+  .prompt-card { background: white; border: 1px solid var(--navy-100); border-radius: 14px; padding: 18px 20px; }
+  .prompt-card .ask { font-size: 13.5px; color: var(--navy-900); font-weight: 500; line-height: 1.5; }
+  .prompt-card .calls { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--navy-100); font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--steel-600); }
+  .prompt-card .calls .lbl { display: block; font-family: 'Inter', sans-serif; font-size: 10px; color: var(--subtle); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 4px; }
+
+  /* Security band */
+  .sec-band { background: linear-gradient(180deg, var(--canvas) 0%, white 100%); border: 1px solid var(--navy-100); border-radius: 16px; padding: 22px 24px; margin-top: 22px; }
+  .sec-band h3 { font-family: 'Fraunces', serif; font-size: 1.05rem; color: var(--navy-900); }
+  .sec-band ul { margin-top: 10px; padding-left: 0; list-style: none; }
+  .sec-band li { padding: 6px 0; font-size: 13px; color: var(--navy-700); display: flex; gap: 10px; align-items: flex-start; }
+  .sec-band li::before { content: "✓"; color: var(--emerald); font-weight: 700; margin-top: 1px; }
+
+  footer { border-top: 1px solid var(--navy-100); padding: 36px 32px; text-align: center; color: var(--subtle); font-size: 12px; margin-top: 80px; }
+  footer a { color: var(--steel-500); text-decoration: none; margin: 0 8px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <a href="README.html" class="brand">
+      <img src="aryx-logo.png" alt="Aryx" />
+      <span class="name">A R Y X</span>
+    </a>
+    <nav class="nav">
+      <a href="#what">What is MCP</a>
+      <a href="#flow">The flow</a>
+      <a href="#tools">21 tools</a>
+      <a href="#connect">Connect</a>
+      <a href="#demo">Demo prompts</a>
+    </nav>
+  </div>
+</div>
+
+<section class="hero">
+  <span class="label">MCP process</span>
+  <h1>Drive Aryx from chat.</h1>
+  <p class="lede">
+    Aryx ships 21 Model Context Protocol tools that let any MCP host
+    (Claude Desktop, Cursor, Continue, your own agent loop) walk a user
+    through the entire onboarding and querying flow without ever touching
+    the web UI. This is the process — what to call, when, and how.
+  </p>
+</section>
+
+<!-- ====================== What is MCP ====================== -->
+<section id="what">
+  <span class="sec-label">What MCP gives you</span>
+  <h2 class="sec-h">Two surfaces for one knowledge graph.</h2>
+  <p class="sec-lede">
+    Same Postgres, same FalkorDB, same brief. Pick the right surface for
+    the audience — or use both side by side.
+  </p>
+  <div class="what-grid">
+    <div class="what-card">
+      <h3>The Aryx web UI</h3>
+      <p>
+        Brand-faithful Next.js app at <code style="background:var(--navy-50);padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px;">:3000</code>.
+        Three surfaces: <strong>/start</strong> (guided wizard), <strong>/</strong> (Ask with citations),
+        <strong>/model</strong> (modelling canvas). Designed for the
+        domain expert who wants pixels.
+      </p>
+      <p class="pos">Best for: live demos, hands-on configuration, visual exploration.</p>
+    </div>
+    <div class="what-card">
+      <h3>The Aryx MCP server</h3>
+      <p>
+        SSE endpoint at <code style="background:var(--navy-50);padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px;">:8765/sse</code>
+        exposing 21 tools. Same wire shape as <code style="background:var(--navy-50);padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px;">/admin/*</code> and
+        <code style="background:var(--navy-50);padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px;">/ontology/*</code> REST, but as discoverable
+        tools an LLM can plan with.
+      </p>
+      <p class="pos">Best for: agent automation, chat-first interfaces, scripting.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== The flow ====================== -->
+<section id="flow">
+  <span class="sec-label">The flow</span>
+  <h2 class="sec-h">Five steps. Each one is one or two MCP tool calls.</h2>
+  <p class="sec-lede">
+    This is the exact ordering an agent should follow to take a brand-new
+    workspace to "ask anything" — no web UI required.
+  </p>
+
+  <div class="flow">
+    <div class="flow-step">
+      <div class="num">1</div>
+      <div>
+        <div class="title">Pick or create a workspace</div>
+        <div class="desc">Isolated tenant per workspace — own LIST partitions, own FalkorDB graph.</div>
+      </div>
+      <div class="tools">
+        <span class="tool">workspace_list <span class="arrow">→</span> all workspaces</span>
+        <span class="tool">workspace_create <span class="arrow">→</span> new isolated tenant</span>
+        <span class="tool">workspace_select <span class="arrow">→</span> confirm + load</span>
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="num">2</div>
+      <div>
+        <div class="title">Capture the brief</div>
+        <div class="desc">Goals + objectives + scope. Agent quizzes the user; AI drafts; agent confirms.</div>
+      </div>
+      <div class="tools">
+        <span class="tool">brief_get <span class="arrow">→</span> read current + next_question</span>
+        <span class="tool">brief_draft <span class="arrow">→</span> AI fills 5 fields from a sentence</span>
+        <span class="tool">brief_set <span class="arrow">→</span> patch one field at a time</span>
+        <span class="tool">brief_save <span class="arrow">→</span> persist + depth meter</span>
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="num">3</div>
+      <div>
+        <div class="title">Add a data source</div>
+        <div class="desc">Quiz fields per kind. Secret encrypted with Fernet before write. Test connection.</div>
+      </div>
+      <div class="tools">
+        <span class="tool">datasource_quiz <span class="arrow">→</span> field spec per kind</span>
+        <span class="tool">datasource_add <span class="arrow">→</span> mask-only response</span>
+        <span class="tool">datasource_test <span class="arrow">→</span> SELECT 1 / list tables</span>
+        <span class="tool">datasource_list <span class="arrow">→</span> what's registered</span>
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="num">4</div>
+      <div>
+        <div class="title">Answer human-in-the-loop questions</div>
+        <div class="desc">Pipeline pauses when it's not sure. Agent surfaces questions to the user, sends answers back, pipeline unblocks.</div>
+      </div>
+      <div class="tools">
+        <span class="tool">ingest_status <span class="arrow">→</span> pipeline progress</span>
+        <span class="tool">ingest_questions <span class="arrow">→</span> pending HITL queue</span>
+        <span class="tool">ingest_answer <span class="arrow">→</span> resolve, unblock</span>
+        <span class="tool">entities_preview <span class="arrow">→</span> what's been resolved</span>
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="num">5</div>
+      <div>
+        <div class="title">Query and export</div>
+        <div class="desc">Ask in plain English, request actions (always pending for human approval), export the ontology to any destination.</div>
+      </div>
+      <div class="tools">
+        <span class="tool">ask <span class="arrow">→</span> grounded NL query</span>
+        <span class="tool">act <span class="arrow">→</span> request entity mutation (HITL)</span>
+        <span class="tool">ontology_get <span class="arrow">→</span> types + relationships</span>
+        <span class="tool">ontology_export <span class="arrow">→</span> Postgres / MySQL / Neo4j / RDF</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== 21 tools ====================== -->
+<section id="tools">
+  <span class="sec-label">The 21 tools</span>
+  <h2 class="sec-h">Discoverable, typed, documented in-band.</h2>
+  <p class="sec-lede">
+    Every tool ships with a structured input schema and a prose description.
+    The agent doesn't need our docs — it can pick the right tool just from
+    the MCP capability list.
+  </p>
+
+  <div class="tools-cat">
+    <h3>Read &amp; act <span class="count">3</span></h3>
+    <div class="tool-row"><span class="name">list</span><span class="desc">Every workspace with entity/relationship counts + type breakdown. Always call first.</span></div>
+    <div class="tool-row"><span class="name">ask</span><span class="desc">Natural-language question over one workspace. Returns grounded answer + cited entity ids + workspace overview as context.</span></div>
+    <div class="tool-row"><span class="name">act</span><span class="desc">Request an action on an entity. Always-pending — agent mutations never auto-apply.</span></div>
+  </div>
+
+  <div class="tools-cat">
+    <h3>Workspace <span class="count">3</span></h3>
+    <div class="tool-row"><span class="name">workspace_list</span><span class="desc">All workspaces with id, name, description, brief, timestamps.</span></div>
+    <div class="tool-row"><span class="name">workspace_create</span><span class="desc">New isolated tenant. Owns LIST partitions + named FalkorDB graph.</span></div>
+    <div class="tool-row"><span class="name">workspace_select</span><span class="desc">Confirm a workspace exists; returns its row.</span></div>
+  </div>
+
+  <div class="tools-cat">
+    <h3>Brief <span class="count">4</span></h3>
+    <div class="tool-row"><span class="name">brief_get</span><span class="desc">Current brief + readiness depth (Generic NER → Grounded → Sharp → Expert) + <code style="font-family:'JetBrains Mono',monospace;background:var(--navy-50);padding:1px 5px;border-radius:3px;font-size:11px;">next_question</code> for the quiz.</span></div>
+    <div class="tool-row"><span class="name">brief_draft</span><span class="desc">AI-draft all 5 fields from a seed sentence and/or document text.</span></div>
+    <div class="tool-row"><span class="name">brief_set</span><span class="desc">Patch ONE field. Strings auto-split to lists for objectives/roles.</span></div>
+    <div class="tool-row"><span class="name">brief_save</span><span class="desc">Persist atomically. Returns depth + next_question.</span></div>
+  </div>
+
+  <div class="tools-cat">
+    <h3>Datasource <span class="count">5</span></h3>
+    <div class="tool-row"><span class="name">datasource_quiz</span><span class="desc">Field spec for a kind (postgres, mysql, oracle, files, rest, ...). Drives the agent's prompt.</span></div>
+    <div class="tool-row"><span class="name">datasource_add</span><span class="desc">Plaintext secret travels at request scope only; encrypted via Fernet on the server, mask-only in the response.</span></div>
+    <div class="tool-row"><span class="name">datasource_list</span><span class="desc">Per-workspace list. Never returns ciphertext.</span></div>
+    <div class="tool-row"><span class="name">datasource_test</span><span class="desc">Decrypt + open + ping. Always-pending failure, never silent.</span></div>
+    <div class="tool-row"><span class="name">datasource_delete</span><span class="desc">Hard delete row + cipher. Audit-logged.</span></div>
+  </div>
+
+  <div class="tools-cat">
+    <h3>HITL ingest <span class="count">4</span></h3>
+    <div class="tool-row"><span class="name">ingest_status</span><span class="desc">Pipeline stage progress + pending question count.</span></div>
+    <div class="tool-row"><span class="name">ingest_questions</span><span class="desc">Open clarifying questions ("Customer or Account?") with AI-suggested answers.</span></div>
+    <div class="tool-row"><span class="name">ingest_answer</span><span class="desc">Resolve one question; pipeline unblocks instantly.</span></div>
+    <div class="tool-row"><span class="name">entities_preview</span><span class="desc">Slice of nodes + edges so the agent can confirm visually before full projection.</span></div>
+  </div>
+
+  <div class="tools-cat">
+    <h3>Ontology <span class="count">2</span></h3>
+    <div class="tool-row"><span class="name">ontology_get</span><span class="desc">JSON-LD of approved types + relationships + axioms + rules.</span></div>
+    <div class="tool-row"><span class="name">ontology_export</span><span class="desc">Adapter to Postgres / MySQL / Neo4j / Turtle / JSON-LD. Returns rows written + masked DSN.</span></div>
+  </div>
+</section>
+
+<!-- ====================== Connect ====================== -->
+<section id="connect">
+  <span class="sec-label">Connect</span>
+  <h2 class="sec-h">Three paths from chat to Aryx.</h2>
+  <p class="sec-lede">
+    Pick by the audience. Claude Desktop is the fastest demo today; Cursor &amp;
+    Continue use the same config shape; claude.ai web requires HTTPS in front.
+  </p>
+
+  <div class="conn-grid">
+    <div class="conn-card best">
+      <div class="ribbon">Recommended</div>
+      <div class="ico">💻</div>
+      <h3>Claude Desktop</h3>
+      <div class="time">~5 minutes · plain HTTP works</div>
+      <p class="body">
+        Local Mac app. Bridges via <code style="font-family:'JetBrains Mono',monospace;background:var(--navy-50);padding:1px 5px;border-radius:3px;font-size:11px;">mcp-remote</code> over npx — no extra install. Talks plain HTTP to your EC2 MCP endpoint.
+      </p>
+    </div>
+    <div class="conn-card">
+      <div class="ico">📝</div>
+      <h3>Cursor &amp; Continue</h3>
+      <div class="time">~5 minutes · same config shape</div>
+      <p class="body">
+        IDEs with MCP support read the same <code style="font-family:'JetBrains Mono',monospace;background:var(--navy-50);padding:1px 5px;border-radius:3px;font-size:11px;">mcpServers</code> JSON shape. Aryx tools appear in the inline assistant.
+      </p>
+    </div>
+    <div class="conn-card">
+      <div class="ico">🌐</div>
+      <h3>claude.ai web</h3>
+      <div class="time">~15 min · needs HTTPS</div>
+      <p class="body">
+        Web Claude blocks raw-HTTP custom MCPs. Front the server with Cloudflare tunnel for a free HTTPS URL, paste it into Settings → Connectors.
+      </p>
+    </div>
+  </div>
+
+  <h3 style="margin-top:36px;font-family:'Fraunces',serif;font-size:1.15rem;color:var(--navy-900);">Path A: Claude Desktop (the recommended demo)</h3>
+  <div class="code">
+    <div><span class="cmt"># 0. Open EC2 SG inbound for 8765/tcp (same as you did for 3000 and 8088).</span></div>
+    <br/>
+    <div><span class="cmt"># 1. Verify reachability from your Mac:</span></div>
+    <div class="cmd">curl -m 6 -i http://ec2-3-91-73-197.compute-1.amazonaws.com:8765/sse</div>
+    <div><span class="cmt">#    Expect Content-Type: text/event-stream.</span></div>
+    <br/>
+    <div><span class="cmt"># 2. Edit ~/Library/Application Support/Claude/claude_desktop_config.json:</span></div>
+    <br/>
+    <div>{</div>
+    <div>&nbsp;&nbsp;<span class="ok">"mcpServers"</span>: {</div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ok">"aryx"</span>: {</div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ok">"command"</span>: "npx",</div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ok">"args"</span>: [</div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"-y", "mcp-remote",</div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"http://ec2-3-91-73-197.compute-1.amazonaws.com:8765/sse"</div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;]</div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;}</div>
+    <div>&nbsp;&nbsp;}</div>
+    <div>}</div>
+    <br/>
+    <div><span class="cmt"># 3. Quit Claude Desktop fully (⌘Q), reopen. Click the 🔌 icon.</span></div>
+    <div><span class="cmt">#    Should show 21 tools under "aryx".</span></div>
+  </div>
+
+  <h3 style="margin-top:36px;font-family:'Fraunces',serif;font-size:1.15rem;color:var(--navy-900);">Path C: claude.ai web via Cloudflare tunnel</h3>
+  <div class="code">
+    <div><span class="cmt"># On the EC2 instance:</span></div>
+    <div class="cmd">sudo curl -L -o /usr/local/bin/cloudflared \</div>
+    <div>&nbsp;&nbsp;https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64</div>
+    <div class="cmd">sudo chmod +x /usr/local/bin/cloudflared</div>
+    <div class="cmd">cloudflared tunnel --url http://localhost:8765</div>
+    <br/>
+    <div><span class="cmt"># Prints a URL like https://abc-def.trycloudflare.com</span></div>
+    <div><span class="cmt"># Use that URL + /sse in claude.ai → Settings → Connectors → Custom MCP.</span></div>
+  </div>
+</section>
+
+<!-- ====================== Demo prompts ====================== -->
+<section id="demo">
+  <span class="sec-label">Try it</span>
+  <h2 class="sec-h">Prompts that exercise the whole MCP surface.</h2>
+  <p class="sec-lede">
+    Paste any of these into Claude Desktop once <code style="font-family:'JetBrains Mono',monospace;background:var(--navy-50);padding:1px 5px;border-radius:3px;font-size:11px;">aryx</code>
+    is connected. Each one demonstrates a different slice of the protocol.
+  </p>
+  <div class="prompts">
+    <div class="prompt-card">
+      <div class="ask">"List the Aryx workspaces and tell me what's in each."</div>
+      <div class="calls"><span class="lbl">Calls</span>list → workspace_list</div>
+    </div>
+    <div class="prompt-card">
+      <div class="ask">"What's the brief for the DEMO workspace?"</div>
+      <div class="calls"><span class="lbl">Calls</span>brief_get(workspace_id=1)</div>
+    </div>
+    <div class="prompt-card">
+      <div class="ask">"In DEMO, which agents resolve the most network tickets?"</div>
+      <div class="calls"><span class="lbl">Calls</span>ask(workspace_id=1, question="...")</div>
+    </div>
+    <div class="prompt-card">
+      <div class="ask">"Create a new workspace called Sales Pipeline."</div>
+      <div class="calls"><span class="lbl">Calls</span>workspace_create → brief_get → brief_draft</div>
+    </div>
+    <div class="prompt-card">
+      <div class="ask">"What quiz fields do I need to connect a Postgres source?"</div>
+      <div class="calls"><span class="lbl">Calls</span>datasource_quiz(kind="postgres")</div>
+    </div>
+    <div class="prompt-card">
+      <div class="ask">"Show the ontology types in DEMO."</div>
+      <div class="calls"><span class="lbl">Calls</span>ontology_get(workspace_id=1)</div>
+    </div>
+    <div class="prompt-card">
+      <div class="ask">"Are there any pending HITL questions for DEMO?"</div>
+      <div class="calls"><span class="lbl">Calls</span>ingest_questions(workspace_id=1)</div>
+    </div>
+    <div class="prompt-card">
+      <div class="ask">"Export the DEMO ontology as Postgres DDL."</div>
+      <div class="calls"><span class="lbl">Calls</span>ontology_export(target="postgres")</div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== Security ====================== -->
+<section>
+  <span class="sec-label">Security posture</span>
+  <h2 class="sec-h">What the MCP server will and won't do.</h2>
+  <div class="sec-band">
+    <h3>Guarantees</h3>
+    <ul>
+      <li>Datasource secrets are <strong>Fernet-encrypted</strong> server-side before any write. Plaintext lives only in the request scope.</li>
+      <li>Responses include <strong>masks only</strong> — the last 4 chars of a SHA-256 hash of the cipher.</li>
+      <li>Every decrypt is <strong>audit-logged</strong> with actor, timestamp, and reason.</li>
+      <li>Agent-initiated <code style="font-family:'JetBrains Mono',monospace;background:var(--navy-50);padding:1px 5px;border-radius:3px;font-size:11px;">act</code> requests <strong>always pend</strong> for human approval — regardless of an action's auto-apply flag.</li>
+      <li>HITL questions go through the <strong>same queue</strong> as the web UI — no out-of-band side channel.</li>
+      <li>The MCP server is a <strong>thin shell</strong> over the same FastAPI endpoints — no parallel logic to drift.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <div>
+    <a href="README.html">Overview</a>
+    ·
+    <a href="demo-guide.html">Demo guide</a>
+    ·
+    <a href="diagrams/business-view.html">Business view</a>
+    ·
+    <a href="diagrams/technical-flow.html">Technical flow</a>
+  </div>
+  <div style="margin-top:10px;">Aryx · MCP process documentation</div>
+</footer>
+
+</body>
+</html>

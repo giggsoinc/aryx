@@ -18,13 +18,13 @@
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Inter', system-ui, sans-serif; background: var(--canvas); color: var(--ink); padding: 56px 24px; }
-  .wrap { max-width: 1240px; margin: 0 auto; }
+  .wrap { max-width: 1280px; margin: 0 auto; }
   header { text-align: center; padding-bottom: 32px; border-bottom: 1px solid var(--navy-100); }
   .brand { display: inline-flex; align-items: center; gap: 12px; }
   .brand img { width: 38px; height: 38px; }
   .brand .name { font-weight: 600; letter-spacing: 0.32em; color: var(--navy-900); font-size: 15px; }
   h1 { font-family: 'Fraunces', Georgia, serif; font-size: 2.3rem; color: var(--navy-900); margin-top: 18px; letter-spacing: -0.01em; }
-  .sub { color: var(--subtle); font-size: 15px; margin-top: 8px; max-width: 720px; margin-left: auto; margin-right: auto; line-height: 1.55; }
+  .sub { color: var(--subtle); font-size: 15px; margin-top: 8px; max-width: 760px; margin-left: auto; margin-right: auto; line-height: 1.55; }
 
   .stack { margin-top: 48px; display: flex; flex-direction: column; gap: 18px; }
   .layer { background: white; border: 1px solid var(--navy-100); border-radius: 18px; padding: 22px 24px; box-shadow: 0 1px 2px rgba(10,21,48,0.04), 0 6px 18px rgba(10,21,48,0.05); }
@@ -38,6 +38,7 @@
   .row.cols-5 { grid-template-columns: repeat(5, 1fr); }
   .row.cols-3 { grid-template-columns: repeat(3, 1fr); }
   .row.cols-6 { grid-template-columns: repeat(6, 1fr); }
+  .row.cols-2 { grid-template-columns: repeat(2, 1fr); }
 
   .box { background: var(--canvas); border: 1px solid var(--navy-100); border-radius: 12px; padding: 14px 14px 12px; text-align: center; }
   .box .ico { font-size: 22px; }
@@ -46,6 +47,7 @@
   .box .port { margin-top: 6px; display: inline-block; padding: 2px 8px; background: var(--navy-50); border-radius: 999px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--steel-600); }
   .box.accent { background: white; border-color: var(--steel-500); box-shadow: 0 0 0 3px rgba(64,104,168,0.08); }
   .box.green { background: #ECFDF5; border-color: #6EE7B7; }
+  .box.amber { background: #FFFBEB; border-color: #FCD34D; }
 
   /* Pipeline bar */
   .pipeline { display: flex; gap: 1px; }
@@ -55,12 +57,40 @@
   .pl-cell .eg { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--steel-600); margin-top: 3px; }
   .pl-arr { display: flex; align-items: center; color: var(--navy-300); font-size: 16px; padding: 0 2px; }
 
+  /* Cross-cutting band — same-origin proxy */
+  .band { margin-top: 14px; padding: 14px 18px; background: linear-gradient(135deg, var(--navy-50) 0%, white 100%); border: 1px dashed var(--steel-400); border-radius: 12px; display: flex; gap: 14px; align-items: center; }
+  .band .glyph { font-size: 26px; }
+  .band strong { color: var(--navy-900); font-size: 13px; }
+  .band p { color: var(--subtle); font-size: 12px; margin-top: 2px; line-height: 1.5; }
+  .band code { font-family: 'JetBrains Mono', monospace; background: white; padding: 1px 6px; border-radius: 4px; font-size: 11px; color: var(--steel-600); border: 1px solid var(--navy-100); }
+
+  /* Ask-flow detail */
+  .ask-flow { margin-top: 12px; padding: 14px; background: white; border: 1px solid var(--navy-100); border-radius: 12px; }
+  .ask-flow .row-h { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--navy-700); margin-bottom: 8px; }
+  .ask-pipe { display: flex; gap: 4px; align-items: stretch; }
+  .ask-step { flex: 1; padding: 10px 8px; background: var(--canvas); border-radius: 8px; text-align: center; border: 1px solid var(--navy-100); min-width: 100px; }
+  .ask-step.always { background: #FEF3C7; border-color: #FCD34D; }
+  .ask-step .t { font-size: 11px; font-weight: 700; color: var(--navy-900); }
+  .ask-step .d { font-size: 10px; color: var(--subtle); margin-top: 2px; line-height: 1.3; }
+  .ask-arr { display: flex; align-items: center; color: var(--navy-300); font-size: 14px; padding: 0 1px; }
+
   .stats { margin-top: 36px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
   .stat { background: white; border: 1px solid var(--navy-100); border-radius: 14px; padding: 18px 20px; }
   .stat .n { font-family: 'Fraunces', serif; font-size: 1.8rem; color: var(--navy-900); }
   .stat .l { color: var(--subtle); font-size: 12px; margin-top: 2px; }
 
+  /* Workspace split callout */
+  .ws-split { margin-top: 14px; padding: 16px; background: white; border: 1px solid var(--navy-100); border-radius: 12px; }
+  .ws-split .row-h { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--navy-700); margin-bottom: 10px; }
+  .ws-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ws-card { padding: 12px 14px; border-radius: 10px; border: 1px solid var(--navy-100); }
+  .ws-card.demo { background: linear-gradient(135deg, #FEF3C7 0%, white 100%); border-color: #FCD34D; }
+  .ws-card.default { background: linear-gradient(135deg, #ECFDF5 0%, white 100%); border-color: #6EE7B7; }
+  .ws-card .h { font-size: 12px; font-weight: 700; color: var(--navy-900); }
+  .ws-card .d { font-size: 11px; color: var(--subtle); margin-top: 3px; line-height: 1.4; }
+
   footer { margin-top: 48px; padding-top: 22px; border-top: 1px solid var(--navy-100); text-align: center; color: var(--subtle); font-size: 12px; }
+  footer a { color: var(--steel-500); text-decoration: none; margin: 0 8px; }
 </style>
 </head>
 <body>
@@ -71,10 +101,11 @@
       <img src="aryx-logo.png" alt="Aryx" />
       <span class="name">A R Y X</span>
     </div>
-    <h1>Technical flow · System architecture</h1>
+    <h1>Technical flow · system architecture</h1>
     <p class="sub">
-      Four layers, replaceable per layer. The web app is fully isolated &mdash; talks to FastAPI only via JSON.
-      Postgres is the source of truth; FalkorDB is a rebuildable projection.
+      Four layers, replaceable per layer. The web app is fully isolated &mdash;
+      browser only talks to its own origin via a Next.js rewrite. Postgres
+      is the source of truth; FalkorDB is a rebuildable projection.
     </p>
   </header>
 
@@ -85,25 +116,25 @@
       <div class="layer-head">
         <span class="layer-num">1</span>
         <span class="layer-title">UI · what users see</span>
-        <span class="layer-hint">Next.js 15 · Streamlit · Claude Desktop</span>
+        <span class="layer-hint">Next.js 15 · Streamlit · Claude Desktop / Cursor / Continue</span>
       </div>
       <div class="row cols-4">
         <div class="box accent">
           <div class="ico">✨</div>
           <div class="label">Start wizard</div>
-          <div class="desc">Guided 7-step onboarding</div>
+          <div class="desc">7-step guided onboarding · AI-drafted brief</div>
           <div class="port">/start :3000</div>
         </div>
         <div class="box accent">
           <div class="ico">💬</div>
           <div class="label">Ask</div>
-          <div class="desc">Streaming chat + citations</div>
+          <div class="desc">Workspace peek banner · markdown answers · citations</div>
           <div class="port">/ :3000</div>
         </div>
         <div class="box accent">
           <div class="ico">🗺</div>
           <div class="label">Model</div>
-          <div class="desc">React Flow canvas + inspector</div>
+          <div class="desc">React Flow canvas · inspector · AI suggest</div>
           <div class="port">/model :3000</div>
         </div>
         <div class="box">
@@ -117,18 +148,30 @@
         <div class="box green">
           <div class="ico">🔔</div>
           <div class="label">HITL bell + drawer</div>
-          <div class="desc">Pending questions surface across surfaces</div>
+          <div class="desc">Pending questions surface across Ask + Model · one-tap answer</div>
         </div>
         <div class="box green">
           <div class="ico">🤖</div>
           <div class="label">Claude Desktop · MCP</div>
-          <div class="desc">21 tools — agent can drive the whole flow</div>
-          <div class="port">stdio · SSE</div>
+          <div class="desc">21 tools via mcp-remote · drives the whole flow</div>
+          <div class="port">stdio bridge</div>
         </div>
         <div class="box green">
           <div class="ico">🎨</div>
           <div class="label">Brand tokens</div>
-          <div class="desc">Inter · Fraunces · navy/steel · isolated build</div>
+          <div class="desc">Inter · Fraunces · JetBrains Mono · navy/steel · isolated build</div>
+        </div>
+      </div>
+      <div class="band">
+        <div class="glyph">🔁</div>
+        <div>
+          <strong>Same-origin /api proxy</strong>
+          <p>
+            Browser only talks to <code>:3000</code>. Next.js rewrites
+            <code>/api/*</code> to <code>http://api:8000/*</code> on the docker network
+            via <code>ARYX_API_URL_INTERNAL</code>. No CORS, no build-time host coupling
+            &mdash; same bundle runs in dev, EC2, or any reverse proxy.
+          </p>
         </div>
       </div>
     </div>
@@ -138,15 +181,30 @@
       <div class="layer-head">
         <span class="layer-num">2</span>
         <span class="layer-title">API · the contract</span>
-        <span class="layer-hint">FastAPI :8088 · MCP server :8765 · 24 routers · 21 MCP tools</span>
+        <span class="layer-hint">FastAPI :8088 · MCP server :8765/sse · 24 routers · 21 MCP tools</span>
       </div>
       <div class="row cols-6">
         <div class="box"><div class="label">/admin/workspaces</div><div class="desc">CRUD · brief · survivorship · purge · nuke</div></div>
         <div class="box"><div class="label">/admin/datasources</div><div class="desc">Kinds · quiz · add · test · Fernet</div></div>
         <div class="box"><div class="label">/ontology/*</div><div class="desc">Types · relationships · axioms · rules · assist · export</div></div>
         <div class="box"><div class="label">/admin/ingest-*</div><div class="desc">DB / docs / REST · HITL queue</div></div>
-        <div class="box"><div class="label">/ask · /graph · /entities</div><div class="desc">Grounded Q&amp;A · provenance</div></div>
+        <div class="box"><div class="label">/ask · /graph · /entities</div><div class="desc">Grounded Q&amp;A · workspace overview ride-along</div></div>
         <div class="box"><div class="label">/actions · /adjudication</div><div class="desc">Kinetic DSL · review queue</div></div>
+      </div>
+
+      <div class="ask-flow">
+        <div class="row-h">/ask · grounded synthesis flow</div>
+        <div class="ask-pipe">
+          <div class="ask-step"><div class="t">Extract terms</div><div class="d">Menial LLM · pulls nouns + ids from question + history</div></div>
+          <div class="ask-arr">›</div>
+          <div class="ask-step"><div class="t">Retrieve</div><div class="d">FalkorDB · lookup, expand 1 hop, gather provenance</div></div>
+          <div class="ask-arr">›</div>
+          <div class="ask-step always"><div class="t">Overview ride-along</div><div class="d">Always: kinds + counts + samples + aim. No more "not stored" dead-ends.</div></div>
+          <div class="ask-arr">›</div>
+          <div class="ask-step"><div class="t">Synthesise</div><div class="d">Answer LLM · ground if facts found · summarise from overview if not</div></div>
+          <div class="ask-arr">›</div>
+          <div class="ask-step"><div class="t">Markdown out</div><div class="d">Persist to ask_history · render via react-markdown</div></div>
+        </div>
       </div>
     </div>
 
@@ -172,6 +230,18 @@
         <div class="pl-arr">›</div>
         <div class="pl-cell"><div class="ico">🗺</div><div class="t">Project</div><div class="eg">FalkorDB graph</div></div>
       </div>
+      <div class="band" style="margin-top:14px;background:linear-gradient(135deg,#FFFBEB 0%,white 100%);border-color:#FCD34D;">
+        <div class="glyph">❓</div>
+        <div>
+          <strong>HITL queue — agent &amp; UI share the same queue</strong>
+          <p>
+            Whenever Resolve isn't sure ("Is Customer the same as Account?"), the pipeline
+            enqueues a row in <code>aryx_ingest_question</code>. The web bell drawer and the MCP
+            <code>ingest_questions</code>/<code>ingest_answer</code> tools surface the same queue &mdash; no
+            out-of-band side channel, no parallel logic.
+          </p>
+        </div>
+      </div>
     </div>
 
     <!-- Layer 4 — Storage -->
@@ -185,13 +255,13 @@
         <div class="box accent">
           <div class="ico">🗄</div>
           <div class="label">PostgreSQL 16</div>
-          <div class="desc">Source of truth · partitioned per workspace · entities, ontology, jobs, secrets, queues</div>
+          <div class="desc">Source of truth · LIST partitioned per workspace · entities, ontology, jobs, secrets, queues</div>
           <div class="port">:55432 (host) · :5432 (net)</div>
         </div>
         <div class="box accent">
           <div class="ico">📈</div>
           <div class="label">FalkorDB</div>
-          <div class="desc">Named graph per workspace · ws_N · incremental projection</div>
+          <div class="desc">Named graph per workspace (aryx_ws_N) · incremental projection</div>
           <div class="port">:6379</div>
         </div>
         <div class="box">
@@ -203,7 +273,21 @@
         <div class="box">
           <div class="ico">🔐</div>
           <div class="label">Fernet keyring</div>
-          <div class="desc">ARYX_SECRET_KEY env · never on disk</div>
+          <div class="desc">ARYX_SECRET_KEY env · never on disk · audit-logged decrypt</div>
+        </div>
+      </div>
+
+      <div class="ws-split">
+        <div class="row-h">Workspace split (today's setup)</div>
+        <div class="ws-cards">
+          <div class="ws-card demo">
+            <div class="h">id=1 · DEMO</div>
+            <div class="d">Loaded radio-equipment dataset · 527 records · 5 kinds · 6 connections · brief intact. Pick this in the picker to show the live product.</div>
+          </div>
+          <div class="ws-card default">
+            <div class="h">id=2 · Default</div>
+            <div class="d">Empty by design. First-time visitors land here → auto-redirect to /start. Used for onboarding tests &amp; new users.</div>
+          </div>
         </div>
       </div>
     </div>
@@ -218,7 +302,16 @@
   </div>
 
   <footer>
-    Aryx &mdash; technical flow architecture
+    <div>
+      <a href="../README.html">Overview</a>
+      ·
+      <a href="../demo-guide.html">Demo guide</a>
+      ·
+      <a href="../mcp-guide.html">MCP guide</a>
+      ·
+      <a href="business-view.html">Business view</a>
+    </div>
+    <div style="margin-top:10px;">Aryx &mdash; technical flow architecture</div>
   </footer>
 </div>
 </body>

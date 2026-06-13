@@ -334,7 +334,8 @@
     <br />
     <div><span class="cmt"># Optional — connect Claude Desktop via MCP (21 tools)</span></div>
     <div><span class="cmt"># Add to ~/Library/Application Support/Claude/claude_desktop_config.json:</span></div>
-    <div>&nbsp;&nbsp;<span style="color:#94A8CB;">"aryx": { "command": "mcp-proxy", "args": ["http://localhost:8765/mcp"] }</span></div>
+    <div>&nbsp;&nbsp;<span style="color:#94A8CB;">"aryx": { "command": "npx", "args": ["-y", "mcp-remote", "http://localhost:8765/sse"] }</span></div>
+    <div><span class="cmt"># Full walk-through:</span> <a href="mcp-guide.html" style="color:#6EE7B7;text-decoration:none;">docs/mcp-guide.html</a></div>
   </div>
 </section>
 
@@ -344,6 +345,10 @@
     <span>Aryx &mdash; A Fortress of Structured Knowledge</span>
   </div>
   <div style="margin-top:8px;">
+    <a href="demo-guide.html" style="color:var(--steel-500);text-decoration:none;margin:0 8px;">Demo guide</a>
+    ·
+    <a href="mcp-guide.html" style="color:var(--steel-500);text-decoration:none;margin:0 8px;">MCP guide</a>
+    ·
     <a href="diagrams/business-view.html" style="color:var(--steel-500);text-decoration:none;margin:0 8px;">Business view</a>
     ·
     <a href="diagrams/technical-flow.html" style="color:var(--steel-500);text-decoration:none;margin:0 8px;">Technical flow</a>
