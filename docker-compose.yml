@@ -118,6 +118,22 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Next.js web UI — isolated deploy unit. Talks to FastAPI only via HTTP.
+  # No shared code with Python; replaceable without touching the backend.
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    environment:
+      - NEXT_PUBLIC_API_URL=${WEB_PUBLIC_API_URL:-http://localhost:8088}
+      - NODE_ENV=production
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pgdata:
   graphdata:

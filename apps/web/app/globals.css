@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Brand tokens — referenced from tailwind via CSS variables so the dev
+   tools always show resolved values, never opaque utility classes. */
+:root {
+  --aryx-navy: #0A1530;
+  --aryx-navy-soft: #0F1F3D;
+  --aryx-steel: #4068A8;
+  --aryx-canvas: #F8F9FC;
+  --aryx-ink: #0F1726;
+  --aryx-subtle: #5A6478;
+}
+
+html,
+body {
+  background: var(--aryx-canvas);
+  color: var(--aryx-ink);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* The wordmark cap — used for ARYX header, mimics the logo's spacing. */
+.wordmark {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  letter-spacing: 0.32em;
+  color: var(--aryx-navy);
+}
+
+/* Caret blink for streaming reveal. */
+@keyframes caret {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+.caret::after {
+  content: "▍";
+  display: inline-block;
+  width: 0;
+  margin-left: 2px;
+  color: var(--aryx-steel);
+  animation: caret 1s steps(1) infinite;
+  transform: translateY(-1px);
+}
+
+/* Composer focus ring — subtle, brand-coloured. */
+.focus-ring:focus-visible {
+  outline: 2px solid var(--aryx-steel);
+  outline-offset: 2px;
+}
