@@ -10,6 +10,7 @@ interface WorkspaceContext {
   workspaceId: number;
   workspaces: Workspace[];
   setWorkspaceId: (id: number) => void;
+  refresh: () => Promise<void>;
 }
 
 const Ctx = createContext<WorkspaceContext | null>(null);
@@ -23,6 +24,15 @@ const STORAGE_KEY = "aryx.workspaceId";
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [workspaceId, setWorkspaceIdState] = useState(1);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+
+  const refresh = async () => {
+    try {
+      const list = await api.listWorkspaces();
+      setWorkspaces(list);
+    } catch {
+      setWorkspaces([]);
+    }
+  };
 
   useEffect(() => {
     api.listWorkspaces().then((list) => {
@@ -52,7 +62,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <Ctx.Provider value={{ workspaceId, workspaces, setWorkspaceId }}>
+    <Ctx.Provider value={{ workspaceId, workspaces, setWorkspaceId, refresh }}>
       {children}
     </Ctx.Provider>
   );

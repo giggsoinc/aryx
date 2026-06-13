@@ -1,8 +1,8 @@
 """Persistence for ontology types and schema mappings (stage 6).
 
-Kept separate from PostgresStore so each module stays focused. SQL lives in
-aryx/queries/*.sql. New types are inserted as-is (proposed); approval flips
-status via the HITL gate.
+Workspace-scoped: every type lives in exactly one workspace. The HITL
+gate (approve_type) and the parent / ancestor lookups all filter by
+workspace_id so DEMO's types never bleed into Default.
 """
 from __future__ import annotations
 
@@ -20,25 +20,27 @@ logger = logging.getLogger(__name__)
 class OntologyStore:
     """Reads and writes ontology types and schema mappings."""
 
-    def __init__(self, dsn: str) -> None:
-        """Acquire the shared connection pool for this DSN."""
+    def __init__(self, dsn: str, workspace_id: int = 1) -> None:
+        """Acquire the shared pool + bind a workspace for every call."""
         self._pool = get_pool(dsn)
+        self._workspace_id = int(workspace_id)
 
     def seed_types(self, types: list[OntologyType]) -> None:
-        """Insert types, ignoring any whose name already exists."""
+        """Insert types into this workspace, ignoring duplicates."""
         with self._pool.connection() as conn:
             with conn.cursor() as cur:
                 cur.executemany(
                     load("upsert_ontology_type"),
-                    [(t.name, Json(t.attributes), t.status, t.source)
-                     for t in types],
+                    [(self._workspace_id, t.name, Json(t.attributes),
+                      t.status, t.source) for t in types],
                 )
 
     def list_types(self) -> list[OntologyType]:
-        """Return all known ontology types (grounding for the agent)."""
+        """Return ontology types for the bound workspace."""
         with self._pool.connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(load("select_ontology_types"))
+                cur.execute(load("select_ontology_types"),
+                            (self._workspace_id,))
                 rows = cur.fetchall()
         return [
             OntologyType(name=r[0], attributes=r[1], status=r[2], source=r[3],
@@ -50,14 +52,17 @@ class OntologyStore:
         """Set or clear the parent_type for a type (rdfs:subClassOf)."""
         with self._pool.connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(load("set_ontology_parent"), (parent, name))
-        logger.info("ontology parent set name=%s parent=%s", name, parent)
+                cur.execute(load("set_ontology_parent"),
+                            (parent, self._workspace_id, name))
+        logger.info("ontology parent set ws=%s name=%s parent=%s",
+                    self._workspace_id, name, parent)
 
     def ancestors(self, name: str) -> list[str]:
-        """Return ancestor type names from nearest parent to root (excludes self)."""
+        """Return ancestor type names from nearest parent to root."""
         with self._pool.connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(load("select_type_ancestors"), (name,))
+                cur.execute(load("select_type_ancestors"),
+                            (self._workspace_id, name, self._workspace_id))
                 rows = cur.fetchall()
         return [r[0] for r in rows]
 
@@ -68,8 +73,9 @@ class OntologyStore:
                 cur.executemany(
                     load("insert_schema_mapping"),
                     [
-                        (run_id, m.source_system, m.source_dataset, m.source_field,
-                         m.ontology_type, m.ontology_attribute, m.confidence)
+                        (run_id, m.source_system, m.source_dataset,
+                         m.source_field, m.ontology_type, m.ontology_attribute,
+                         m.confidence)
                         for m in mappings
                     ],
                 )
@@ -78,8 +84,10 @@ class OntologyStore:
         """Approve a proposed type — the human review gate."""
         with self._pool.connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(load("approve_ontology_type"), (name,))
-        logger.info("ontology type approved name=%s", name)
+                cur.execute(load("approve_ontology_type"),
+                            (self._workspace_id, name))
+        logger.info("ontology type approved ws=%s name=%s",
+                    self._workspace_id, name)
 
     def close(self) -> None:
         """No-op: connections are managed by the shared pool (G12)."""

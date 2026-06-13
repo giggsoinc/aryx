@@ -80,7 +80,7 @@ def validate_workspace(workspace_id: int, dsn: str) -> dict[str, Any]:
     if not cardinality_by_type and not domain_axioms:
         return {"axioms_checked": 0, "entities_scanned": 0, "violations": 0}
 
-    onto = OntologyStore(dsn)
+    onto = OntologyStore(dsn, workspace_id)
     try:
         ancestors_of = {t.name: onto.ancestors(t.name)
                         for t in onto.list_types()}

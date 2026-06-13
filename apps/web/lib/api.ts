@@ -26,6 +26,12 @@ export const api = {
   listWorkspaces: () =>
     fetchJSON<Workspace[]>("/admin/workspaces?workspace_id=1"),
 
+  createWorkspace: (name: string, description = "") =>
+    fetchJSON<Workspace>("/admin/workspaces", {
+      method: "POST",
+      body: JSON.stringify({ name, description, context: "" }),
+    }),
+
   ask: (question: string, workspaceId: number, history: unknown[] = []) =>
     fetchJSON<AskResponse>("/ask", {
       method: "POST",

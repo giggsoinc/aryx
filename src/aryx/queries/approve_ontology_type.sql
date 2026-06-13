@@ -1,3 +1,3 @@
 UPDATE aryx_ontology_type
    SET status = 'approved'
- WHERE name = %s
+ WHERE workspace_id = %s AND name = %s

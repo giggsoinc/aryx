@@ -1,7 +1,8 @@
 """Browse helper for the ontology API — types, attrs, relationship counts.
 
-Split out of ontology_api so each module stays within the 150-line budget.
-Returns a single payload used by the Streamlit Ontology Browse tab.
+Workspace-scoped: every entry-point takes the workspace_id and threads it
+through the OntologyStore so DEMO's types never appear in Default and
+vice-versa.
 """
 from __future__ import annotations
 
@@ -12,9 +13,9 @@ from aryx.store.entity_store import EntityStore
 from aryx.store.ontology_store import OntologyStore
 
 
-def approve(name: str) -> dict[str, Any]:
+def approve(name: str, workspace_id: int = 1) -> dict[str, Any]:
     """Approve a proposed ontology type via the HITL gate."""
-    store = OntologyStore(get_settings().rdb_dsn)
+    store = OntologyStore(get_settings().rdb_dsn, workspace_id)
     try:
         store.approve_type(name)
     finally:
@@ -23,12 +24,12 @@ def approve(name: str) -> dict[str, Any]:
 
 
 def add_type(name: str, attributes: Any, status: str = "approved",
-             source: str = "manual") -> dict[str, Any]:
-    """Manually create an ontology type (governance editor entry-point).
+             source: str = "manual",
+             workspace_id: int = 1) -> dict[str, Any]:
+    """Manually create an ontology type in one workspace.
 
     ``attributes`` accepts either a ``list[str]`` of attribute names or a
-    ``dict`` whose keys are attribute names (values ignored). Older callers
-    pass ``{}`` from JSON bodies — coerce to a list so OntologyType validates.
+    ``dict`` whose keys are attribute names (values ignored).
     """
     from aryx.models import OntologyType
     if isinstance(attributes, dict):
@@ -37,7 +38,7 @@ def add_type(name: str, attributes: Any, status: str = "approved",
         attrs = [str(x) for x in attributes]
     else:
         attrs = []
-    store = OntologyStore(get_settings().rdb_dsn)
+    store = OntologyStore(get_settings().rdb_dsn, workspace_id)
     try:
         store.seed_types([OntologyType(name=name, attributes=attrs,
                                        status=status, source=source)])
@@ -63,7 +64,7 @@ def import_doc(content: str, fmt_hint: str, filename: str,
     if not types:
         return {"imported": 0, "types": [], "format": fmt,
                 "message": "no owl:Class / rdfs:Class declarations found"}
-    onto = OntologyStore(get_settings().rdb_dsn)
+    onto = OntologyStore(get_settings().rdb_dsn, workspace_id)
     try:
         onto.seed_types(types)
         for child, parent in hierarchy.items():
@@ -86,9 +87,10 @@ def import_doc(content: str, fmt_hint: str, filename: str,
             "message": "imported as 'proposed' — approve in the review gate"}
 
 
-def set_parent(name: str, parent: str | None) -> dict[str, Any]:
+def set_parent(name: str, parent: str | None,
+                workspace_id: int = 1) -> dict[str, Any]:
     """Set or clear the parent_type for a type (rdfs:subClassOf)."""
-    store = OntologyStore(get_settings().rdb_dsn)
+    store = OntologyStore(get_settings().rdb_dsn, workspace_id)
     try:
         store.set_parent(name, parent)
     finally:
@@ -97,9 +99,9 @@ def set_parent(name: str, parent: str | None) -> dict[str, Any]:
 
 
 def list_browse(workspace_id: int) -> dict[str, Any]:
-    """Return ontology types + relationship counts + entity count for one workspace."""
+    """Return ontology types + relationship counts for one workspace."""
     settings = get_settings()
-    onto = OntologyStore(settings.rdb_dsn)
+    onto = OntologyStore(settings.rdb_dsn, workspace_id)
     try:
         type_objs = onto.list_types()
         type_rows = [t.__dict__ if hasattr(t, "__dict__") else dict(t)
@@ -118,24 +120,20 @@ def list_browse(workspace_id: int) -> dict[str, Any]:
     finally:
         store.close()
     def _field(row: Any, key: str, idx: int) -> str:
-        """Read attr from a dict-row OR tuple-row (entity_store returns tuples)."""
         if isinstance(row, dict):
             return str(row.get(key) or row.get("ontology_type") or "?")
         try:
             return str(row[idx])
         except (IndexError, TypeError):
             return "?"
-
     per_type: dict[str, int] = {}
     for e in ents:
-        key = _field(e, "type", 1)
-        per_type[key] = per_type.get(key, 0) + 1
+        per_type[_field(e, "type", 1)] = per_type.get(_field(e, "type", 1), 0) + 1
     for t in type_rows:
         t["instance_count"] = per_type.get(t.get("name"), 0)
     rel_types: dict[str, int] = {}
     for r in rels:
-        key = _field(r, "name", 2)
-        rel_types[key] = rel_types.get(key, 0) + 1
+        rel_types[_field(r, "name", 2)] = rel_types.get(_field(r, "name", 2), 0) + 1
     return {
         "types": type_rows,
         "relationships": [{"name": k, "count": v} for k, v in rel_types.items()],

@@ -1,10 +1,4 @@
-"""Ontology interchange API — RDF/OWL export + import for third-party tools.
-
-Export reads the canonical Postgres source of truth (entities, relationships,
-ontology types) and serialises on demand; nothing is mutated. Import parses an
-uploaded RDF/OWL document into 'proposed' ontology types that still pass the
-human review gate. The plugin must be enabled in Settings (export_runtime).
-"""
+"""Ontology interchange API — RDF/OWL export + import; ontology CRUD."""
 from __future__ import annotations
 
 import logging
@@ -54,7 +48,7 @@ def _load_bundle(workspace_id: int, include_provenance: bool) -> GraphBundle:
         )
     finally:
         store.close()
-    onto = OntologyStore(settings.rdb_dsn)
+    onto = OntologyStore(settings.rdb_dsn, workspace_id)
     try: bundle.types = onto.list_types()
     finally: onto.close()
     axiom_store = AxiomStore(settings.rdb_dsn)
@@ -92,25 +86,28 @@ def ontology_router() -> APIRouter:
         return _ob.list_browse(workspace_id)
 
     @router.post("/types/{name}/approve")
-    def approve_type(name: str) -> dict:
+    def approve_type(name: str, workspace_id: int = 1) -> dict:
         """Approve a proposed type."""
-        return _ob.approve(name)
+        return _ob.approve(name, workspace_id)
 
     @router.post("/types/{name}/parent")
-    def set_parent(name: str, body: dict) -> dict:
+    def set_parent(name: str, body: dict,
+                    workspace_id: int = 1) -> dict:
         """Set or clear the parent_type for a type (rdfs:subClassOf).
 
         Body: ``{"parent_type": "Vehicle"}`` or ``{"parent_type": null}`` to clear.
         """
         parent = body.get("parent_type")
-        return _ob.set_parent(name, str(parent) if parent else None)
+        return _ob.set_parent(name, str(parent) if parent else None,
+                                workspace_id)
 
     @router.post("/types")
     def add_type(body: dict) -> dict:
-        """Create a new ontology type manually."""
+        """Create a new ontology type manually in one workspace."""
         return _ob.add_type(str(body.get("name", "")).strip(),
                             body.get("attributes") or {},
-                            str(body.get("status", "approved")))
+                            str(body.get("status", "approved")),
+                            workspace_id=int(body.get("workspace_id", 1)))
 
     @router.get("/export")
     def export_graph(workspace_id: int = 1, format: str = "turtle") -> Response:

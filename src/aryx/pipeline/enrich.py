@@ -12,9 +12,9 @@ from aryx.store.ontology_store import OntologyStore
 logger = logging.getLogger(__name__)
 
 
-def _build_type_ancestors(dsn: str) -> dict[str, list[str]]:
+def _build_type_ancestors(dsn: str, workspace_id: int = 1) -> dict[str, list[str]]:
     """Resolve ancestor chains for every declared type via OntologyStore."""
-    ostore = OntologyStore(dsn)
+    ostore = OntologyStore(dsn, workspace_id)
     try:
         types = ostore.list_types()
         out: dict[str, list[str]] = {}
