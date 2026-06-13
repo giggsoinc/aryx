@@ -1,208 +1,166 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aryx — Business View Architecture</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 40px 20px;
-        }
-        .container {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 1200px;
-            padding: 40px;
-        }
-        h1 { text-align: center; color: #1a1a1a; font-size: 32px; margin-bottom: 10px; }
-        .subtitle { text-align: center; color: #666; font-size: 16px; margin-bottom: 40px; }
-        svg { display: block; margin: 0 auto; width: 100%; max-width: 1100px; }
-        .box { stroke: #667eea; stroke-width: 2; fill: #f0f4ff; transition: all 0.3s ease; }
-        .box:hover { fill: #e6edff; stroke: #764ba2; filter: drop-shadow(0 4px 12px rgba(102, 126, 234, 0.3)); }
-        .icon { font-size: 32px; font-weight: bold; }
-        .label { font-weight: 600; fill: #1a1a1a; font-size: 14px; }
-        .description { fill: #555; font-size: 12px; }
-        .arrow { stroke: #999; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
-        .pipeline-box { stroke: #10b981; stroke-width: 2; fill: #f0fdf4; transition: all 0.3s ease; }
-        .pipeline-box:hover { fill: #dcfce7; stroke: #059669; filter: drop-shadow(0 4px 12px rgba(16, 185, 129, 0.3)); }
-        .hitl-box { stroke: #f59e0b; stroke-width: 2; fill: #fffbeb; transition: all 0.3s ease; }
-        .hitl-box:hover { fill: #fef3c7; stroke: #d97706; filter: drop-shadow(0 4px 12px rgba(245, 158, 11, 0.3)); }
-        .action-box { stroke: #ef4444; stroke-width: 2; fill: #fef2f2; transition: all 0.3s ease; }
-        .action-box:hover { fill: #fee2e2; stroke: #dc2626; filter: drop-shadow(0 4px 12px rgba(239, 68, 68, 0.3)); }
-        .pipeline-label { fill: #10b981; font-weight: 700; font-size: 12px; }
-        .hitl-label { fill: #b45309; font-weight: 700; font-size: 12px; }
-        .action-label { fill: #dc2626; font-weight: 700; font-size: 12px; }
-        .legend { margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; font-size: 13px; }
-        .legend-item { display: flex; align-items: center; gap: 10px; padding: 8px; background: #f9fafb; border-radius: 6px; }
-        .legend-box { width: 20px; height: 20px; border-radius: 4px; border: 2px solid; }
-        .user-path { border-color: #667eea; background: #f0f4ff; }
-        .backend-path { border-color: #10b981; background: #f0fdf4; }
-        .hitl-path { border-color: #f59e0b; background: #fffbeb; }
-        .action-path { border-color: #ef4444; background: #fef2f2; }
-        .footer { margin-top: 20px; text-align: center; color: #999; font-size: 12px; }
-    </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Aryx · Business View</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy-50:#F2F5FB; --navy-100:#E4EAF4; --navy-200:#C2CFE3;
+    --navy-300:#94A8CB; --navy-500:#3A578C; --navy-700:#1A2F55;
+    --navy-800:#0F1F3D; --navy-900:#0A1530;
+    --steel-400:#5F8AD2; --steel-500:#4068A8; --steel-600:#2D4B8A;
+    --canvas:#F8F9FC; --ink:#0F1726; --subtle:#5A6478;
+    --amber:#F59E0B; --emerald:#10B981;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: var(--canvas); color: var(--ink); -webkit-font-smoothing: antialiased; padding: 56px 24px; }
+  .wrap { max-width: 1200px; margin: 0 auto; }
+  header { text-align: center; padding-bottom: 36px; border-bottom: 1px solid var(--navy-100); }
+  .brand { display: inline-flex; align-items: center; gap: 12px; }
+  .brand img { width: 38px; height: 38px; }
+  .brand .name { font-weight: 600; letter-spacing: 0.32em; color: var(--navy-900); font-size: 15px; }
+  h1 { font-family: 'Fraunces', Georgia, serif; font-size: 2.3rem; color: var(--navy-900); margin-top: 18px; letter-spacing: -0.01em; }
+  .sub { color: var(--subtle); font-size: 15px; margin-top: 8px; max-width: 640px; margin-left: auto; margin-right: auto; line-height: 1.55; }
+  section { margin-top: 56px; }
+  h2 { font-family: 'Fraunces', Georgia, serif; font-size: 1.4rem; color: var(--navy-900); margin-bottom: 18px; }
+
+  /* Three-track journey diagram */
+  .journey { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 22px; }
+  .track { background: white; border: 1px solid var(--navy-100); border-radius: 18px; padding: 26px 22px; box-shadow: 0 1px 2px rgba(10,21,48,0.04), 0 8px 24px rgba(10,21,48,0.05); }
+  .track .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+  .badge.flow { background: #DBEAFE; color: #1E40AF; }
+  .badge.actor { background: #FEF3C7; color: #92400E; }
+  .badge.agent { background: #DCFCE7; color: #166534; }
+  .track h3 { font-family: 'Fraunces', serif; font-size: 1.15rem; color: var(--navy-900); margin-top: 10px; }
+  .track .lede { color: var(--subtle); font-size: 12px; margin-top: 6px; line-height: 1.45; }
+  .steps { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+  .step { display: flex; gap: 10px; align-items: flex-start; }
+  .step .n { flex: 0 0 24px; height: 24px; border-radius: 8px; background: var(--navy-50); color: var(--navy-700); font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; }
+  .step .t { font-size: 13px; color: var(--navy-900); font-weight: 500; }
+  .step .d { font-size: 11px; color: var(--subtle); margin-top: 2px; }
+
+  /* Pipeline strip */
+  .pipeline { display: flex; gap: 1px; margin-top: 14px; overflow-x: auto; padding-bottom: 6px; }
+  .pl-step { flex: 1; min-width: 110px; background: white; border: 1px solid var(--navy-100); border-radius: 12px; padding: 12px 8px; text-align: center; }
+  .pl-step .ico { font-size: 20px; }
+  .pl-step .t { font-size: 11.5px; font-weight: 700; color: var(--navy-900); margin-top: 4px; }
+  .pl-step .d { font-size: 10px; color: var(--subtle); margin-top: 2px; line-height: 1.3; }
+  .pl-arrow { display: flex; align-items: center; color: var(--navy-300); font-size: 18px; padding: 0 1px; }
+
+  /* HITL band */
+  .hitl { margin-top: 22px; padding: 16px 20px; background: #FFFBEB; border: 1px solid #FCD34D; border-radius: 14px; display: flex; gap: 14px; align-items: flex-start; }
+  .hitl .glyph { font-size: 24px; }
+  .hitl strong { color: #92400E; }
+  .hitl p { color: #78350F; font-size: 13px; line-height: 1.5; margin-top: 2px; }
+
+  /* Surfaces tile */
+  .surfaces { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .surface { background: white; border: 1px solid var(--navy-100); border-radius: 14px; padding: 20px; text-align: center; }
+  .surface .ico { font-size: 28px; }
+  .surface .label { margin-top: 10px; font-weight: 600; color: var(--navy-900); }
+  .surface .hint { margin-top: 4px; font-size: 12px; color: var(--subtle); }
+  .surface .url { margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--steel-600); background: var(--navy-50); padding: 3px 8px; border-radius: 6px; display: inline-block; }
+
+  footer { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--navy-100); text-align: center; color: var(--subtle); font-size: 12px; }
+</style>
 </head>
 <body>
-    <div class="container">
-        <h1>Aryx — Business View Architecture</h1>
-        <p class="subtitle">User paths, HITL gates, and the knowledge graph</p>
+<div class="wrap">
 
-        <svg viewBox="0 0 1100 820" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-                <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-                    <polygon points="0 0, 10 3, 0 6" fill="#999"/>
-                </marker>
-                <marker id="arrowhead-amber" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-                    <polygon points="0 0, 10 3, 0 6" fill="#f59e0b"/>
-                </marker>
-            </defs>
-
-            <text x="550" y="30" text-anchor="middle" style="font-size: 20px; font-weight: bold; fill: #1a1a1a;">ARYX PLATFORM</text>
-
-            <!-- Four User Paths -->
-            <g id="ingest-path">
-                <rect x="30" y="60" width="140" height="100" rx="8" class="box"/>
-                <text x="100" y="90" text-anchor="middle" class="icon">📥</text>
-                <text x="100" y="115" text-anchor="middle" class="label">INGEST</text>
-                <text x="100" y="135" text-anchor="middle" class="description">Database</text>
-                <text x="100" y="148" text-anchor="middle" class="description">Documents</text>
-            </g>
-
-            <g id="ask-path">
-                <rect x="290" y="60" width="140" height="100" rx="8" class="box"/>
-                <text x="360" y="90" text-anchor="middle" class="icon">💬</text>
-                <text x="360" y="115" text-anchor="middle" class="label">ASK</text>
-                <text x="360" y="135" text-anchor="middle" class="description">Natural</text>
-                <text x="360" y="148" text-anchor="middle" class="description">Language</text>
-            </g>
-
-            <g id="graph-path">
-                <rect x="550" y="60" width="140" height="100" rx="8" class="box"/>
-                <text x="620" y="90" text-anchor="middle" class="icon">📊</text>
-                <text x="620" y="115" text-anchor="middle" class="label">GRAPH</text>
-                <text x="620" y="135" text-anchor="middle" class="description">Visual</text>
-                <text x="620" y="148" text-anchor="middle" class="description">Explorer</text>
-            </g>
-
-            <g id="mcp-path">
-                <rect x="810" y="60" width="140" height="100" rx="8" class="box"/>
-                <text x="880" y="90" text-anchor="middle" class="icon">🤖</text>
-                <text x="880" y="115" text-anchor="middle" class="label">MCP</text>
-                <text x="880" y="135" text-anchor="middle" class="description">AI Agent</text>
-                <text x="880" y="148" text-anchor="middle" class="description">Tools</text>
-            </g>
-
-            <!-- Arrows down -->
-            <line x1="100" y1="160" x2="100" y2="210" class="arrow"/>
-            <line x1="360" y1="160" x2="360" y2="380" class="arrow"/>
-            <line x1="620" y1="160" x2="620" y2="380" class="arrow"/>
-            <line x1="880" y1="160" x2="880" y2="210" class="arrow"/>
-
-            <!-- Backend Pipeline (Ingest) -->
-            <g id="ingest-backend">
-                <rect x="20" y="220" width="160" height="130" rx="8" class="pipeline-box"/>
-                <text x="100" y="245" text-anchor="middle" class="pipeline-label">RESOLVE</text>
-                <text x="100" y="265" text-anchor="middle" class="description">Block (multi-key)</text>
-                <text x="100" y="280" text-anchor="middle" class="description">Score (cheap LLM)</text>
-                <text x="100" y="295" text-anchor="middle" class="description">Route (4 bands)</text>
-                <text x="100" y="310" text-anchor="middle" class="description">Cluster + merge</text>
-                <text x="100" y="325" text-anchor="middle" class="description">Golden record</text>
-            </g>
-
-            <!-- HITL: Adjudication Queue -->
-            <g id="hitl-queue">
-                <rect x="220" y="220" width="200" height="100" rx="8" class="hitl-box"/>
-                <text x="320" y="248" text-anchor="middle" class="hitl-label">HUMAN-IN-THE-LOOP</text>
-                <text x="320" y="268" text-anchor="middle" class="description">Ambiguous pairs (0.75-0.90)</text>
-                <text x="320" y="283" text-anchor="middle" class="description">Steward approve / reject</text>
-                <text x="320" y="298" text-anchor="middle" class="description">Labeled training data</text>
-            </g>
-
-            <!-- Arrow from resolve to HITL -->
-            <line x1="180" y1="270" x2="220" y2="270" class="arrow" style="stroke: #f59e0b; marker-end: url(#arrowhead-amber);"/>
-
-            <!-- HITL back to resolve -->
-            <path d="M 320 320 L 320 360 L 100 360 L 100 350" class="arrow" style="stroke: #f59e0b; marker-end: url(#arrowhead-amber);"/>
-            <text x="210" y="373" text-anchor="middle" style="font-size: 10px; fill: #b45309; font-style: italic;">decisions feed back</text>
-
-            <!-- Action Layer -->
-            <g id="action-layer">
-                <rect x="720" y="220" width="200" height="100" rx="8" class="action-box"/>
-                <text x="820" y="248" text-anchor="middle" class="action-label">ACTIONS</text>
-                <text x="820" y="268" text-anchor="middle" class="description">Guard → params → effects</text>
-                <text x="820" y="283" text-anchor="middle" class="description">Human approval gate</text>
-                <text x="820" y="298" text-anchor="middle" class="description">Before/after audit log</text>
-            </g>
-
-            <!-- Arrows converging to knowledge graph -->
-            <line x1="100" y1="350" x2="350" y2="540" class="arrow"/>
-            <line x1="360" y1="380" x2="430" y2="540" class="arrow"/>
-            <line x1="620" y1="380" x2="570" y2="540" class="arrow"/>
-            <line x1="820" y1="320" x2="650" y2="540" class="arrow"/>
-
-            <!-- Confidence annotation -->
-            <g id="confidence-note">
-                <rect x="460" y="420" width="180" height="60" rx="6" style="fill: #f0f9ff; stroke: #3b82f6; stroke-width: 1; stroke-dasharray: 4 2;"/>
-                <text x="550" y="442" text-anchor="middle" style="font-size: 11px; fill: #1d4ed8; font-weight: 600;">Confidence scores</text>
-                <text x="550" y="458" text-anchor="middle" style="font-size: 10px; fill: #3b82f6;">Every entity: [0.5, 0.99]</text>
-                <text x="550" y="472" text-anchor="middle" style="font-size: 10px; fill: #3b82f6;">Weakest merge-edge</text>
-            </g>
-
-            <!-- Central Knowledge Graph Box -->
-            <rect x="330" y="540" width="340" height="130" rx="8" style="stroke: #f59e0b; stroke-width: 3; fill: #fffbeb;"/>
-            <text x="500" y="570" text-anchor="middle" style="font-size: 24px;">🗄️</text>
-            <text x="500" y="595" text-anchor="middle" style="fill: #b45309; font-weight: 700; font-size: 14px;">KNOWLEDGE GRAPH</text>
-            <text x="500" y="615" text-anchor="middle" class="description">Entities (with confidence) · Relationships</text>
-            <text x="500" y="633" text-anchor="middle" class="description">Provenance · Conflict audit · Searchable</text>
-            <text x="500" y="655" text-anchor="middle" style="font-size: 11px; fill: #92400e; font-weight: 600;">Single source of truth — Postgres-first, FalkorDB projection</text>
-
-            <!-- Survivorship annotation -->
-            <g id="survivorship-note">
-                <rect x="30" y="420" width="200" height="70" rx="6" style="fill: #f0fdf4; stroke: #10b981; stroke-width: 1; stroke-dasharray: 4 2;"/>
-                <text x="130" y="442" text-anchor="middle" style="font-size: 11px; fill: #059669; font-weight: 600;">Survivorship policies</text>
-                <text x="130" y="458" text-anchor="middle" style="font-size: 10px; fill: #059669;">source_priority · most_recent</text>
-                <text x="130" y="472" text-anchor="middle" style="font-size: 10px; fill: #059669;">most_complete · most_frequent</text>
-                <text x="130" y="484" text-anchor="middle" style="font-size: 10px; fill: #059669;">Per-attribute overrides</text>
-            </g>
-
-            <!-- Projection mode annotation -->
-            <g id="projection-note">
-                <rect x="770" y="420" width="180" height="55" rx="6" style="fill: #faf5ff; stroke: #8b5cf6; stroke-width: 1; stroke-dasharray: 4 2;"/>
-                <text x="860" y="442" text-anchor="middle" style="font-size: 11px; fill: #7c3aed; font-weight: 600;">Projection</text>
-                <text x="860" y="458" text-anchor="middle" style="font-size: 10px; fill: #7c3aed;">Auto: full or incremental</text>
-                <text x="860" y="470" text-anchor="middle" style="font-size: 10px; fill: #7c3aed;">&lt;30% dirty → incremental</text>
-            </g>
-        </svg>
-
-        <div style="margin-top: 30px; padding: 20px; background: #f9fafb; border-radius: 8px;">
-            <h3 style="color: #1a1a1a; margin-bottom: 15px; font-size: 16px;">How It Works</h3>
-            <ul style="list-style-position: inside; color: #555; line-height: 1.8;">
-                <li><strong>Ingest path:</strong> Connect database or upload files → auto-discover entity types → resolve duplicates via four-band funnel → build graph</li>
-                <li><strong>Ask path:</strong> Natural-language question → LLM retrieves entities, reasons, returns answer with source provenance</li>
-                <li><strong>Graph path:</strong> Explore entities visually → drill down to relationships, confidence scores, provenance chain</li>
-                <li><strong>MCP path:</strong> AI agents browse (list), query (ask), or request mutations (act) — actions always require human approval</li>
-                <li><strong>HITL loop:</strong> Ambiguous pairs queue for human steward; decisions persist as labeled training data (data moat)</li>
-                <li><strong>Actions:</strong> Declarative mutations with guard conditions, human approval gate, and full audit trail</li>
-            </ul>
-        </div>
-
-        <div class="legend">
-            <div class="legend-item"><div class="legend-box user-path"></div><span><strong>User:</strong> Interface</span></div>
-            <div class="legend-item"><div class="legend-box backend-path"></div><span><strong>Backend:</strong> Pipeline</span></div>
-            <div class="legend-item"><div class="legend-box hitl-path"></div><span><strong>HITL:</strong> Human gate</span></div>
-            <div class="legend-item"><div class="legend-box action-path"></div><span><strong>Action:</strong> Mutations</span></div>
-        </div>
-
-        <div class="footer">Aryx Knowledge Graph Platform — Business View Architecture</div>
+  <header>
+    <div class="brand">
+      <img src="aryx-logo.png" alt="Aryx" />
+      <span class="name">A R Y X</span>
     </div>
+    <h1>Business view · How Aryx works</h1>
+    <p class="sub">
+      Aryx connects your data from a business thinking view &mdash; a discovery-driven knowledge graph
+      built on auto-discovered ontology frameworks. Three audiences, one knowledge graph.
+    </p>
+  </header>
+
+  <section>
+    <h2>The journey</h2>
+    <div class="journey">
+      <div class="track">
+        <span class="badge actor">Domain expert</span>
+        <h3>Tell Aryx your goals</h3>
+        <p class="lede">No data model upfront. State your objectives; the model emerges.</p>
+        <div class="steps">
+          <div class="step"><span class="n">1</span><div><div class="t">Describe what you want to figure out</div><div class="d">2–5 questions or KPIs in plain English.</div></div></div>
+          <div class="step"><span class="n">2</span><div><div class="t">Confirm the AI's draft brief</div><div class="d">Domain, aim, in/out of scope &mdash; one-click approve or edit.</div></div></div>
+          <div class="step"><span class="n">3</span><div><div class="t">Pick your data sources</div><div class="d">Database + files + manual records. Tick any that apply.</div></div></div>
+        </div>
+      </div>
+
+      <div class="track">
+        <span class="badge flow">Pipeline</span>
+        <h3>Aryx discovers the model</h3>
+        <p class="lede">Read &rarr; clean &rarr; link. You stay in the loop on anything ambiguous.</p>
+        <div class="pipeline">
+          <div class="pl-step"><div class="ico">📥</div><div class="t">Read</div><div class="d">stream sources</div></div>
+          <div class="pl-arrow">›</div>
+          <div class="pl-step"><div class="ico">🏷</div><div class="t">Tag</div><div class="d">field meanings</div></div>
+          <div class="pl-arrow">›</div>
+          <div class="pl-step"><div class="ico">🧩</div><div class="t">Dedupe</div><div class="d">same → one</div></div>
+          <div class="pl-arrow">›</div>
+          <div class="pl-step"><div class="ico">🔗</div><div class="t">Link</div><div class="d">relationships</div></div>
+          <div class="pl-arrow">›</div>
+          <div class="pl-step"><div class="ico">🗺</div><div class="t">Map</div><div class="d">queryable graph</div></div>
+        </div>
+        <div class="hitl">
+          <div class="glyph">❓</div>
+          <div>
+            <strong>Human-in-the-loop</strong>
+            <p>When Aryx isn't sure &mdash; <em>"Is Customer the same as Account?"</em> &mdash; it pauses and asks. You answer in the bell drawer; pipeline unblocks.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="track">
+        <span class="badge agent">Consumer</span>
+        <h3>Ask &mdash; or have an agent ask</h3>
+        <p class="lede">Plain-English questions; cited answers. Drive everything from chat or canvas.</p>
+        <div class="steps">
+          <div class="step"><span class="n">1</span><div><div class="t">Ask a question</div><div class="d">"Which agents resolve network tickets fastest?" → grounded answer.</div></div></div>
+          <div class="step"><span class="n">2</span><div><div class="t">Explore the map</div><div class="d">Pan / zoom / click; inspector reveals fields, duplicates, rules.</div></div></div>
+          <div class="step"><span class="n">3</span><div><div class="t">Drive via Claude Desktop (MCP)</div><div class="d">21 tools — agent can run the whole flow without touching the UI.</div></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Three surfaces, one knowledge graph</h2>
+    <div class="surfaces">
+      <div class="surface">
+        <div class="ico">✨</div>
+        <div class="label">Start</div>
+        <div class="hint">Guided 7-step setup</div>
+        <div class="url">/start</div>
+      </div>
+      <div class="surface">
+        <div class="ico">💬</div>
+        <div class="label">Ask</div>
+        <div class="hint">Chat over your graph</div>
+        <div class="url">/</div>
+      </div>
+      <div class="surface">
+        <div class="ico">🗺</div>
+        <div class="label">Model</div>
+        <div class="hint">Canvas + inspector</div>
+        <div class="url">/model</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Aryx &mdash; A Fortress of Structured Knowledge &middot; business view
+  </footer>
+</div>
 </body>
 </html>

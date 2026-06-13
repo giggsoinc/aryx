@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Aryx · A Fortress of Structured Knowledge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy-50:#F2F5FB; --navy-100:#E4EAF4; --navy-200:#C2CFE3;
+    --navy-300:#94A8CB; --navy-500:#3A578C; --navy-700:#1A2F55;
+    --navy-800:#0F1F3D; --navy-900:#0A1530; --navy-950:#050B1C;
+    --steel-400:#5F8AD2; --steel-500:#4068A8; --steel-600:#2D4B8A;
+    --canvas:#F8F9FC; --ink:#0F1726; --subtle:#5A6478;
+    --emerald:#10B981; --amber:#F59E0B;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { scroll-behavior: smooth; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: var(--canvas); color: var(--ink); -webkit-font-smoothing: antialiased; line-height: 1.55; }
+
+  /* Top bar */
+  .topbar { position: sticky; top: 0; z-index: 50; background: rgba(248,249,252,0.85); backdrop-filter: blur(10px); border-bottom: 1px solid var(--navy-100); }
+  .topbar-inner { max-width: 1180px; margin: 0 auto; padding: 14px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .brand { display: inline-flex; align-items: center; gap: 12px; }
+  .brand img { width: 32px; height: 32px; }
+  .brand .name { font-weight: 600; letter-spacing: 0.28em; color: var(--navy-900); font-size: 13px; }
+  .nav { display: flex; gap: 22px; font-size: 13px; }
+  .nav a { color: var(--subtle); text-decoration: none; font-weight: 500; }
+  .nav a:hover { color: var(--navy-800); }
+
+  /* Hero */
+  .hero { padding: 88px 32px 64px; text-align: center; max-width: 880px; margin: 0 auto; }
+  .hero img.logo { width: 78px; height: 78px; }
+  .hero h1 { font-family: 'Fraunces', Georgia, serif; font-size: 3.1rem; line-height: 1.08; letter-spacing: -0.015em; color: var(--navy-900); margin-top: 28px; }
+  .hero .pos { font-size: 16px; font-style: italic; color: var(--steel-600); margin-top: 18px; max-width: 640px; margin-left: auto; margin-right: auto; }
+  .hero .cta { margin-top: 36px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 14px 22px; border-radius: 14px; font-weight: 600; font-size: 14px; text-decoration: none; transition: all 0.15s; }
+  .btn.primary { background: var(--navy-800); color: white; }
+  .btn.primary:hover { background: var(--navy-700); }
+  .btn.ghost { background: white; color: var(--navy-700); border: 1.5px solid var(--navy-100); }
+  .btn.ghost:hover { border-color: var(--steel-500); }
+
+  /* Section base */
+  section { max-width: 1080px; margin: 80px auto; padding: 0 32px; }
+  .sec-label { display: inline-block; padding: 4px 12px; border-radius: 999px; background: var(--navy-50); color: var(--navy-700); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+  h2.sec-h { font-family: 'Fraunces', Georgia, serif; font-size: 2rem; color: var(--navy-900); margin-top: 14px; letter-spacing: -0.01em; }
+  .sec-lede { color: var(--subtle); font-size: 15px; max-width: 600px; margin-top: 8px; }
+
+  /* How it works */
+  .how { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 32px; }
+  .step-card { background: white; border: 1px solid var(--navy-100); border-radius: 18px; padding: 24px 22px; }
+  .step-card .n { width: 32px; height: 32px; border-radius: 10px; background: var(--navy-800); color: white; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; }
+  .step-card h3 { font-family: 'Fraunces', serif; font-size: 1.05rem; margin-top: 14px; color: var(--navy-900); }
+  .step-card p { font-size: 13px; color: var(--subtle); margin-top: 6px; }
+
+  /* Feature grid */
+  .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 32px; }
+  .feat { background: white; border: 1px solid var(--navy-100); border-radius: 16px; padding: 22px; }
+  .feat .ico { width: 38px; height: 38px; border-radius: 10px; background: var(--navy-50); color: var(--steel-600); font-size: 18px; display: inline-flex; align-items: center; justify-content: center; }
+  .feat h4 { font-size: 14px; font-weight: 700; color: var(--navy-900); margin-top: 12px; }
+  .feat p { font-size: 12.5px; color: var(--subtle); margin-top: 4px; line-height: 1.5; }
+  .feat .mono { display: inline-block; margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 10px; background: var(--navy-50); color: var(--steel-600); padding: 2px 8px; border-radius: 6px; }
+
+  /* Architecture preview */
+  .arch { background: white; border: 1px solid var(--navy-100); border-radius: 22px; padding: 26px; margin-top: 32px; }
+  .arch-layer { display: flex; align-items: center; gap: 14px; padding: 14px 4px; border-bottom: 1px dashed var(--navy-100); }
+  .arch-layer:last-child { border-bottom: none; }
+  .arch-layer .badge { flex: 0 0 110px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--navy-700); background: var(--navy-50); padding: 6px 10px; border-radius: 8px; text-align: center; }
+  .arch-layer .items { flex: 1; display: flex; gap: 8px; flex-wrap: wrap; }
+  .arch-layer .pill { background: var(--canvas); border: 1px solid var(--navy-100); padding: 6px 12px; border-radius: 999px; font-size: 12px; color: var(--navy-800); }
+  .arch-layer .pill code { font-family: 'JetBrains Mono', monospace; font-size: 10px; background: var(--navy-50); padding: 2px 6px; border-radius: 4px; margin-left: 6px; color: var(--steel-600); }
+
+  /* Demo cards */
+  .demos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 32px; }
+  .demo { background: linear-gradient(180deg, white 0%, var(--navy-50) 100%); border: 1px solid var(--navy-100); border-radius: 18px; padding: 26px; text-decoration: none; color: inherit; transition: all 0.2s; }
+  .demo:hover { border-color: var(--steel-500); transform: translateY(-2px); box-shadow: 0 12px 28px rgba(64,104,168,0.12); }
+  .demo .ico { font-size: 32px; }
+  .demo h4 { font-family: 'Fraunces', serif; font-size: 1.2rem; margin-top: 12px; color: var(--navy-900); }
+  .demo p { font-size: 13px; color: var(--subtle); margin-top: 6px; }
+  .demo code { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: white; border: 1px solid var(--navy-100); padding: 4px 10px; border-radius: 6px; margin-top: 12px; display: inline-block; color: var(--steel-600); }
+
+  /* Quickstart */
+  .qs { background: var(--navy-950); color: #C2CFE3; border-radius: 18px; padding: 28px 30px; margin-top: 32px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.7; overflow-x: auto; }
+  .qs .cmt { color: #5F8AD2; }
+  .qs .cmd::before { content: "$ "; color: var(--steel-400); }
+
+  /* Stats */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 30px; }
+  .stat { background: white; border: 1px solid var(--navy-100); border-radius: 14px; padding: 22px; text-align: center; }
+  .stat .n { font-family: 'Fraunces', serif; font-weight: 600; font-size: 2rem; color: var(--navy-900); }
+  .stat .l { color: var(--subtle); font-size: 12px; margin-top: 4px; }
+
+  footer { border-top: 1px solid var(--navy-100); padding: 36px 32px; text-align: center; color: var(--subtle); font-size: 12px; margin-top: 80px; }
+  footer .brand-mini { display: inline-flex; align-items: center; gap: 8px; }
+  footer .brand-mini img { width: 22px; height: 22px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <a href="#top" class="brand">
+      <img src="aryx-logo.png" alt="Aryx" />
+      <span class="name">A R Y X</span>
+    </a>
+    <nav class="nav">
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#demo">Demo</a>
+      <a href="#quickstart">Quickstart</a>
+    </nav>
+  </div>
+</div>
+
+<a id="top"></a>
+<section class="hero">
+  <img class="logo" src="aryx-logo.png" alt="Aryx" />
+  <h1>Aryx connects your data from a&nbsp;business&nbsp;thinking&nbsp;view.</h1>
+  <p class="pos">
+    A discovery-driven knowledge graph built on auto-discovered ontology
+    frameworks. The structure emerges from your data and your goals,
+    instead of being designed in advance.
+  </p>
+  <div class="cta">
+    <a class="btn primary" href="#demo">See it running &rarr;</a>
+    <a class="btn ghost" href="#quickstart">Quickstart</a>
+  </div>
+</section>
+
+<section id="how">
+  <span class="sec-label">How it works</span>
+  <h2 class="sec-h">Four steps. You stay in control.</h2>
+  <p class="sec-lede">No data model upfront. State your goals; Aryx proposes the structure, you approve and tweak.</p>
+  <div class="how">
+    <div class="step-card">
+      <span class="n">1</span>
+      <h3>Tell Aryx what you want to figure out</h3>
+      <p>List 2–5 questions or goals. Plain English. The nouns become your data model.</p>
+    </div>
+    <div class="step-card">
+      <span class="n">2</span>
+      <h3>Point Aryx at your data</h3>
+      <p>Database, files, APIs — whatever you have. Mix and match.</p>
+    </div>
+    <div class="step-card">
+      <span class="n">3</span>
+      <h3>Aryx proposes the model</h3>
+      <p>Records get deduped, things get linked. You answer anything ambiguous from a side drawer.</p>
+    </div>
+    <div class="step-card">
+      <span class="n">4</span>
+      <h3>You ask, Aryx answers</h3>
+      <p>Plain English questions. Every answer cites the records behind it.</p>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <span class="sec-label">What's inside</span>
+  <h2 class="sec-h">Everything an enterprise knowledge graph needs &mdash; and a few things that didn't exist before.</h2>
+  <div class="features">
+    <div class="feat">
+      <div class="ico">✨</div>
+      <h4>Guided onboarding</h4>
+      <p>Goals → confirm → sources → connect → run → ready. Seven screens, one decision each. Zero ontology vocabulary required.</p>
+      <span class="mono">/start</span>
+    </div>
+    <div class="feat">
+      <div class="ico">💬</div>
+      <h4>Chat with citations</h4>
+      <p>Streaming answers over the graph. Every entity referenced is clickable; provenance threads back to the source record.</p>
+      <span class="mono">/</span>
+    </div>
+    <div class="feat">
+      <div class="ico">🗺</div>
+      <h4>Visual modelling canvas</h4>
+      <p>React Flow canvas — types as cards, relationships as edges. Inspector exposes fields, survivorship, axioms, rules.</p>
+      <span class="mono">/model</span>
+    </div>
+    <div class="feat">
+      <div class="ico">🔔</div>
+      <h4>Human-in-the-loop queue</h4>
+      <p>When the pipeline isn't sure, it pauses and asks. Bell badge surfaces pending questions on every surface.</p>
+      <span class="mono">Slice 3</span>
+    </div>
+    <div class="feat">
+      <div class="ico">🤖</div>
+      <h4>21 MCP tools</h4>
+      <p>Workspace · brief · datasource · ingest · ontology · ask · act · export. Drive Aryx from Claude Desktop or any MCP host.</p>
+      <span class="mono">port 8765</span>
+    </div>
+    <div class="feat">
+      <div class="ico">🔐</div>
+      <h4>Fernet-encrypted secrets</h4>
+      <p>Database passwords encrypted before they touch disk. Key lives in env only. Mask-only responses; audit log on every decrypt.</p>
+      <span class="mono">Slice 2</span>
+    </div>
+    <div class="feat">
+      <div class="ico">🧩</div>
+      <h4>Entity resolution funnel</h4>
+      <p>Block → score → adjudicate → cluster. Four-way band routing. Chunked + resumable for billion-row sources.</p>
+      <span class="mono">G1 · G5 · G7 · G10</span>
+    </div>
+    <div class="feat">
+      <div class="ico">📐</div>
+      <h4>Survivorship policies</h4>
+      <p>Per-attribute merge rules — first-non-empty, source-priority, most-recent, most-complete, most-frequent. Conflict audit trail.</p>
+      <span class="mono">G3x</span>
+    </div>
+    <div class="feat">
+      <div class="ico">⚡</div>
+      <h4>Incremental projection</h4>
+      <p>Postgres dirty-set drives FalkorDB updates. Sub-30% dirty → incremental; over → full rebuild. Watermarked.</p>
+      <span class="mono">G8</span>
+    </div>
+    <div class="feat">
+      <div class="ico">🚀</div>
+      <h4>Action layer (kinetic)</h4>
+      <p>Declarative JSON DSL with guard. Postgres-first writes, full before/after audit. Agent requests always-pending for human approval.</p>
+      <span class="mono">G13</span>
+    </div>
+    <div class="feat">
+      <div class="ico">📤</div>
+      <h4>Export anywhere</h4>
+      <p>Ontology + entities to Postgres / MySQL / Neo4j / Turtle / JSON-LD. Bring your own destination.</p>
+      <span class="mono">Slice 4</span>
+    </div>
+    <div class="feat">
+      <div class="ico">🎯</div>
+      <h4>Live model routing</h4>
+      <p>Local Ollama for cheap stages, frontier (Claude / GPT / Gemini) for hard adjudication. Swap providers without restart.</p>
+      <span class="mono">/settings</span>
+    </div>
+  </div>
+</section>
+
+<section id="architecture">
+  <span class="sec-label">Architecture</span>
+  <h2 class="sec-h">Four layers, replaceable per layer.</h2>
+  <p class="sec-lede">The web app is fully isolated &mdash; it talks to FastAPI only via JSON. Postgres is the source of truth; FalkorDB is a rebuildable projection.</p>
+  <div class="arch">
+    <div class="arch-layer">
+      <span class="badge">UI</span>
+      <div class="items">
+        <span class="pill">Next.js wizard <code>:3000/start</code></span>
+        <span class="pill">Ask <code>:3000/</code></span>
+        <span class="pill">Model <code>:3000/model</code></span>
+        <span class="pill">Streamlit admin <code>:8501</code></span>
+        <span class="pill">Claude Desktop · MCP</span>
+      </div>
+    </div>
+    <div class="arch-layer">
+      <span class="badge">API</span>
+      <div class="items">
+        <span class="pill">FastAPI <code>:8088</code> · 24 routers</span>
+        <span class="pill">MCP server <code>:8765</code> · 21 tools</span>
+      </div>
+    </div>
+    <div class="arch-layer">
+      <span class="badge">Pipeline</span>
+      <div class="items">
+        <span class="pill">Connect</span>
+        <span class="pill">Extract</span>
+        <span class="pill">Land</span>
+        <span class="pill">Tag</span>
+        <span class="pill">Resolve · block → score → adjudicate → cluster</span>
+        <span class="pill">Relate</span>
+        <span class="pill">Project</span>
+      </div>
+    </div>
+    <div class="arch-layer">
+      <span class="badge">Storage</span>
+      <div class="items">
+        <span class="pill">PostgreSQL 16 · partitioned <code>:5432</code></span>
+        <span class="pill">FalkorDB · graph per workspace <code>:6379</code></span>
+        <span class="pill">Ollama · local LLM <code>:11434</code></span>
+        <span class="pill">Fernet keyring · ARYX_SECRET_KEY</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="n">21</div><div class="l">MCP tools</div></div>
+    <div class="stat"><div class="n">24</div><div class="l">FastAPI routers</div></div>
+    <div class="stat"><div class="n">26</div><div class="l">DB migrations</div></div>
+    <div class="stat"><div class="n">3</div><div class="l">Web surfaces</div></div>
+  </div>
+</section>
+
+<section id="demo">
+  <span class="sec-label">Live demo</span>
+  <h2 class="sec-h">See it running on EC2.</h2>
+  <p class="sec-lede">A loaded workspace: 527 entities · 5 record kinds · 5 declared relationships. Open in three browser tabs to see the same graph from every angle.</p>
+  <div class="demos">
+    <a class="demo" href="http://ec2-3-91-73-197.compute-1.amazonaws.com:3000/start">
+      <div class="ico">✨</div>
+      <h4>Guided setup</h4>
+      <p>The 7-screen wizard. New workspaces always land here.</p>
+      <code>:3000/start</code>
+    </a>
+    <a class="demo" href="http://ec2-3-91-73-197.compute-1.amazonaws.com:3000/">
+      <div class="ico">💬</div>
+      <h4>Ask the graph</h4>
+      <p>Chat with streaming answers and citation pills.</p>
+      <code>:3000/</code>
+    </a>
+    <a class="demo" href="http://ec2-3-91-73-197.compute-1.amazonaws.com:3000/model">
+      <div class="ico">🗺</div>
+      <h4>Modelling canvas</h4>
+      <p>React Flow canvas with edit, draw, AI suggest, survivorship.</p>
+      <code>:3000/model</code>
+    </a>
+  </div>
+</section>
+
+<section id="quickstart">
+  <span class="sec-label">Quickstart</span>
+  <h2 class="sec-h">From clone to running in under five minutes.</h2>
+  <p class="sec-lede">Docker Compose brings up Postgres, FalkorDB, Ollama, FastAPI, MCP, Streamlit, and the Next.js app.</p>
+  <div class="qs">
+    <div><span class="cmt"># 1. Clone + bring up the stack</span></div>
+    <div class="cmd">git clone https://github.com/giggsoinc/aryx.git</div>
+    <div class="cmd">cd aryx</div>
+    <div class="cmd">docker compose up -d</div>
+    <br />
+    <div><span class="cmt"># 2. Wait for healthy (≈ 60s on a warm pull)</span></div>
+    <div class="cmd">docker compose ps</div>
+    <br />
+    <div><span class="cmt"># 3. Open the wizard — Aryx will guide you the rest of the way</span></div>
+    <div class="cmd">open http://localhost:3000/start</div>
+    <br />
+    <div><span class="cmt"># Optional — connect Claude Desktop via MCP (21 tools)</span></div>
+    <div><span class="cmt"># Add to ~/Library/Application Support/Claude/claude_desktop_config.json:</span></div>
+    <div>&nbsp;&nbsp;<span style="color:#94A8CB;">"aryx": { "command": "mcp-proxy", "args": ["http://localhost:8765/mcp"] }</span></div>
+  </div>
+</section>
+
+<footer>
+  <div class="brand-mini">
+    <img src="aryx-logo.png" alt="Aryx" />
+    <span>Aryx &mdash; A Fortress of Structured Knowledge</span>
+  </div>
+  <div style="margin-top:8px;">
+    <a href="diagrams/business-view.html" style="color:var(--steel-500);text-decoration:none;margin:0 8px;">Business view</a>
+    ·
+    <a href="diagrams/technical-flow.html" style="color:var(--steel-500);text-decoration:none;margin:0 8px;">Technical flow</a>
+  </div>
+</footer>
+
+</body>
+</html>

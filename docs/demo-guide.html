@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Aryx · Demo guide — what's loaded, what to try</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy-50:#F2F5FB; --navy-100:#E4EAF4; --navy-200:#C2CFE3;
+    --navy-300:#94A8CB; --navy-500:#3A578C; --navy-700:#1A2F55;
+    --navy-800:#0F1F3D; --navy-900:#0A1530; --navy-950:#050B1C;
+    --steel-400:#5F8AD2; --steel-500:#4068A8; --steel-600:#2D4B8A;
+    --canvas:#F8F9FC; --ink:#0F1726; --subtle:#5A6478;
+    --emerald:#10B981; --amber:#F59E0B;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: var(--canvas); color: var(--ink); -webkit-font-smoothing: antialiased; line-height: 1.55; padding: 40px 24px; }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+
+  header { text-align: center; padding-bottom: 32px; border-bottom: 1px solid var(--navy-100); margin-bottom: 36px; }
+  .brand { display: inline-flex; align-items: center; gap: 12px; }
+  .brand img { width: 34px; height: 34px; }
+  .brand .name { font-weight: 600; letter-spacing: 0.3em; color: var(--navy-900); font-size: 14px; }
+  h1 { font-family: 'Fraunces', Georgia, serif; font-size: 2.2rem; color: var(--navy-900); margin-top: 16px; letter-spacing: -0.01em; }
+  .lede { color: var(--subtle); font-size: 15px; margin-top: 8px; max-width: 620px; margin-left: auto; margin-right: auto; }
+
+  section { margin-top: 48px; }
+  .sec-label { display: inline-block; padding: 4px 12px; border-radius: 999px; background: var(--navy-50); color: var(--navy-700); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+  h2 { font-family: 'Fraunces', serif; font-size: 1.5rem; color: var(--navy-900); margin-top: 14px; margin-bottom: 6px; letter-spacing: -0.01em; }
+  .sec-sub { color: var(--subtle); font-size: 14px; }
+
+  /* What's loaded */
+  .what { display: grid; grid-template-columns: 2fr 3fr; gap: 16px; margin-top: 22px; }
+  .brief-card { background: white; border: 1px solid var(--navy-100); border-radius: 16px; padding: 22px; }
+  .brief-card h3 { font-family: 'Fraunces', serif; font-size: 1rem; color: var(--navy-900); margin-bottom: 12px; }
+  .brief-row { padding: 8px 0; border-bottom: 1px dashed var(--navy-100); }
+  .brief-row:last-child { border-bottom: none; }
+  .brief-row .k { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--subtle); font-weight: 600; }
+  .brief-row .v { font-size: 13px; color: var(--navy-900); margin-top: 4px; line-height: 1.45; }
+
+  .types-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  .type-card { background: white; border: 1.5px solid var(--navy-100); border-radius: 14px; padding: 16px 12px; text-align: center; }
+  .type-card .name { font-weight: 700; color: var(--navy-900); font-size: 14px; }
+  .type-card .count { font-family: 'Fraunces', serif; font-size: 1.8rem; color: var(--steel-500); margin-top: 4px; }
+  .type-card .lbl { font-size: 10px; color: var(--subtle); }
+  .type-card .attrs { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--navy-100); font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--navy-700); line-height: 1.55; }
+
+  /* Relationships */
+  .rels { background: white; border: 1px solid var(--navy-100); border-radius: 16px; padding: 22px; margin-top: 16px; }
+  .rels h3 { font-family: 'Fraunces', serif; font-size: 1rem; color: var(--navy-900); margin-bottom: 14px; }
+  .rel-list { display: flex; flex-direction: column; gap: 8px; }
+  .rel-row { display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: var(--canvas); border-radius: 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  .rel-row .from, .rel-row .to { background: white; border: 1px solid var(--navy-100); padding: 4px 10px; border-radius: 6px; color: var(--navy-800); font-weight: 600; }
+  .rel-row .verb { color: var(--steel-500); font-style: italic; }
+  .rel-row .arrow { color: var(--navy-300); }
+
+  /* Where to see */
+  .surfaces { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 22px; }
+  .surface { background: white; border: 1px solid var(--navy-100); border-radius: 16px; padding: 22px; text-decoration: none; color: inherit; display: block; transition: all 0.15s; }
+  .surface:hover { border-color: var(--steel-500); box-shadow: 0 8px 24px rgba(64,104,168,0.1); transform: translateY(-1px); }
+  .surface .ico { font-size: 30px; }
+  .surface h3 { font-family: 'Fraunces', serif; font-size: 1.15rem; color: var(--navy-900); margin-top: 12px; }
+  .surface .url { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--steel-600); background: var(--navy-50); padding: 3px 10px; border-radius: 6px; display: inline-block; margin-top: 10px; }
+  .surface .what-you-see { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--navy-100); }
+  .surface .what-you-see .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--subtle); font-weight: 600; }
+  .surface .what-you-see ul { margin-top: 6px; padding-left: 18px; font-size: 12px; color: var(--navy-700); line-height: 1.7; }
+
+  /* Try these queries */
+  .qrow { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 18px; }
+  .q-card { background: white; border: 1px solid var(--navy-100); border-radius: 14px; padding: 16px 18px; }
+  .q-card .badge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+  .q-card .badge.ui { background: #DBEAFE; color: #1E40AF; }
+  .q-card .badge.mcp { background: #DCFCE7; color: #166534; }
+  .q-card .q { margin-top: 8px; font-size: 13.5px; color: var(--navy-900); font-weight: 500; }
+  .q-card .a { margin-top: 6px; font-size: 11.5px; color: var(--subtle); font-style: italic; }
+  .qheader { display: flex; align-items: baseline; gap: 12px; margin-top: 8px; }
+  .qheader code { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var(--navy-50); padding: 2px 8px; border-radius: 4px; color: var(--steel-600); }
+
+  /* Cheat box */
+  .cheat { background: var(--navy-950); color: #C2CFE3; border-radius: 16px; padding: 22px 24px; margin-top: 22px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.7; overflow-x: auto; }
+  .cheat .cmt { color: #5F8AD2; }
+  .cheat .ok { color: #6EE7B7; }
+  .cheat code { color: white; }
+
+  footer { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--navy-100); text-align: center; color: var(--subtle); font-size: 12px; }
+  footer a { color: var(--steel-500); text-decoration: none; margin: 0 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand"><img src="aryx-logo.png" alt="Aryx" /><span class="name">A R Y X</span></div>
+  <h1>Demo guide — what's loaded, what to try</h1>
+  <p class="lede">
+    A demo workspace is live on EC2 with a radio-equipment support dataset.
+    Use this page as your cheat sheet — keep it open next to the UI.
+  </p>
+</header>
+
+<!-- ============ What's loaded ============ -->
+<section>
+  <span class="sec-label">What's loaded</span>
+  <h2>Default workspace · 527 records · 5 kinds · 6 connections</h2>
+  <p class="sec-sub">Live on <code style="font-family:'JetBrains Mono',monospace;background:var(--navy-50);padding:1px 6px;border-radius:4px;font-size:12px;">ec2-3-91-73-197.compute-1.amazonaws.com</code></p>
+
+  <div class="what">
+    <div class="brief-card">
+      <h3>The brief Aryx is grounded in</h3>
+      <div class="brief-row">
+        <div class="k">Domain</div>
+        <div class="v">Customer support for radio equipment — enterprise networking.</div>
+      </div>
+      <div class="brief-row">
+        <div class="k">Aim</div>
+        <div class="v">Match complex support tickets to the right expert agent based on device model, symptom, firmware version, and agent expertise.</div>
+      </div>
+      <div class="brief-row">
+        <div class="k">Objectives</div>
+        <div class="v">
+          · Find which agents resolve network tickets fastest<br/>
+          · Spot devices likely to need RMA before they fail<br/>
+          · Track time-to-resolution by ticket priority<br/>
+          · Surface escalation patterns
+        </div>
+      </div>
+      <div class="brief-row">
+        <div class="k">Roles</div>
+        <div class="v">Support Agent · Support Manager · Field Engineer</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="types-grid">
+        <div class="type-card">
+          <div class="name">Customer</div>
+          <div class="count">10</div>
+          <div class="lbl">records</div>
+          <div class="attrs">name<br/>region<br/>tier<br/>signup_date</div>
+        </div>
+        <div class="type-card">
+          <div class="name">Site</div>
+          <div class="count">22</div>
+          <div class="lbl">records</div>
+          <div class="attrs">customer_id<br/>location<br/>site_type<br/>device_count</div>
+        </div>
+        <div class="type-card">
+          <div class="name">Device</div>
+          <div class="count">280</div>
+          <div class="lbl">records</div>
+          <div class="attrs">site_id<br/>model<br/>firmware<br/>status</div>
+        </div>
+        <div class="type-card">
+          <div class="name">Agent</div>
+          <div class="count">15</div>
+          <div class="lbl">records</div>
+          <div class="attrs">name<br/>level<br/>specialty<br/>resolved</div>
+        </div>
+        <div class="type-card">
+          <div class="name">Ticket</div>
+          <div class="count">200</div>
+          <div class="lbl">records</div>
+          <div class="attrs">site_id<br/>status<br/>priority<br/>symptom</div>
+        </div>
+      </div>
+
+      <div class="rels">
+        <h3>Declared connections (6 relationship types)</h3>
+        <div class="rel-list">
+          <div class="rel-row"><span class="from">Site</span><span class="arrow">→</span><span class="verb">located_for</span><span class="arrow">→</span><span class="to">Customer</span></div>
+          <div class="rel-row"><span class="from">Device</span><span class="arrow">→</span><span class="verb">installed_at</span><span class="arrow">→</span><span class="to">Site</span></div>
+          <div class="rel-row"><span class="from">Ticket</span><span class="arrow">→</span><span class="verb">opened_by</span><span class="arrow">→</span><span class="to">Customer</span></div>
+          <div class="rel-row"><span class="from">Ticket</span><span class="arrow">→</span><span class="verb">about</span><span class="arrow">→</span><span class="to">Device</span></div>
+          <div class="rel-row"><span class="from">Ticket</span><span class="arrow">→</span><span class="verb">assigned_to</span><span class="arrow">→</span><span class="to">Agent</span></div>
+          <div class="rel-row"><span class="from">Ticket</span><span class="arrow">→</span><span class="verb">opened_by</span><span class="arrow">→</span><span class="to">Customer</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Where to see ============ -->
+<section>
+  <span class="sec-label">Where to see it</span>
+  <h2>Three surfaces, one shared workspace</h2>
+  <p class="sec-sub">Each surface answers a different question. Pick by what you want to do.</p>
+
+  <div class="surfaces">
+    <a class="surface" href="http://ec2-3-91-73-197.compute-1.amazonaws.com:3000/start" target="_blank">
+      <div class="ico">✨</div>
+      <h3>Start the wizard</h3>
+      <div class="url">:3000/start</div>
+      <div class="what-you-see">
+        <div class="lbl">What you'll see</div>
+        <ul>
+          <li>The 7-step guided setup, end to end</li>
+          <li>Same screens a brand-new user lands on</li>
+          <li>You can dry-run without overwriting the demo data</li>
+        </ul>
+      </div>
+    </a>
+
+    <a class="surface" href="http://ec2-3-91-73-197.compute-1.amazonaws.com:3000/model" target="_blank">
+      <div class="ico">🗺</div>
+      <h3>See the map</h3>
+      <div class="url">:3000/model</div>
+      <div class="what-you-see">
+        <div class="lbl">What you'll see</div>
+        <ul>
+          <li>5 record kinds as cards on a canvas</li>
+          <li>6 connections drawn as labelled edges</li>
+          <li>Click any card → inspector with fields, duplicates, rules</li>
+          <li>Try "AI: suggest attributes" inside any card</li>
+        </ul>
+      </div>
+    </a>
+
+    <a class="surface" href="http://ec2-3-91-73-197.compute-1.amazonaws.com:3000/" target="_blank">
+      <div class="ico">💬</div>
+      <h3>Ask the graph</h3>
+      <div class="url">:3000/</div>
+      <div class="what-you-see">
+        <div class="lbl">What you'll see</div>
+        <ul>
+          <li>Chat box with starter prompts</li>
+          <li>Streaming answers with citation pills</li>
+          <li>Each answer cites the records it stands on</li>
+        </ul>
+      </div>
+    </a>
+  </div>
+</section>
+
+<!-- ============ Sample queries ============ -->
+<section>
+  <span class="sec-label">Try these queries</span>
+  <h2>Plain-English questions that work on this dataset</h2>
+  <p class="sec-sub">Paste any of these into the Ask box on <code style="font-family:'JetBrains Mono',monospace;background:var(--navy-50);padding:1px 6px;border-radius:4px;font-size:12px;">:3000/</code> — or hand them to Claude Desktop once MCP is wired.</p>
+
+  <div class="qheader">
+    <span class="sec-label" style="background:#DBEAFE;color:#1E40AF;">Discovery</span>
+    <code>"what's in this graph?"</code>
+  </div>
+  <div class="qrow">
+    <div class="q-card"><span class="badge ui">UI</span>
+      <div class="q">"What kinds of records are in this workspace?"</div>
+      <div class="a">Should list Customer, Site, Device, Agent, Ticket.</div>
+    </div>
+    <div class="q-card"><span class="badge ui">UI</span>
+      <div class="q">"Show me 5 random customers."</div>
+      <div class="a">Returns 5 customer entities; click any citation pill to drill in.</div>
+    </div>
+    <div class="q-card"><span class="badge ui">UI</span>
+      <div class="q">"How many devices are there per site?"</div>
+      <div class="a">Should aggregate Device counts grouped by Site.</div>
+    </div>
+    <div class="q-card"><span class="badge ui">UI</span>
+      <div class="q">"List all agents and their specialty."</div>
+      <div class="a">Returns 15 agents with their level + specialty fields.</div>
+    </div>
+  </div>
+
+  <div class="qheader">
+    <span class="sec-label" style="background:#FEF3C7;color:#92400E;">Insight</span>
+    <code>"what's interesting?"</code>
+  </div>
+  <div class="qrow">
+    <div class="q-card"><span class="badge ui">UI</span>
+      <div class="q">"Which agents have resolved the most tickets?"</div>
+      <div class="a">Ranks agents by tickets_resolved.</div>
+    </div>
+    <div class="q-card"><span class="badge ui">UI</span>
+      <div class="q">"Which device models appear most often in tickets?"</div>
+      <div class="a">Joins Ticket → Device.model and counts.</div>
+    </div>
+    <div class="q-card"><span class="badge ui">UI</span>
+      <div class="q">"Show tickets with priority high and status open."</div>
+      <div class="a">Filtered Ticket query.</div>
+    </div>
+    <div class="q-card"><span class="badge ui">UI</span>
+      <div class="q">"What firmware versions are most common across all devices?"</div>
+      <div class="a">Aggregates Device.firmware_version.</div>
+    </div>
+  </div>
+
+  <div class="qheader">
+    <span class="sec-label" style="background:#DCFCE7;color:#166534;">Claude Desktop · MCP</span>
+    <code>"drive the whole flow from chat"</code>
+  </div>
+  <div class="qrow">
+    <div class="q-card"><span class="badge mcp">MCP</span>
+      <div class="q">"List the Aryx workspaces and tell me what's in each."</div>
+      <div class="a">Calls <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">list</code>; returns workspace summary including the demo data.</div>
+    </div>
+    <div class="q-card"><span class="badge mcp">MCP</span>
+      <div class="q">"What's the brief for workspace 1?"</div>
+      <div class="a">Calls <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">brief_get</code>; returns the radio-equipment brief.</div>
+    </div>
+    <div class="q-card"><span class="badge mcp">MCP</span>
+      <div class="q">"Show me the ontology with all attribute names."</div>
+      <div class="a">Calls <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">ontology_get</code>; returns 5 types + 6 relationships.</div>
+    </div>
+    <div class="q-card"><span class="badge mcp">MCP</span>
+      <div class="q">"Export the ontology to Postgres DDL."</div>
+      <div class="a">Calls <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">ontology_export</code> with target=postgres; returns CREATE TABLE statements.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Claude Desktop config ============ -->
+<section>
+  <span class="sec-label">Hook up Claude Desktop</span>
+  <h2>One config block, 21 tools, restart</h2>
+  <p class="sec-sub">Run side-by-side with the UI. The MCP server is already running on EC2 at port 8765.</p>
+  <div class="cheat">
+    <div><span class="cmt"># Edit (or create) on macOS:</span></div>
+    <div><span class="cmt"># ~/Library/Application Support/Claude/claude_desktop_config.json</span></div>
+    <br/>
+    <div>{</div>
+    <div>&nbsp;&nbsp;<span class="ok">"mcpServers"</span>: {</div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ok">"aryx"</span>: {</div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ok">"command"</span>: <code>"npx"</code>,</div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ok">"args"</span>: [</div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<code>"-y"</code>, <code>"mcp-remote"</code>,</div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<code>"http://ec2-3-91-73-197.compute-1.amazonaws.com:8765/mcp"</code></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;]</div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;}</div>
+    <div>&nbsp;&nbsp;}</div>
+    <div>}</div>
+    <br/>
+    <div><span class="cmt"># Then: fully quit Claude Desktop, reopen. Look for the 🔌 icon — 21 tools.</span></div>
+  </div>
+</section>
+
+<footer>
+  Aryx · demo guide ·
+  <a href="README.html">Overview</a>
+  <a href="diagrams/business-view.html">Business view</a>
+  <a href="diagrams/technical-flow.html">Technical flow</a>
+</footer>
+
+</div>
+</body>
+</html>

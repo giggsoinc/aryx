@@ -3,7 +3,10 @@ import type {
   QuizSpec, Rule, SurvivorshipPolicy, Workspace,
 } from "./types";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+// Same-origin relative path. Next.js rewrites /api/* → FastAPI internally
+// (see next.config.mjs). Works in dev (proxies to localhost:8088) and in
+// production (proxies to api:8000) without any client-side knowledge.
+const BASE = "/api";
 
 /** Throw on non-2xx; return parsed JSON otherwise. */
 async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
