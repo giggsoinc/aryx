@@ -6,20 +6,24 @@ import { Header } from "@/components/brand/Header";
 import { Composer } from "@/components/ask/Composer";
 import { MessageList } from "@/components/ask/MessageList";
 import { FollowupChips } from "@/components/ask/FollowupChips";
+import { WorkspacePeek } from "@/components/ask/WorkspacePeek";
 import { api } from "@/lib/api";
 import { streamReveal } from "@/lib/stream";
 import { useWorkspace } from "@/lib/workspace";
 import type { ChatTurn, Citation } from "@/lib/types";
 
+// Starters tuned for the demo workspace (Customer · Site · Device · Agent · Ticket).
+// Each names a specific kind of record or a known field so term extraction
+// always has a noun to lock onto.
 const STARTERS = [
-  "What types of entities did you find?",
-  "Show me 5 random entities and how they connect",
-  "Which entities have the most relationships?",
-  "Summarise this workspace in three sentences",
+  "Show me 5 Customers",
+  "Which Agents have resolved the most Tickets?",
+  "What firmware versions appear most often on Devices?",
+  "Tell me about the Customer NetOps Atlantic",
 ];
 
 const FOLLOWUPS = [
-  "Why?",
+  "What else do we know about that Customer?",
   "Show me the underlying records",
   "What's missing or weak in this data?",
 ];
@@ -122,10 +126,13 @@ export default function HomePage() {
               Ask your knowledge graph.
             </h1>
             <p className="mt-4 max-w-md text-[15px] text-subtle">
-              Aryx has read your sources, resolved the duplicates, and built a
-              graph. Ask anything — the answer cites the entities it stands on.
+              Questions naming a specific kind of record or an entity work
+              best. Try one of these to see how citations work.
             </p>
-            <div className="mt-10 w-full max-w-prose">
+            <div className="mt-8 w-full">
+              <WorkspacePeek workspaceId={workspaceId} />
+            </div>
+            <div className="mt-2 w-full max-w-prose">
               <FollowupChips
                 prompts={STARTERS}
                 onPick={(p) => send(p)}
@@ -135,6 +142,7 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="flex-1">
+            <WorkspacePeek workspaceId={workspaceId} />
             <MessageList turns={turns} />
             {!busy && (
               <div className="mt-6 pl-12">
