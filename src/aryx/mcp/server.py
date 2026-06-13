@@ -44,7 +44,6 @@ def _post(path: str, body: dict) -> Any:
 
 @server.list_tools()
 async def list_tools() -> list[types.Tool]:
-    """Return the static tool specs."""
     return tool_specs()
 
 
@@ -128,6 +127,9 @@ def _dispatch(name: str, a: dict) -> Any:
     if name.startswith("datasource_"):
         from aryx.mcp.datasource import dispatch as _ds
         return _ds(name, a)
+    if name.startswith("ingest_") or name == "entities_preview":
+        from aryx.mcp.ingest_hitl import dispatch as _hitl
+        return _hitl(name, a)
     return {"error": f"unknown tool: {name}"}
 
 

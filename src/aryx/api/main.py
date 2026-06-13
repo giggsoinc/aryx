@@ -21,6 +21,7 @@ from aryx.api.demo_ingest_api import demo_ingest_router
 from aryx.api.doc_discover_api import doc_discover_router
 from aryx.api.file_ingest_api import file_ingest_router
 from aryx.api.graph_api import graph_router
+from aryx.api.ingest_question_api import ingest_question_router
 from aryx.api.jobs_api import jobs_router
 from aryx.api.mcp_tokens_api import mcp_tokens_router
 from aryx.api.observability_api import observability_router
@@ -103,6 +104,7 @@ def create_app() -> FastAPI:
     app.include_router(workspace_router())
     app.include_router(brief_router())
     app.include_router(datasource_router())
+    app.include_router(ingest_question_router())
     app.include_router(observability_router())
     app.include_router(ontology_router())
     app.include_router(axioms_router())
