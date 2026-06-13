@@ -18,7 +18,9 @@
     "clsx": "2.1.1",
     "tailwind-merge": "2.5.0",
     "@xyflow/react": "12.3.5",
-    "dagre": "0.8.5"
+    "dagre": "0.8.5",
+    "react-markdown": "9.0.1",
+    "remark-gfm": "4.0.0"
   },
   "devDependencies": {
     "@types/node": "22.9.0",

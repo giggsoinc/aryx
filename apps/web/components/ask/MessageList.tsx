@@ -5,6 +5,7 @@ import { Sparkles, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/cn";
 import { Citations } from "./Citation";
+import { Markdown } from "./Markdown";
 import type { ChatTurn } from "@/lib/types";
 
 interface Props {
@@ -57,7 +58,11 @@ export function MessageList({ turns }: Props) {
                 t.streaming && "caret",
               )}
             >
-              {t.content || (
+              {t.content ? (
+                t.role === "assistant"
+                  ? <Markdown>{t.content}</Markdown>
+                  : t.content
+              ) : (
                 <span className="text-subtle italic">Thinking…</span>
               )}
             </div>
