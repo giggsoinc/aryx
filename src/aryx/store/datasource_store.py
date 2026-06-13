@@ -80,12 +80,18 @@ class DatasourceStore:
 
     @staticmethod
     def _row(row: tuple, omit_cipher: bool) -> dict[str, Any]:
-        """Project a row tuple to a dict; cipher is never returned over API."""
+        """Project a row tuple to a dict; cipher is never returned over API.
+
+        Two row shapes:
+          - 7 cols (insert / list): id, ws, name, kind, config, mask, ts
+          - 8 cols (get by id):     id, ws, name, kind, config, cipher, mask, ts
+        """
+        has_cipher = len(row) >= 8
+        mask_idx = 6 if has_cipher else 5
         data = {"id": row[0], "workspace_id": row[1], "name": row[2],
                 "kind": row[3], "config": row[4] or {},
-                "secret_mask": row[6] if len(row) > 6 else row[5],
-                "created_at": row[-1]}
-        if not omit_cipher and len(row) > 6:
+                "secret_mask": row[mask_idx], "created_at": row[-1]}
+        if not omit_cipher and has_cipher:
             data["secret_cipher"] = row[5]
         return data
 
