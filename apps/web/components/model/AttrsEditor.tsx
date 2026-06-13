@@ -5,6 +5,7 @@ import { Plus, X, Save, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 import type { OntologyType } from "@/lib/types";
 import { cn } from "@/lib/cn";
+import { AISuggestButton } from "./AISuggestButton";
 
 interface AttrsEditorProps {
   type: OntologyType;
@@ -111,6 +112,17 @@ export function AttrsEditor({ type, workspaceId, onSaved }: AttrsEditorProps) {
           Save attributes
         </button>
       )}
+
+      <div className="pt-3 border-t border-navy-100">
+        <AISuggestButton
+          workspaceId={workspaceId}
+          typeName={type.name}
+          existing={attrs}
+          onAccept={(a) =>
+            setAttrs((prev) => (prev.includes(a) ? prev : [...prev, a]))
+          }
+        />
+      </div>
     </div>
   );
 }

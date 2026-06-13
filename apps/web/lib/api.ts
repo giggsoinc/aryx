@@ -109,4 +109,16 @@ export const api = {
         source_type: sourceType, target_type: targetType,
       }),
     }),
+
+  // ── AI ontology assist (option f) ────────────────────────────────────
+  suggestAttrs: (workspaceId: number, typeName: string, existing: string[]) =>
+    fetchJSON<{ attributes: string[]; rationale: string }>(
+      "/ontology/assist/suggest-attrs",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          workspace_id: workspaceId, type_name: typeName, existing,
+        }),
+      },
+    ),
 };

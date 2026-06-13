@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, CheckCircle2, GitBranch, Sparkles } from "lucide-react";
+import { X, CheckCircle2, GitBranch } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
 import type { Axiom, OntologyType, Rule, SurvivorshipPolicy } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { AttrsEditor } from "./AttrsEditor";
+import { SurvivorEditor } from "./SurvivorEditor";
 
 interface InspectorProps {
   type: OntologyType | null;
@@ -133,54 +134,19 @@ export function Inspector({
               />
             )}
             {tab === "survivor" && (
-              <SurvivorView type={type} policy={survivor} />
+              <SurvivorEditor
+                type={type}
+                workspaceId={workspaceId}
+                initialPolicy={survivor}
+              />
             )}
             {tab === "axioms" && <AxiomsView axioms={typeAxioms} />}
             {tab === "rules" && <RulesView rules={typeRules} />}
           </div>
 
-          <footer className="border-t border-navy-100 px-5 py-3">
-            <button
-              type="button"
-              className="focus-ring inline-flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-navy-200 px-3 py-2 text-[12px] font-medium text-navy-600 hover:border-steel-400 hover:bg-navy-50"
-            >
-              <Sparkles size={13} /> AI: suggest improvements (coming next)
-            </button>
-          </footer>
         </motion.aside>
       )}
     </AnimatePresence>
-  );
-}
-
-function SurvivorView({
-  type, policy,
-}: { type: OntologyType; policy: SurvivorshipPolicy }) {
-  const def = policy.default_strategy || "first_non_empty";
-  return (
-    <div className="space-y-3">
-      <Row label="Default strategy" value={def} />
-      <Row
-        label="Source priority"
-        value={(policy.source_priority || []).join(" → ") || "—"}
-      />
-      <div className="rounded-lg border border-navy-100 bg-navy-50/40 px-3 py-2.5 text-[12px] text-navy-700">
-        <div className="mb-1 text-[10px] uppercase tracking-wider text-subtle">
-          Per-attribute overrides
-        </div>
-        {type.attributes.map((a) => (
-          <div key={a} className="flex items-center justify-between py-0.5">
-            <span className="font-mono text-[11px]">{a}</span>
-            <span className="text-[11px] text-navy-600">
-              {policy.attribute_strategies?.[a] || def}
-            </span>
-          </div>
-        ))}
-        {type.attributes.length === 0 && (
-          <span className="italic text-subtle">no attributes yet</span>
-        )}
-      </div>
-    </div>
   );
 }
 
@@ -230,17 +196,6 @@ function RulesView({ rules }: { rules: Rule[] }) {
         </li>
       ))}
     </ul>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-navy-100 bg-navy-50/40 px-3 py-2">
-      <div className="text-[10px] uppercase tracking-wider text-subtle">
-        {label}
-      </div>
-      <div className="mt-0.5 font-mono text-[12px] text-navy-800">{value}</div>
-    </div>
   );
 }
 
