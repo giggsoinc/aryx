@@ -93,16 +93,14 @@ def _enrich_workspace(ws: dict) -> dict:
 
 
 def _axiom_summary(workspace_id: int) -> tuple[int, dict]:
-    """Return ``(total, {kind: count})`` for the workspace's axioms."""
     try:
         doc = _get(f"/ontology/axioms?workspace_id={workspace_id}") or {}
-    except Exception:  # noqa: BLE001 — axioms are advisory in the MCP card
+    except Exception:  # noqa: BLE001 — axioms advisory in MCP card
         return 0, {}
     axioms = doc.get("axioms") or []
     kinds: dict[str, int] = {}
     for ax in axioms:
-        k = str(ax.get("kind") or "")
-        if k:
+        if k := str(ax.get("kind") or ""):
             kinds[k] = kinds.get(k, 0) + 1
     return len(axioms), kinds
 
@@ -130,18 +128,20 @@ def _dispatch(name: str, a: dict) -> Any:
     if name.startswith("ingest_") or name == "entities_preview":
         from aryx.mcp.ingest_hitl import dispatch as _hitl
         return _hitl(name, a)
+    if name.startswith("ontology_"):
+        from aryx.mcp.ontology import dispatch as _ont
+        return _ont(name, a)
     return {"error": f"unknown tool: {name}"}
 
 
 @server.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    """Single dispatch surface; convert REST errors into structured text."""
     try:
         result = _dispatch(name, arguments or {})
     except Exception as exc:  # noqa: BLE001
         result = {"error": str(exc), "tool": name}
     return [types.TextContent(type="text",
-                              text=json.dumps(result, indent=2, default=str))]
+            text=json.dumps(result, indent=2, default=str))]
 
 
 async def main() -> None:

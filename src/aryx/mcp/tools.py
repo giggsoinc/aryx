@@ -11,12 +11,14 @@ import mcp.types as types
 from aryx.mcp.tools_datasource import datasource_tool_specs
 from aryx.mcp.tools_ingest import ingest_tool_specs
 from aryx.mcp.tools_onboard import onboard_tool_specs
+from aryx.mcp.tools_ontology import ontology_tool_specs
 
 
 def tool_specs() -> list[types.Tool]:
-    """Return every MCP tool: read + act + onboarding + datasource + HITL."""
+    """Return every MCP tool: read + act + onboarding + datasource + HITL + ontology."""
     return (_read_act_specs() + onboard_tool_specs()
-            + datasource_tool_specs() + ingest_tool_specs())
+            + datasource_tool_specs() + ingest_tool_specs()
+            + ontology_tool_specs())
 
 
 def _read_act_specs() -> list[types.Tool]:
