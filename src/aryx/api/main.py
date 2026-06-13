@@ -26,6 +26,7 @@ from aryx.api.jobs_api import jobs_router
 from aryx.api.mcp_tokens_api import mcp_tokens_router
 from aryx.api.observability_api import observability_router
 from aryx.api.ontology_api import ontology_router
+from aryx.api.relationship_type_api import relationship_type_router
 from aryx.api.rest_ingest_api import rest_ingest_router
 from aryx.api.rules_api import rules_router
 from aryx.api.versions_api import versions_router
@@ -105,6 +106,7 @@ def create_app() -> FastAPI:
     app.include_router(brief_router())
     app.include_router(datasource_router())
     app.include_router(ingest_question_router())
+    app.include_router(relationship_type_router())
     app.include_router(observability_router())
     app.include_router(ontology_router())
     app.include_router(axioms_router())

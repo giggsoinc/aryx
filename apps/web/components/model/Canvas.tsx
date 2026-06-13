@@ -73,9 +73,24 @@ function CanvasInner() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const d = await api.getOntology(workspaceId);
-      setDoc(d);
-      const { nodes: n, edges: e } = ontologyToGraph(d);
+      const [d, declared] = await Promise.all([
+        api.getOntology(workspaceId),
+        api.listRelationshipTypes(workspaceId).catch(() => []),
+      ]);
+      // Merge declared relationships into the doc so the canvas sees them.
+      const merged: OntologyDoc = {
+        ...d,
+        relationships: [
+          ...(d.relationships || []),
+          ...declared.map((r) => ({
+            name: r.name,
+            source_type: r.source_type,
+            target_type: r.target_type,
+          })),
+        ],
+      };
+      setDoc(merged);
+      const { nodes: n, edges: e } = ontologyToGraph(merged);
       const laid = autoLayout(n, e, "LR");
       setNodes(laid.nodes);
       setEdges(laid.edges);
@@ -93,24 +108,31 @@ function CanvasInner() {
   const onPaneClick = useCallback(() => setSelected(null), []);
 
   const onConnect: OnConnect = useCallback(
-    (c) => {
+    async (c) => {
       const name = window.prompt(
         "Relationship name (snake_case, e.g. opened_by)",
         "relates_to",
       );
-      if (!name?.trim()) return;
-      setEdges((es) => addEdge(
-        {
-          ...c,
-          id: `draft::${c.source}::${name}::${c.target}::${Date.now()}`,
-          label: name.trim(),
-          style: { stroke: "#4068A8", strokeDasharray: "6 4" },
-          data: { draft: true },
-        },
-        es,
-      ));
+      if (!name?.trim() || !c.source || !c.target) return;
+      try {
+        await api.createRelationshipType(
+          workspaceId, name.trim(), c.source, c.target,
+        );
+        await load();
+      } catch (e) {
+        console.error("Failed to persist relationship", e);
+        setEdges((es) => addEdge(
+          {
+            ...c,
+            id: `draft::${c.source}::${name}::${c.target}::${Date.now()}`,
+            label: `${name.trim()} (unsaved)`,
+            style: { stroke: "#dc2626", strokeDasharray: "6 4" },
+          },
+          es,
+        ));
+      }
     },
-    [setEdges],
+    [workspaceId, load, setEdges],
   );
 
   const relayout = useCallback(() => {

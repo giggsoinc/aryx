@@ -93,4 +93,20 @@ export const api = {
     fetchJSON<Record<string, number>>(
       `/admin/ingest-questions/stats?workspace_id=${workspaceId}`,
     ),
+
+  // ── Declared relationship types (option g) ───────────────────────────
+  listRelationshipTypes: (workspaceId: number) =>
+    fetchJSON<Array<{
+      id: number; name: string; source_type: string; target_type: string;
+    }>>(`/ontology/relationships?workspace_id=${workspaceId}`),
+
+  createRelationshipType: (workspaceId: number, name: string,
+                            sourceType: string, targetType: string) =>
+    fetchJSON<{ id: number; name: string }>("/ontology/relationships", {
+      method: "POST",
+      body: JSON.stringify({
+        workspace_id: workspaceId, name,
+        source_type: sourceType, target_type: targetType,
+      }),
+    }),
 };
