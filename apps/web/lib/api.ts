@@ -81,4 +81,16 @@ export const api = {
     fetchJSON<IngestQuestion[]>(
       `/admin/ingest-questions?workspace_id=${workspaceId}&status=${status}&limit=50`,
     ),
+
+  answerIngestQuestion: (questionId: number, answer: string,
+                         answeredBy = "ui") =>
+    fetchJSON<{ id: number; status: string; answer: string }>(
+      `/admin/ingest-questions/${questionId}/answer`,
+      { method: "POST", body: JSON.stringify({ answer, answered_by: answeredBy }) },
+    ),
+
+  getIngestQuestionStats: (workspaceId: number) =>
+    fetchJSON<Record<string, number>>(
+      `/admin/ingest-questions/stats?workspace_id=${workspaceId}`,
+    ),
 };

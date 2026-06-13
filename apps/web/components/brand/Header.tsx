@@ -7,6 +7,7 @@ import { ChevronDown, MessageCircle, Network } from "lucide-react";
 import { Logo } from "./Logo";
 import { useWorkspace } from "@/lib/workspace";
 import { cn } from "@/lib/cn";
+import { HITLBadge } from "@/components/hitl/HITLBadge";
 
 interface HeaderProps {
   /** Optional explicit overrides; defaults to the WorkspaceProvider. */
@@ -47,6 +48,8 @@ export function Header(props: HeaderProps) {
             />
           </nav>
         </div>
+        <div className="flex items-center gap-2">
+          <HITLBadge />
         <div className="relative">
           <button
             type="button"
@@ -75,6 +78,7 @@ export function Header(props: HeaderProps) {
               ))}
             </ul>
           )}
+        </div>
         </div>
       </div>
     </header>
