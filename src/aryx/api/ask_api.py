@@ -15,6 +15,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from aryx import llm_runtime
+from aryx.api.ask_overview import build as build_overview
 from aryx.config import get_settings
 from aryx.graph import GraphReader
 from aryx.graph.retrieve import all_types, retrieve
@@ -75,13 +76,17 @@ def _extract_terms(question: str, types: list[str], history: list[Turn]) -> tupl
     return ([t for t in terms if t] or [question.strip()]), it, ot, ms
 
 
-def _synthesise(question: str, context: str) -> tuple[str, int, int, int]:
+def _synthesise(question: str, context: str, overview: str = "") -> tuple[str, int, int, int]:
     sys = "You are Aryx, a knowledge-graph assistant."
+    has_context = bool(context.strip())
+    facts = context if has_context else "(none — no specific entity matched)"
     user = (
-        "Answer the question using ONLY the graph facts below. List the entity's "
-        "connected entities and their relationships, and name the source. If a "
-        "specific detail asked for is not in the facts, say it isn't stored.\n\n"
-        f"GRAPH FACTS:\n{context}\n\nQUESTION: {question}"
+        "Answer the question grounded in the workspace below. If GRAPH FACTS "
+        "contains a specific entity, ground the answer there. If GRAPH FACTS "
+        "is empty, use the OVERVIEW to describe what's in the workspace — "
+        "DO NOT say 'no matching entities' or 'not stored'; instead, tell "
+        "the user what is tracked and suggest the next concrete question.\n\n"
+        f"{overview}\n\nGRAPH FACTS:\n{facts}\n\nQUESTION: {question}"
     )
     start = time.monotonic()
     text, it, ot = llm_runtime.chat("answer", sys, user)
@@ -104,10 +109,11 @@ def ask_router() -> APIRouter:
     def ask(req: AskRequest) -> dict:
         reader = _reader(req.workspace_id)
         types = all_types(reader)
+        overview = build_overview(reader, req.workspace_id)
         try:
             terms, p_in, p_out, p_ms = _extract_terms(req.question, types, req.history)
             context, calls = retrieve(reader, terms)
-            answer, s_in, s_out, s_ms = _synthesise(req.question, context)
+            answer, s_in, s_out, s_ms = _synthesise(req.question, context, overview)
         except Exception as exc:  # noqa: BLE001 — surface model/runtime errors to UI
             logger.warning("ask failed: %s", exc)
             return {"answer": f"LLM unavailable: {exc}", "terms": [],
