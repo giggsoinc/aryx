@@ -14,8 +14,11 @@
 ALTER TABLE aryx_ontology_type
     ADD COLUMN IF NOT EXISTS workspace_id BIGINT NOT NULL DEFAULT 1;
 
+-- CASCADE drops the parent_type FK along with the unique it depends on.
+-- The FK is re-created below pointing at the new (workspace_id, name) key
+-- so parent_type stays referentially intact within each workspace.
 ALTER TABLE aryx_ontology_type
-    DROP CONSTRAINT IF EXISTS aryx_ontology_type_name_key;
+    DROP CONSTRAINT IF EXISTS aryx_ontology_type_name_key CASCADE;
 
 DROP INDEX IF EXISTS aryx_ontology_type_name_key;
 
