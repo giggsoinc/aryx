@@ -105,3 +105,38 @@ export interface IngestQuestion {
   answer?: string;
   type_name?: string;
 }
+
+export interface Brief {
+  domain?: string;
+  aim?: string;
+  objectives?: string[];
+  scope?: string;
+  roles?: string[];
+}
+
+export interface QuizField {
+  name: string;
+  label: string;
+  required?: boolean;
+  secret?: boolean;
+  help?: string;
+  default?: string;
+  options?: string[];
+  kind?: string;
+}
+
+export interface QuizSpec {
+  kind: string;
+  label: string;
+  fields: QuizField[];
+}
+
+export interface Datasource {
+  id: number;
+  workspace_id: number;
+  name: string;
+  kind: string;
+  config: Record<string, unknown>;
+  mask: string;
+  ready: boolean;
+}

@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Aryx · Onboarding wizard mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy-50:#F2F5FB; --navy-100:#E4EAF4; --navy-200:#C2CFE3;
+    --navy-300:#94A8CB; --navy-500:#3A578C; --navy-600:#27416E;
+    --navy-700:#1A2F55; --navy-800:#0F1F3D; --navy-900:#0A1530;
+    --steel-400:#5F8AD2; --steel-500:#4068A8; --steel-600:#2D4B8A;
+    --canvas:#F8F9FC; --ink:#0F1726; --subtle:#5A6478;
+    --amber:#F59E0B; --emerald:#10B981; --rose:#E11D48;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { font-family: 'Inter', system-ui, sans-serif; background: var(--canvas); color: var(--ink); -webkit-font-smoothing: antialiased; }
+  body { padding: 56px 24px; }
+  .gallery { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 64px; }
+  .intro { text-align: center; padding-bottom: 12px; border-bottom: 1px solid var(--navy-100); margin-bottom: 8px; }
+  .intro h1 { font-family: 'Fraunces', Georgia, serif; font-size: 2.2rem; letter-spacing: -0.01em; color: var(--navy-900); }
+  .intro p { margin-top: 10px; color: var(--subtle); font-size: 14px; max-width: 540px; margin-left: auto; margin-right: auto; }
+  .step-label { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; background: var(--navy-50); border-radius: 999px; color: var(--navy-700); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+  .step-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--steel-500); }
+  .step-title { margin-top: 14px; font-size: 13px; color: var(--subtle); }
+
+  /* Browser chrome */
+  .frame { border: 1px solid var(--navy-100); border-radius: 18px; background: white; overflow: hidden; box-shadow: 0 12px 40px rgba(10,21,48,0.06); }
+  .frame-bar { display: flex; align-items: center; gap: 7px; padding: 12px 16px; background: var(--navy-50); border-bottom: 1px solid var(--navy-100); }
+  .frame-bar span { width: 11px; height: 11px; border-radius: 50%; background: var(--navy-200); }
+  .frame-bar span:nth-child(1) { background: #FF5F57; } .frame-bar span:nth-child(2) { background: #FEBC2E; } .frame-bar span:nth-child(3) { background: #28C840; }
+  .frame-url { margin-left: 16px; font-size: 12px; color: var(--subtle); font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  .frame-body { padding: 64px 40px; min-height: 480px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; }
+
+  /* Brand mark — real Aryx wolf-shield logo */
+  .brand { display: inline-flex; align-items: center; gap: 12px; }
+  .brand-mark { width: 36px; height: 36px; display: inline-block; background: url("./aryx-logo.png") center/contain no-repeat; }
+  .brand-name { font-weight: 600; letter-spacing: 0.32em; color: var(--navy-900); font-size: 14px; }
+
+  /* Typography */
+  .h-display { font-family: 'Fraunces', Georgia, serif; font-size: 2rem; font-weight: 500; letter-spacing: -0.01em; color: var(--navy-900); text-align: center; max-width: 520px; line-height: 1.15; }
+  .h-display.large { font-size: 2.4rem; }
+  .lede { color: var(--subtle); font-size: 14px; text-align: center; max-width: 460px; line-height: 1.55; }
+
+  /* Inputs */
+  .seed-row { display: flex; gap: 10px; width: 100%; max-width: 520px; }
+  .seed-input { flex: 1; padding: 16px 18px; border-radius: 14px; border: 1.5px solid var(--navy-100); background: white; font-family: inherit; font-size: 15px; color: var(--ink); box-shadow: 0 1px 2px rgba(10,21,48,0.04), 0 8px 24px rgba(10,21,48,0.06); }
+  .seed-input::placeholder { color: var(--subtle); }
+  .btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 22px; border-radius: 14px; background: var(--navy-800); color: white; font-weight: 600; font-size: 14px; border: none; cursor: pointer; }
+  .btn-primary.large { padding: 16px 28px; font-size: 15px; }
+  .btn-secondary { display: inline-flex; align-items: center; gap: 8px; padding: 14px 22px; border-radius: 14px; background: white; color: var(--navy-700); font-weight: 500; font-size: 14px; border: 1.5px solid var(--navy-100); cursor: pointer; }
+  .quiet { color: var(--subtle); font-size: 12px; display: inline-flex; gap: 16px; }
+  .quiet a { color: var(--steel-500); text-decoration: none; font-weight: 500; cursor: pointer; }
+
+  /* Cards (multi-select) */
+  .cards-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 100%; max-width: 640px; }
+  .pick-card { position: relative; background: white; border: 1.5px solid var(--navy-100); border-radius: 16px; padding: 30px 18px 22px; text-align: center; cursor: pointer; transition: all .15s; }
+  .pick-card:hover { border-color: var(--steel-500); box-shadow: 0 0 0 4px rgba(64,104,168,0.08); }
+  .pick-card.selected { border-color: var(--navy-800); background: var(--navy-50); box-shadow: 0 0 0 4px rgba(15,31,61,0.06); }
+  .pick-card .ico { font-size: 34px; line-height: 1; }
+  .pick-card .label { margin-top: 12px; font-weight: 600; color: var(--navy-800); }
+  .pick-card .hint { margin-top: 4px; font-size: 12px; color: var(--subtle); }
+  .check-pin { position: absolute; top: 10px; right: 10px; width: 22px; height: 22px; border-radius: 50%; background: var(--navy-800); color: white; font-size: 11px; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  .check-pin.empty { background: transparent; border: 1.5px dashed var(--navy-200); }
+
+  /* Inline example callout */
+  .example-box { margin-top: 12px; width: 100%; max-width: 600px; padding: 14px 16px; background: white; border: 1px solid var(--navy-100); border-left: 3px solid var(--steel-500); border-radius: 0 12px 12px 0; text-align: left; }
+  .example-label { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--steel-600); }
+  .example-body { margin-top: 4px; font-size: 13px; color: var(--navy-800); line-height: 1.55; }
+
+  /* Pipeline */
+  .pipeline { display: flex; align-items: stretch; gap: 4px; width: 100%; max-width: 1000px; overflow-x: auto; padding: 4px 4px 8px; }
+  .pl-step { flex: 1; min-width: 130px; padding: 14px 12px 16px; background: white; border: 1px solid var(--navy-100); border-radius: 14px; box-shadow: 0 1px 2px rgba(10,21,48,0.04); text-align: center; }
+  .pl-ico { display: inline-flex; width: 38px; height: 38px; align-items: center; justify-content: center; border-radius: 10px; font-size: 18px; }
+  .pl-title { margin-top: 8px; font-weight: 700; font-size: 13px; color: var(--navy-900); letter-spacing: 0.02em; }
+  .pl-desc { margin-top: 4px; font-size: 11.5px; color: var(--subtle); line-height: 1.4; }
+  .pl-eg { margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--navy-700); background: var(--navy-50); padding: 4px 6px; border-radius: 6px; line-height: 1.3; }
+  .pl-arrow { display: flex; align-items: center; color: var(--navy-300); font-size: 28px; padding: 0 2px; user-select: none; }
+
+  /* Callout (info banner) */
+  .callout { width: 100%; max-width: 600px; padding: 12px 16px; background: #FFFBEB; border: 1px solid #FCD34D; border-radius: 12px; font-size: 13px; color: #92400E; text-align: center; }
+
+  /* Confirm panel (screen 2) */
+  .confirm-panel { background: white; border: 1px solid var(--navy-100); border-radius: 18px; padding: 30px 32px; width: 100%; max-width: 540px; }
+  .confirm-row { display: flex; gap: 14px; align-items: baseline; padding: 10px 0; border-bottom: 1px dashed var(--navy-100); }
+  .confirm-row:last-of-type { border-bottom: none; }
+  .confirm-row .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--subtle); min-width: 90px; }
+  .confirm-row .v { font-size: 15px; color: var(--navy-900); flex: 1; }
+  .row-buttons { display: flex; gap: 10px; justify-content: center; margin-top: 8px; }
+
+  /* Form panel (screen 4) */
+  .form-panel { background: white; border: 1px solid var(--navy-100); border-radius: 18px; padding: 30px 32px; width: 100%; max-width: 460px; display: flex; flex-direction: column; gap: 18px; }
+  .form-field { display: flex; flex-direction: column; gap: 6px; }
+  .form-field label { font-size: 12px; font-weight: 600; color: var(--navy-700); }
+  .form-field .help { font-size: 11px; color: var(--subtle); }
+  .form-field input { padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--navy-100); font-family: inherit; font-size: 14px; }
+  .lock-row { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--emerald); }
+
+  /* Running panel (screen 5) */
+  .run-panel { background: white; border: 1px solid var(--navy-100); border-radius: 18px; padding: 26px 28px; width: 100%; max-width: 540px; }
+  .run-line { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 14px; color: var(--navy-800); }
+  .run-line.done { color: var(--subtle); }
+  .check { color: var(--emerald); font-weight: 700; }
+  .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--navy-100); border-top-color: var(--steel-500); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .question-card { margin-top: 18px; padding: 16px 18px; border-radius: 14px; background: #FFFBEB; border: 1px solid #FCD34D; }
+  .question-card .badge { display: inline-block; padding: 3px 8px; background: #FEF3C7; color: #B45309; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; border-radius: 999px; font-weight: 600; }
+  .question-card .prompt { margin-top: 8px; font-size: 14px; color: var(--navy-800); }
+  .question-card .actions { margin-top: 12px; display: flex; gap: 8px; }
+  .chip { padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1.5px solid var(--navy-100); background: white; color: var(--navy-700); }
+  .chip.primary { background: var(--navy-800); color: white; border-color: var(--navy-800); }
+
+  /* Result chips (screen 6) */
+  .result-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 600px; }
+  .result-chip { padding: 18px 26px; background: white; border: 1.5px solid var(--navy-100); border-radius: 14px; cursor: pointer; min-width: 130px; text-align: center; box-shadow: 0 1px 2px rgba(10,21,48,0.04); }
+  .result-chip .name { font-weight: 600; color: var(--navy-900); font-size: 15px; }
+  .result-chip .count { font-size: 11px; color: var(--subtle); margin-top: 2px; font-family: 'JetBrains Mono', monospace; }
+  .summary-line { font-size: 14px; color: var(--subtle); margin-top: 8px; }
+
+  /* Doc upload (screen 1 alternative) */
+  .dropper { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border: 1.5px dashed var(--navy-200); border-radius: 12px; color: var(--subtle); font-size: 13px; cursor: pointer; }
+
+  /* Annotation */
+  .annot { margin-top: 14px; padding: 14px 18px; background: var(--navy-50); border-left: 3px solid var(--steel-500); border-radius: 0 10px 10px 0; max-width: 760px; }
+  .annot strong { color: var(--navy-800); }
+  .annot p { font-size: 13px; color: var(--navy-700); line-height: 1.5; }
+  .pill-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .pill { padding: 3px 10px; background: white; border: 1px solid var(--navy-100); border-radius: 999px; font-size: 11px; color: var(--navy-700); font-family: 'JetBrains Mono', monospace; }
+</style>
+</head>
+<body>
+<div class="gallery">
+
+  <header class="intro">
+    <div class="brand">
+      <span class="brand-mark"></span>
+      <span class="brand-name">A R Y X</span>
+    </div>
+    <h1 style="margin-top:14px;">Guided setup · first-run experience</h1>
+    <p>
+      Seven screens. Each one asks for one decision. Each mockup below mirrors what would render in
+      <code style="background:var(--navy-50);padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px;">apps/web/app/start/page.tsx</code>.
+      Comment inline anywhere.
+    </p>
+  </header>
+
+  <!-- ─── Screen 0 (NEW) ───────────────────────── -->
+  <section>
+    <div class="step-label"><span class="step-dot"></span>Step 0 · Intro · "What is Aryx?"</div>
+    <div class="step-title">One-line plain meaning, one-line ontology meaning, four steps of how it works. Both audiences land at the same place.</div>
+    <div class="frame" style="margin-top:14px;">
+      <div class="frame-bar"><span></span><span></span><span></span><span class="frame-url">aryx.example.com/start</span></div>
+      <div class="frame-body" style="gap:24px;">
+        <div class="brand"><span class="brand-mark"></span><span class="brand-name">A R Y X</span></div>
+        <h2 class="h-display large" style="max-width:680px;">Aryx connects your data from a business&nbsp;thinking view.</h2>
+        <p class="lede" style="max-width:600px;font-style:italic;color:var(--steel-600);">
+          A discovery-driven knowledge graph built on auto-discovered ontology frameworks.
+          The structure emerges from your data and your goals, instead of being designed in advance.
+        </p>
+
+        <div style="display:flex;flex-direction:column;gap:14px;max-width:520px;width:100%;background:var(--navy-50);border-radius:14px;padding:20px 22px;">
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.12em;color:var(--navy-700);text-transform:uppercase;">How it works</div>
+          <ol style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px;">
+            <li style="display:flex;gap:14px;align-items:flex-start;">
+              <span style="flex:0 0 28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;background:white;color:var(--navy-700);font-weight:600;font-size:12px;border:1px solid var(--navy-100);">1</span>
+              <div>
+                <div style="font-weight:600;color:var(--navy-900);font-size:14px;">You tell Aryx what you want to figure out</div>
+                <div style="font-size:12px;color:var(--subtle);margin-top:2px;">2&ndash;5 goals or questions. That's the brief.</div>
+              </div>
+            </li>
+            <li style="display:flex;gap:14px;align-items:flex-start;">
+              <span style="flex:0 0 28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;background:white;color:var(--navy-700);font-weight:600;font-size:12px;border:1px solid var(--navy-100);">2</span>
+              <div>
+                <div style="font-weight:600;color:var(--navy-900);font-size:14px;">You point Aryx at your data</div>
+                <div style="font-size:12px;color:var(--subtle);margin-top:2px;">Database, files, APIs &mdash; whatever you have.</div>
+              </div>
+            </li>
+            <li style="display:flex;gap:14px;align-items:flex-start;">
+              <span style="flex:0 0 28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;background:white;color:var(--navy-700);font-weight:600;font-size:12px;border:1px solid var(--navy-100);">3</span>
+              <div>
+                <div style="font-weight:600;color:var(--navy-900);font-size:14px;">Aryx proposes the model, you approve</div>
+                <div style="font-size:12px;color:var(--subtle);margin-top:2px;">Records get deduped, things get linked into a map. You stay in the loop on anything ambiguous.</div>
+              </div>
+            </li>
+            <li style="display:flex;gap:14px;align-items:flex-start;">
+              <span style="flex:0 0 28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;background:white;color:var(--navy-700);font-weight:600;font-size:12px;border:1px solid var(--navy-100);">4</span>
+              <div>
+                <div style="font-weight:600;color:var(--navy-900);font-size:14px;">You ask, Aryx answers</div>
+                <div style="font-size:12px;color:var(--subtle);margin-top:2px;">Plain English questions. Every answer cites the records behind it.</div>
+              </div>
+            </li>
+          </ol>
+        </div>
+
+        <button class="btn-primary large" style="margin-top:4px;">Get started &rarr;</button>
+        <p class="quiet" style="margin-top:-8px;">Takes about 3 minutes.</p>
+      </div>
+    </div>
+    <div class="annot">
+      <p><strong>Two readings, same screen.</strong> The headline is for everyone. The italicised line names what Aryx is in the ontology world &mdash; without jargon. Four steps explain the contract: you bring goals + data, Aryx proposes structure, you approve, you query.</p>
+    </div>
+  </section>
+
+  <!-- ─── Screen 1 ─────────────────────────────── -->
+  <section>
+    <div class="step-label"><span class="step-dot"></span>Step 1 · Goals · "What do you want to figure out?"</div>
+    <div class="step-title">Goals are concrete. "What your business does" is the Pacific Ocean. Start where the user actually has an answer.</div>
+    <div class="frame" style="margin-top:14px;">
+      <div class="frame-bar">
+        <span></span><span></span><span></span>
+        <span class="frame-url">aryx.example.com/start?step=goals</span>
+      </div>
+      <div class="frame-body">
+        <div class="brand"><span class="brand-mark"></span><span class="brand-name">A R Y X</span></div>
+        <h2 class="h-display large">What do you want Aryx&nbsp;to help you figure out?</h2>
+        <p class="lede" style="margin-top:-4px;">List 2&ndash;5 questions or goals. Plain English. The nouns become your data model automatically.</p>
+        <div class="seed-row" style="flex-direction:column;align-items:stretch;gap:8px;max-width:600px;">
+          <textarea class="seed-input" rows="5" style="resize:vertical;line-height:1.6;font-size:14px;">Match support tickets to the right expert agent.
+Spot devices likely to need RMA before they fail.
+See which agents resolve network tickets fastest.
+Track time-to-resolution by ticket priority.</textarea>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+            <span class="quiet" style="gap:14px;">
+              <a>📎 Or drop a doc / SOW / strategy deck</a>
+              <a>Skip</a>
+            </span>
+            <button class="btn-primary">✨&nbsp;Continue</button>
+          </div>
+        </div>
+        <div style="margin-top:10px;width:100%;max-width:600px;">
+          <div style="font-size:11px;color:var(--subtle);margin-bottom:6px;">Or pick a starter to adapt:</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="pill" style="cursor:pointer;">Find customers at risk of churning</span>
+            <span class="pill" style="cursor:pointer;">Predict which deals will close this quarter</span>
+            <span class="pill" style="cursor:pointer;">Spot patients overdue for follow-up</span>
+            <span class="pill" style="cursor:pointer;">See where my BOM has single-source risk</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="annot">
+      <p><strong>Why goals first, not domain:</strong> "What does your business do?" is unanswerable &mdash; people ramble for paragraphs. "What do you want to figure out?" is concrete; even a doer can list 2&ndash;3 questions in 30 seconds. Same payload to <code>brief_draft</code>, but the AI gets <em>aim</em> + <em>objectives</em> first and <em>derives</em> the domain. METHONTOLOGY-aligned: aim drives everything else.</p>
+      <div class="pill-row" style="margin-top:10px;">
+        <span class="pill" style="background:#DCFCE7;border-color:#86EFAC;color:#166534;">verbs in goals&nbsp;&rarr;&nbsp;aim</span>
+        <span class="pill" style="background:#FEF3C7;border-color:#FCD34D;color:#92400E;">each goal line&nbsp;&rarr;&nbsp;objective</span>
+        <span class="pill" style="background:#DBEAFE;border-color:#93C5FD;color:#1E40AF;">nouns in goals&nbsp;&rarr;&nbsp;classes / entity types</span>
+        <span class="pill" style="background:#FCE7F3;border-color:#F9A8D4;color:#9D174D;">questions in goals&nbsp;&rarr;&nbsp;competency questions (the test of "did the model work?")</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Screen 2 ─────────────────────────────── -->
+  <section>
+    <div class="step-label"><span class="step-dot"></span>Step 2 · Confirm what AI understood</div>
+    <div class="step-title">Read-back of the AI's draft. Two buttons. No form.</div>
+    <div class="frame" style="margin-top:14px;">
+      <div class="frame-bar"><span></span><span></span><span></span><span class="frame-url">aryx.example.com/start</span></div>
+      <div class="frame-body">
+        <h2 class="h-display">Here's what I understood:</h2>
+        <div class="confirm-panel">
+          <div class="confirm-row"><div class="k">You track</div><div class="v">support tickets, customers, devices, agents</div></div>
+          <div class="confirm-row"><div class="k">You want</div><div class="v">to match tickets to the right expert agent</div></div>
+          <div class="confirm-row"><div class="k">In scope</div><div class="v">tickets, devices, agents · OUT: billing, sales</div></div>
+        </div>
+        <div class="row-buttons">
+          <button class="btn-primary">Looks right — keep going</button>
+          <button class="btn-secondary">Let me edit</button>
+        </div>
+        <div class="example-box">
+          <div class="example-label">What this means downstream</div>
+          <div class="example-body">Aryx will look for these <em>record kinds</em> as it reads your data: <code style="background:var(--navy-50);padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px;">Ticket</code> · <code style="background:var(--navy-50);padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px;">Customer</code> · <code style="background:var(--navy-50);padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px;">Device</code> · <code style="background:var(--navy-50);padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px;">Agent</code>. Anything unexpected gets flagged for your review &mdash; nothing silent.</div>
+        </div>
+      </div>
+    </div>
+    <div class="annot">
+      <p><strong>Edit path</strong> drops to the existing Brief page (still simplified). Most users click "Looks right" and never see a form &mdash; the AI draft is usually within a few words of right.</p>
+    </div>
+  </section>
+
+  <!-- ─── Screen 3 ─────────────────────────────── -->
+  <section>
+    <div class="step-label"><span class="step-dot"></span>Step 3 · Where's your data</div>
+    <div class="step-title">Pick any combination. Most real setups blend a database with docs and a few manual entries.</div>
+    <div class="frame" style="margin-top:14px;">
+      <div class="frame-bar"><span></span><span></span><span></span><span class="frame-url">aryx.example.com/start?step=sources</span></div>
+      <div class="frame-body">
+        <h2 class="h-display">Where is your data?</h2>
+        <p class="lede">Tick any that apply &mdash; you can add more later.</p>
+        <div class="cards-row">
+          <div class="pick-card selected">
+            <div class="check-pin">✓</div>
+            <div class="ico">🗄</div>
+            <div class="label">Database</div>
+            <div class="hint">Postgres, MySQL, Oracle</div>
+          </div>
+          <div class="pick-card selected">
+            <div class="check-pin">✓</div>
+            <div class="ico">📄</div>
+            <div class="label">Files</div>
+            <div class="hint">PDF, CSV, Word, Excel</div>
+          </div>
+          <div class="pick-card">
+            <div class="check-pin empty"></div>
+            <div class="ico">✋</div>
+            <div class="label">Add by hand</div>
+            <div class="hint">Type records yourself</div>
+          </div>
+        </div>
+        <button class="btn-primary large" style="margin-top:8px;">Continue with 2 sources &rarr;</button>
+        <div class="example-box">
+          <div class="example-label">Example</div>
+          <div class="example-body">A support team picks <strong>Database</strong> (for tickets and customers in Postgres) <em>and</em> <strong>Files</strong> (for the device manuals and resolution PDFs). Aryx will read both, find the same device in both, and link them.</div>
+        </div>
+      </div>
+    </div>
+    <div class="annot">
+      <p><strong>Multi-select, not single-choice.</strong> Aryx is built to fuse heterogeneous sources &mdash; that's the whole point. The next screen branches into a small connect-form for each picked source, in sequence.</p>
+    </div>
+  </section>
+
+  <!-- ─── Pipeline diagram (NEW) ───────────────── -->
+  <section>
+    <div class="step-label"><span class="step-dot"></span>Under the covers · What Aryx does with your data</div>
+    <div class="step-title">Shown once after the user clicks Connect &mdash; sets expectations. Same diagram repeats on Screen 5 with live progress.</div>
+    <div class="frame" style="margin-top:14px;">
+      <div class="frame-bar"><span></span><span></span><span></span><span class="frame-url">aryx.example.com/start?step=pipeline</span></div>
+      <div class="frame-body" style="gap:24px; padding: 48px 30px;">
+        <h2 class="h-display" style="font-size:1.7rem;">Here's what happens next.</h2>
+        <div class="pipeline">
+          <div class="pl-step">
+            <div class="pl-ico" style="background:var(--navy-50);color:var(--steel-600);">📥</div>
+            <div class="pl-title">Read</div>
+            <div class="pl-desc">Stream records from every source you picked &mdash; one at a time.</div>
+            <div class="pl-eg">e.g. 1,200 customer rows + 47 PDFs</div>
+          </div>
+          <div class="pl-arrow">›</div>
+          <div class="pl-step">
+            <div class="pl-ico" style="background:var(--navy-50);color:var(--steel-600);">🏷</div>
+            <div class="pl-title">Tag fields</div>
+            <div class="pl-desc">Recognise what each field means &mdash; "looks like an email", "looks like a date".</div>
+            <div class="pl-eg">e.g. cust_em &rarr; email_address</div>
+          </div>
+          <div class="pl-arrow">›</div>
+          <div class="pl-step">
+            <div class="pl-ico" style="background:var(--navy-50);color:var(--steel-600);">🧩</div>
+            <div class="pl-title">Dedupe</div>
+            <div class="pl-desc">Find the same record across sources, even when spelled differently.</div>
+            <div class="pl-eg">e.g. "Acme Corp" + "Acme Corporation" &rarr; one</div>
+          </div>
+          <div class="pl-arrow">›</div>
+          <div class="pl-step">
+            <div class="pl-ico" style="background:var(--navy-50);color:var(--steel-600);">🔗</div>
+            <div class="pl-title">Link</div>
+            <div class="pl-desc">Figure out how things relate &mdash; tickets to customers, devices to tickets.</div>
+            <div class="pl-eg">e.g. T-1043 opened_by Acme</div>
+          </div>
+          <div class="pl-arrow">›</div>
+          <div class="pl-step">
+            <div class="pl-ico" style="background:var(--navy-50);color:var(--steel-600);">🗺</div>
+            <div class="pl-title">Map</div>
+            <div class="pl-desc">Build the queryable graph and the canvas you'll review.</div>
+            <div class="pl-eg">e.g. 4 record kinds, 1,847 records, 47k connections</div>
+          </div>
+          <div class="pl-arrow">›</div>
+          <div class="pl-step">
+            <div class="pl-ico" style="background:#DCFCE7;color:#166534;">💬</div>
+            <div class="pl-title">Ready</div>
+            <div class="pl-desc">Ask anything in plain English. Aryx cites the records behind every answer.</div>
+            <div class="pl-eg">e.g. "Which agents resolve network tickets fastest?"</div>
+          </div>
+        </div>
+        <div class="callout">
+          <strong>You stay in control.</strong> Whenever Aryx isn't sure &mdash; "Is <em>Customer</em> the same as <em>Account</em>?" &mdash; it pauses and asks. You answer, it continues.
+        </div>
+        <button class="btn-primary large">Start &rarr;</button>
+      </div>
+    </div>
+    <div class="annot">
+      <p><strong>Why this earns its place:</strong> people only trust automation they can see. This one diagram is the only place Aryx explains its pipeline to a user &mdash; on the first run, between picking sources and seeing data flow. After that, Screen 5 reuses the same shape with live progress on each step. No second engineering doc, no surprises.</p>
+    </div>
+  </section>
+
+  <!-- ─── Screen 4 ─────────────────────────────── -->
+  <section>
+    <div class="step-label"><span class="step-dot"></span>Step 4 · Connect (if Database)</div>
+    <div class="step-title">Four fields tops. Plain-English labels. Password line says "encrypted".</div>
+    <div class="frame" style="margin-top:14px;">
+      <div class="frame-bar"><span></span><span></span><span></span><span class="frame-url">aryx.example.com/start</span></div>
+      <div class="frame-body">
+        <h2 class="h-display">Connect to your database</h2>
+        <div class="form-panel">
+          <div class="form-field"><label>Address</label><input placeholder="db.example.com" /><div class="help">Your database server.</div></div>
+          <div class="form-field"><label>Username</label><input placeholder="aryx" /></div>
+          <div class="form-field">
+            <label>Password</label>
+            <input type="password" value="••••••••" />
+            <div class="lock-row">🔒 Encrypted on save · never shown again</div>
+          </div>
+          <div class="form-field"><label>Database name</label><input placeholder="prod_main" /></div>
+          <button class="btn-primary large">Connect</button>
+          <div class="quiet" style="justify-content:center;">
+            <a>Advanced (port, dialect, options)</a>
+          </div>
+        </div>
+        <div class="example-box">
+          <div class="example-label">What happens when you click Connect</div>
+          <div class="example-body">Aryx opens a test connection, lists your tables (read-only), and shows you what it sees. Your password is <strong>encrypted before it touches disk</strong> with a key only the server holds; the UI never shows it again.</div>
+        </div>
+      </div>
+    </div>
+    <div class="annot">
+      <p><strong>"Advanced" hides:</strong> port, dialect dropdown, extra-context textarea, schema filter. Default is Postgres on 5432. Most users never expand it.</p>
+    </div>
+  </section>
+
+  <!-- ─── Screen 5 ─────────────────────────────── -->
+  <section>
+    <div class="step-label"><span class="step-dot"></span>Step 5 · Running (live)</div>
+    <div class="step-title">Visible progress. HITL questions appear inline in plain English.</div>
+    <div class="frame" style="margin-top:14px;">
+      <div class="frame-bar"><span></span><span></span><span></span><span class="frame-url">aryx.example.com/start</span></div>
+      <div class="frame-body">
+        <h2 class="h-display">Aryx is reading your data…</h2>
+        <div class="run-panel">
+          <div class="run-line done"><span class="check">✓</span> Connected to db.example.com</div>
+          <div class="run-line done"><span class="check">✓</span> Found 12 tables</div>
+          <div class="run-line done"><span class="check">✓</span> Read agents · 24 records</div>
+          <div class="run-line"><span class="spin"></span> Reading customers · 147 / 1,200</div>
+          <div class="run-line" style="color:var(--subtle);">Then: tickets, devices, resolutions…</div>
+          <div class="question-card">
+            <span class="badge">A question for you</span>
+            <div class="prompt">I see <strong>Customer</strong> and <strong>Account</strong> — same kind of thing or different?</div>
+            <div class="actions"><div class="chip primary">Same</div><div class="chip">Different</div><div class="chip">Skip for now</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="annot">
+      <p><strong>The emotional core of the demo.</strong> Live progress + a real question Aryx asks. Backed by the Slice 3 HITL queue. Answers post to <code>/admin/ingest-questions/{id}/answer</code> — pipeline unblocks instantly.</p>
+    </div>
+  </section>
+
+  <!-- ─── Screen 6 ─────────────────────────────── -->
+  <section>
+    <div class="step-label"><span class="step-dot"></span>Step 6 · You're set</div>
+    <div class="step-title">Show what Aryx learned. Two next-steps, both meaningful.</div>
+    <div class="frame" style="margin-top:14px;">
+      <div class="frame-bar"><span></span><span></span><span></span><span class="frame-url">aryx.example.com/start</span></div>
+      <div class="frame-body">
+        <h2 class="h-display">Here's what I learned:</h2>
+        <div class="result-row">
+          <div class="result-chip"><div class="name">Customer</div><div class="count">1,847 records</div></div>
+          <div class="result-chip"><div class="name">Ticket</div><div class="count">8,402 records</div></div>
+          <div class="result-chip"><div class="name">Device</div><div class="count">312 records</div></div>
+          <div class="result-chip"><div class="name">Agent</div><div class="count">24 records</div></div>
+        </div>
+        <div class="summary-line">10,585 things tracked · 47,219 connections inferred</div>
+        <div class="row-buttons" style="margin-top:14px;">
+          <button class="btn-primary large">Ask Aryx a question →</button>
+          <button class="btn-secondary">See the map</button>
+        </div>
+      </div>
+    </div>
+    <div class="annot">
+      <p><strong>Notice:</strong> no "entity types" or "ontology". "Things tracked" = entities. "Connections" = relationships. The two CTAs jump to <code>/</code> (Ask) and <code>/model</code> (canvas) — the user lands somewhere useful.</p>
+    </div>
+  </section>
+
+  <!-- ─── Vocabulary swap reference ────────────── -->
+  <section style="border-top:1px solid var(--navy-100); padding-top:36px;">
+    <div class="step-label" style="background:#FEF3C7;color:#92400E;"><span class="step-dot" style="background:#92400E;"></span>Vocabulary swap (applies everywhere, not just the wizard)</div>
+    <div style="margin-top:14px; display:grid; grid-template-columns:1fr 1fr; gap:10px 24px; max-width:540px; font-size:13px;">
+      <div style="color:var(--subtle);">Engineer says</div><div style="color:var(--navy-800);font-weight:600;">Doer sees</div>
+      <div style="color:var(--subtle);">Type</div><div style="color:var(--navy-800);">Thing / Kind of record</div>
+      <div style="color:var(--subtle);">Entity</div><div style="color:var(--navy-800);">Record</div>
+      <div style="color:var(--subtle);">Attribute</div><div style="color:var(--navy-800);">Field</div>
+      <div style="color:var(--subtle);">Relationship</div><div style="color:var(--navy-800);">Connection</div>
+      <div style="color:var(--subtle);">Ontology</div><div style="color:var(--navy-800);">Your data model · or just hide</div>
+      <div style="color:var(--subtle);">Brief</div><div style="color:var(--navy-800);">What you're tracking</div>
+      <div style="color:var(--subtle);">Survivorship</div><div style="color:var(--navy-800);">When the same thing shows up twice</div>
+      <div style="color:var(--subtle);">Axiom</div><div style="color:var(--navy-800);">Rule (merged with Rules tab)</div>
+      <div style="color:var(--subtle);">Adjudication</div><div style="color:var(--navy-800);">"Are these the same?"</div>
+      <div style="color:var(--subtle);">Ingest</div><div style="color:var(--navy-800);">Connect data · Load data</div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

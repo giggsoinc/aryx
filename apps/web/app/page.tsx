@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/brand/Header";
 import { Composer } from "@/components/ask/Composer";
 import { MessageList } from "@/components/ask/MessageList";
@@ -28,10 +29,19 @@ function uid() {
 }
 
 export default function HomePage() {
+  const router = useRouter();
   const { workspaceId } = useWorkspace();
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // First-run redirect: empty workspace → guided setup.
+  useEffect(() => {
+    api.getOntology(workspaceId).then((d) => {
+      const empty = (d.entity_count || 0) === 0 && (d.types || []).length === 0;
+      if (empty) router.replace("/start");
+    }).catch(() => {});
+  }, [workspaceId, router]);
 
   const send = async (question?: string) => {
     const q = (question ?? input).trim();

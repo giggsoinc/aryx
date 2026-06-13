@@ -1,6 +1,6 @@
 import type {
-  AskResponse, Axiom, IngestQuestion, OntologyDoc, Rule,
-  SurvivorshipPolicy, Workspace,
+  AskResponse, Axiom, Brief, Datasource, IngestQuestion, OntologyDoc,
+  QuizSpec, Rule, SurvivorshipPolicy, Workspace,
 } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
@@ -109,6 +109,46 @@ export const api = {
         source_type: sourceType, target_type: targetType,
       }),
     }),
+
+  // ── Wizard / guided setup (Slice W3) ─────────────────────────────────
+  draftBrief: (workspaceId: number, seed: string, docText = "") =>
+    fetchJSON<{ workspace_id: number; brief: Brief }>(
+      `/admin/workspaces/${workspaceId}/draft-brief`,
+      {
+        method: "POST",
+        body: JSON.stringify({ seed, doc_text: docText, workspace_id: workspaceId }),
+      },
+    ),
+
+  saveBrief: (workspaceId: number, brief: Brief) =>
+    fetchJSON<{ id: number; brief: Brief }>(
+      `/admin/workspaces/${workspaceId}/brief`,
+      { method: "PATCH", body: JSON.stringify(brief) },
+    ),
+
+  listDatasourceKinds: () =>
+    fetchJSON<{ kinds: Array<{ kind: string; label?: string }>;
+                secret_key_configured: boolean }>("/admin/datasources/kinds"),
+
+  getDatasourceQuiz: (kind: string) =>
+    fetchJSON<QuizSpec>(`/admin/datasources/quiz?kind=${encodeURIComponent(kind)}`),
+
+  listDatasources: (workspaceId: number) =>
+    fetchJSON<Datasource[]>(`/admin/datasources?workspace_id=${workspaceId}`),
+
+  addDatasource: (workspaceId: number, name: string, kind: string,
+                  config: Record<string, unknown>, secret = "") =>
+    fetchJSON<Datasource>("/admin/datasources", {
+      method: "POST",
+      body: JSON.stringify({ workspace_id: workspaceId, name, kind,
+                              config, secret }),
+    }),
+
+  testDatasource: (datasourceId: number) =>
+    fetchJSON<{ ok: boolean; error?: string; tables?: string[];
+                 files?: string[] }>(
+      `/admin/datasources/${datasourceId}/test`, { method: "POST", body: "{}" },
+    ),
 
   // ── AI ontology assist (option f) ────────────────────────────────────
   suggestAttrs: (workspaceId: number, typeName: string, existing: string[]) =>
