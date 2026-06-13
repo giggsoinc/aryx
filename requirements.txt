@@ -40,3 +40,5 @@ sse-starlette~=2.2
 starlette~=0.41
 # RDF/OWL interchange plugin — export graph + import ontologies (rdflib).
 rdflib~=7.0
+# Datasource credential encryption (Slice 2): Fernet symmetric encryption.
+cryptography~=43.0

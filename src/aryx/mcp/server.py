@@ -65,18 +65,15 @@ def _enrich_workspace(ws: dict) -> dict:
         }
     axiom_count, axiom_kinds = _axiom_summary(wid)
 
-    def _norm(items: list, count_key: str) -> list[dict]:
+    def _norm(items: list, key: str) -> list[dict]:
         out: list[dict] = []
         for t in items or []:
             if isinstance(t, dict):
-                out.append({
-                    "name": t.get("name") or t.get("type") or "",
-                    "count": int(t.get(count_key) or t.get("count") or 0),
-                })
+                out.append({"name": t.get("name") or t.get("type") or "",
+                            "count": int(t.get(key) or t.get("count") or 0)})
             else:
                 out.append({"name": str(t), "count": 0})
         return [t for t in out if t["name"]]
-
     ents = _norm(types_doc.get("types") or types_doc.get("entity_types"),
                  "instance_count")
     rels = _norm(types_doc.get("relationships")
@@ -128,6 +125,9 @@ def _dispatch(name: str, a: dict) -> Any:
     if name.startswith("workspace_") or name.startswith("brief_"):
         from aryx.mcp.onboard import dispatch as _onboard
         return _onboard(name, a)
+    if name.startswith("datasource_"):
+        from aryx.mcp.datasource import dispatch as _ds
+        return _ds(name, a)
     return {"error": f"unknown tool: {name}"}
 
 
