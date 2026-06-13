@@ -1,11 +1,12 @@
 "use client";
 
-import { Layout, RefreshCw, Loader2 } from "lucide-react";
+import { Layout, RefreshCw, Loader2, Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 interface ToolbarProps {
   onRelayout: () => void;
   onRefresh: () => void;
+  onNewType: () => void;
   typeCount: number;
   relCount: number;
   loading?: boolean;
@@ -13,7 +14,7 @@ interface ToolbarProps {
 
 /** Floating top-left toolbar over the canvas. */
 export function Toolbar({
-  onRelayout, onRefresh, typeCount, relCount, loading,
+  onRelayout, onRefresh, onNewType, typeCount, relCount, loading,
 }: ToolbarProps) {
   return (
     <div className="pointer-events-none absolute left-6 top-6 z-10 flex items-center gap-3">
@@ -28,6 +29,15 @@ export function Toolbar({
         </div>
       </div>
       <div className="pointer-events-auto inline-flex items-center gap-1 rounded-xl border border-navy-100 bg-white p-1 shadow-soft">
+        <button
+          type="button"
+          onClick={onNewType}
+          title="Create a new entity type"
+          className="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-navy-800 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-navy-700"
+        >
+          <Plus size={13} /> New type
+        </button>
+        <span className="mx-0.5 h-5 w-px bg-navy-100" />
         <button
           type="button"
           onClick={onRelayout}

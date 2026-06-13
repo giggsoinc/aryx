@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
 import type { Axiom, OntologyType, Rule, SurvivorshipPolicy } from "@/lib/types";
 import { cn } from "@/lib/cn";
+import { AttrsEditor } from "./AttrsEditor";
 
 interface InspectorProps {
   type: OntologyType | null;
@@ -123,7 +124,14 @@ export function Inspector({
           </nav>
 
           <div className="flex-1 overflow-y-auto px-5 py-4">
-            {tab === "attrs" && <AttrsView type={type} />}
+            {tab === "attrs" && (
+              <AttrsEditor
+                key={type.name}
+                type={type}
+                workspaceId={workspaceId}
+                onSaved={onChanged}
+              />
+            )}
             {tab === "survivor" && (
               <SurvivorView type={type} policy={survivor} />
             )}
@@ -142,26 +150,6 @@ export function Inspector({
         </motion.aside>
       )}
     </AnimatePresence>
-  );
-}
-
-function AttrsView({ type }: { type: OntologyType }) {
-  if (!type.attributes.length)
-    return <Empty label="No attributes — add some, or let AI propose them." />;
-  return (
-    <ul className="space-y-1.5">
-      {type.attributes.map((a) => (
-        <li
-          key={a}
-          className="flex items-center justify-between rounded-lg border border-navy-100 bg-navy-50/40 px-3 py-2 font-mono text-[12px] text-navy-800"
-        >
-          <span>{a}</span>
-          <span className="text-[10px] uppercase tracking-wider text-subtle">
-            DatatypeProperty
-          </span>
-        </li>
-      ))}
-    </ul>
   );
 }
 

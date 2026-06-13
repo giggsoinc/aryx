@@ -70,6 +70,13 @@ export const api = {
       { method: "PUT", body: JSON.stringify(policy) },
     ),
 
+  updateTypeAttrs: (workspaceId: number, name: string,
+                    attributes: string[]) =>
+    fetchJSON<{ status: string }>("/ontology/types", {
+      method: "POST",
+      body: JSON.stringify({ name, attributes, workspace_id: workspaceId }),
+    }),
+
   getIngestQuestions: (workspaceId: number, status = "pending") =>
     fetchJSON<IngestQuestion[]>(
       `/admin/ingest-questions?workspace_id=${workspaceId}&status=${status}&limit=50`,

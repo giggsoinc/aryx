@@ -16,6 +16,7 @@ import {
 } from "./EntityTypeNode";
 import { Inspector } from "./Inspector";
 import { Toolbar } from "./Toolbar";
+import { NewTypeDialog } from "./NewTypeDialog";
 
 const nodeTypes = { entityType: EntityTypeNode };
 
@@ -67,6 +68,7 @@ function CanvasInner() {
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [doc, setDoc] = useState<OntologyDoc | null>(null);
+  const [showNewType, setShowNewType] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -91,9 +93,23 @@ function CanvasInner() {
   const onPaneClick = useCallback(() => setSelected(null), []);
 
   const onConnect: OnConnect = useCallback(
-    (c) => setEdges((es) => addEdge(
-      { ...c, label: "relates_to", style: { stroke: "#4068A8" } }, es,
-    )),
+    (c) => {
+      const name = window.prompt(
+        "Relationship name (snake_case, e.g. opened_by)",
+        "relates_to",
+      );
+      if (!name?.trim()) return;
+      setEdges((es) => addEdge(
+        {
+          ...c,
+          id: `draft::${c.source}::${name}::${c.target}::${Date.now()}`,
+          label: name.trim(),
+          style: { stroke: "#4068A8", strokeDasharray: "6 4" },
+          data: { draft: true },
+        },
+        es,
+      ));
+    },
     [setEdges],
   );
 
@@ -114,10 +130,14 @@ function CanvasInner() {
         <Toolbar
           onRelayout={relayout}
           onRefresh={load}
+          onNewType={() => setShowNewType(true)}
           typeCount={doc?.types.length || 0}
           relCount={doc?.relationships.length || 0}
           loading={loading}
         />
+        {!loading && (doc?.types.length ?? 0) === 0 && (
+          <EmptyState onCreate={() => setShowNewType(true)} />
+        )}
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -159,6 +179,35 @@ function CanvasInner() {
         onClose={() => setSelected(null)}
         onChanged={load}
       />
+      <NewTypeDialog
+        open={showNewType}
+        workspaceId={workspaceId}
+        onClose={() => setShowNewType(false)}
+        onCreated={load}
+      />
+    </div>
+  );
+}
+
+function EmptyState({ onCreate }: { onCreate: () => void }) {
+  return (
+    <div className="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center">
+      <div className="pointer-events-auto max-w-md rounded-2xl border border-dashed border-navy-200 bg-white/70 px-8 py-10 text-center shadow-soft backdrop-blur">
+        <h2 className="font-display text-[1.6rem] text-navy-900">
+          No ontology yet.
+        </h2>
+        <p className="mt-2 text-[13px] text-subtle">
+          Run an ingest, or start modelling by hand. Draw nodes for the
+          entities in your domain, then drag between them to declare
+          relationships.
+        </p>
+        <button
+          onClick={onCreate}
+          className="focus-ring mt-5 inline-flex items-center gap-2 rounded-lg bg-navy-800 px-4 py-2 text-[13px] font-semibold text-white hover:bg-navy-700"
+        >
+          + Create the first type
+        </button>
+      </div>
     </div>
   );
 }
