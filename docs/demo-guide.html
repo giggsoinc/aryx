@@ -96,15 +96,16 @@
   <div class="brand"><img src="aryx-logo.png" alt="Aryx" /><span class="name">A R Y X</span></div>
   <h1>Demo guide — what's loaded, what to try</h1>
   <p class="lede">
-    A demo workspace is live on EC2 with a radio-equipment support dataset.
-    Use this page as your cheat sheet — keep it open next to the UI.
+    The <strong>DEMO</strong> workspace is loaded with a radio-equipment support dataset.
+    The <strong>Default</strong> workspace is intentionally empty — it's where new users
+    start the guided setup. Switch between them with the workspace picker in the header.
   </p>
 </header>
 
 <!-- ============ What's loaded ============ -->
 <section>
   <span class="sec-label">What's loaded</span>
-  <h2>Default workspace · 527 records · 5 kinds · 6 connections</h2>
+  <h2>DEMO workspace · 527 records · 5 kinds · 6 connections</h2>
   <p class="sec-sub">Live on <code style="font-family:'JetBrains Mono',monospace;background:var(--navy-50);padding:1px 6px;border-radius:4px;font-size:12px;">ec2-3-91-73-197.compute-1.amazonaws.com</code></p>
 
   <div class="what">
@@ -314,9 +315,17 @@
 <section>
   <span class="sec-label">Hook up Claude Desktop</span>
   <h2>One config block, 21 tools, restart</h2>
-  <p class="sec-sub">Run side-by-side with the UI. The MCP server is already running on EC2 at port 8765.</p>
+  <p class="sec-sub">
+    Use the local <strong>Claude Desktop</strong> app — claude.ai (the web) blocks raw-HTTP MCP connectors.
+    Pre-req: open <code style="font-family:'JetBrains Mono',monospace;background:var(--navy-50);padding:1px 6px;border-radius:4px;font-size:11px;">8765/tcp</code>
+    inbound on the EC2 security group, same as 3000 and 8088.
+  </p>
   <div class="cheat">
-    <div><span class="cmt"># Edit (or create) on macOS:</span></div>
+    <div><span class="cmt"># 1. Verify MCP is reachable from your laptop:</span></div>
+    <div><code>curl -m 6 -i http://ec2-3-91-73-197.compute-1.amazonaws.com:8765/sse</code></div>
+    <div><span class="cmt">#    expect text/event-stream — if it times out, open SG port 8765.</span></div>
+    <br/>
+    <div><span class="cmt"># 2. Edit (or create) on macOS:</span></div>
     <div><span class="cmt"># ~/Library/Application Support/Claude/claude_desktop_config.json</span></div>
     <br/>
     <div>{</div>
@@ -325,13 +334,20 @@
     <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ok">"command"</span>: <code>"npx"</code>,</div>
     <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ok">"args"</span>: [</div>
     <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<code>"-y"</code>, <code>"mcp-remote"</code>,</div>
-    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<code>"http://ec2-3-91-73-197.compute-1.amazonaws.com:8765/mcp"</code></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<code>"http://ec2-3-91-73-197.compute-1.amazonaws.com:8765/sse"</code></div>
     <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;]</div>
     <div>&nbsp;&nbsp;&nbsp;&nbsp;}</div>
     <div>&nbsp;&nbsp;}</div>
     <div>}</div>
     <br/>
-    <div><span class="cmt"># Then: fully quit Claude Desktop, reopen. Look for the 🔌 icon — 21 tools.</span></div>
+    <div><span class="cmt"># 3. Quit Claude Desktop fully (⌘Q), reopen. New chat → 🔌 icon → 21 tools.</span></div>
+    <br/>
+    <div><span class="cmt">#  ────────────────────────────────────────────────────────────────────</span></div>
+    <div><span class="cmt"># Want claude.ai web (not Desktop)? You need HTTPS.</span></div>
+    <div><span class="cmt"># Quick option — Cloudflare tunnel on EC2:</span></div>
+    <div><code>cloudflared tunnel --url http://localhost:8765</code></div>
+    <div><span class="cmt"># Use the printed https://xxx.trycloudflare.com/sse URL in</span></div>
+    <div><span class="cmt"># claude.ai → Settings → Connectors → Custom MCP.</span></div>
   </div>
 </section>
 

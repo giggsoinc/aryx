@@ -14,22 +14,40 @@ interface WorkspaceContext {
 
 const Ctx = createContext<WorkspaceContext | null>(null);
 
-/** Shared workspace selection across Ask, Model, and any future surface. */
+const STORAGE_KEY = "aryx.workspaceId";
+
+/** Shared workspace selection across Ask, Model, and any future surface.
+ *  First-time visitors land on the workspace named "Default" (typically the
+ *  empty onboarding one), so the auto-redirect on / bounces them to /start.
+ *  Returning users stay on whatever they last selected (localStorage). */
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [workspaceId, setWorkspaceIdState] = useState(1);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
 
   useEffect(() => {
-    const stored = typeof window !== "undefined"
-      ? Number(localStorage.getItem("aryx.workspaceId") || "1") : 1;
-    setWorkspaceIdState(stored);
-    api.listWorkspaces().then(setWorkspaces).catch(() => setWorkspaces([]));
+    api.listWorkspaces().then((list) => {
+      setWorkspaces(list);
+      const stored = typeof window !== "undefined"
+        ? localStorage.getItem(STORAGE_KEY) : null;
+      if (stored) {
+        const id = Number(stored);
+        if (list.some((w) => w.id === id)) {
+          setWorkspaceIdState(id);
+          return;
+        }
+      }
+      // First visit (or stale id): prefer the workspace literally named
+      // "Default" so onboarding/test users get the wizard. Fall back to
+      // first workspace, then id=1.
+      const def = list.find((w) => w.name === "Default") || list[0];
+      if (def) setWorkspaceIdState(def.id);
+    }).catch(() => setWorkspaces([]));
   }, []);
 
   const setWorkspaceId = (id: number) => {
     setWorkspaceIdState(id);
     if (typeof window !== "undefined") {
-      localStorage.setItem("aryx.workspaceId", String(id));
+      localStorage.setItem(STORAGE_KEY, String(id));
     }
   };
 
