@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 import urllib.error
 import urllib.request
@@ -17,14 +18,21 @@ from aryx.broker.specs import ModelSpec
 
 logger = logging.getLogger(__name__)
 
+# Per-call LLM timeout. Default 120s — long enough for a slow local model,
+# short enough that one frozen call recovers instead of wedging the job for
+# 10 minutes. Override with ARYX_LLM_TIMEOUT.
+_DEFAULT_TIMEOUT = float(os.environ.get("ARYX_LLM_TIMEOUT", "120"))
+
 
 def post_json(url: str, body: dict[str, Any], headers: dict[str, str],
-              timeout: float = 600.0) -> dict[str, Any]:
+              timeout: float | None = None) -> dict[str, Any]:
     """POST a JSON body and return the parsed JSON response.
 
     Retries on HTTP 429 (rate-limit) with exponential backoff capped at
     ~60s total wait so a single chunk doesn't stall the whole pipeline.
     """
+    if timeout is None:
+        timeout = _DEFAULT_TIMEOUT
     data = json.dumps(body).encode("utf-8")
     req = urllib.request.Request(url, data=data, headers={**headers,
                                  "Content-Type": "application/json"})

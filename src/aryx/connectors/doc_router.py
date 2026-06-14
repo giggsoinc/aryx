@@ -4,7 +4,9 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
+import os
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from pathlib import Path
 
 from aryx.broker import Broker
@@ -41,6 +43,25 @@ def _connector_for(path: Path):
     if cls is None:
         raise ValueError(f"unsupported document type: {path.suffix!r}")
     return cls(path)
+
+
+# Hard wall-clock budget per document — a hang in parse / OCR / embed /
+# extract is abandoned so the batch finishes. Override ARYX_PER_DOC_TIMEOUT.
+_PER_DOC_TIMEOUT = float(os.environ.get("ARYX_PER_DOC_TIMEOUT", "300"))
+
+
+def _ingest_with_timeout(
+    path: Path, system: str, broker: Broker, chunk_store: ChunkStore,
+    chunk_size: int, chunk_overlap: int, expected_embed_dim: int,
+    run_pii: bool, context: str,
+) -> list[RawRecord]:
+    """ingest_document under a hard timeout; raises FuturesTimeout on hang."""
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(
+            ingest_document, path, system, broker, chunk_store,
+            chunk_size, chunk_overlap, expected_embed_dim, run_pii, context,
+        )
+        return future.result(timeout=_PER_DOC_TIMEOUT)
 
 
 def ingest_document(
@@ -91,12 +112,14 @@ class DocumentRouterConnector(Connector):
     def extract(self) -> Iterator[RawRecord]:
         for path in self._paths:
             try:
-                yield from ingest_document(
+                yield from _ingest_with_timeout(
                     path, self._system, self._broker, self._chunk_store,
                     self._chunk_size, self._chunk_overlap,
-                    self._expected_embed_dim, self._run_pii,
-                    context=self._context,
+                    self._expected_embed_dim, self._run_pii, self._context,
                 )
+            except FuturesTimeout:
+                logger.error("ingest TIMED OUT path=%s after %ss — skipping; "
+                             "batch continues", path.name, _PER_DOC_TIMEOUT)
             except Exception as exc:
                 logger.error("ingest failed path=%s error=%s", path.name, exc)
 
