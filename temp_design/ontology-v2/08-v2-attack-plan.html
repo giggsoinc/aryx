@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Aryx Enterprise (v2) · attack plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root{
+    --navy-50:#F2F5FB;--navy-100:#E4EAF4;--navy-200:#C2CFE3;--navy-300:#94A8CB;
+    --navy-500:#3A578C;--navy-600:#27416E;--navy-700:#1A2F55;--navy-800:#0F1F3D;
+    --navy-900:#0A1530;--navy-950:#050B1C;
+    --steel-400:#5F8AD2;--steel-500:#4068A8;--steel-600:#2D4B8A;
+    --canvas:#F8F9FC;--ink:#0F1726;--subtle:#5A6478;
+    --amber:#F59E0B;--emerald:#10B981;--rose:#E11D48;--violet:#7C3AED;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.55;padding:46px 24px}
+  .wrap{max-width:1160px;margin:0 auto}
+  code,.mono{font-family:'JetBrains Mono',monospace}
+  header{text-align:center;padding-bottom:26px;border-bottom:1px solid var(--navy-100)}
+  .brand{display:inline-flex;align-items:center;gap:12px}
+  .brand img{width:38px;height:38px}
+  .brand .name{font-weight:600;letter-spacing:.32em;color:var(--navy-900);font-size:15px}
+  .tag{display:inline-block;margin-top:14px;padding:4px 14px;border-radius:999px;background:var(--navy-800);color:#fff;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+  h1{font-family:'Fraunces',Georgia,serif;font-size:2.2rem;color:var(--navy-900);margin-top:14px;letter-spacing:-.01em}
+  .sub{color:var(--subtle);font-size:15px;margin-top:8px;max-width:780px;margin-left:auto;margin-right:auto}
+  section{margin-top:42px}
+  h2{font-family:'Fraunces',serif;font-size:1.45rem;color:var(--navy-900)}
+  h2 .n{display:inline-flex;width:28px;height:28px;align-items:center;justify-content:center;border-radius:8px;background:var(--navy-800);color:#fff;font-size:13px;margin-right:11px;font-family:'Inter'}
+  .sec-lede{color:var(--subtle);font-size:13.5px;margin-top:6px;max-width:820px}
+
+  .principle{margin-top:18px;background:linear-gradient(135deg,#FEF2F2,white);border:1px solid #FCA5A5;border-radius:16px;padding:20px 22px;display:flex;gap:16px;align-items:flex-start}
+  .principle .g{font-size:28px}
+  .principle h3{font-family:'Fraunces',serif;font-size:1.1rem;color:#991B1B}
+  .principle p{font-size:13px;color:#7F1D1D;margin-top:6px;line-height:1.6}
+  .principle code{background:#fff;padding:1px 6px;border-radius:4px;font-size:11px;color:#991B1B}
+
+  /* phases */
+  .phase{margin-top:16px;border:1px solid var(--navy-100);border-radius:18px;overflow:hidden;background:white}
+  .phase-h{display:flex;align-items:center;gap:14px;padding:16px 20px;border-bottom:1px solid var(--navy-100)}
+  .phase-h .pn{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-size:1.3rem;font-weight:600;flex:0 0 46px}
+  .phase.p0 .pn{background:#FEF2F2;color:var(--rose)}
+  .phase.p1 .pn{background:#ECFDF5;color:#047857}
+  .phase.p2 .pn{background:#EFF6FF;color:var(--steel-600)}
+  .phase.p3 .pn{background:#FFF7ED;color:#C2410C}
+  .phase.p4 .pn{background:#F5F3FF;color:var(--violet)}
+  .phase.p5 .pn{background:var(--navy-50);color:var(--navy-700)}
+  .phase-h .t{flex:1}
+  .phase-h .t .h{font-family:'Fraunces',serif;font-size:1.2rem;color:var(--navy-900)}
+  .phase-h .t .d{font-size:12px;color:var(--subtle);margin-top:2px}
+  .phase-h .when{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:4px 10px;border-radius:999px;font-family:'JetBrains Mono'}
+  .when.tonight{background:#ECFDF5;color:#047857}
+  .when.next{background:#EFF6FF;color:var(--steel-600)}
+  .when.later{background:var(--navy-50);color:var(--subtle)}
+  .slices{padding:8px 20px 16px}
+  .slice{display:grid;grid-template-columns:auto 1fr auto;gap:12px;padding:10px 0;border-top:1px dashed var(--navy-100);align-items:center}
+  .slice:first-child{border-top:none}
+  .slice .sid{font-family:'JetBrains Mono';font-size:11px;font-weight:700;color:var(--navy-700);background:var(--navy-50);padding:2px 8px;border-radius:6px;white-space:nowrap}
+  .slice .sd{font-size:12.5px;color:var(--navy-800)}
+  .slice .sd b{color:var(--navy-900)}
+  .slice .meta{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+  .m{font-size:9px;font-weight:700;padding:2px 7px;border-radius:999px;font-family:'JetBrains Mono'}
+  .m.mag{background:#EFF6FF;color:var(--steel-600)}.m.cfo{background:#ECFDF5;color:#047857}
+  .m.cdo{background:#F5F3FF;color:var(--violet)}.m.test{background:#FFF7ED;color:#C2410C}.m.oready{background:#FEF2F2;color:var(--rose)}
+
+  /* tonight box */
+  .tonight{margin-top:22px;background:linear-gradient(135deg,#0A1530,#1A2F55);border-radius:18px;padding:24px 26px;color:#fff}
+  .tonight .k{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--steel-400)}
+  .tonight h3{font-family:'Fraunces',serif;font-size:1.4rem;color:#fff;margin-top:6px}
+  .tonight ol{margin:14px 0 0 0;padding:0;list-style:none;counter-reset:t}
+  .tonight li{counter-increment:t;display:flex;gap:12px;padding:7px 0;font-size:13.5px;color:#C2CFE3;align-items:flex-start}
+  .tonight li::before{content:counter(t);flex:0 0 24px;height:24px;border-radius:7px;background:rgba(95,138,210,.2);color:var(--steel-400);font-weight:700;font-size:12px;display:inline-flex;align-items:center;justify-content:center;font-family:'JetBrains Mono'}
+  .tonight li b{color:#fff}
+  .tonight .honest{margin-top:14px;font-size:12px;color:#94A8CB;font-style:italic;border-top:1px solid rgba(196,207,227,.15);padding-top:12px}
+
+  .ports{margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .pcard{background:white;border:1px solid var(--navy-100);border-radius:12px;padding:14px 16px}
+  .pcard .pt{font-weight:700;font-size:12.5px;color:var(--navy-900)}
+  .pcard .pd{font-size:11px;color:var(--subtle);margin-top:4px;line-height:1.45;font-family:'JetBrains Mono'}
+
+  footer{margin-top:48px;padding-top:22px;border-top:1px solid var(--navy-100);text-align:center;color:var(--subtle);font-size:12px}
+  footer a{color:var(--steel-500);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand"><img src="../aryx-logo.png" alt="Aryx"/><span class="name">A R Y X</span></div>
+  <div class="tag">Aryx Enterprise · v2 · the attack plan</div>
+  <h1>Build order — foundation first, converter second, the rest in waves.</h1>
+  <p class="sub">Six phases, prioritized so (1) the Oracle move later is a config swap, not surgery, (2) the screen that converts the skeptic ships early, and (3) nothing visible is faked. Branch: <code>feat/ontology-v2-enterprise</code>.</p>
+</header>
+
+<!-- THE SEQUENCING PRINCIPLE -->
+<section>
+  <h2><span class="n">0</span>The one rule that orders everything</h2>
+  <div class="principle">
+    <div class="g">🧬</div>
+    <div>
+      <h3>Build the seam before the features — or Aryx-o becomes spinal surgery.</h3>
+      <p>Every v2 feature must call a <b>capability port</b>, never a concrete store. If the Map talks to <code>FalkorDB</code> directly, then Aryx-o = rewrite the Map. If it talks to a <code>GraphPort</code>, then Aryx-o = write an <code>OracleRdfAdapter</code> + flip config. <b>Phase 0 wraps today's Postgres/FalkorDB/Ollama as the default adapters first</b>, so all of v2 is built on the seam and v2.1 is a swap.</p>
+    </div>
+  </div>
+  <div class="ports">
+    <div class="pcard"><div class="pt">RelationalPort</div><div class="pd">Postgres → Oracle ADB · Fabric · BigQuery</div></div>
+    <div class="pcard"><div class="pt">GraphPort</div><div class="pd">FalkorDB → Oracle RDF/PG · Spanner</div></div>
+    <div class="pcard"><div class="pt">VectorPort</div><div class="pd">pgvector → Oracle AI Vector · Vertex</div></div>
+    <div class="pcard"><div class="pt">LlmPort</div><div class="pd">Ollama → Claude · Gemini · OCI GenAI</div></div>
+    <div class="pcard"><div class="pt">ReasonerPort</div><div class="pd">internal → Oracle native OWL · HermiT</div></div>
+    <div class="pcard"><div class="pt">ComputePort</div><div class="pd">ECS → Cloud Run · AKS · OCI CE</div></div>
+  </div>
+</section>
+
+<!-- PHASE 0 -->
+<section>
+  <h2><span class="n">1</span>The phases, in priority order</h2>
+
+  <div class="phase p0">
+    <div class="phase-h"><div class="pn">0</div><div class="t"><div class="h">Foundation — the ports &amp; adapters seam</div><div class="d">Invisible, but it unblocks everything and makes Aryx-o cheap.</div></div><span class="when tonight">tonight</span></div>
+    <div class="slices">
+      <div class="slice"><span class="sid">0.1</span><span class="sd">Define the 6 <b>capability ports</b> as interfaces (Relational · Graph · Vector · LLM · Reasoner · Compute).</span><div class="meta"><span class="m oready">Aryx-o</span></div></div>
+      <div class="slice"><span class="sid">0.2</span><span class="sd">Wrap the <b>current stores as the default adapters</b> (PostgresAdapter, FalkorAdapter, OllamaAdapter). No behavior change — just the seam.</span><div class="meta"><span class="m oready">Aryx-o</span><span class="m test">IP-T1/2/3</span></div></div>
+      <div class="slice"><span class="sid">0.3</span><span class="sd"><b>Config-driven adapter loading</b> — pick the adapter set from one config block. Default = Lite stack.</span><div class="meta"><span class="m oready">Aryx-o</span></div></div>
+      <div class="slice"><span class="sid">0.4</span><span class="sd"><b>Edition flag</b> — Lite vs Enterprise gating; rebrand surfaces.</span><div class="meta"></div></div>
+    </div>
+  </div>
+
+  <div class="phase p1">
+    <div class="phase-h"><div class="pn">1</div><div class="t"><div class="h">The converter — Accuracy Lab</div><div class="d">Highest business leverage: it converts Magnus AND forces the provenance/verification engine into existence.</div></div><span class="when tonight">tonight</span></div>
+    <div class="slices">
+      <div class="slice"><span class="sid">1.1</span><span class="sd"><b>Groundedness engine</b> — claim → provenance record, value-verified. Powers both Ask and the Lab.</span><div class="meta"><span class="m mag">Magnus</span><span class="m test">T-0a/d · T-2</span></div></div>
+      <div class="slice"><span class="sid">1.2</span><span class="sd"><b>Fair A/B run</b> — same model+retrieval, ontology on vs off; scorecard.</span><div class="meta"><span class="m mag">Magnus</span><span class="m test">T-0c</span></div></div>
+      <div class="slice"><span class="sid">1.3</span><span class="sd"><b>Reasoner check</b> — count contradictions blocked (uses ReasonerPort).</span><div class="meta"><span class="m mag">Magnus</span><span class="m test">T-0b · T-3</span></div></div>
+      <div class="slice"><span class="sid">1.4</span><span class="sd"><b>Accuracy Lab UI</b> (Screen 0) on <code>/lab</code>.</span><div class="meta"><span class="m mag">Magnus</span></div></div>
+    </div>
+  </div>
+
+  <div class="phase p2">
+    <div class="phase-h"><div class="pn">2</div><div class="t"><div class="h">The workbench core</div><div class="d">The product surface — the Map at scale + the real ontology constructs.</div></div><span class="when next">next</span></div>
+    <div class="slices">
+      <div class="slice"><span class="sid">2.1</span><span class="sd"><b>Map at scale</b> — ghost proposals, confidence/provenance/sensitivity per node, cluster + query-into, tree↔graph sync.</span><div class="meta"><span class="m mag">Magnus</span><span class="m cdo">Marcus</span><span class="m test">T-S2 · R-3</span></div></div>
+      <div class="slice"><span class="sid">2.2</span><span class="sd"><b>Properties + SKOS relation registry</b> (category, symmetric/transitive, cardinality, color, predicate URI).</span><div class="meta"><span class="m mag">Magnus</span></div></div>
+      <div class="slice"><span class="sid">2.3</span><span class="sd"><b>Axioms + Reasoner enforcement</b> — disjoint/cardinality BLOCK bad data, counted.</span><div class="meta"><span class="m mag">Magnus</span><span class="m test">T-3</span></div></div>
+      <div class="slice"><span class="sid">2.4</span><span class="sd"><b>Governance</b> — domain/subdomain, owners/reviewers, sensitivity taxonomy, lineage to column.</span><div class="meta"><span class="m cdo">Marcus</span><span class="m test">T-2 · T-4</span></div></div>
+    </div>
+  </div>
+
+  <div class="phase p3">
+    <div class="phase-h"><div class="pn">3</div><div class="t"><div class="h">Scale + ops</div><div class="d">Make it survive 200M rows / 200 connectors, observably.</div></div><span class="when later">later</span></div>
+    <div class="slices">
+      <div class="slice"><span class="sid">3.1</span><span class="sd"><b>Connector framework</b> — scheduler → queue → autoscaling workers (ComputePort). Salesforce · ServiceNow · Drive · warehouse; incremental + sampled.</span><div class="meta"><span class="m cdo">Marcus</span><span class="m cfo">Eleanor</span><span class="m test">T-S1/3/5 · O-1..4</span></div></div>
+      <div class="slice"><span class="sid">3.2</span><span class="sd"><b>Pipeline observability</b> — per-phase concurrency, cost Governor, per-source health (scale the jobs board).</span><div class="meta"><span class="m cfo">Eleanor</span><span class="m mag">Sven</span></div></div>
+      <div class="slice"><span class="sid">3.3</span><span class="sd"><b>Domain funnel</b> — partition the ontology; route a question to its domain subgraph + only its sources.</span><div class="meta"><span class="m mag">Magnus</span><span class="m test">T-O5</span></div></div>
+    </div>
+  </div>
+
+  <div class="phase p4">
+    <div class="phase-h"><div class="pn">4</div><div class="t"><div class="h">Engine deepening</div><div class="d">The thick IP — better inference, surgical deliberation, routing, the learning loop.</div></div><span class="when later">later</span></div>
+    <div class="slices">
+      <div class="slice"><span class="sid">4.1</span><span class="sd"><b>Ontology inference</b> — schema+samples → classes, subsumption, property typing, relationship inference with cardinality + confidence.</span><div class="meta"><span class="m mag">Magnus</span><span class="m test">T-1 · T-S1</span></div></div>
+      <div class="slice"><span class="sid">4.2</span><span class="sd"><b>Deliberation Adjudicator</b> — outlier detector gates a multi-voice panel on ~1%.</span><div class="meta"><span class="m test">A-T5/6 · A-3</span></div></div>
+      <div class="slice"><span class="sid">4.3</span><span class="sd"><b>LLM Router</b> — per-task model + per-task sovereignty + fallback ladder (LlmPort).</span><div class="meta"><span class="m cdo">Marcus</span><span class="m cfo">Eleanor</span></div></div>
+      <div class="slice"><span class="sid">4.4</span><span class="sd"><b>HITL learning loop</b> — approvals → labeled corpus → per-domain inference improvement.</span><div class="meta"><span class="m cdo">Marcus</span></div></div>
+    </div>
+  </div>
+
+  <div class="phase p5">
+    <div class="phase-h"><div class="pn">5</div><div class="t"><div class="h">Proof surfaces</div><div class="d">The CFO/CDO closers + interchange.</div></div><span class="when later">later</span></div>
+    <div class="slices">
+      <div class="slice"><span class="sid">5.1</span><span class="sd"><b>Cost &amp; Sovereignty</b> screen — live cost meter, schema-not-rows curve, local-LLM toggle.</span><div class="meta"><span class="m cfo">Eleanor</span><span class="m cdo">Marcus</span><span class="m test">T-J1/3</span></div></div>
+      <div class="slice"><span class="sid">5.2</span><span class="sd"><b>Interchange</b> — OWL/RDF/SKOS round-trip + lineage (ReasonerPort/RelationalPort).</span><div class="meta"><span class="m cdo">Marcus</span><span class="m test">T-J4</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- TONIGHT -->
+<section>
+  <h2><span class="n">2</span>Tonight's target — honest scope</h2>
+  <div class="tonight">
+    <div class="k">What's actually buildable tonight</div>
+    <h3>Phase 0 (the seam) + Phase 1 (the Accuracy Lab).</h3>
+    <ol>
+      <li><b>Phase 0 — the ports &amp; adapters seam.</b> Define the 6 ports, wrap the current stores as default adapters, config-driven loading. This is the foundation; it makes every later phase clean and Aryx-o cheap. Invisible but decisive.</li>
+      <li><b>Phase 1 — the Accuracy Lab.</b> The groundedness + reasoner-check engine, the fair A/B, and the <code>/lab</code> screen. The thing that converts Magnus and forces the provenance engine into being.</li>
+    </ol>
+    <div class="honest">Honest framing (Red's rule): v2 Enterprise in full is weeks, not a night — it's the whole design set. Tonight we lay the seam and ship the one screen that proves the thesis. Phases 2–5 follow in waves, each shipping only when its checklist rows (07) go green. No faked timelines, no faked screens.</div>
+  </div>
+</section>
+
+<footer>
+  Aryx Enterprise v2 · attack plan · branch <code>feat/ontology-v2-enterprise</code> ·
+  <a href="00-overview.html">overview</a> · <a href="04-modularity-and-ip.html">IP map</a> · <a href="07-cx-hitl-and-checklist.html">checklist</a> · <a href="../EDITIONS.md">editions</a>
+</footer>
+</div>
+</body>
+</html>

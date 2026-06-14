@@ -1,4 +1,15 @@
-# Aryx — Knowledge Graph Platform
+# Aryx Lite — a lightweight ontology layer for quick outcome mapping
+
+> **This repo is Aryx Lite (v1)** — the fast, approachable front door:
+> point it at your data, and in minutes you have a deduplicated, linked
+> knowledge graph you can ask questions of. Bundled Postgres + FalkorDB +
+> Ollama; built for a single team's quick outcome mapping, not yet a
+> governed enterprise estate.
+>
+> **Editions:** **Aryx Lite** (v1, this repo — candidate for GPL) ·
+> **Aryx Enterprise** (v2 — scale, governance, sovereignty, the Accuracy
+> Lab) · **Aryx-o** (v2.1 — Enterprise native on Oracle ADB and other
+> hyperscalers). See [docs/EDITIONS.md](docs/EDITIONS.md).
 
 **Aryx** ingests records from databases and documents, resolves duplicates across sources into single entities, infers relationships, and builds a searchable knowledge graph. Use it to reason over messy, multi-source data — customers from Postgres and Salesforce, support tickets from email and Jira, products from inventory and e-commerce — all deduplicated and linked in one place.
 
