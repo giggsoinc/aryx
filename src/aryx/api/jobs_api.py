@@ -44,6 +44,26 @@ def jobs_router() -> APIRouter:
         finally:
             jobs.close()
 
+    @router.post("/jobs/{job_id}/cancel")
+    def cancel_job(job_id: str) -> dict[str, Any]:
+        """Mark a job cancelled so the UI frees up.
+
+        Note: a background ingest thread blocked on an LLM call can't be
+        force-killed; this stops the row from showing as running and lets
+        the user retry. Any later progress write from a still-alive thread
+        is ignored because the row is terminal.
+        """
+        jobs = _store()
+        try:
+            job = jobs.get(job_id)
+            if job is None:
+                raise HTTPException(status_code=404, detail="job not found")
+            jobs.finish(job_id, run_id=None, status="cancelled",
+                        error="Cancelled by user")
+        finally:
+            jobs.close()
+        return {"status": "cancelled", "job_id": job_id}
+
     @router.post("/jobs/{job_id}/resume")
     def resume_job(job_id: str) -> dict[str, Any]:
         """Stage-checkpoint status for a job's run (G5).

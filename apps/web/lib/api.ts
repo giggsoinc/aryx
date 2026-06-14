@@ -117,6 +117,11 @@ export const api = {
       stage: string; pct: number; detail: string; ts: string;
     }>>(`/admin/jobs/${jobId}/events`),
 
+  cancelJob: (jobId: string) =>
+    fetchJSON<{ status: string; job_id: string }>(
+      `/admin/jobs/${jobId}/cancel`, { method: "POST", body: "{}" },
+    ),
+
   getIngestQuestions: (workspaceId: number, status = "pending") =>
     fetchJSON<IngestQuestion[]>(
       `/admin/ingest-questions?workspace_id=${workspaceId}&status=${status}&limit=50`,

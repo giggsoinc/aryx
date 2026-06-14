@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   Activity, CheckCircle2, AlertTriangle, Loader2, X,
-  ChevronDown, ChevronRight,
+  ChevronDown, ChevronRight, Ban, RotateCcw,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
@@ -130,7 +130,9 @@ function JobsPanel({ open, jobs, onClose, onRefresh }: PanelProps) {
           </p>
           <div className="flex-1 overflow-y-auto px-4 py-3">
             <ul className="space-y-2">
-              {jobs.map((j) => <JobCard key={j.job_id} job={j} />)}
+              {jobs.map((j) => (
+                <JobCard key={j.job_id} job={j} onChanged={onRefresh} />
+              ))}
             </ul>
           </div>
         </motion.aside>
@@ -139,11 +141,23 @@ function JobsPanel({ open, jobs, onClose, onRefresh }: PanelProps) {
   );
 }
 
-function JobCard({ job }: { job: JobRow }) {
+function JobCard({ job, onChanged }: { job: JobRow; onChanged: () => void }) {
   const [open, setOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const isRunning = RUNNING.has(job.status);
-  const isFailed = job.status === "failed" || !!job.error;
+  const isFailed = job.status === "failed" || job.status === "cancelled"
+    || !!job.error;
   const isDone = job.status === "complete";
+
+  const cancel = async () => {
+    setCancelling(true);
+    try {
+      await api.cancelJob(job.job_id);
+      onChanged();
+    } finally {
+      setCancelling(false);
+    }
+  };
   return (
     <li className={cn(
       "rounded-xl border bg-white shadow-soft",
@@ -207,6 +221,37 @@ function JobCard({ job }: { job: JobRow }) {
           </div>
         )}
       </button>
+
+      {(isRunning || isFailed) && (
+        <div className="flex items-center gap-2 border-t border-navy-100 px-3.5 py-2">
+          {isRunning && (
+            <button
+              type="button"
+              onClick={cancel}
+              disabled={cancelling}
+              className="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-[11px] font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+            >
+              {cancelling ? <Loader2 size={11} className="animate-spin" />
+                           : <Ban size={11} />}
+              Cancel job
+            </button>
+          )}
+          {isFailed && (
+            <a
+              href="/start"
+              className="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-navy-800 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-navy-700"
+            >
+              <RotateCcw size={11} /> Retry — re-onboard
+            </a>
+          )}
+          <span className="text-[10px] text-subtle">
+            {isRunning
+              ? "Stuck? Cancel frees the workspace; re-upload to retry."
+              : "Re-run the wizard to re-ingest. Smaller batches help."}
+          </span>
+        </div>
+      )}
+
       {open && <EventLog jobId={job.job_id} live={isRunning} />}
     </li>
   );
