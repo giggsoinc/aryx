@@ -3,10 +3,20 @@
 Small local models are unreliable at free-form tool-calling, so retrieval is
 driven here and the LLM only interprets the question and writes the answer.
 Each graph call is recorded so the UI can show exactly what was queried.
+
+Retrieval gathers *structured* entity records (``gather``); the text context
+the LLM reads and the grounding record the Accuracy Lab verifies are both
+projected from that same structure, so the answer and its provenance can never
+drift apart.
 """
 from __future__ import annotations
 
+from typing import Any
+
+from aryx.ask.evidence import RetrievedEntity
 from aryx.graph.reader import GraphReader
+
+__all__ = ["RetrievedEntity", "all_types", "gather", "render_context", "retrieve"]
 
 
 def all_types(reader: GraphReader) -> list[str]:
@@ -37,14 +47,14 @@ def _lookup(reader: GraphReader, term: str) -> list[dict]:
     return hits
 
 
-def retrieve(reader: GraphReader, terms: list[str]) -> tuple[str, list[str]]:
-    """Look up terms, expand one hop, gather provenance.
+def gather(reader: GraphReader, terms: list[str]) -> tuple[list[RetrievedEntity], list[str]]:
+    """Look up terms, expand one hop, gather provenance — as structured records.
 
-    Returns a compact text context for the LLM and the graph calls made.
+    Returns the deduplicated entities and the exact graph calls made.
     """
     calls: list[str] = []
     seen: set[int] = set()
-    blocks: list[str] = []
+    out: list[RetrievedEntity] = []
 
     for term in terms[:5]:
         digits = "".join(ch for ch in term if ch.isdigit())
@@ -57,19 +67,31 @@ def retrieve(reader: GraphReader, terms: list[str]) -> tuple[str, list[str]]:
             if eid in seen:
                 continue
             seen.add(eid)
-            lines = [f"{ent['name']} [{ent['type']}] (id {eid})"]
-
             calls.append(f"get_neighbors({eid})")
-            for n in reader.neighbors(eid):
-                arrow = "->" if n["direction"] == "out" else "<-"
-                lines.append(f"  {arrow} {n['relationship']} {n['name']} [{n['type']}]")
-
+            neighbors = reader.neighbors(eid)
             calls.append(f"get_provenance({eid})")
-            prov = reader.provenance(eid)
-            if prov:
-                srcs = ", ".join(f"{p['system']}.{p['dataset']}" for p in prov)
-                lines.append(f"  source: {srcs}")
-            blocks.append("\n".join(lines))
+            sources = reader.provenance(eid)
+            out.append(RetrievedEntity(id=eid, type=ent["type"], name=ent["name"],
+                                       neighbors=neighbors, sources=sources))
+    return out, calls
 
-    context = "\n\n".join(blocks) if blocks else "No matching entities in the graph."
-    return context, calls
+
+def render_context(entities: list[RetrievedEntity]) -> str:
+    """Project structured entities into the compact text the LLM reads."""
+    blocks: list[str] = []
+    for ent in entities:
+        lines = [f"{ent.name} [{ent.type}] (id {ent.id})"]
+        for n in ent.neighbors:
+            arrow = "->" if n["direction"] == "out" else "<-"
+            lines.append(f"  {arrow} {n['relationship']} {n['name']} [{n['type']}]")
+        if ent.sources:
+            srcs = ", ".join(f"{p['system']}.{p['dataset']}" for p in ent.sources)
+            lines.append(f"  source: {srcs}")
+        blocks.append("\n".join(lines))
+    return "\n\n".join(blocks) if blocks else "No matching entities in the graph."
+
+
+def retrieve(reader: GraphReader, terms: list[str]) -> tuple[str, list[str]]:
+    """Back-compat wrapper: structured gather projected to (context, calls)."""
+    entities, calls = gather(reader, terms)
+    return render_context(entities), calls

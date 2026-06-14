@@ -1,9 +1,7 @@
 """Ask API — natural-language questions answered over the knowledge graph.
 
-Flow: extract search terms (with recent chat context so pronouns resolve) ->
-deterministic graph retrieval -> synthesise a connection-rich answer. Returns
-the answer, the graph calls made, and token/latency usage for observability.
-Model/provider are runtime-swappable via aryx.llm_runtime (Settings panel).
+Flow: extract terms -> deterministic graph retrieval -> synthesise -> verify
+grounding. Returns the answer, graph calls, usage, and the grounding record.
 """
 from __future__ import annotations
 
@@ -16,8 +14,9 @@ from pydantic import BaseModel
 
 from aryx import llm_runtime
 from aryx.api.ask_overview import build as build_overview
+from aryx.ask import build_grounding
 from aryx.config import get_settings
-from aryx.graph.retrieve import all_types, retrieve
+from aryx.graph.retrieve import all_types, gather, render_context
 from aryx.ports import GraphReaderPort, ports
 from aryx.store.ask_history_store import AskHistoryStore
 
@@ -41,8 +40,7 @@ class AskRequest(BaseModel):
 
 def _strip_think(text: str) -> str:
     """Drop any <think> chain-of-thought a model inlines into its answer."""
-    if "</think>" in text:
-        text = text.rsplit("</think>", 1)[-1]
+    text = text.rsplit("</think>", 1)[-1] if "</think>" in text else text
     return text.replace("<think>", "").strip()
 
 
@@ -111,12 +109,14 @@ def ask_router() -> APIRouter:
         overview = build_overview(reader, req.workspace_id)
         try:
             terms, p_in, p_out, p_ms = _extract_terms(req.question, types, req.history)
-            context, calls = retrieve(reader, terms)
+            entities, calls = gather(reader, terms)
+            context = render_context(entities)
             answer, s_in, s_out, s_ms = _synthesise(req.question, context, overview)
+            grounding = build_grounding(answer or "", entities)
         except Exception as exc:  # noqa: BLE001 — surface model/runtime errors to UI
             logger.warning("ask failed: %s", exc)
             return {"answer": f"LLM unavailable: {exc}", "terms": [],
-                    "tools_called": [], "usage": {}}
+                    "tools_called": [], "usage": {}, "grounding": None}
         cfg = llm_runtime.status()
         usage = {
             "prompt_tokens": p_in + s_in,
@@ -135,7 +135,8 @@ def ask_router() -> APIRouter:
         except Exception as exc:  # noqa: BLE001
             logger.warning("ask history persist failed: %s", exc)
         return {"answer": answer or "No answer produced.", "terms": terms,
-                "tools_called": calls, "usage": usage}
+                "tools_called": calls, "usage": usage,
+                "grounding": grounding.to_dict()}
 
     @router.get("/llm/config")
     def get_llm_config() -> dict:
