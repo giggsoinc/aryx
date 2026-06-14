@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Aryx Ontology v2.0 · Enterprise scale &amp; the persona map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root{
+    --navy-50:#F2F5FB;--navy-100:#E4EAF4;--navy-200:#C2CFE3;--navy-300:#94A8CB;
+    --navy-500:#3A578C;--navy-600:#27416E;--navy-700:#1A2F55;--navy-800:#0F1F3D;
+    --navy-900:#0A1530;--navy-950:#050B1C;
+    --steel-400:#5F8AD2;--steel-500:#4068A8;--steel-600:#2D4B8A;
+    --canvas:#F8F9FC;--ink:#0F1726;--subtle:#5A6478;
+    --amber:#F59E0B;--emerald:#10B981;--rose:#E11D48;--violet:#7C3AED;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.55;padding:48px 24px}
+  .wrap{max-width:1160px;margin:0 auto}
+  code,.mono{font-family:'JetBrains Mono',monospace}
+  header{text-align:center;padding-bottom:28px;border-bottom:1px solid var(--navy-100)}
+  .brand{display:inline-flex;align-items:center;gap:12px}
+  .brand img{width:38px;height:38px}
+  .brand .name{font-weight:600;letter-spacing:.32em;color:var(--navy-900);font-size:15px}
+  .tag{display:inline-block;margin-top:14px;padding:4px 14px;border-radius:999px;background:var(--navy-800);color:#fff;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+  h1{font-family:'Fraunces',Georgia,serif;font-size:2.3rem;color:var(--navy-900);margin-top:14px;letter-spacing:-.01em}
+  .sub{color:var(--subtle);font-size:15px;margin-top:8px;max-width:760px;margin-left:auto;margin-right:auto}
+  section{margin-top:48px}
+  h2{font-family:'Fraunces',serif;font-size:1.5rem;color:var(--navy-900);letter-spacing:-.01em}
+  h2 .n{display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border-radius:8px;background:var(--navy-800);color:#fff;font-size:14px;margin-right:12px;font-family:'Inter'}
+  .sec-lede{color:var(--subtle);font-size:14px;margin-top:6px;max-width:780px}
+
+  /* the big insight */
+  .insight{margin-top:22px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .ins{border-radius:16px;padding:22px;border:1px solid var(--navy-100);background:white}
+  .ins.huge{background:linear-gradient(135deg,#FEF2F2,white);border-color:#FCA5A5}
+  .ins.small{background:linear-gradient(135deg,#ECFDF5,white);border-color:#6EE7B7}
+  .ins .k{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--subtle)}
+  .ins .big{font-family:'Fraunces',serif;font-size:2rem;color:var(--navy-900);margin-top:6px}
+  .ins.huge .big{color:var(--rose)}.ins.small .big{color:#047857}
+  .ins p{font-size:13px;color:var(--navy-700);margin-top:8px;line-height:1.55}
+
+  /* scale pipeline */
+  .pipe{display:flex;gap:1px;margin-top:20px;flex-wrap:wrap}
+  .pst{flex:1;min-width:120px;background:white;border:1px solid var(--navy-100);border-radius:12px;padding:14px 10px;text-align:center}
+  .pst .ic{font-size:20px}
+  .pst .t{font-weight:700;font-size:12px;color:var(--navy-900);margin-top:5px}
+  .pst .d{font-size:10px;color:var(--subtle);margin-top:3px;line-height:1.35}
+  .parr{display:flex;align-items:center;color:var(--navy-300);font-size:18px;padding:0 3px}
+
+  /* persona → feature */
+  .pf{margin-top:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .pcard{border:1px solid var(--navy-100);border-radius:16px;padding:18px 20px;background:white}
+  .pcard .hd{display:flex;align-items:center;gap:10px}
+  .pcard .av{width:34px;height:34px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:13px}
+  .pcard.cfo .av{background:var(--emerald)}.pcard.cdo .av{background:var(--violet)}.pcard.skp .av{background:var(--steel-500)}
+  .pcard .nm{font-weight:700;color:var(--navy-900);font-size:13.5px}
+  .pcard .ro{font-size:10.5px;color:var(--subtle)}
+  .pcard .bar{margin-top:10px;font-size:12px;color:var(--navy-700);font-style:italic;line-height:1.5}
+  .pcard .feat{margin-top:12px;padding-top:10px;border-top:1px dashed var(--navy-100)}
+  .pcard .feat .fl{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--subtle);font-weight:700}
+  .pcard .feat ul{margin:6px 0 0 0;padding:0;list-style:none}
+  .pcard .feat li{font-size:12px;color:var(--navy-800);padding:3px 0;display:flex;gap:7px}
+  .pcard .feat li::before{content:"▸";color:var(--steel-500)}
+
+  /* 9 screens compact */
+  .grid9{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}
+  .s9{background:white;border:1px solid var(--navy-100);border-radius:14px;padding:14px 16px;position:relative}
+  .s9 .num{font-family:'Fraunces',serif;font-size:1.3rem;color:var(--steel-500)}
+  .s9 h3{font-size:13.5px;font-weight:700;color:var(--navy-900);margin-top:0}
+  .s9 p{font-size:11px;color:var(--subtle);margin-top:4px;line-height:1.45}
+  .s9 .who{margin-top:8px;display:flex;gap:5px;flex-wrap:wrap}
+  .w{font-size:9px;font-weight:700;padding:2px 7px;border-radius:999px;font-family:'JetBrains Mono'}
+  .w.mag{background:#EFF6FF;color:var(--steel-600)}.w.cfo{background:#ECFDF5;color:#047857}.w.cdo{background:#F5F3FF;color:var(--violet)}
+  .s9.lead{border-color:var(--emerald);box-shadow:0 0 0 3px rgba(16,185,129,.1)}
+
+  table{width:100%;border-collapse:collapse;margin-top:18px;font-size:12.5px;background:white;border:1px solid var(--navy-100);border-radius:14px;overflow:hidden}
+  th{background:var(--navy-50);text-align:left;padding:9px 13px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--navy-700);font-weight:700}
+  td{padding:9px 13px;border-top:1px solid var(--navy-100);vertical-align:top}
+  td .id{font-family:'JetBrains Mono';font-weight:700;font-size:10.5px;color:var(--navy-900)}
+  .src{display:inline-block;padding:1px 7px;border-radius:999px;font-size:9px;font-weight:700;font-family:'JetBrains Mono'}
+  .src.S{background:#FFF7ED;color:#C2410C}.src.J{background:#ECFDF5;color:#047857}
+
+  .note{margin-top:18px;padding:14px 18px;background:var(--navy-50);border-left:3px solid var(--steel-500);border-radius:0 12px 12px 0;font-size:13px;color:var(--navy-700);line-height:1.6}
+  .note b{color:var(--navy-900)}
+  footer{margin-top:50px;padding-top:22px;border-top:1px solid var(--navy-100);text-align:center;color:var(--subtle);font-size:12px}
+  footer a{color:var(--steel-500);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand"><img src="../aryx-logo.png" alt="Aryx"/><span class="name">A R Y X</span></div>
+  <div class="tag">Ontology v2.0 · enterprise scale · the persona map</div>
+  <h1>The ontology is small even when the data is&nbsp;huge.</h1>
+  <p class="sub">200M rows · 50 tables · 5 Salesforce orgs · 1TB Google Drive · ServiceNow. This page is how Aryx survives that — and how the product (not a pitch deck) satisfies the CFO, the CDO, and the Palantir skeptic at once.</p>
+</header>
+
+<!-- THE INSIGHT -->
+<section>
+  <h2><span class="n">1</span>The architectural insight that beats scale</h2>
+  <p class="sec-lede">Palantir's pipeline is incremental and schema-first under the hood. So is ours — that's why it's both <em>cheap</em> and <em>fast</em>. You never LLM 200M rows, and you never render them.</p>
+  <div class="insight">
+    <div class="ins huge">
+      <div class="k">The data — huge</div>
+      <div class="big">200,000,000</div>
+      <p>rows of instances. Streamed, sampled for classification, resolved via chunked blocking, projected incrementally. Never all-LLM'd. Never all-rendered.</p>
+    </div>
+    <div class="ins small">
+      <div class="k">The ontology — small</div>
+      <div class="big">~50–200</div>
+      <p>classes + relations + properties. Bounded by the <b>schema</b>, not the row count. This is what the Map shows, what the agent reasons over, what you govern. It barely grows when rows hit a billion.</p>
+    </div>
+  </div>
+  <div class="pipe">
+    <div class="pst"><div class="ic">🔌</div><div class="t">Connect</div><div class="d">SF · ServiceNow · Drive · DBs · streaming</div></div>
+    <div class="parr">→</div>
+    <div class="pst"><div class="ic">🔬</div><div class="t">Sample + classify</div><div class="d">schema + a few k rows/table → classes, props, sensitivity</div></div>
+    <div class="parr">→</div>
+    <div class="pst"><div class="ic">🧩</div><div class="t">Resolve</div><div class="d">chunked blocking · fuse Customer across sources</div></div>
+    <div class="parr">→</div>
+    <div class="pst"><div class="ic">⚡</div><div class="t">Project incr.</div><div class="d">watermarks · deltas only · sync %</div></div>
+    <div class="parr">→</div>
+    <div class="pst"><div class="ic">🎯</div><div class="t">Query, don't render</div><div class="d">Map shows ontology · expand instances on demand</div></div>
+  </div>
+  <div class="note"><b>Why this is the whole game:</b> classification cost scales with <b>schema size</b>, not row count — so the CFO's bill is flat as data explodes. The Map renders the small ontology, not the huge instance graph. Resolution + sync are incremental. That single insight answers scale, cost, AND interactivity at once.</div>
+</section>
+
+<!-- PERSONA → FEATURE -->
+<section>
+  <h2><span class="n">2</span>Personas become product features (not slides)</h2>
+  <p class="sec-lede">Each decision-maker's bar is a thing they can click in the app. The proof lives in the product.</p>
+  <div class="pf">
+    <div class="pcard cfo">
+      <div class="hd"><span class="av">E</span><div><div class="nm">Eleanor Voss</div><div class="ro">CFO · cost &amp; payback</div></div></div>
+      <div class="bar">"Prove LLM cost is bounded and predictable. Flat to my 200M rows or I walk."</div>
+      <div class="feat"><div class="fl">Her features</div><ul>
+        <li>Live <b>cost meter</b> — tokens + $ per source, projected/month</li>
+        <li><b>Schema-not-rows curve</b> — "$X for 50 tables, flat to 200M"</li>
+        <li><b>Sovereignty toggle</b> → local model → $0 LLM</li>
+      </ul></div>
+    </div>
+    <div class="pcard cdo">
+      <div class="hd"><span class="av">M</span><div><div class="nm">Marcus Adeyemi</div><div class="ro">CDO · governance &amp; sovereignty</div></div></div>
+      <div class="bar">"PII never leaves my perimeter. Lineage for regulators. I own the ontology."</div>
+      <div class="feat"><div class="fl">His features</div><ul>
+        <li><b>Sovereignty mode</b> — local Ollama, zero egress</li>
+        <li><b>Lineage to source column</b> + audit trail export</li>
+        <li><b>OWL/RDF/SKOS export</b> — no lock-in</li>
+        <li><b>Per-source access</b> + sensitivity on every field</li>
+      </ul></div>
+    </div>
+    <div class="pcard skp">
+      <div class="hd"><span class="av">H</span><div><div class="nm">Magnus Holt</div><div class="ro">ex-Palantir · the skeptic</div></div></div>
+      <div class="bar">"Show the accuracy delta, at scale, fairly. Then I write the check."</div>
+      <div class="feat"><div class="fl">His features</div><ul>
+        <li><b>Accuracy Lab</b> — fair A/B, groundedness, verified citations</li>
+        <li><b>Map scale-mode</b> — cluster + query-into, never render-all</li>
+        <li><b>Axioms + reasoner</b> — contradictions actually blocked</li>
+        <li><b>Incremental sync</b> — honest % across SF/Drive/ServiceNow</li>
+      </ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 9 SCREENS -->
+<section>
+  <h2><span class="n">3</span>The nine product surfaces</h2>
+  <p class="sec-lede">Tags show which persona each surface satisfies. <span class="w mag">Magnus</span> <span class="w cfo">Eleanor</span> <span class="w cdo">Marcus</span></p>
+  <div class="grid9">
+    <div class="s9 lead"><div class="num">0</div><h3>Accuracy Lab</h3><p>Fair A/B; groundedness, verified citations, contradictions caught.</p><div class="who"><span class="w mag">Magnus</span></div></div>
+    <div class="s9"><div class="num">1</div><h3>The Map</h3><p>Ghost-proposal graph; scale-mode cluster + query-into; provenance/sensitivity per node.</p><div class="who"><span class="w mag">Magnus</span><span class="w cdo">Marcus</span></div></div>
+    <div class="s9"><div class="num">2</div><h3>Classes</h3><p>Subsumption tree + class detail, AI-seeded, plain-language aliases.</p><div class="who"><span class="w mag">Magnus</span></div></div>
+    <div class="s9"><div class="num">3</div><h3>Properties + Relations</h3><p>Object/data props, domain/range, SKOS relation registry.</p><div class="who"><span class="w mag">Magnus</span></div></div>
+    <div class="s9"><div class="num">4</div><h3>Axioms + Reasoner</h3><p>OWL2 constraints that BLOCK bad data, counted.</p><div class="who"><span class="w mag">Magnus</span></div></div>
+    <div class="s9"><div class="num">5</div><h3>Governance</h3><p>Domain/owner/reviewer, sensitivity taxonomy, lineage to column.</p><div class="who"><span class="w cdo">Marcus</span></div></div>
+    <div class="s9"><div class="num">6</div><h3>Connectors at scale</h3><p>SF · ServiceNow · Drive · DBs. Incremental sync %, sampled classify, per-source access + cost.</p><div class="who"><span class="w cdo">Marcus</span><span class="w mag">Magnus</span><span class="w cfo">Eleanor</span></div></div>
+    <div class="s9"><div class="num">7</div><h3>Cost &amp; Sovereignty</h3><p>Live cost meter, schema-not-rows curve, local-LLM toggle (zero egress).</p><div class="who"><span class="w cfo">Eleanor</span><span class="w cdo">Marcus</span></div></div>
+    <div class="s9"><div class="num">8</div><h3>Interchange</h3><p>OWL/RDF/SKOS round-trip + lineage. You own your ontology.</p><div class="who"><span class="w cdo">Marcus</span></div></div>
+  </div>
+</section>
+
+<!-- LEDGER EXTENSION -->
+<section>
+  <h2><span class="n">4</span>Ledger — scale &amp; jugular tests added</h2>
+  <p class="sec-lede"><span class="src S">S</span> = scale survival · <span class="src J">J</span> = the Palantir jugular. These join the T/M/R tests in <a href="00-overview.html" style="color:var(--steel-500)">00-overview</a>.</p>
+  <table>
+    <thead><tr><th style="width:8%">ID</th><th style="width:10%">Class</th><th>The test</th></tr></thead>
+    <tbody>
+      <tr><td><span class="id">T-S1</span></td><td><span class="src S">scale</span></td><td>Classify a 50-table / 200M-row source from <b>schema + samples</b> in minutes — not by reading the dataset.</td></tr>
+      <tr><td><span class="id">T-S2</span></td><td><span class="src S">scale</span></td><td>Map stays interactive: clusters ≥ density threshold, <b>never attempts 200M nodes</b>.</td></tr>
+      <tr><td><span class="id">T-S3</span></td><td><span class="src S">scale</span></td><td>Ingest is <b>incremental</b> — re-sync only deltas; sync % shown honestly per source.</td></tr>
+      <tr><td><span class="id">T-S4</span></td><td><span class="src S">scale</span></td><td>One <b>Customer</b> fuses Salesforce + ServiceNow + Drive mentions; lineage to each source.</td></tr>
+      <tr><td><span class="id">T-S5</span></td><td><span class="src S">scale</span></td><td><b>LLM cost flat to row count</b> — prove the curve scales with schema, not volume.</td></tr>
+      <tr><td><span class="id">T-J1</span></td><td><span class="src J">jugular</span></td><td><b>TCO</b> modeled &amp; defensible — Palantir all-in vs Aryx all-in + payback.</td></tr>
+      <tr><td><span class="id">T-J3</span></td><td><span class="src J">jugular</span></td><td><b>Sovereignty</b> — local-LLM mode provably keeps PII in-perimeter (no egress).</td></tr>
+      <tr><td><span class="id">T-J4</span></td><td><span class="src J">jugular</span></td><td><b>Ownership</b> — OWL/RDF/SKOS round-trip export verified, zero lock-in.</td></tr>
+      <tr><td><span class="id">T-J5</span></td><td><span class="src J">jugular</span></td><td><b>Governed onboarding</b> — per-source access + sensitivity enforced across SF/ServiceNow/Drive.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<div class="note"><b>The win condition, restated:</b> same ontology-driven agent accuracy as Palantir — delivered self-serve, schema-bounded in cost, sovereign on your infra, and exportable so you own it. Win Magnus on accuracy, Eleanor on the flat cost curve, Marcus on sovereignty + lineage, and "cool startup" becomes "rip out Palantir."</div>
+
+<footer>
+  Aryx Ontology v2.0 · enterprise scale &amp; personas · branch <code>feat/ontology-v2-design</code> ·
+  <a href="00-overview.html">overview</a> · <a href="01-accuracy-lab.html">accuracy lab</a> · <a href="03-connectors-at-scale.html">→ connectors mock</a>
+</footer>
+</div>
+</body>
+</html>

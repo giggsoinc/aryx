@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Aryx · Coverage vs the ask · Pipeline ops · Magnus meter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root{
+    --navy-50:#F2F5FB;--navy-100:#E4EAF4;--navy-200:#C2CFE3;--navy-300:#94A8CB;
+    --navy-500:#3A578C;--navy-600:#27416E;--navy-700:#1A2F55;--navy-800:#0F1F3D;
+    --navy-900:#0A1530;--navy-950:#050B1C;
+    --steel-400:#5F8AD2;--steel-500:#4068A8;--steel-600:#2D4B8A;
+    --canvas:#F8F9FC;--ink:#0F1726;--subtle:#5A6478;
+    --amber:#F59E0B;--emerald:#10B981;--rose:#E11D48;--violet:#7C3AED;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.55;padding:46px 24px}
+  .wrap{max-width:1180px;margin:0 auto}
+  code,.mono{font-family:'JetBrains Mono',monospace}
+  header{text-align:center;padding-bottom:26px;border-bottom:1px solid var(--navy-100)}
+  .brand{display:inline-flex;align-items:center;gap:12px}
+  .brand img{width:38px;height:38px}
+  .brand .name{font-weight:600;letter-spacing:.32em;color:var(--navy-900);font-size:15px}
+  .tag{display:inline-block;margin-top:14px;padding:4px 14px;border-radius:999px;background:var(--navy-800);color:#fff;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+  h1{font-family:'Fraunces',Georgia,serif;font-size:2.2rem;color:var(--navy-900);margin-top:14px;letter-spacing:-.01em}
+  .sub{color:var(--subtle);font-size:15px;margin-top:8px;max-width:760px;margin-left:auto;margin-right:auto}
+  section{margin-top:44px}
+  h2{font-family:'Fraunces',serif;font-size:1.45rem;color:var(--navy-900)}
+  h2 .n{display:inline-flex;width:28px;height:28px;align-items:center;justify-content:center;border-radius:8px;background:var(--navy-800);color:#fff;font-size:13px;margin-right:11px;font-family:'Inter'}
+  .sec-lede{color:var(--subtle);font-size:13.5px;margin-top:6px;max-width:800px}
+
+  table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px;background:white;border:1px solid var(--navy-100);border-radius:14px;overflow:hidden}
+  th{background:var(--navy-50);text-align:left;padding:10px 14px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--navy-700);font-weight:700}
+  td{padding:10px 14px;border-top:1px solid var(--navy-100);vertical-align:top}
+  td .ask{font-weight:600;color:var(--navy-900)}
+  .where{font-family:'JetBrains Mono';font-size:11px;color:var(--steel-600)}
+  .st{display:inline-block;padding:2px 9px;border-radius:999px;font-size:10px;font-weight:700;text-transform:uppercase}
+  .st.done{background:#ECFDF5;color:#047857}
+  .st.eng{background:#EFF6FF;color:var(--steel-600)}
+
+  /* magnus meter */
+  .meter{margin-top:18px;background:white;border:1px solid var(--navy-100);border-radius:16px;padding:22px}
+  .meter-top{display:flex;align-items:center;justify-content:space-between}
+  .meter-top .lab{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--subtle)}
+  .meter-top .pct{font-family:'Fraunces',serif;font-size:2rem;color:#047857}
+  .track{height:10px;border-radius:999px;background:var(--navy-100);overflow:hidden;margin-top:10px}
+  .fill{height:100%;width:80%;border-radius:999px;background:linear-gradient(90deg,var(--steel-500),var(--emerald))}
+  .bars{margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .bar{display:flex;align-items:center;gap:10px;font-size:12.5px}
+  .bar .ic{width:18px;text-align:center}
+  .bar .ic.ok{color:var(--emerald)}.bar .ic.part{color:var(--amber)}
+  .bar .t{color:var(--navy-800)}
+  .bar .t b{color:var(--navy-900)}
+
+  /* pipeline phases */
+  .phases{margin-top:18px;display:flex;flex-direction:column;gap:10px}
+  .phase{border:1px solid var(--navy-100);border-radius:14px;background:white;overflow:hidden}
+  .ph-top{display:grid;grid-template-columns:160px 1fr;align-items:center}
+  .ph-name{background:var(--navy-50);padding:14px 16px;border-right:1px solid var(--navy-100)}
+  .ph-name .t{font-weight:700;font-size:13px;color:var(--navy-900)}
+  .ph-name .d{font-size:10.5px;color:var(--subtle);margin-top:2px}
+  .ph-metrics{display:flex;gap:0;flex-wrap:wrap}
+  .pm{flex:1;min-width:90px;padding:12px 14px;border-right:1px solid var(--navy-100)}
+  .pm:last-child{border-right:none}
+  .pm .l{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--subtle);font-weight:700}
+  .pm .v{font-family:'JetBrains Mono';font-size:14px;color:var(--navy-900);font-weight:600;margin-top:3px}
+  .pm .v.flight{color:var(--steel-600)}.pm .v.cost{color:#047857}.pm .v.fail{color:var(--rose)}
+  /* governor banner */
+  .gov{margin-top:14px;display:flex;gap:14px;align-items:center;padding:14px 18px;background:linear-gradient(135deg,#FFFBEB,white);border:1px solid #FCD34D;border-radius:14px}
+  .gov .g{font-size:24px}
+  .gov b{color:#92400E}
+  .gov p{font-size:12.5px;color:#78350F;margin-top:2px;line-height:1.5}
+
+  .concur{margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .cc{background:white;border:1px solid var(--navy-100);border-radius:14px;padding:16px 18px}
+  .cc h4{font-size:12.5px;font-weight:700;color:var(--navy-900);display:flex;align-items:center;gap:7px}
+  .cc p{font-size:11.5px;color:var(--subtle);margin-top:6px;line-height:1.5}
+  .cc .who{margin-top:8px;font-size:10px;font-family:'JetBrains Mono';color:var(--steel-600)}
+
+  .note{margin-top:18px;padding:14px 18px;background:var(--navy-50);border-left:3px solid var(--steel-500);border-radius:0 12px 12px 0;font-size:13px;color:var(--navy-700);line-height:1.6}
+  .note b{color:var(--navy-900)}
+  footer{margin-top:48px;padding-top:22px;border-top:1px solid var(--navy-100);text-align:center;color:var(--subtle);font-size:12px}
+  footer a{color:var(--steel-500);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand"><img src="../aryx-logo.png" alt="Aryx"/><span class="name">A R Y X</span></div>
+  <div class="tag">Ontology v2.0 · coverage · pipeline ops · the Magnus meter</div>
+  <h1>Did we cover the ask — and how does it actually run?</h1>
+  <p class="sub">Three answers on one page: your original ontology checklist mapped to designed surfaces, an honest read on how close Magnus is, and the concurrency + monitoring model that satisfies Eleanor and Red — how many parallel runs fire at each phase, and how they're watched.</p>
+</header>
+
+<!-- 1. COVERAGE -->
+<section>
+  <h2><span class="n">1</span>Your original ask → where it's designed</h2>
+  <p class="sec-lede">Every construct you named has a home. <span class="st done">designed</span> = mocked/scoped · <span class="st eng">engine</span> = backend method to build.</p>
+  <table>
+    <thead><tr><th style="width:42%">You asked for</th><th style="width:30%">Where it lives</th><th>State</th></tr></thead>
+    <tbody>
+      <tr><td><span class="ask">Domain · subdomain · owners · reviewers · tags · privacy/sensitivity taxonomy</span></td><td class="where">Screen 5 · Governance</td><td><span class="st done">designed</span></td></tr>
+      <tr><td><span class="ask">Axioms — subClassOf · equivalentClass · disjointWith · cardinality · domain/range</span></td><td class="where">Screen 4 · Axioms + Reasoner</td><td><span class="st done">designed</span> <span class="st eng">store exists</span></td></tr>
+      <tr><td><span class="ask">OWL + RDF import / export (interchange)</span></td><td class="where">Screen 8 · Interchange</td><td><span class="st done">designed</span> <span class="st eng">rdflib exists</span></td></tr>
+      <tr><td><span class="ask">Class · Subsumption (hierarchy) · Individual</span></td><td class="where">Screen 1 Map · Screen 2 Classes</td><td><span class="st done">designed</span></td></tr>
+      <tr><td><span class="ask">Binary relation (object property) · Object + Data properties · domain/range</span></td><td class="where">Screen 3 · Properties + Relations</td><td><span class="st done">designed</span></td></tr>
+      <tr><td><span class="ask">SKOS relation types — category · symmetric/transitive · cross-glossary · cardinality · color · predicate URI</span></td><td class="where">Screen 3 · SKOS registry</td><td><span class="st done">designed</span></td></tr>
+      <tr><td><span class="ask">AI auto-classifies ~80% · human does the 20% via HITL · tagging · drag-drop · accept/reject on a MAP</span></td><td class="where">Engine 1 + 6 · the Map approve-loop</td><td><span class="st done">designed</span> <span class="st eng">core method</span></td></tr>
+    </tbody>
+  </table>
+  <div class="note"><b>Beyond the ask, we added the things that win the deal:</b> the Accuracy Lab (Screen 0), schema-not-rows scale (Screen 6), live cost + sovereignty (Screen 7), and the modularity/IP map (04). The original list was the table stakes; these are the wedge.</div>
+</section>
+
+<!-- 2. MAGNUS METER -->
+<section>
+  <h2><span class="n">2</span>The Magnus meter — how close to "I'll write the check"</h2>
+  <div class="meter">
+    <div class="meter-top"><span class="lab">Convinced on the design</span><span class="pct">~80%</span></div>
+    <div class="track"><div class="fill"></div></div>
+    <div class="bars">
+      <div class="bar"><span class="ic ok">✓</span><span class="t"><b>Accuracy A/B</b> — fair, groundedness, verified citations</span></div>
+      <div class="bar"><span class="ic ok">✓</span><span class="t"><b>Scale</b> — schema-not-rows, query-don't-render</span></div>
+      <div class="bar"><span class="ic ok">✓</span><span class="t"><b>Governance</b> — lineage to column, audit, sensitivity</span></div>
+      <div class="bar"><span class="ic ok">✓</span><span class="t"><b>Reasoner-enforced</b> axioms block bad data</span></div>
+      <div class="bar"><span class="ic ok">✓</span><span class="t"><b>Cost flat</b> to rows · <b>sovereignty</b> (local LLM)</span></div>
+      <div class="bar"><span class="ic ok">✓</span><span class="t"><b>Modularity + moat</b> — rides any infra, owns the engine</span></div>
+      <div class="bar"><span class="ic part">◐</span><span class="t"><b>Pipeline ops</b> — concurrency + monitoring → <em>this page</em></span></div>
+      <div class="bar"><span class="ic part">◐</span><span class="t"><b>Built &amp; measured</b> on real data — the last 20%</span></div>
+    </div>
+  </div>
+  <div class="note">The remaining 20% is not more design — it's <b>(a)</b> proving the pipeline runs observably at scale (below) and <b>(b)</b> the Accuracy Lab showing real numbers on real data. Magnus converts fully when he watches it run, not when he reads a deck.</div>
+</section>
+
+<!-- 3. PIPELINE OPS -->
+<section>
+  <h2><span class="n">3</span>How many parallel runs fire — and how they're watched</h2>
+  <p class="sec-lede">The question Eleanor, Sven, and Red kept asking. Every phase fans out into <b>bounded</b> parallel tasks, throttled by the cost Governor, fully instrumented. Nothing runs unbounded.</p>
+
+  <div class="phases">
+    <div class="phase">
+      <div class="ph-top">
+        <div class="ph-name"><div class="t">① Extract / Land</div><div class="d">per table·partition</div></div>
+        <div class="ph-metrics">
+          <div class="pm"><div class="l">Tasks</div><div class="v">1,240</div></div>
+          <div class="pm"><div class="l">In flight</div><div class="v flight">16</div></div>
+          <div class="pm"><div class="l">Done</div><div class="v">1,118</div></div>
+          <div class="pm"><div class="l">Failed</div><div class="v fail">2</div></div>
+          <div class="pm"><div class="l">Throughput</div><div class="v">240/min</div></div>
+          <div class="pm"><div class="l">Workers</div><div class="v">8 / 32</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="ph-top">
+        <div class="ph-name"><div class="t">② Predict (Tag · Embed · Extract)</div><div class="d">LLM calls per chunk/field</div></div>
+        <div class="ph-metrics">
+          <div class="pm"><div class="l">LLM calls</div><div class="v">9,402</div></div>
+          <div class="pm"><div class="l">In flight</div><div class="v flight">12</div></div>
+          <div class="pm"><div class="l">Tokens</div><div class="v">4.1 M</div></div>
+          <div class="pm"><div class="l">Cost</div><div class="v cost">$31.40</div></div>
+          <div class="pm"><div class="l">Budget</div><div class="v">62%</div></div>
+          <div class="pm"><div class="l">Rate-limit</div><div class="v">ok</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="ph-top">
+        <div class="ph-name"><div class="t">③ Map / Resolve</div><div class="d">schema-map + ER funnel</div></div>
+        <div class="ph-metrics">
+          <div class="pm"><div class="l">Datasets mapped</div><div class="v">48 / 50</div></div>
+          <div class="pm"><div class="l">Pairs scored</div><div class="v">2.4 M</div></div>
+          <div class="pm"><div class="l">Adjudicated</div><div class="v flight">1,902</div></div>
+          <div class="pm"><div class="l">Auto-merged</div><div class="v">61 K</div></div>
+          <div class="pm"><div class="l">Deliberated</div><div class="v" style="color:var(--violet)">214</div></div>
+          <div class="pm"><div class="l">Cost</div><div class="v cost">$9.10</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="ph-top">
+        <div class="ph-name"><div class="t">④ Project</div><div class="d">incremental · watermark</div></div>
+        <div class="ph-metrics">
+          <div class="pm"><div class="l">Dirty entities</div><div class="v">312 K</div></div>
+          <div class="pm"><div class="l">Projected</div><div class="v">298 K</div></div>
+          <div class="pm"><div class="l">Mode</div><div class="v">incremental</div></div>
+          <div class="pm"><div class="l">Lag</div><div class="v">4s</div></div>
+          <div class="pm"><div class="l">In flight</div><div class="v flight">6</div></div>
+          <div class="pm"><div class="l">ETA</div><div class="v">~2m</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="gov">
+    <div class="g">🛡️</div>
+    <div><b>Cost Governor — live, automatic.</b><p>Per-tier token budgets throttle LLM concurrency. At 80% of the frontier budget, the Governor auto-downgrades frontier→cheap so a job never blows the bill. 429 rate-limits trigger exponential backoff. Per-doc 300s + per-call 120s timeouts prevent any single item wedging the run.</p></div>
+  </div>
+
+  <div class="concur">
+    <div class="cc"><h4>🔢 Bounded concurrency</h4><p>Workers autoscale to a CAP (e.g. 32). LLM calls throttled by the token Governor + per-source rate limits. Queue depth is the back-pressure signal — never unbounded fan-out.</p><div class="who">satisfies · Red (no runaway)</div></div>
+    <div class="cc"><h4>💲 Cost, live + projected</h4><p>Every phase shows calls · tokens · $ spent · % of budget. Projected monthly on the header meter. The Governor's downgrade is visible, not silent.</p><div class="who">satisfies · Eleanor</div></div>
+    <div class="cc"><h4>👁 Per-phase observability</h4><p>Tasks / in-flight / done / failed / throughput / ETA per phase, plus per-prediction counters (tag · embed · extract · adjudicate · deliberate). Stuck-stage + budget-breach alerts.</p><div class="who">satisfies · Sven · Magnus</div></div>
+  </div>
+
+  <div class="note"><b>The honest answer to "how many parallel runs?":</b> as many as the worker cap and the cost Governor allow — and not one more. At 200M rows the system isn't running 200M predictions; it's running <b>bounded, sampled, governed</b> task waves, each metered to the dollar, each watchable per phase, each recoverable. That's the difference between a pipeline and a money fire.</div>
+</section>
+
+<footer>
+  Aryx Ontology v2.0 · coverage · pipeline ops · Magnus meter · branch <code>feat/ontology-v2-design</code> ·
+  <a href="00-overview.html">overview</a> · <a href="02-enterprise-scale.html">scale</a> · <a href="04-modularity-and-ip.html">IP map</a>
+</footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Aryx · Modularity &amp; the moat — where the IP lives</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root{
+    --navy-50:#F2F5FB;--navy-100:#E4EAF4;--navy-200:#C2CFE3;--navy-300:#94A8CB;
+    --navy-500:#3A578C;--navy-600:#27416E;--navy-700:#1A2F55;--navy-800:#0F1F3D;
+    --navy-900:#0A1530;--navy-950:#050B1C;
+    --steel-400:#5F8AD2;--steel-500:#4068A8;--steel-600:#2D4B8A;
+    --canvas:#F8F9FC;--ink:#0F1726;--subtle:#5A6478;
+    --amber:#F59E0B;--emerald:#10B981;--rose:#E11D48;--violet:#7C3AED;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.55;padding:48px 24px}
+  .wrap{max-width:1180px;margin:0 auto}
+  code,.mono{font-family:'JetBrains Mono',monospace}
+  header{text-align:center;padding-bottom:28px;border-bottom:1px solid var(--navy-100)}
+  .brand{display:inline-flex;align-items:center;gap:12px}
+  .brand img{width:38px;height:38px}
+  .brand .name{font-weight:600;letter-spacing:.32em;color:var(--navy-900);font-size:15px}
+  .tag{display:inline-block;margin-top:14px;padding:4px 14px;border-radius:999px;background:var(--navy-800);color:#fff;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+  h1{font-family:'Fraunces',Georgia,serif;font-size:2.3rem;color:var(--navy-900);margin-top:14px;letter-spacing:-.01em}
+  .sub{color:var(--subtle);font-size:15px;margin-top:8px;max-width:780px;margin-left:auto;margin-right:auto}
+  section{margin-top:46px}
+  h2{font-family:'Fraunces',serif;font-size:1.5rem;color:var(--navy-900);letter-spacing:-.01em}
+  h2 .n{display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border-radius:8px;background:var(--navy-800);color:#fff;font-size:14px;margin-right:12px;font-family:'Inter'}
+  .sec-lede{color:var(--subtle);font-size:14px;margin-top:6px;max-width:800px}
+
+  /* the warehouse line */
+  .oneliner{margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .ol{border-radius:16px;padding:22px;border:1px solid var(--navy-100)}
+  .ol.sub{background:linear-gradient(135deg,var(--navy-50),white)}
+  .ol.eng{background:linear-gradient(135deg,#0F1F3D,#1A2F55);color:#fff;border-color:#1A2F55}
+  .ol .k{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--subtle)}
+  .ol.eng .k{color:var(--steel-400)}
+  .ol .h{font-family:'Fraunces',serif;font-size:1.3rem;margin-top:6px;color:var(--navy-900)}
+  .ol.eng .h{color:#fff}
+  .ol p{font-size:13px;margin-top:8px;line-height:1.55;color:var(--navy-700)}
+  .ol.eng p{color:#C2CFE3}
+
+  /* layered stack: ports + adapters */
+  .stack{margin-top:22px;border:1px solid var(--navy-100);border-radius:18px;overflow:hidden;background:white}
+  .strow{display:grid;grid-template-columns:150px 1fr;border-top:1px solid var(--navy-100)}
+  .strow:first-child{border-top:none}
+  .port{background:var(--navy-50);padding:14px 16px;font-weight:700;font-size:13px;color:var(--navy-900);display:flex;flex-direction:column;justify-content:center}
+  .port .sm{font-weight:400;font-size:10.5px;color:var(--subtle);margin-top:2px;font-family:'JetBrains Mono'}
+  .adapters{display:flex;gap:8px;padding:12px 14px;flex-wrap:wrap;align-items:center}
+  .ad{font-size:11.5px;font-family:'JetBrains Mono';padding:5px 12px;border-radius:999px;border:1px solid var(--navy-100);background:var(--canvas);color:var(--navy-700)}
+  .ad.aryx{background:#EFF6FF;border-color:#93C5FD;color:var(--steel-600);font-weight:600}
+  .ad.oracle{background:#FFF1F0;border-color:#FCA5A5;color:#B91C1C}
+  .ad.google{background:#FFFDF0;border-color:#FCD34D;color:#92400E}
+  .swap{margin-left:auto;font-size:10px;color:var(--emerald);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+
+  /* the engine — 7 thick components */
+  .engine{margin-top:22px;background:linear-gradient(180deg,#0A1530,#0F1F3D);border-radius:18px;padding:24px;color:#fff}
+  .engine .eh{display:flex;align-items:baseline;gap:10px}
+  .engine .eh h3{font-family:'Fraunces',serif;font-size:1.25rem;color:#fff}
+  .engine .eh .pill{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:rgba(95,138,210,.2);color:var(--steel-400);padding:3px 10px;border-radius:999px}
+  .ecomps{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:16px}
+  .ec{background:rgba(255,255,255,.04);border:1px solid rgba(196,207,227,.15);border-radius:14px;padding:16px 18px}
+  .ec .num{font-family:'Fraunces',serif;font-size:1.2rem;color:var(--steel-400)}
+  .ec h4{font-size:13.5px;font-weight:700;color:#fff;margin-top:2px}
+  .ec p{font-size:11.5px;color:#94A8CB;margin-top:5px;line-height:1.5}
+  .ec.surgical{border-color:#C4B5FD;background:rgba(124,58,237,.12)}
+  .ec.surgical .num{color:#C4B5FD}
+  .ec .scalpel{margin-top:8px;font-size:10px;font-family:'JetBrains Mono';color:#C4B5FD}
+
+  /* moat boundary note */
+  .boundary{margin-top:18px;padding:14px 18px;background:#FEF2F2;border-left:3px solid var(--rose);border-radius:0 12px 12px 0;font-size:13px;color:#7F1D1D;line-height:1.6}
+  .boundary b{color:#991B1B}
+
+  /* investor box */
+  .invest{margin-top:22px;background:linear-gradient(135deg,#ECFDF5,white);border:1px solid #6EE7B7;border-radius:18px;padding:24px 26px}
+  .invest .k{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#047857}
+  .invest p{font-size:15px;color:var(--navy-800);margin-top:8px;line-height:1.65}
+  .invest p b{color:var(--navy-900)}
+
+  footer{margin-top:50px;padding-top:22px;border-top:1px solid var(--navy-100);text-align:center;color:var(--subtle);font-size:12px}
+  footer a{color:var(--steel-500);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand"><img src="../aryx-logo.png" alt="Aryx"/><span class="name">A R Y X</span></div>
+  <div class="tag">Ontology v2.0 · modularity &amp; the moat</div>
+  <h1>They sell the warehouse. Aryx makes — and keeps — what's true inside it.</h1>
+  <p class="sub">Everything below the line is commodity and swappable: store it on Postgres, Oracle ADB, BigQuery, whatever you own. Everything above the line is the Aryx Engine — the thick, proprietary machine that turns data chaos into a governed, agent-grade ontology and improves with every approval. That's the cheque.</p>
+</header>
+
+<!-- THE LINE -->
+<section>
+  <h2><span class="n">1</span>The line — swappable below, owned above</h2>
+  <div class="oneliner">
+    <div class="ol sub">
+      <div class="k">Below the line · commodity</div>
+      <div class="h">The substrate — thin &amp; swappable</div>
+      <p>Store, graph, vectors, tokens, compute. You buy these from anyone — and on Oracle/Google you use what you already license. Aryx <b>rides</b> it; never competes with it. Modularity = no double-pay, no lock-in, runs in your VPC.</p>
+    </div>
+    <div class="ol eng">
+      <div class="k">Above the line · proprietary</div>
+      <div class="h">The Aryx Engine — thick &amp; owned</div>
+      <p>The automated knowledge engineer: discover → resolve → axiomatize → score → learn. Oracle gives you a place to STORE an ontology and a reasoner to CHECK one. It does not BUILD you an ontology from your mess. Aryx does. That's the product.</p>
+    </div>
+  </div>
+</section>
+
+<!-- PORTS + ADAPTERS -->
+<section>
+  <h2><span class="n">2</span>Below the line — ports &amp; adapters</h2>
+  <p class="sec-lede">Six capability ports. Each has swappable adapters. Load the Aryx-default set, the Oracle set, the Google set — the Engine above never changes.</p>
+  <div class="stack">
+    <div class="strow"><div class="port">Relational<span class="sm">source of truth</span></div><div class="adapters"><span class="ad aryx">PostgreSQL</span><span class="ad oracle">Oracle ADB</span><span class="ad google">BigQuery</span><span class="ad">Snowflake</span><span class="ad">MS Fabric · Databricks</span><span class="swap">↔ swappable</span></div></div>
+    <div class="strow"><div class="port">Graph<span class="sm">projection</span></div><div class="adapters"><span class="ad aryx">FalkorDB</span><span class="ad oracle">Oracle RDF / Property Graph</span><span class="ad google">Spanner Graph</span><span class="ad">Neo4j · Neptune</span><span class="swap">↔ swappable</span></div></div>
+    <div class="strow"><div class="port">Vector<span class="sm">semantic search</span></div><div class="adapters"><span class="ad aryx">pgvector · Ollama</span><span class="ad oracle">Oracle AI Vector Search</span><span class="ad google">Vertex Embeddings</span><span class="swap">↔ swappable</span></div></div>
+    <div class="strow"><div class="port">LLM<span class="sm">generation</span></div><div class="adapters"><span class="ad aryx">Ollama (local)</span><span class="ad">Claude · Gemini</span><span class="ad oracle">OCI GenAI</span><span class="ad google">Vertex</span><span class="swap">↔ swappable</span></div></div>
+    <div class="strow"><div class="port">Reasoner<span class="sm">axiom enforcement</span></div><div class="adapters"><span class="ad aryx">internal</span><span class="ad">HermiT · Pellet</span><span class="ad oracle">Oracle native OWL inferencing</span><span class="swap">↔ swappable</span></div></div>
+    <div class="strow"><div class="port">Compute<span class="sm">workers</span></div><div class="adapters"><span class="ad aryx">ECS Fargate</span><span class="ad google">Cloud Run</span><span class="ad">AKS · K8s</span><span class="ad oracle">OCI Container Engine</span><span class="swap">↔ swappable</span></div></div>
+  </div>
+  <p class="sec-lede" style="margin-top:12px"><b>"Aryx on Oracle"</b> drops the left chips for the red ones — native RDF graph, native OWL reasoner, AI Vector Search, OCI GenAI — and the Engine above is byte-for-byte the same. Data never leaves the customer's Oracle. Sovereignty by construction.</p>
+</section>
+
+<!-- THE ENGINE -->
+<section>
+  <h2><span class="n">3</span>Above the line — the Aryx Engine (the IP)</h2>
+  <p class="sec-lede">Seven thick components no substrate gives you. This is where ontology engineering actually happens — the work a knowledge-engineering team would do by hand over months, automated.</p>
+  <div class="engine">
+    <div class="eh"><h3>The Aryx Ontology Engine</h3><span class="pill">proprietary · never an adapter</span></div>
+    <div class="ecomps">
+      <div class="ec"><div class="num">1</div><h4>Ontology Inference</h4><p>Schema + samples + docs → classes, subsumption (is Customer ⊑ Party?), object-vs-data properties, relationship inference with cardinality. Multi-signal ML + LLM + statistics.</p></div>
+      <div class="ec"><div class="num">2</div><h4>Entity Resolution + Survivorship</h4><p>Band-routed funnel dedupes 200M dirty rows into golden entities + golden records. Decades of MDM, compressed into AI. A graph DB does <em>not</em> do this.</p></div>
+      <div class="ec"><div class="num">3</div><h4>Axiom Proposal</h4><p>Infers OWL2 constraints from evidence — <code style="font-family:'JetBrains Mono';color:#94A8CB">Device ⊓ Customer = ∅</code>. The reasoner only <em>checks</em> axioms; Aryx <em>proposes</em> them. That's the engineering.</p></div>
+      <div class="ec"><div class="num">4</div><h4>Confidence · Provenance · Verification</h4><p>Every node/edge/axiom/answer scored from evidence, traced to source.column, citation-verified. The agentic-accuracy engine.</p></div>
+      <div class="ec"><div class="num">5</div><h4>Domain Funnel</h4><p>Partitions a 200-source estate into domain ontologies; routes a question to its domain subgraph + only its feeding sources. Accuracy + cost at scale.</p></div>
+      <div class="ec"><div class="num">6</div><h4>HITL Learning Loop</h4><p>Every human accept/reject is labeled data; inference improves per-domain, forever. The compounding flywheel — three years of a customer's approvals can't be cloned.</p></div>
+      <div class="ec surgical"><div class="num">7</div><h4>Deliberation Adjudicator <span style="font-weight:400;font-size:11px;color:#C4B5FD">(the Andie pattern)</span></h4><p>For OUTLIERS only: a multi-voice panel — Proposer · Skeptic · Domain · Governance · Judge — debates the call, yields a vote-derived confidence + recorded rationale (audit-grade).</p><div class="scalpel">▸ gated by an outlier detector: signal-disagreement · knife-edge · blast-radius · novelty · governance-sensitive → fires on ~1%. A scalpel, not a census.</div></div>
+    </div>
+  </div>
+  <div class="boundary"><b>The boundary rule:</b> the Engine's logic — prompts, ER strategy, survivorship, axiom inference, the deliberation harness, the labeled-data loop — lives in the CORE, behind the ports. It <b>never</b> leaks into a swappable adapter. The day the clever bit lands in the Postgres adapter is the day you've given it to Oracle for free.</div>
+</section>
+
+<!-- INVESTOR -->
+<section>
+  <h2><span class="n">4</span>The investor answer, in one breath</h2>
+  <div class="invest">
+    <div class="k">What the cheque buys</div>
+    <p>Every enterprise now needs a <b>governed semantic layer</b> so their AI agents answer accurately instead of hallucinating. Building it by hand — Protégé, a knowledge-engineering team — takes <b>months per domain</b>. <b>Aryx automates the knowledge engineer</b>: it discovers, resolves, axiomatizes, scores, and continuously improves the ontology from your data, on your infrastructure, in days. The substrate is commodity — we ride Oracle, Google, AWS, so every enterprise can run us on what they own. The <b>Engine</b> that builds and maintains what's true — and the <b>data-moat loop</b> that compounds with every approval — is the IP. That's not a config file. That's the next Palantir, self-serve.</p>
+  </div>
+</section>
+
+<footer>
+  Aryx Ontology v2.0 · modularity &amp; the moat · branch <code>feat/ontology-v2-design</code> ·
+  <a href="00-overview.html">overview</a> · <a href="02-enterprise-scale.html">scale</a> · <a href="01-accuracy-lab.html">accuracy lab</a> · <a href="03-connectors-at-scale.html">connectors</a>
+</footer>
+</div>
+</body>
+</html>

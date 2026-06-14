@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Aryx · The CX/HITL spine &amp; the acceptance checklist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root{
+    --navy-50:#F2F5FB;--navy-100:#E4EAF4;--navy-200:#C2CFE3;--navy-300:#94A8CB;
+    --navy-500:#3A578C;--navy-600:#27416E;--navy-700:#1A2F55;--navy-800:#0F1F3D;
+    --navy-900:#0A1530;--navy-950:#050B1C;
+    --steel-400:#5F8AD2;--steel-500:#4068A8;--steel-600:#2D4B8A;
+    --canvas:#F8F9FC;--ink:#0F1726;--subtle:#5A6478;
+    --amber:#F59E0B;--emerald:#10B981;--rose:#E11D48;--violet:#7C3AED;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.55;padding:46px 24px}
+  .wrap{max-width:1160px;margin:0 auto}
+  code,.mono{font-family:'JetBrains Mono',monospace}
+  header{text-align:center;padding-bottom:26px;border-bottom:1px solid var(--navy-100)}
+  .brand{display:inline-flex;align-items:center;gap:12px}
+  .brand img{width:38px;height:38px}
+  .brand .name{font-weight:600;letter-spacing:.32em;color:var(--navy-900);font-size:15px}
+  .tag{display:inline-block;margin-top:14px;padding:4px 14px;border-radius:999px;background:var(--navy-800);color:#fff;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+  h1{font-family:'Fraunces',Georgia,serif;font-size:2.2rem;color:var(--navy-900);margin-top:14px;letter-spacing:-.01em}
+  .sub{color:var(--subtle);font-size:15px;margin-top:8px;max-width:760px;margin-left:auto;margin-right:auto}
+  section{margin-top:44px}
+  h2{font-family:'Fraunces',serif;font-size:1.45rem;color:var(--navy-900)}
+  h2 .n{display:inline-flex;width:28px;height:28px;align-items:center;justify-content:center;border-radius:8px;background:var(--navy-800);color:#fff;font-size:13px;margin-right:11px;font-family:'Inter'}
+  .sec-lede{color:var(--subtle);font-size:13.5px;margin-top:6px;max-width:800px}
+
+  /* principles */
+  .principles{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:18px}
+  .pr{background:white;border:1px solid var(--navy-100);border-radius:16px;padding:18px 20px}
+  .pr .n{font-family:'Fraunces',serif;font-size:1.3rem;color:var(--steel-500)}
+  .pr h3{font-size:14px;font-weight:700;color:var(--navy-900);margin-top:2px}
+  .pr p{font-size:12.5px;color:var(--subtle);margin-top:6px;line-height:1.5}
+  .pr .ex{margin-top:8px;font-size:11px;font-family:'JetBrains Mono';color:var(--steel-600);background:var(--navy-50);padding:5px 10px;border-radius:8px;display:inline-block}
+
+  /* the loop diagram */
+  .loop{margin-top:20px;display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap}
+  .ls{background:white;border:1px solid var(--navy-100);border-radius:14px;padding:14px 16px;text-align:center;min-width:130px}
+  .ls .ic{font-size:22px}
+  .ls .t{font-weight:700;font-size:12px;color:var(--navy-900);margin-top:5px}
+  .ls .d{font-size:10px;color:var(--subtle);margin-top:2px}
+  .ls.ai{border-color:#C4B5FD;background:#F5F3FF}
+  .ls.human{border-color:#6EE7B7;background:#ECFDF5}
+  .larr{color:var(--navy-300);font-size:20px;padding:0 6px}
+
+  /* checklist */
+  .filter{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+  .fl{font-size:11px;font-weight:700;padding:4px 12px;border-radius:999px;font-family:'JetBrains Mono'}
+  .fl.T{background:#ECFDF5;color:#047857}.fl.M{background:#F5F3FF;color:var(--violet)}
+  .fl.R{background:#FEF2F2;color:var(--rose)}.fl.S{background:#FFF7ED;color:#C2410C}
+  .fl.J{background:#ECFDF5;color:#047857}.fl.O{background:#EFF6FF;color:var(--steel-600)}
+  .fl.A{background:#F5F3FF;color:var(--violet)}.fl.IP{background:#EFF6FF;color:var(--steel-600)}
+
+  table{width:100%;border-collapse:collapse;margin-top:14px;font-size:12.5px;background:white;border:1px solid var(--navy-100);border-radius:14px;overflow:hidden}
+  th{background:var(--navy-50);text-align:left;padding:9px 13px;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--navy-700);font-weight:700}
+  td{padding:9px 13px;border-top:1px solid var(--navy-100);vertical-align:top}
+  td .id{font-family:'JetBrains Mono';font-weight:700;font-size:10.5px;color:var(--navy-900)}
+  .chk{width:14px;height:14px;border:1.5px solid var(--navy-200);border-radius:4px;display:inline-block}
+  .grp{font-family:'Fraunces',serif;font-size:1.05rem;color:var(--navy-900);margin-top:22px;display:flex;align-items:center;gap:10px}
+  .grp .cnt{font-size:11px;font-family:'Inter';color:var(--subtle);font-weight:400}
+
+  .note{margin-top:18px;padding:14px 18px;background:var(--navy-50);border-left:3px solid var(--steel-500);border-radius:0 12px 12px 0;font-size:13px;color:var(--navy-700);line-height:1.6}
+  .note b{color:var(--navy-900)}
+  .ready{margin-top:22px;background:linear-gradient(135deg,#ECFDF5,white);border:1px solid #6EE7B7;border-radius:18px;padding:24px 26px;text-align:center}
+  .ready .k{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#047857}
+  .ready h3{font-family:'Fraunces',serif;font-size:1.4rem;color:var(--navy-900);margin-top:6px}
+  .ready p{font-size:14px;color:var(--navy-700);margin-top:8px;max-width:640px;margin-left:auto;margin-right:auto;line-height:1.6}
+  footer{margin-top:48px;padding-top:22px;border-top:1px solid var(--navy-100);text-align:center;color:var(--subtle);font-size:12px}
+  footer a{color:var(--steel-500);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand"><img src="../aryx-logo.png" alt="Aryx"/><span class="name">A R Y X</span></div>
+  <div class="tag">Ontology v2.0 · the soul + the acceptance checklist</div>
+  <h1>It's all about UX · CX · HITL — and here's the codified proof.</h1>
+  <p class="sub">The features are table stakes; the experience is the moat. This page states the seven HITL/CX principles every screen obeys, the human-in-the-loop cycle that compounds, and the full acceptance checklist — every observation the panel argued, as a test the build must pass.</p>
+</header>
+
+<!-- THE LOOP -->
+<section>
+  <h2><span class="n">1</span>The loop — AI proposes, human approves, the engine learns</h2>
+  <p class="sec-lede">The whole product is this cycle, run with the lowest friction and the highest trust. The human's attention is the scarce resource; Aryx spends it only where it matters.</p>
+  <div class="loop">
+    <div class="ls ai"><div class="ic">🤖</div><div class="t">AI proposes</div><div class="d">ghosted · 80%</div></div>
+    <div class="larr">→</div>
+    <div class="ls"><div class="ic">🎯</div><div class="t">Confidence + provenance</div><div class="d">never approve blind</div></div>
+    <div class="larr">→</div>
+    <div class="ls"><div class="ic">🔍</div><div class="t">Surgical surface</div><div class="d">only outliers reach you</div></div>
+    <div class="larr">→</div>
+    <div class="ls human"><div class="ic">👤</div><div class="t">Human approves</div><div class="d">accept · edit · reject · 20%</div></div>
+    <div class="larr">→</div>
+    <div class="ls"><div class="ic">📈</div><div class="t">Engine learns</div><div class="d">less work next time</div></div>
+  </div>
+</section>
+
+<!-- PRINCIPLES -->
+<section>
+  <h2><span class="n">2</span>The seven CX/HITL principles every screen obeys</h2>
+  <div class="principles">
+    <div class="pr"><div class="n">1</div><h3>Propose, don't impose</h3><p>Everything the AI does is a reversible proposal — ghost state, one-click accept / edit / reject. Nothing is silently applied.</p><div class="ex">Map: dashed nodes · R-2 one-click dismiss</div></div>
+    <div class="pr"><div class="n">2</div><h3>Never approve blind</h3><p>Every proposal carries a confidence score and provenance to the source. The human decides with evidence, not faith.</p><div class="ex">T-2 provenance · T-0d verified citation</div></div>
+    <div class="pr"><div class="n">3</div><h3>Surgical attention</h3><p>Auto-handle the routine; surface only the outliers, low-confidence, and governance-sensitive. Respect the human's time.</p><div class="ex">A-2′ deliberation on ~1% · band routing</div></div>
+    <div class="pr"><div class="n">4</div><h3>Progressive disclosure</h3><p>A first-timer sees plain language and the map; an expert drills to OWL, axioms, SKOS. Same product, two depths.</p><div class="ex">R-1 plain-language alias · R-3 badges on hover</div></div>
+    <div class="pr"><div class="n">5</div><h3>The loop compounds</h3><p>Every approval is labeled data. The engine gets better per domain; the human does less work over time. Stickiness by value.</p><div class="ex">Engine 6 · HITL learning loop</div></div>
+    <div class="pr"><div class="n">6</div><h3>Trust by transparency</h3><p>Audit trail, deliberation rationale, the Accuracy Lab. Magnus and Marcus trust because they can SEE — not because we promise.</p><div class="ex">T-4 audit · A-3 recorded rationale</div></div>
+    <div class="pr"><div class="n">7</div><h3>Zero-to-hero, never labeled</h3><p>A user who knows nothing about ontology is guided to a defensible model — and never called a novice. Designed for the clueless, said to no one.</p><div class="ex">T-1 novice → governed</div></div>
+  </div>
+</section>
+
+<!-- CHECKLIST -->
+<section>
+  <h2><span class="n">3</span>The acceptance checklist — every observation, as a test</h2>
+  <p class="sec-lede">Nothing here is aspiration. A screen ships when its rows go green. Grouped by theme; tagged by who demanded it.</p>
+  <div class="filter">
+    <span class="fl T">T · north star</span><span class="fl M">M · Magnus</span><span class="fl R">R · Red</span>
+    <span class="fl S">S · scale</span><span class="fl J">J · jugular</span><span class="fl O">O · ops</span><span class="fl A">A · deliberation</span><span class="fl IP">IP · moat</span>
+  </div>
+
+  <div class="grp">🎯 Agentic accuracy <span class="cnt">— the north star</span></div>
+  <table><tbody>
+    <tr><td style="width:5%"><span class="chk"></span></td><td style="width:8%"><span class="id">T-0a</span></td><td>Groundedness % computed live = cited claims ÷ total. Naive vs Aryx, side by side.</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">T-0b</span></td><td>Contradictions caught by the reasoner, counted.</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">T-0c</span></td><td>Fair baseline — same model + retrieval; ontology is the only variable. No strawman.</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">T-0d</span></td><td>Verified citation — cited value present in the cited record, or flagged not counted.</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">T-1</span></td><td>Novice → governed ontology with no expert / FDE.</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">T-2</span></td><td>Provenance on every claim → source table.column.</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">T-3</span></td><td>Reasoner-enforced — disjoint/cardinality BLOCK bad data.</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">T-4</span></td><td>Audit trail — who approved what, when, at what confidence. Exportable.</td></tr>
+  </tbody></table>
+
+  <div class="grp">📈 Scale survival <span class="cnt">— 200M rows, 50 tables, multi-source</span></div>
+  <table><tbody>
+    <tr><td style="width:5%"><span class="chk"></span></td><td style="width:8%"><span class="id">T-S1</span></td><td>Classify a 50-table / 200M-row source from schema + samples in minutes.</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">T-S2</span></td><td>Map clusters ≥ density threshold; never attempts 200M nodes.</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">T-S3</span></td><td>Incremental ingest — deltas only; sync % honest per source.</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">T-S4</span></td><td>One Customer fuses Salesforce + ServiceNow + Drive; lineage to each.</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">T-S5</span></td><td>LLM cost flat to row count — scales with schema, not volume.</td></tr>
+  </tbody></table>
+
+  <div class="grp">🗡️ The Palantir jugular <span class="cnt">— cost · sovereignty · ownership</span></div>
+  <table><tbody>
+    <tr><td style="width:5%"><span class="chk"></span></td><td style="width:8%"><span class="id">T-J1</span></td><td>TCO modeled &amp; defensible — Palantir all-in vs Aryx all-in + payback.</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">T-J3</span></td><td>Sovereignty — local-LLM mode provably keeps PII in-perimeter (no egress).</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">T-J4</span></td><td>Ownership — OWL/RDF/SKOS round-trip export verified.</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">T-J5</span></td><td>Governed onboarding — per-source access + sensitivity enforced.</td></tr>
+  </tbody></table>
+
+  <div class="grp">⚙️ Pipeline ops &amp; the deliberation scalpel <span class="cnt">— Sven · Red · Eleanor</span></div>
+  <table><tbody>
+    <tr><td style="width:5%"><span class="chk"></span></td><td style="width:8%"><span class="id">O-1..4</span></td><td>Task-unit queue + autoscaling workers; runtime-agnostic VPC; idempotent + rate-aware; per-source observability.</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">T-O5</span></td><td>Domain funnel — a support question never touches finance sources.</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">A-T5</span></td><td>Outlier detector flags &lt;~2% for deliberation; the rest single-pass.</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">A-T6</span></td><td>Hub-merge / mass-reject axiom ALWAYS escalates (blast-radius).</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">A-T3</span></td><td>Confidence = vote agreement, not a model's self-report.</td></tr>
+  </tbody></table>
+
+  <div class="grp">🏛️ Modularity &amp; the moat <span class="cnt">— ride any infra, own the engine</span></div>
+  <table><tbody>
+    <tr><td style="width:5%"><span class="chk"></span></td><td style="width:8%"><span class="id">IP-T1</span></td><td>Swap Postgres → Oracle ADB / Fabric / BigQuery with zero core change.</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">IP-T2</span></td><td>Swap FalkorDB → Oracle RDF / Spanner; reasoner still enforces.</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">IP-T3</span></td><td>Method / prompts / labeled-data NEVER ship inside an adapter.</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">LLM-R</span></td><td>Per-task LLM routing + per-task sovereignty + fallback ladder + Governor caps.</td></tr>
+  </tbody></table>
+
+  <div class="grp">🤝 CX / HITL <span class="cnt">— Red's guardrails</span></div>
+  <table><tbody>
+    <tr><td style="width:5%"><span class="chk"></span></td><td style="width:8%"><span class="id">R-1</span></td><td>Every OWL construct has a plain-language alias.</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">R-2</span></td><td>AI proposals dismissible in one click.</td></tr>
+    <tr><td><span class="chk"></span></td><td><span class="id">R-3</span></td><td>Progressive disclosure — badges on hover/zoom, not always-on.</td></tr>
+  </tbody></table>
+</section>
+
+<div class="ready">
+  <div class="k">Design phase</div>
+  <h3>Thesis locked. We are good to go.</h3>
+  <p>Modular substrate (ride any hyperscaler) · bounded, governed parallel pipeline · per-task LLM Router with sovereignty · and above all the UX · CX · HITL loop that makes a novice ship an agent-grade ontology. The features are table stakes; the experience is the company. Next stop: build, screen by screen, each shipping only when its checklist rows go green.</p>
+</div>
+
+<footer>
+  Aryx Ontology v2.0 · CX/HITL spine &amp; acceptance checklist · branch <code>feat/ontology-v2-design</code> ·
+  <a href="00-overview.html">overview</a> · <a href="04-modularity-and-ip.html">IP</a> · <a href="05-coverage-and-pipeline-ops.html">ops</a> · <a href="06-llm-router.html">router</a>
+</footer>
+</div>
+</body>
+</html>

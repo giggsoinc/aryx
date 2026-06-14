@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Aryx · LLM Router (Screen 11 mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root{
+    --navy-50:#F2F5FB;--navy-100:#E4EAF4;--navy-200:#C2CFE3;--navy-300:#94A8CB;
+    --navy-500:#3A578C;--navy-600:#27416E;--navy-700:#1A2F55;--navy-800:#0F1F3D;
+    --navy-900:#0A1530;--navy-950:#050B1C;
+    --steel-400:#5F8AD2;--steel-500:#4068A8;--steel-600:#2D4B8A;
+    --canvas:#F8F9FC;--ink:#0F1726;--subtle:#5A6478;
+    --amber:#F59E0B;--emerald:#10B981;--rose:#E11D48;--violet:#7C3AED;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5}
+  code,.mono{font-family:'JetBrains Mono',monospace}
+  .anno{max-width:1180px;margin:0 auto;padding:24px}
+  .anno-tag{display:inline-block;padding:4px 12px;border-radius:999px;background:var(--navy-50);color:var(--navy-700);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+  .anno h1{font-family:'Fraunces',serif;font-size:1.6rem;color:var(--navy-900);margin-top:10px}
+  .anno p{color:var(--subtle);font-size:13.5px;margin-top:6px;max-width:790px}
+
+  .frame{max-width:1180px;margin:18px auto 36px;border:1px solid var(--navy-100);border-radius:18px;overflow:hidden;box-shadow:0 12px 40px rgba(10,21,48,.07);background:white}
+  .bar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--navy-100);background:var(--canvas)}
+  .bar-l{display:flex;align-items:center;gap:26px}
+  .brand{display:inline-flex;align-items:center;gap:10px}
+  .brand img{width:30px;height:30px}
+  .brand .name{font-weight:600;letter-spacing:.28em;color:var(--navy-900);font-size:13px}
+  .nav{display:flex;gap:4px}
+  .nav a{font-size:13px;font-weight:500;color:var(--navy-600);padding:6px 12px;border-radius:8px;text-decoration:none}
+  .nav a.on{background:var(--navy-800);color:#fff}
+
+  .body{padding:24px 28px 32px}
+  .h-row{display:flex;align-items:flex-end;justify-content:space-between}
+  .h-row h2{font-family:'Fraunces',serif;font-size:1.5rem;color:var(--navy-900)}
+  .h-row .sub{color:var(--subtle);font-size:13px;margin-top:3px}
+
+  /* presets */
+  .presets{display:flex;gap:10px;margin-top:18px}
+  .preset{flex:1;border:1.5px solid var(--navy-100);border-radius:14px;padding:14px 16px;cursor:pointer}
+  .preset.on{border-color:var(--navy-800);background:var(--navy-50);box-shadow:0 0 0 3px rgba(15,31,61,.06)}
+  .preset .t{font-weight:700;font-size:13.5px;color:var(--navy-900);display:flex;align-items:center;gap:8px}
+  .preset .d{font-size:11.5px;color:var(--subtle);margin-top:4px;line-height:1.45}
+  .preset .who{margin-top:6px;font-size:10px;font-family:'JetBrains Mono';color:var(--steel-600)}
+
+  /* routing matrix */
+  .matrix{margin-top:20px;border:1px solid var(--navy-100);border-radius:16px;overflow:hidden}
+  .mh{display:grid;grid-template-columns:1.5fr 1.4fr 0.8fr 0.9fr 1.2fr 0.8fr;background:var(--navy-50);padding:10px 16px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--navy-700)}
+  .mr{display:grid;grid-template-columns:1.5fr 1.4fr 0.8fr 0.9fr 1.2fr 0.8fr;padding:13px 16px;border-top:1px solid var(--navy-100);align-items:center;font-size:12.5px}
+  .task{font-weight:600;color:var(--navy-900)}
+  .task .sm{font-weight:400;font-size:10.5px;color:var(--subtle);font-family:'JetBrains Mono'}
+  .model{display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono';font-size:11.5px;color:var(--navy-800);border:1px solid var(--navy-100);border-radius:8px;padding:4px 10px;background:#fff}
+  .prov{width:8px;height:8px;border-radius:50%}
+  .prov.local{background:var(--emerald)}.prov.claude{background:#D97757}.prov.gemini{background:#4285F4}.prov.oci{background:#C74634}
+  .tier{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;font-family:'JetBrains Mono'}
+  .tier.cheap{background:#EFF6FF;color:var(--steel-600)}.tier.frontier{background:#F5F3FF;color:var(--violet)}.tier.embed{background:#ECFDF5;color:#047857}
+  .sov{font-size:11px;font-weight:700}
+  .sov.on{color:var(--emerald)}.sov.off{color:var(--subtle)}
+  .fallback{font-family:'JetBrains Mono';font-size:10.5px;color:var(--subtle)}
+  .cost{font-family:'JetBrains Mono';font-size:11.5px;color:#047857;text-align:right}
+
+  /* providers + governor */
+  .lower{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;margin-top:20px}
+  .panel{border:1px solid var(--navy-100);border-radius:16px;padding:18px 20px;background:#fff}
+  .panel h3{font-family:'Fraunces',serif;font-size:1.05rem;color:var(--navy-900)}
+  .prov-list{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+  .pl{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--navy-100);border-radius:10px;font-size:12.5px}
+  .pl .nm{font-weight:600;color:var(--navy-900);flex:1}
+  .pl .ep{font-family:'JetBrains Mono';font-size:10.5px;color:var(--subtle)}
+  .pl .badge{font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:999px}
+  .pl .badge.ok{background:#ECFDF5;color:#047857}
+  .pl .badge.key{background:#FFF7ED;color:#C2410C}
+  .gov-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--navy-100);font-size:12.5px}
+  .gov-row:last-child{border-bottom:none}
+  .gov-row .l{color:var(--subtle)}
+  .gov-row .v{font-family:'JetBrains Mono';color:var(--navy-900);font-weight:600}
+
+  .callouts{max-width:1180px;margin:0 auto 50px;padding:0 24px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .co{background:var(--navy-50);border-left:3px solid var(--steel-500);border-radius:0 12px 12px 0;padding:14px 16px}
+  .co .id{font-family:'JetBrains Mono';font-weight:700;font-size:11px;color:var(--steel-600)}
+  .co p{font-size:12px;color:var(--navy-700);margin-top:4px;line-height:1.5}
+  .co.cdo{border-left-color:var(--violet);background:#F5F3FF}
+  .co.cfo{border-left-color:var(--emerald);background:#ECFDF5}
+</style>
+</head>
+<body>
+
+<div class="anno">
+  <span class="anno-tag">Ontology v2.0 · Screen 11 · mockup (not built)</span>
+  <h1>LLM Router — route every task to the right brain, on the right side of the wire</h1>
+  <p>Not a single "pick a model" dropdown. A <b>per-task routing matrix</b>: each Aryx task gets its own provider, model, tier, <b>sovereignty rule</b> (PII-touching work stays local), and fallback ladder. One control panel that satisfies the CDO (sovereignty), the CFO (cost), and Ops (fallback + caps).</p>
+</div>
+
+<div class="frame">
+  <div class="bar">
+    <div class="bar-l">
+      <div class="brand"><img src="../aryx-logo.png" alt="Aryx"/><span class="name">A R Y X</span></div>
+      <nav class="nav"><a href="#">Cost</a><a href="#">Connectors</a><a class="on" href="#">LLM Router</a><a href="#">Settings</a></nav>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="h-row">
+      <div><h2>LLM Router</h2><div class="sub">Per-task model routing · per-task sovereignty · fallback &amp; budget governance.</div></div>
+    </div>
+
+    <!-- presets -->
+    <div class="presets">
+      <div class="preset"><div class="t">🔒 Sovereign</div><div class="d">Everything local (Ollama). Zero egress. PII never leaves your VPC.</div><div class="who">CDO default</div></div>
+      <div class="preset on"><div class="t">⚖️ Balanced <span style="font-size:9px;color:var(--emerald)">● active</span></div><div class="d">PII tasks local · heavy reasoning to cloud frontier · cheap stays cheap.</div><div class="who">recommended</div></div>
+      <div class="preset"><div class="t">💲 Cost-optimized</div><div class="d">Cheapest model that passes each task; frontier only on outliers.</div><div class="who">CFO favourite</div></div>
+      <div class="preset"><div class="t">🎯 Quality-first</div><div class="d">Best model per task, cost be damned. For a high-stakes build.</div><div class="who">accuracy push</div></div>
+    </div>
+
+    <!-- matrix -->
+    <div class="matrix">
+      <div class="mh"><div>Task</div><div>Model</div><div>Tier</div><div>Sovereign</div><div>Fallback ladder</div><div>$ / 1K</div></div>
+
+      <div class="mr">
+        <div class="task">Tag fields<div class="sm">cheap · per field-batch</div></div>
+        <div><span class="model"><span class="prov local"></span> qwen3.5:0.8b</span></div>
+        <div><span class="tier cheap">cheap</span></div>
+        <div><span class="sov on">✓ local</span></div>
+        <div class="fallback">local → gemini-flash</div>
+        <div class="cost">$0.00</div>
+      </div>
+
+      <div class="mr">
+        <div class="task">Extract mentions<div class="sm">cheap · per chunk</div></div>
+        <div><span class="model"><span class="prov local"></span> qwen3.5:0.8b</span></div>
+        <div><span class="tier cheap">cheap</span></div>
+        <div><span class="sov on">✓ local · PII-safe</span></div>
+        <div class="fallback">local only (sensitive)</div>
+        <div class="cost">$0.00</div>
+      </div>
+
+      <div class="mr">
+        <div class="task">Embed<div class="sm">vector · per chunk-batch</div></div>
+        <div><span class="model"><span class="prov local"></span> nomic-embed-text</span></div>
+        <div><span class="tier embed">embed</span></div>
+        <div><span class="sov on">✓ local</span></div>
+        <div class="fallback">local only</div>
+        <div class="cost">$0.00</div>
+      </div>
+
+      <div class="mr">
+        <div class="task">Schema map<div class="sm">frontier · per dataset</div></div>
+        <div><span class="model"><span class="prov gemini"></span> gemini-flash-latest</span></div>
+        <div><span class="tier frontier">frontier</span></div>
+        <div><span class="sov off">cloud ok</span></div>
+        <div class="fallback">gemini → claude → local</div>
+        <div class="cost">$0.07</div>
+      </div>
+
+      <div class="mr">
+        <div class="task">Adjudicate (ER)<div class="sm">frontier · ambiguous band</div></div>
+        <div><span class="model"><span class="prov claude"></span> claude-sonnet</span></div>
+        <div><span class="tier frontier">frontier</span></div>
+        <div><span class="sov off">cloud ok</span></div>
+        <div class="fallback">claude → gemini → local</div>
+        <div class="cost">$3.00</div>
+      </div>
+
+      <div class="mr">
+        <div class="task">Deliberate (outliers)<div class="sm">frontier · ~1% panel</div></div>
+        <div><span class="model"><span class="prov claude"></span> claude-sonnet ×4</span></div>
+        <div><span class="tier frontier">frontier</span></div>
+        <div><span class="sov off">cloud ok</span></div>
+        <div class="fallback">claude → gemini</div>
+        <div class="cost">$12.00</div>
+      </div>
+
+      <div class="mr">
+        <div class="task">Ask · synthesise<div class="sm">answer · per question</div></div>
+        <div><span class="model"><span class="prov gemini"></span> gemini-flash-latest</span></div>
+        <div><span class="tier frontier">answer</span></div>
+        <div><span class="sov off">cloud ok</span></div>
+        <div class="fallback">gemini → claude → local</div>
+        <div class="cost">$0.07</div>
+      </div>
+    </div>
+
+    <!-- providers + governor -->
+    <div class="lower">
+      <div class="panel">
+        <h3>Registered providers</h3>
+        <div class="prov-list">
+          <div class="pl"><span class="prov local"></span><span class="nm">Ollama (local)</span><span class="ep">ollama:11434 · 8 models</span><span class="badge ok">healthy · 0 egress</span></div>
+          <div class="pl"><span class="prov claude"></span><span class="nm">Anthropic Claude</span><span class="ep">api.anthropic.com</span><span class="badge ok">key set 🔒</span></div>
+          <div class="pl"><span class="prov gemini"></span><span class="nm">Google Gemini</span><span class="ep">generativelanguage…/openai</span><span class="badge ok">key set 🔒</span></div>
+          <div class="pl"><span class="prov oci"></span><span class="nm">OCI GenAI · Azure Fabric</span><span class="ep">add for the hyperscaler edition</span><span class="badge key">+ add</span></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Governor &amp; caps</h3>
+        <div class="gov-row"><span class="l">Frontier budget / mo</span><span class="v">2.0 M tok</span></div>
+        <div class="gov-row"><span class="l">Spent</span><span class="v">62%</span></div>
+        <div class="gov-row"><span class="l">At 80% →</span><span class="v">downgrade to cheap</span></div>
+        <div class="gov-row"><span class="l">Per-source rate limit</span><span class="v">backoff on 429</span></div>
+        <div class="gov-row"><span class="l">Monthly $ cap</span><span class="v">$500 · alert at 90%</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="callouts">
+  <div class="co cdo"><div class="id">MARCUS · per-task sovereignty</div><p>"Extract-mentions on my contracts is pinned LOCAL · PII-safe — it physically cannot route to a cloud model. But schema-map, which sees no PII, can use cloud frontier. Granular sovereignty per task. No one else does this."</p></div>
+  <div class="co cfo"><div class="id">ELEANOR · cost routing</div><p>"$0.00 on the high-volume tasks (local), spend only on the rare frontier calls. The $/1K column + the Governor cap means I see and bound every dollar. Cost-optimized preset is one click."</p></div>
+  <div class="co"><div class="id">SVEN · fallback &amp; health</div><p>"Every task has a fallback ladder — claude → gemini → local — so a provider outage degrades gracefully, never stops the pipeline. Provider health is live. That's operable."</p></div>
+</div>
+
+</body>
+</html>

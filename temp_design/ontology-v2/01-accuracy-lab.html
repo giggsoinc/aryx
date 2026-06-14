@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Aryx · Accuracy Lab (Screen 0 mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root{
+    --navy-50:#F2F5FB;--navy-100:#E4EAF4;--navy-200:#C2CFE3;--navy-300:#94A8CB;
+    --navy-500:#3A578C;--navy-600:#27416E;--navy-700:#1A2F55;--navy-800:#0F1F3D;
+    --navy-900:#0A1530;--navy-950:#050B1C;
+    --steel-400:#5F8AD2;--steel-500:#4068A8;--steel-600:#2D4B8A;
+    --canvas:#F8F9FC;--ink:#0F1726;--subtle:#5A6478;
+    --amber:#F59E0B;--emerald:#10B981;--rose:#E11D48;--violet:#7C3AED;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5}
+  code,.mono{font-family:'JetBrains Mono',monospace}
+  .anno{max-width:1180px;margin:0 auto;padding:24px}
+  .anno-tag{display:inline-block;padding:4px 12px;border-radius:999px;background:var(--navy-50);color:var(--navy-700);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+  .anno h1{font-family:'Fraunces',serif;font-size:1.6rem;color:var(--navy-900);margin-top:10px}
+  .anno p{color:var(--subtle);font-size:13.5px;margin-top:6px;max-width:760px}
+
+  /* app frame */
+  .frame{max-width:1180px;margin:18px auto 40px;border:1px solid var(--navy-100);border-radius:18px;overflow:hidden;box-shadow:0 12px 40px rgba(10,21,48,.07);background:white}
+  /* header bar */
+  .bar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--navy-100);background:var(--canvas)}
+  .bar-l{display:flex;align-items:center;gap:26px}
+  .brand{display:inline-flex;align-items:center;gap:10px}
+  .brand img{width:30px;height:30px}
+  .brand .name{font-weight:600;letter-spacing:.28em;color:var(--navy-900);font-size:13px}
+  .nav{display:flex;gap:4px}
+  .nav a{font-size:13px;font-weight:500;color:var(--navy-600);padding:6px 12px;border-radius:8px;text-decoration:none}
+  .nav a.on{background:var(--navy-800);color:#fff}
+  .ws{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--navy-100);background:#fff;border-radius:999px;padding:6px 14px;font-size:13px;color:var(--navy-700)}
+  .ws .dot{width:8px;height:8px;border-radius:50%;background:var(--steel-500)}
+
+  .body{padding:26px 28px 34px}
+  .lab-h{display:flex;align-items:baseline;gap:12px}
+  .lab-h h2{font-family:'Fraunces',serif;font-size:1.5rem;color:var(--navy-900)}
+  .beta{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:#F5F3FF;color:var(--violet);padding:2px 8px;border-radius:999px}
+  .lab-sub{color:var(--subtle);font-size:13px;margin-top:4px}
+
+  /* question box */
+  .qbox{margin-top:18px;display:flex;gap:10px}
+  .qbox input{flex:1;border:1.5px solid var(--navy-100);border-radius:14px;padding:14px 18px;font-family:inherit;font-size:15px;color:var(--ink);background:#fff;box-shadow:0 1px 2px rgba(10,21,48,.04)}
+  .qbox .run{display:inline-flex;align-items:center;gap:8px;background:var(--navy-800);color:#fff;border:none;border-radius:14px;padding:0 22px;font-weight:600;font-size:14px;cursor:pointer}
+  .qhint{margin-top:8px;font-size:12px;color:var(--subtle)}
+  .qhint b{color:var(--navy-700)}
+
+  /* AB columns */
+  .ab{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px}
+  .col{border:1px solid var(--navy-100);border-radius:16px;overflow:hidden;background:#fff}
+  .col.aryx{border-color:var(--emerald);box-shadow:0 0 0 3px rgba(16,185,129,.08)}
+  .col-h{padding:12px 16px;border-bottom:1px solid var(--navy-100);display:flex;align-items:center;justify-content:space-between}
+  .col.naive .col-h{background:#FFF7F5}
+  .col.aryx .col-h{background:#ECFDF5}
+  .col-h .ttl{font-weight:700;font-size:13px;color:var(--navy-900);display:flex;align-items:center;gap:8px}
+  .col-h .sub{font-family:'JetBrains Mono';font-size:10px;color:var(--subtle)}
+  .ico-x{color:var(--rose)}.ico-ok{color:var(--emerald)}
+  .ans{padding:16px;font-size:13.5px;color:var(--navy-800);line-height:1.6;min-height:150px}
+  .ans .nocite{background:#FFF1F2;border-bottom:1px dashed #FCA5A5;padding:0 2px}
+  .cite{background:#ECFDF5;border-bottom:1px solid #6EE7B7;padding:0 3px;cursor:pointer;position:relative;font-weight:500}
+  .cite sup{color:var(--emerald);font-weight:700;font-size:9px;margin-left:1px}
+
+  /* scorecard */
+  .score{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:20px}
+  .metric{border:1px solid var(--navy-100);border-radius:14px;padding:16px;text-align:center;background:#fff;position:relative}
+  .metric .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--subtle);font-weight:700}
+  .metric .vs{display:flex;align-items:baseline;justify-content:center;gap:8px;margin-top:8px}
+  .metric .a{font-family:'Fraunces',serif;font-size:1.7rem;color:var(--rose)}
+  .metric .arr{color:var(--navy-300)}
+  .metric .b{font-family:'Fraunces',serif;font-size:1.7rem;color:var(--emerald)}
+  .metric .cap{font-size:10px;color:var(--subtle);margin-top:4px}
+
+  /* citation drill */
+  .drill{margin-top:20px;border:1px solid var(--navy-100);border-radius:16px;overflow:hidden}
+  .drill-h{padding:11px 16px;background:var(--navy-50);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--navy-700);display:flex;align-items:center;gap:8px}
+  .drill-row{display:grid;grid-template-columns:1.4fr 1fr 1fr auto;gap:12px;padding:12px 16px;border-top:1px solid var(--navy-100);align-items:center;font-size:12.5px}
+  .drill-row .claim{color:var(--navy-900)}
+  .drill-row .src{font-family:'JetBrains Mono';font-size:11px;color:var(--steel-600)}
+  .drill-row .val{font-family:'JetBrains Mono';font-size:11px;color:var(--navy-700)}
+  .verdict{font-size:10px;font-weight:700;padding:3px 9px;border-radius:999px;text-transform:uppercase;letter-spacing:.05em}
+  .verdict.ok{background:#ECFDF5;color:#047857}
+  .verdict.bad{background:#FEF2F2;color:var(--rose)}
+
+  /* why panel */
+  .why{margin-top:18px;background:linear-gradient(135deg,#F5F3FF,white);border:1px solid #C4B5FD;border-radius:16px;padding:18px 20px}
+  .why h4{font-family:'Fraunces',serif;font-size:1.05rem;color:var(--navy-900)}
+  .why .chips{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+  .chip{font-size:11.5px;background:#fff;border:1px solid var(--navy-100);border-radius:999px;padding:4px 12px;color:var(--navy-700)}
+  .chip b{color:var(--violet)}
+
+  /* annotation callouts under the mock */
+  .callouts{max-width:1180px;margin:0 auto 50px;padding:0 24px;display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  .co{background:var(--navy-50);border-left:3px solid var(--steel-500);border-radius:0 12px 12px 0;padding:14px 16px}
+  .co .id{font-family:'JetBrains Mono';font-weight:700;font-size:11px;color:var(--steel-600)}
+  .co p{font-size:12.5px;color:var(--navy-700);margin-top:4px;line-height:1.5}
+  .co.mag{border-left-color:var(--violet);background:#F5F3FF}
+  .co.red{border-left-color:var(--rose);background:#FEF2F2}
+</style>
+</head>
+<body>
+
+<div class="anno">
+  <span class="anno-tag">Ontology v2.0 · Screen 0 · mockup (not built)</span>
+  <h1>The Accuracy Lab — the screen that converts the skeptic</h1>
+  <p>Same question. Same model. Same retrieval depth. The <b>only</b> difference between the two columns is whether the agent reasons over the Aryx ontology. This is the fair A/B Magnus demanded — objective metrics, no strawman, every citation verified.</p>
+</div>
+
+<div class="frame">
+  <!-- top bar -->
+  <div class="bar">
+    <div class="bar-l">
+      <div class="brand"><img src="../aryx-logo.png" alt="Aryx"/><span class="name">A R Y X</span></div>
+      <nav class="nav">
+        <a href="#">Ask</a><a href="#">Map</a><a href="#">Governance</a><a class="on" href="#">Accuracy&nbsp;Lab</a>
+      </nav>
+    </div>
+    <div class="ws"><span class="dot"></span> Acme Support</div>
+  </div>
+
+  <div class="body">
+    <div class="lab-h"><h2>Accuracy Lab</h2><span class="beta">proof</span></div>
+    <div class="lab-sub">Ask a real question. Watch what the ontology does to the answer.</div>
+
+    <!-- question -->
+    <div class="qbox">
+      <input value="Which customers on firmware 6.2.1 have open high-priority tickets?" readonly/>
+      <button class="run">▶ Run both</button>
+    </div>
+    <div class="qhint"><b>Fair fight guarantee:</b> both columns use <code style="font-family:'JetBrains Mono';font-size:11px">gemini-flash-latest</code> with identical retrieval. Ontology is the only variable.</div>
+
+    <!-- A/B -->
+    <div class="ab">
+      <!-- naive -->
+      <div class="col naive">
+        <div class="col-h">
+          <span class="ttl"><span class="ico-x">✕</span> Without ontology</span>
+          <span class="sub">naive RAG · raw records</span>
+        </div>
+        <div class="ans">
+          There appear to be <span class="nocite">several customers</span> with devices on firmware version 6.2.1. <span class="nocite">Some of them</span> may have open tickets marked high priority, but the relationship between firmware version and ticket priority <span class="nocite">isn't clearly stored</span>, so I can't say which specific customers with confidence.
+        </div>
+      </div>
+      <!-- aryx -->
+      <div class="col aryx">
+        <div class="col-h">
+          <span class="ttl"><span class="ico-ok">✓</span> With Aryx ontology</span>
+          <span class="sub">grounded · constraint-checked</span>
+        </div>
+        <div class="ans">
+          <span class="cite">3 customers<sup>①</sup></span> match: <span class="cite">NetOps Atlantic<sup>②</sup></span>, <span class="cite">Metro Telecom<sup>③</sup></span>, and <span class="cite">Rural Comms Group<sup>④</sup></span>. Each operates a <span class="cite">Device on firmware 6.2.1<sup>⑤</sup></span> linked via <code style="font-family:'JetBrains Mono';font-size:11px">installed_at → opened_by</code> to a <span class="cite">high-priority open Ticket<sup>⑥</sup></span>. The <code style="font-family:'JetBrains Mono';font-size:11px">Device⊓Customer</code> disjointness axiom prevented one mis-merged record from polluting the result.
+        </div>
+      </div>
+    </div>
+
+    <!-- scorecard -->
+    <div class="score">
+      <div class="metric">
+        <div class="lbl">Groundedness</div>
+        <div class="vs"><span class="a">28%</span><span class="arr">→</span><span class="b">96%</span></div>
+        <div class="cap">cited claims ÷ total · T-0a</div>
+      </div>
+      <div class="metric">
+        <div class="lbl">Verified citations</div>
+        <div class="vs"><span class="a">0</span><span class="arr">→</span><span class="b">6 / 6</span></div>
+        <div class="cap">cited value present in record · T-0d</div>
+      </div>
+      <div class="metric">
+        <div class="lbl">Contradictions caught</div>
+        <div class="vs"><span class="a">0</span><span class="arr">→</span><span class="b">1</span></div>
+        <div class="cap">reasoner-blocked · T-0b</div>
+      </div>
+      <div class="metric">
+        <div class="lbl">Same model / retrieval</div>
+        <div class="vs"><span class="b" style="font-size:1.1rem;color:var(--navy-800)">✓ identical</span></div>
+        <div class="cap">fair baseline · T-0c</div>
+      </div>
+    </div>
+
+    <!-- citation drill -->
+    <div class="drill">
+      <div class="drill-h">🔍 Verified citation drill — every claim → its source, value-checked (T-0d)</div>
+      <div class="drill-row">
+        <span class="claim">① "3 customers match"</span>
+        <span class="src">aggregate over Customer</span>
+        <span class="val">count = 3</span>
+        <span class="verdict ok">verified</span>
+      </div>
+      <div class="drill-row">
+        <span class="claim">② NetOps Atlantic</span>
+        <span class="src">support_customers.name</span>
+        <span class="val">"NetOps Atlantic"</span>
+        <span class="verdict ok">verified</span>
+      </div>
+      <div class="drill-row">
+        <span class="claim">⑤ Device on firmware 6.2.1</span>
+        <span class="src">support_devices.firmware_version</span>
+        <span class="val">"6.2.1"</span>
+        <span class="verdict ok">verified</span>
+      </div>
+      <div class="drill-row">
+        <span class="claim">⑥ high-priority open Ticket</span>
+        <span class="src">support_tickets.priority / .status</span>
+        <span class="val">"high" / "open"</span>
+        <span class="verdict ok">verified</span>
+      </div>
+    </div>
+
+    <!-- why -->
+    <div class="why">
+      <h4>Why the right column is right — what the ontology contributed</h4>
+      <div class="chips">
+        <span class="chip">Class <b>Device</b> ⟶ <b>installed_at</b> ⟶ <b>Site</b></span>
+        <span class="chip">Relation <b>Ticket —opened_by→ Customer</b></span>
+        <span class="chip">Axiom <b>Device ⊓ Customer = ∅</b> (disjoint)</span>
+        <span class="chip">Data property <b>firmware_version</b> typed as version-string</span>
+        <span class="chip">Sensitivity <b>Customer = PII</b> (answer redaction-aware)</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- annotation callouts -->
+<div class="callouts">
+  <div class="co mag"><div class="id">MAGNUS · T-0c / T-0d</div><p>"The fairness guarantee at the top and the verified-citation drill are what flip me. Groundedness 28%→96% means nothing if the baseline is rigged or the citations are fake. You closed both. This is board-ready."</p></div>
+  <div class="co"><div class="id">PRIYA · T-0a/b</div><p>Groundedness and contradictions-caught are computed live — no labeled test set required. They work on the customer's OWN question on day one.</p></div>
+  <div class="co red"><div class="id">RED · open risk</div><p>The "1 contradiction caught" must be a REAL block from this dataset, not a staged example. If we can't surface a genuine one, we don't show the metric — we never fake the number.</p></div>
+  <div class="co"><div class="id">THEO · UX</div><p>This is not a marketing page — it's a live tool inside the app. The question box runs against the user's real workspace. The demo IS the product.</p></div>
+</div>
+
+</body>
+</html>

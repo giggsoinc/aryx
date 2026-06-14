@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Aryx Ontology v2.0 · The game plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root{
+    --navy-50:#F2F5FB;--navy-100:#E4EAF4;--navy-200:#C2CFE3;--navy-300:#94A8CB;
+    --navy-500:#3A578C;--navy-600:#27416E;--navy-700:#1A2F55;--navy-800:#0F1F3D;
+    --navy-900:#0A1530;--navy-950:#050B1C;
+    --steel-400:#5F8AD2;--steel-500:#4068A8;--steel-600:#2D4B8A;
+    --canvas:#F8F9FC;--ink:#0F1726;--subtle:#5A6478;
+    --amber:#F59E0B;--emerald:#10B981;--rose:#E11D48;--violet:#7C3AED;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.55;padding:48px 24px}
+  .wrap{max-width:1140px;margin:0 auto}
+  code,.mono{font-family:'JetBrains Mono',monospace}
+  header{text-align:center;padding-bottom:28px;border-bottom:1px solid var(--navy-100)}
+  .brand{display:inline-flex;align-items:center;gap:12px}
+  .brand img{width:38px;height:38px}
+  .brand .name{font-weight:600;letter-spacing:.32em;color:var(--navy-900);font-size:15px}
+  .tag{display:inline-block;margin-top:14px;padding:4px 14px;border-radius:999px;background:var(--navy-800);color:#fff;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+  h1{font-family:'Fraunces',Georgia,serif;font-size:2.4rem;color:var(--navy-900);margin-top:14px;letter-spacing:-.01em}
+  .sub{color:var(--subtle);font-size:15px;margin-top:8px;max-width:720px;margin-left:auto;margin-right:auto}
+  section{margin-top:48px}
+  h2{font-family:'Fraunces',serif;font-size:1.5rem;color:var(--navy-900);letter-spacing:-.01em}
+  h2 .n{display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border-radius:8px;background:var(--navy-800);color:#fff;font-size:14px;margin-right:12px;font-family:'Inter'}
+  .sec-lede{color:var(--subtle);font-size:14px;margin-top:6px;max-width:760px}
+
+  /* north star chain */
+  .chain{display:flex;align-items:stretch;gap:0;margin-top:22px;flex-wrap:wrap}
+  .link{flex:1;min-width:140px;background:white;border:1px solid var(--navy-100);border-radius:14px;padding:16px 14px;text-align:center}
+  .link .ic{font-size:22px}
+  .link .t{font-weight:700;font-size:12.5px;color:var(--navy-900);margin-top:6px}
+  .link .d{font-size:10.5px;color:var(--subtle);margin-top:3px;line-height:1.4}
+  .link.win{border-color:var(--emerald);background:#ECFDF5}
+  .chain-arr{display:flex;align-items:center;color:var(--navy-300);font-size:20px;padding:0 6px}
+
+  .quote{margin-top:22px;padding:18px 22px;background:linear-gradient(135deg,var(--navy-50),white);border-left:4px solid var(--steel-500);border-radius:0 14px 14px 0}
+  .quote .who{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--steel-600)}
+  .quote p{font-size:15px;color:var(--navy-800);margin-top:6px;font-style:italic;line-height:1.6}
+
+  /* the cast */
+  .cast{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}
+  .person{background:white;border:1px solid var(--navy-100);border-radius:14px;padding:16px}
+  .person .nm{font-weight:700;color:var(--navy-900);font-size:13.5px}
+  .person .role{font-size:11px;color:var(--subtle);margin-top:2px}
+  .person .line{font-size:11.5px;color:var(--navy-700);margin-top:8px;font-style:italic;line-height:1.45}
+  .person.crit{border-color:#FCA5A5;background:#FEF2F2}
+  .person.skeptic{border-color:#C4B5FD;background:#F5F3FF}
+
+  /* screen map */
+  .screens{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:20px}
+  .screen{background:white;border:1px solid var(--navy-100);border-radius:16px;padding:18px 20px;position:relative}
+  .screen.hero{border-color:var(--emerald);box-shadow:0 0 0 3px rgba(16,185,129,.1)}
+  .screen .badge{position:absolute;top:14px;right:16px;font-family:'JetBrains Mono';font-size:10px;color:var(--steel-600);background:var(--navy-50);padding:2px 8px;border-radius:999px}
+  .screen .num{font-family:'Fraunces',serif;font-size:1.6rem;color:var(--steel-500)}
+  .screen h3{font-family:'Fraunces',serif;font-size:1.15rem;color:var(--navy-900);margin-top:2px}
+  .screen p{font-size:12.5px;color:var(--subtle);margin-top:6px;line-height:1.5}
+  .screen .ladders{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap}
+  .lad{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;font-family:'JetBrains Mono'}
+  .lad.acc{background:#ECFDF5;color:#047857}
+  .lad.nov{background:#EFF6FF;color:var(--steel-600)}
+  .lad.gov{background:#F5F3FF;color:var(--violet)}
+
+  /* test ledger */
+  table{width:100%;border-collapse:collapse;margin-top:18px;font-size:13px;background:white;border:1px solid var(--navy-100);border-radius:14px;overflow:hidden}
+  th{background:var(--navy-50);text-align:left;padding:10px 14px;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--navy-700);font-weight:700}
+  td{padding:10px 14px;border-top:1px solid var(--navy-100);vertical-align:top}
+  td .id{font-family:'JetBrains Mono';font-weight:700;font-size:11px;color:var(--navy-900)}
+  .src{display:inline-block;padding:1px 7px;border-radius:999px;font-size:9.5px;font-weight:700;font-family:'JetBrains Mono'}
+  .src.M{background:#F5F3FF;color:var(--violet)}
+  .src.R{background:#FEF2F2;color:var(--rose)}
+  .src.T{background:#ECFDF5;color:#047857}
+
+  .note{margin-top:18px;padding:14px 18px;background:var(--navy-50);border-left:3px solid var(--steel-500);border-radius:0 12px 12px 0;font-size:13px;color:var(--navy-700);line-height:1.6}
+  .note b{color:var(--navy-900)}
+  footer{margin-top:52px;padding-top:22px;border-top:1px solid var(--navy-100);text-align:center;color:var(--subtle);font-size:12px}
+  footer a{color:var(--steel-500);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand"><img src="../aryx-logo.png" alt="Aryx"/><span class="name">A R Y X</span></div>
+  <div class="tag">Ontology v2.0 · design ideation · NOT built yet</div>
+  <h1>From zero to a governed ontology — so your AI agents are&nbsp;actually&nbsp;right.</h1>
+  <p class="sub">This is the game plan, not the build. It captures the north star, the seven screens, and the test cases the panel argued into existence — including the bar our Palantir skeptic set. Review, mark up, approve before any pixel ships.</p>
+</header>
+
+<!-- NORTH STAR -->
+<section>
+  <h2><span class="n">1</span>The north star — why an ontology at all</h2>
+  <p class="sec-lede">Agent accuracy is not a model problem, it's a <em>structure</em> problem. The ontology is the substrate that turns a guessing agent into a citing one. This is the chain every screen must serve.</p>
+  <div class="chain">
+    <div class="link"><div class="ic">🗂️</div><div class="t">Messy data</div><div class="d">DBs, files, APIs — duplicated, unlabeled</div></div>
+    <div class="chain-arr">→</div>
+    <div class="link"><div class="ic">🧩</div><div class="t">Resolved entities</div><div class="d">deduped, one record per real thing</div></div>
+    <div class="chain-arr">→</div>
+    <div class="link"><div class="ic">🏛️</div><div class="t">Governed ontology</div><div class="d">classes · relations · axioms · sensitivity</div></div>
+    <div class="chain-arr">→</div>
+    <div class="link win"><div class="ic">🎯</div><div class="t">Accurate agent</div><div class="d">grounded, cited, constraint-checked answers</div></div>
+  </div>
+  <div class="quote">
+    <div class="who">The premise, plainly</div>
+    <p>"A business person who knows nothing about ontology — job on the line — must ship a model good enough that AI agents answer accurately over it. Nail that, and Aryx is the next Palantir in the making. Aryx's job is to make that person succeed."</p>
+  </div>
+</section>
+
+<!-- THE CAST -->
+<section>
+  <h2><span class="n">2</span>The brain army (who scoped this)</h2>
+  <p class="sec-lede">A triad of experts, an anarchist critic, and the skeptic we must convert. The skeptic's conversion is the win condition.</p>
+  <div class="cast">
+    <div class="person"><div class="nm">Dr. Lena Hartmann</div><div class="role">Ontology &amp; Knowledge-Engineering Lead</div><div class="line">"Agent accuracy is a structure problem. Axioms prevent wrong answers."</div></div>
+    <div class="person"><div class="nm">Theo Nakamura</div><div class="role">UX / Information Architecture Lead</div><div class="line">"Run it on the user's real question — never a canned demo."</div></div>
+    <div class="person"><div class="nm">Priya Raman</div><div class="role">AI-Classification Lead</div><div class="line">"AI proposes the model; the human approves. Hours, not quarters."</div></div>
+    <div class="person crit"><div class="nm">Kabir "Red" Singh</div><div class="role">Devil's Advocate / Anarchist</div><div class="line">"If a screen doesn't move the accuracy needle — cut it. No cockpit cosplay."</div></div>
+    <div class="person skeptic"><div class="nm">Magnus Holt</div><div class="role">ex-Palantir FDE · Atlan advisor · THE SKEPTIC</div><div class="line">"Newcomers have no maturity. Prove the accuracy delta — fair, measured — or it's snake oil."</div></div>
+    <div class="person" style="border-style:dashed"><div class="nm">You</div><div class="role">Casting vote</div><div class="line">"Nothing off the table — prove Magnus wrong."</div></div>
+  </div>
+</section>
+
+<!-- THE 7 SCREENS -->
+<section>
+  <h2><span class="n">3</span>The seven surfaces</h2>
+  <p class="sec-lede">Every screen ladders to one of three goals: <span class="lad acc">raise agent accuracy</span> <span class="lad nov">novice → governed</span> <span class="lad gov">Magnus's proof</span>. Screen 0 leads because it converts on contact.</p>
+  <div class="screens">
+    <div class="screen hero">
+      <div class="badge">converts Magnus</div>
+      <div class="num">0</div><h3>Accuracy Lab</h3>
+      <p>Fair A/B: same agent, same model — answering over raw data vs the Aryx ontology. Scorecard: groundedness %, contradictions caught, verified citations. The screen that earns every other screen.</p>
+      <div class="ladders"><span class="lad acc">accuracy</span><span class="lad gov">proof</span></div>
+    </div>
+    <div class="screen">
+      <div class="badge">the wow</div>
+      <div class="num">1</div><h3>The Map</h3>
+      <p>Discovery-first graph. AI proposals render ghosted; you approve on-canvas. Every node carries a confidence ring, provenance chip, sensitivity badge. Tree↔graph synced. Density auto-simplifies.</p>
+      <div class="ladders"><span class="lad acc">accuracy</span><span class="lad nov">novice</span><span class="lad gov">proof</span></div>
+    </div>
+    <div class="screen">
+      <div class="num">2</div><h3>Governance</h3>
+      <p>Domain → subdomain · owners · reviewers · tags · privacy/sensitivity taxonomy · <b>lineage to the source column</b>. Magnus's turf, answered head-on.</p>
+      <div class="ladders"><span class="lad gov">proof</span></div>
+    </div>
+    <div class="screen">
+      <div class="num">3</div><h3>AI → Approve loop</h3>
+      <p>The working mode of the Map: ghost proposal → accept / edit / reject, each with confidence + provenance + a one-click dismiss. The 80% AI / 20% human handoff made visible.</p>
+      <div class="ladders"><span class="lad nov">novice</span></div>
+    </div>
+    <div class="screen">
+      <div class="num">4</div><h3>Properties + Relations</h3>
+      <p>Object &amp; data properties, domain/range, and the SKOS relation registry (relatedTo, broader/narrower, partOf…) with category, symmetric/transitive, cardinality, color, predicate URI.</p>
+      <div class="ladders"><span class="lad acc">accuracy</span></div>
+    </div>
+    <div class="screen">
+      <div class="num">5</div><h3>Axioms + Reasoner</h3>
+      <p>OWL2 constraints that <b>actually enforce</b>: disjointness blocks contradictions, cardinality blocks impossible joins. Reasoner check, counted — not decorative.</p>
+      <div class="ladders"><span class="lad acc">accuracy</span><span class="lad gov">proof</span></div>
+    </div>
+    <div class="screen">
+      <div class="num">6</div><h3>Interchange</h3>
+      <p>OWL / RDF / SKOS round-trip import &amp; export, with lineage back to source. Plays with Protégé, GraphDB, the semantic-web world — so you're never locked in.</p>
+      <div class="ladders"><span class="lad gov">proof</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- TEST LEDGER -->
+<section>
+  <h2><span class="n">4</span>The test-case ledger</h2>
+  <p class="sec-lede">Every observation from the debate became a test the build must pass. <span class="src M">M</span> = Magnus's bar · <span class="src R">R</span> = Red's guardrail · <span class="src T">T</span> = north-star test. This is what "done" means.</p>
+  <table>
+    <thead><tr><th style="width:9%">ID</th><th style="width:11%">Source</th><th>The test — must pass before we claim the screen works</th></tr></thead>
+    <tbody>
+      <tr><td><span class="id">T-0a</span></td><td><span class="src T">north star</span></td><td><b>Groundedness %</b> computed live = cited claims ÷ total claims. Naive vs Aryx, side by side.</td></tr>
+      <tr><td><span class="id">T-0b</span></td><td><span class="src T">north star</span></td><td><b>Contradictions caught</b> by the reasoner, counted (e.g. Person ≠ Org disjointness blocks a bad merge).</td></tr>
+      <tr><td><span class="id">T-0c</span></td><td><span class="src R">Red</span></td><td><b>Fair baseline</b> — the "naive" column uses the SAME model + retrieval depth; ontology is the only variable. No strawman.</td></tr>
+      <tr><td><span class="id">T-0d</span></td><td><span class="src M">Magnus</span></td><td><b>Verified citation</b> — cited value must actually appear in the cited record. A citation that doesn't check out is flagged, not counted.</td></tr>
+      <tr><td><span class="id">T-1</span></td><td><span class="src T">north star</span></td><td><b>Novice → governed</b> — a zero-knowledge user reaches a defensible ontology with no expert / FDE.</td></tr>
+      <tr><td><span class="id">T-2</span></td><td><span class="src M">Magnus</span></td><td><b>Provenance on every claim</b> — node, edge, and answer each drill to source <code>table.column</code>.</td></tr>
+      <tr><td><span class="id">T-3</span></td><td><span class="src M">Magnus</span></td><td><b>Reasoner-enforced</b> — disjoint / cardinality axioms actually BLOCK bad data, not just annotate it.</td></tr>
+      <tr><td><span class="id">T-4</span></td><td><span class="src M">Magnus</span></td><td><b>Audit trail</b> — who approved what, when, at what confidence. Exportable.</td></tr>
+      <tr><td><span class="id">M-3</span></td><td><span class="src M">Magnus</span></td><td>Scale — domain-clustering so 5,000 classes ≠ a hairball.</td></tr>
+      <tr><td><span class="id">M-4</span></td><td><span class="src M">Magnus</span></td><td>Cite, don't guess — every claim Aryx makes about itself carries a source. (Earns trust.)</td></tr>
+      <tr><td><span class="id">R-1</span></td><td><span class="src R">Red</span></td><td>Every Protégé/OWL construct needs a plain-language alias or it alienates the novice.</td></tr>
+      <tr><td><span class="id">R-2</span></td><td><span class="src R">Red</span></td><td>AI proposals dismissible in ONE click, or trust erodes.</td></tr>
+      <tr><td><span class="id">R-3</span></td><td><span class="src R">Red</span></td><td>Progressive disclosure — badges appear on hover/zoom, not always-on cockpit overload.</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><b>How to read this:</b> these aren't aspirations — they're the acceptance criteria. When we build a screen, it ships only when its rows go green. The ledger keeps growing as we deep-dive screens 1→6; each debate adds tests.</div>
+</section>
+
+<footer>
+  Aryx Ontology v2.0 · ideation artifact · branch <code>feat/ontology-v2-design</code> · <a href="01-accuracy-lab.html">→ Screen 0 mockup</a>
+</footer>
+</div>
+</body>
+</html>

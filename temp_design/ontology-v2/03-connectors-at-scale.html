@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Aryx · Connectors at scale (Screen 6 mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root{
+    --navy-50:#F2F5FB;--navy-100:#E4EAF4;--navy-200:#C2CFE3;--navy-300:#94A8CB;
+    --navy-500:#3A578C;--navy-600:#27416E;--navy-700:#1A2F55;--navy-800:#0F1F3D;
+    --navy-900:#0A1530;--navy-950:#050B1C;
+    --steel-400:#5F8AD2;--steel-500:#4068A8;--steel-600:#2D4B8A;
+    --canvas:#F8F9FC;--ink:#0F1726;--subtle:#5A6478;
+    --amber:#F59E0B;--emerald:#10B981;--rose:#E11D48;--violet:#7C3AED;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5}
+  code,.mono{font-family:'JetBrains Mono',monospace}
+  .anno{max-width:1180px;margin:0 auto;padding:24px}
+  .anno-tag{display:inline-block;padding:4px 12px;border-radius:999px;background:var(--navy-50);color:var(--navy-700);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+  .anno h1{font-family:'Fraunces',serif;font-size:1.6rem;color:var(--navy-900);margin-top:10px}
+  .anno p{color:var(--subtle);font-size:13.5px;margin-top:6px;max-width:780px}
+
+  .frame{max-width:1180px;margin:18px auto 36px;border:1px solid var(--navy-100);border-radius:18px;overflow:hidden;box-shadow:0 12px 40px rgba(10,21,48,.07);background:white}
+  .bar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--navy-100);background:var(--canvas)}
+  .bar-l{display:flex;align-items:center;gap:26px}
+  .brand{display:inline-flex;align-items:center;gap:10px}
+  .brand img{width:30px;height:30px}
+  .brand .name{font-weight:600;letter-spacing:.28em;color:var(--navy-900);font-size:13px}
+  .nav{display:flex;gap:4px}
+  .nav a{font-size:13px;font-weight:500;color:var(--navy-600);padding:6px 12px;border-radius:8px;text-decoration:none}
+  .nav a.on{background:var(--navy-800);color:#fff}
+  /* cost meter in header — Eleanor */
+  .cost{display:inline-flex;align-items:center;gap:10px;border:1px solid #6EE7B7;background:#ECFDF5;border-radius:999px;padding:6px 14px}
+  .cost .lab{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#047857;font-weight:700}
+  .cost .val{font-family:'JetBrains Mono';font-size:13px;color:var(--navy-900);font-weight:600}
+  .cost .sov{font-size:10px;color:#047857;border-left:1px solid #6EE7B7;padding-left:10px}
+
+  .body{padding:24px 28px 32px}
+  .h-row{display:flex;align-items:flex-end;justify-content:space-between}
+  .h-row h2{font-family:'Fraunces',serif;font-size:1.5rem;color:var(--navy-900)}
+  .h-row .sub{color:var(--subtle);font-size:13px;margin-top:3px}
+  .addbtn{background:var(--navy-800);color:#fff;border:none;border-radius:12px;padding:10px 18px;font-weight:600;font-size:13px;cursor:pointer}
+
+  /* aggregate strip */
+  .agg{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:18px}
+  .ag{border:1px solid var(--navy-100);border-radius:12px;padding:14px 16px;background:#fff}
+  .ag .l{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--subtle);font-weight:700}
+  .ag .v{font-family:'Fraunces',serif;font-size:1.5rem;color:var(--navy-900);margin-top:4px}
+  .ag .s{font-size:10.5px;color:var(--subtle);margin-top:2px}
+
+  /* source rows */
+  .src-list{margin-top:20px;display:flex;flex-direction:column;gap:12px}
+  .src{border:1px solid var(--navy-100);border-radius:16px;padding:16px 18px;background:#fff}
+  .src-top{display:flex;align-items:center;gap:14px}
+  .logo{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex:0 0 40px}
+  .logo.sf{background:#E3F2FD}.logo.snow{background:#E8F5E9}.logo.gd{background:#FFF8E1}.logo.pg{background:#EDE7F6}
+  .src-id{flex:1;min-width:0}
+  .src-id .nm{font-weight:700;color:var(--navy-900);font-size:14.5px;display:flex;align-items:center;gap:8px}
+  .src-id .meta{font-family:'JetBrains Mono';font-size:11px;color:var(--subtle);margin-top:2px}
+  .badge{font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:999px;text-transform:uppercase;letter-spacing:.04em}
+  .badge.syncing{background:#EFF6FF;color:var(--steel-600)}
+  .badge.live{background:#ECFDF5;color:#047857}
+  .badge.queued{background:#F3F4F6;color:var(--subtle)}
+  .src-metrics{display:flex;gap:26px;align-items:center}
+  .sm{text-align:right}
+  .sm .l{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--subtle);font-weight:700}
+  .sm .v{font-family:'JetBrains Mono';font-size:13px;color:var(--navy-900);font-weight:600;margin-top:2px}
+  .sm .v.cost{color:#047857}
+  /* sync progress */
+  .progress{margin-top:14px}
+  .ptrack{height:6px;border-radius:999px;background:var(--navy-100);overflow:hidden}
+  .pfill{height:100%;border-radius:999px;background:var(--steel-500)}
+  .pfill.done{background:var(--emerald)}
+  .pmeta{display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--subtle)}
+  .pmeta .stage{font-family:'JetBrains Mono';color:var(--navy-700)}
+  /* classification + governance row */
+  .grow{margin-top:14px;padding-top:14px;border-top:1px dashed var(--navy-100);display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:18px}
+  .gb .gl{font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--subtle);font-weight:700;margin-bottom:6px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{font-size:11px;background:var(--navy-50);border:1px solid var(--navy-100);border-radius:999px;padding:3px 10px;color:var(--navy-700)}
+  .chip.sens{background:#FEF2F2;border-color:#FCA5A5;color:var(--rose)}
+  .chip.ai{background:#F5F3FF;border-color:#C4B5FD;color:var(--violet)}
+  .acc{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--navy-700)}
+  .lock{color:var(--emerald)}
+
+  /* callouts */
+  .callouts{max-width:1180px;margin:0 auto 50px;padding:0 24px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .co{background:var(--navy-50);border-left:3px solid var(--steel-500);border-radius:0 12px 12px 0;padding:14px 16px}
+  .co .id{font-family:'JetBrains Mono';font-weight:700;font-size:11px;color:var(--steel-600)}
+  .co p{font-size:12px;color:var(--navy-700);margin-top:4px;line-height:1.5}
+  .co.cfo{border-left-color:var(--emerald);background:#ECFDF5}
+  .co.cdo{border-left-color:var(--violet);background:#F5F3FF}
+  .co.mag{border-left-color:var(--steel-500);background:#EFF6FF}
+</style>
+</head>
+<body>
+
+<div class="anno">
+  <span class="anno-tag">Ontology v2.0 · Screen 6 · mockup (not built)</span>
+  <h1>Connectors at scale — where Marcus, Magnus &amp; Eleanor all converge</h1>
+  <p>Five Salesforce orgs, ServiceNow, a 1TB Google Drive, a 200M-row warehouse. Each is a streaming source with <b>incremental sync %</b>, <b>sampled classification</b>, <b>per-source access + sensitivity</b>, and a <b>cost line</b>. Nothing is "read the whole dataset." Everything is honest about what's done.</p>
+</div>
+
+<div class="frame">
+  <div class="bar">
+    <div class="bar-l">
+      <div class="brand"><img src="../aryx-logo.png" alt="Aryx"/><span class="name">A R Y X</span></div>
+      <nav class="nav"><a href="#">Map</a><a href="#">Governance</a><a class="on" href="#">Connectors</a><a href="#">Cost</a></nav>
+    </div>
+    <!-- Eleanor's cost meter, always visible -->
+    <div class="cost">
+      <span class="lab">LLM spend · this month</span>
+      <span class="val">$184.20</span>
+      <span class="sov">🔒 Sovereign mode: ON · 0 egress</span>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="h-row">
+      <div><h2>Connected sources</h2><div class="sub">Classification cost scales with schema, not rows — your bill is flat as data grows.</div></div>
+      <button class="addbtn">+ Add a source</button>
+    </div>
+
+    <!-- aggregate -->
+    <div class="agg">
+      <div class="ag"><div class="l">Sources</div><div class="v">8</div><div class="s">2 syncing · 6 live</div></div>
+      <div class="ag"><div class="l">Rows under management</div><div class="v">213 M</div><div class="s">across 67 tables + 1.0 TB docs</div></div>
+      <div class="ag"><div class="l">Classified by AI</div><div class="v">67 / 67</div><div class="s">schema + sampled · you approved 61</div></div>
+      <div class="ag"><div class="l">Classify cost · total</div><div class="v" style="color:#047857">$184</div><div class="s">flat to row count (sampled)</div></div>
+    </div>
+
+    <div class="src-list">
+
+      <!-- Salesforce x5 -->
+      <div class="src">
+        <div class="src-top">
+          <div class="logo sf">☁️</div>
+          <div class="src-id">
+            <div class="nm">Salesforce <span class="badge live">live · 5 orgs</span></div>
+            <div class="meta">sales-emea · sales-amer · sales-apac · partners · legacy · incremental every 15m</div>
+          </div>
+          <div class="src-metrics">
+            <div class="sm"><div class="l">Objects</div><div class="v">24</div></div>
+            <div class="sm"><div class="l">Rows</div><div class="v">8.4 M</div></div>
+            <div class="sm"><div class="l">Classify $</div><div class="v cost">$22</div></div>
+          </div>
+        </div>
+        <div class="progress">
+          <div class="ptrack"><div class="pfill done" style="width:100%"></div></div>
+          <div class="pmeta"><span class="stage">in sync · last delta 3m ago (412 rows)</span><span>100%</span></div>
+        </div>
+        <div class="grow">
+          <div class="gb"><div class="gl">AI-classified into ontology</div><div class="chips"><span class="chip ai">Account → Customer</span><span class="chip ai">Contact → Person</span><span class="chip ai">Opportunity → Deal</span><span class="chip">+9</span></div></div>
+          <div class="gb"><div class="gl">Sensitivity</div><div class="chips"><span class="chip sens">Contact.email · PII</span><span class="chip sens">Account.revenue · confidential</span></div></div>
+          <div class="gb"><div class="gl">Access</div><div class="acc"><span class="lock">🔒</span> Revenue-Ops group · read · field-masked PII</div></div>
+        </div>
+      </div>
+
+      <!-- ServiceNow -->
+      <div class="src">
+        <div class="src-top">
+          <div class="logo snow">🟢</div>
+          <div class="src-id">
+            <div class="nm">ServiceNow <span class="badge live">live</span></div>
+            <div class="meta">itsm.acme.service-now.com · incident, problem, cmdb_ci · Table API · 30m</div>
+          </div>
+          <div class="src-metrics">
+            <div class="sm"><div class="l">Tables</div><div class="v">11</div></div>
+            <div class="sm"><div class="l">Rows</div><div class="v">4.1 M</div></div>
+            <div class="sm"><div class="l">Classify $</div><div class="v cost">$14</div></div>
+          </div>
+        </div>
+        <div class="progress">
+          <div class="ptrack"><div class="pfill done" style="width:100%"></div></div>
+          <div class="pmeta"><span class="stage">in sync · fused 1,204 Customers with Salesforce</span><span>100%</span></div>
+        </div>
+        <div class="grow">
+          <div class="gb"><div class="gl">AI-classified into ontology</div><div class="chips"><span class="chip ai">incident → Ticket</span><span class="chip ai">cmdb_ci → Device</span><span class="chip">+6</span></div></div>
+          <div class="gb"><div class="gl">Cross-source fusion</div><div class="chips"><span class="chip">Customer = SF.Account ⋈ SNOW.company</span></div></div>
+          <div class="gb"><div class="gl">Access</div><div class="acc"><span class="lock">🔒</span> Support group · read</div></div>
+        </div>
+      </div>
+
+      <!-- Google Drive 1TB - syncing -->
+      <div class="src">
+        <div class="src-top">
+          <div class="logo gd">📁</div>
+          <div class="src-id">
+            <div class="nm">Google Drive <span class="badge syncing">indexing</span></div>
+            <div class="meta">acme.com shared drives · 1.0 TB · PDFs, docs, sheets · incremental crawl</div>
+          </div>
+          <div class="src-metrics">
+            <div class="sm"><div class="l">Files</div><div class="v">142 K</div></div>
+            <div class="sm"><div class="l">Indexed</div><div class="v">17 K</div></div>
+            <div class="sm"><div class="l">Classify $</div><div class="v cost">$108</div></div>
+          </div>
+        </div>
+        <div class="progress">
+          <div class="ptrack"><div class="pfill" style="width:12%"></div></div>
+          <div class="pmeta"><span class="stage">chunk → PII screen → embed → extract · 17,204 / 142,000 files</span><span>12%</span></div>
+        </div>
+        <div class="grow">
+          <div class="gb"><div class="gl">AI-classified into ontology</div><div class="chips"><span class="chip ai">SOW → Contract</span><span class="chip ai">spec sheet → Device doc</span><span class="chip">discovering…</span></div></div>
+          <div class="gb"><div class="gl">Sensitivity</div><div class="chips"><span class="chip sens">contracts · confidential</span><span class="chip sens">5 docs · PII flagged</span></div></div>
+          <div class="gb"><div class="gl">Access</div><div class="acc"><span class="lock">🔒</span> inherits Drive ACLs · per-folder</div></div>
+        </div>
+      </div>
+
+      <!-- Warehouse 200M -->
+      <div class="src">
+        <div class="src-top">
+          <div class="logo pg">🗄️</div>
+          <div class="src-id">
+            <div class="nm">Snowflake · ANALYTICS_PROD <span class="badge live">live</span></div>
+            <div class="meta">50 tables · 200 M rows · sampled 4k rows/table for classification</div>
+          </div>
+          <div class="src-metrics">
+            <div class="sm"><div class="l">Tables</div><div class="v">50</div></div>
+            <div class="sm"><div class="l">Rows</div><div class="v">200 M</div></div>
+            <div class="sm"><div class="l">Classify $</div><div class="v cost">$40</div></div>
+          </div>
+        </div>
+        <div class="progress">
+          <div class="ptrack"><div class="pfill done" style="width:100%"></div></div>
+          <div class="pmeta"><span class="stage">schema classified from samples · instances projected incrementally (watermark)</span><span>100%</span></div>
+        </div>
+        <div class="grow">
+          <div class="gb"><div class="gl">AI-classified into ontology</div><div class="chips"><span class="chip ai">DIM_CUSTOMER → Customer</span><span class="chip ai">FCT_ORDER → Order</span><span class="chip">+48</span></div></div>
+          <div class="gb"><div class="gl">Cost note</div><div class="chips"><span class="chip">$40 for 200M rows — same as 200K (sampled)</span></div></div>
+          <div class="gb"><div class="gl">Access</div><div class="acc"><span class="lock">🔒</span> Analytics group · read · row-policy honored</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="callouts">
+  <div class="co cfo"><div class="id">ELEANOR · T-S5 / T-J1</div><p>"$40 to classify 200M rows — explicitly noted as 'same as 200K because we sample.' The cost meter is in the header on every screen. That flat curve is the line item I take to the board."</p></div>
+  <div class="co cdo"><div class="id">MARCUS · T-J3 / T-J5 / T-S4</div><p>"Sovereign mode ON / 0 egress in the header. Per-source access + PII flags on every field. Drive inherits ACLs. And it FUSED my SF + ServiceNow customers — one entity, lineage to both. This is the governance Atlan promises and Palantir charges $MM for."</p></div>
+  <div class="co mag"><div class="id">MAGNUS · T-S1 / T-S2 / T-S3</div><p>"Schema-from-samples, incremental watermark projection, honest 12% on the Drive crawl, cross-source entity fusion. This is Foundry's pipeline — minus the FDE army and the seven-figure invoice. I'm convinced on the pipeline."</p></div>
+</div>
+
+</body>
+</html>

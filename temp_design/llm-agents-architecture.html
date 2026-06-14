@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Aryx · LLM agents architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --navy-50:#F2F5FB;--navy-100:#E4EAF4;--navy-200:#C2CFE3;--navy-300:#94A8CB;
+    --navy-500:#3A578C;--navy-600:#27416E;--navy-700:#1A2F55;--navy-800:#0F1F3D;
+    --navy-900:#0A1530;--navy-950:#050B1C;
+    --steel-400:#5F8AD2;--steel-500:#4068A8;--steel-600:#2D4B8A;
+    --canvas:#F8F9FC;--ink:#0F1726;--subtle:#5A6478;
+    --amber:#F59E0B;--emerald:#10B981;--rose:#E11D48;--violet:#7C3AED;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.55;padding:48px 24px}
+  .wrap{max-width:1180px;margin:0 auto}
+  code,.mono{font-family:'JetBrains Mono',monospace}
+  header{text-align:center;padding-bottom:30px;border-bottom:1px solid var(--navy-100)}
+  .brand{display:inline-flex;align-items:center;gap:12px}
+  .brand img{width:38px;height:38px}
+  .brand .name{font-weight:600;letter-spacing:.32em;color:var(--navy-900);font-size:15px}
+  h1{font-family:'Fraunces',Georgia,serif;font-size:2.3rem;color:var(--navy-900);margin-top:16px;letter-spacing:-.01em}
+  .sub{color:var(--subtle);font-size:15px;margin-top:8px;max-width:760px;margin-left:auto;margin-right:auto}
+  section{margin-top:52px}
+  h2{font-family:'Fraunces',serif;font-size:1.55rem;color:var(--navy-900);letter-spacing:-.01em}
+  h2 .n{display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border-radius:8px;background:var(--navy-800);color:#fff;font-size:14px;margin-right:12px;font-family:'Inter'}
+  .sec-lede{color:var(--subtle);font-size:14px;margin-top:6px;max-width:760px}
+
+  /* live config banner */
+  .live{margin-top:18px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:14px 18px;background:linear-gradient(135deg,#ECFDF5,white);border:1px solid #6EE7B7;border-radius:14px}
+  .live .dot{width:9px;height:9px;border-radius:50%;background:var(--emerald);box-shadow:0 0 0 4px rgba(16,185,129,.15)}
+  .live b{color:var(--navy-900)}
+  .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;font-family:'JetBrains Mono';background:white;border:1px solid var(--navy-100);color:var(--steel-600)}
+
+  /* big flow diagram */
+  .flow{margin-top:24px;background:white;border:1px solid var(--navy-100);border-radius:20px;padding:28px;box-shadow:0 1px 2px rgba(10,21,48,.04),0 10px 30px rgba(10,21,48,.05)}
+  .layer{margin-bottom:14px}
+  .layer:last-child{margin-bottom:0}
+  .layer-tag{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--navy-700);margin-bottom:8px}
+  .boxes{display:grid;gap:10px}
+  .c2{grid-template-columns:repeat(2,1fr)}.c3{grid-template-columns:repeat(3,1fr)}
+  .c4{grid-template-columns:repeat(4,1fr)}.c5{grid-template-columns:repeat(5,1fr)}
+  .box{border:1px solid var(--navy-100);border-radius:12px;padding:12px 14px;background:var(--canvas)}
+  .box .t{font-weight:700;font-size:12.5px;color:var(--navy-900)}
+  .box .d{font-size:11px;color:var(--subtle);margin-top:3px;line-height:1.4}
+  .box.frontier{border-color:#C4B5FD;background:#F5F3FF}
+  .box.cheap{border-color:#93C5FD;background:#EFF6FF}
+  .box.embed{border-color:#6EE7B7;background:#ECFDF5}
+  .box.core{border-color:var(--steel-500);background:white;box-shadow:0 0 0 3px rgba(64,104,168,.08)}
+  .arrow-row{display:flex;justify-content:center;color:var(--navy-300);font-size:20px;padding:4px 0}
+
+  /* tier legend chips */
+  .legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .lg{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--navy-700);padding:5px 12px;border-radius:999px;border:1px solid var(--navy-100);background:white}
+  .sw{width:12px;height:12px;border-radius:4px}
+  .sw.f{background:#C4B5FD}.sw.c{background:#93C5FD}.sw.e{background:#6EE7B7}
+
+  /* agent table */
+  table{width:100%;border-collapse:collapse;margin-top:18px;font-size:13px;background:white;border:1px solid var(--navy-100);border-radius:14px;overflow:hidden}
+  th{background:var(--navy-50);text-align:left;padding:11px 14px;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--navy-700);font-weight:700}
+  td{padding:11px 14px;border-top:1px solid var(--navy-100);vertical-align:top}
+  td .who{font-weight:700;color:var(--navy-900)}
+  td .file{font-family:'JetBrains Mono';font-size:10.5px;color:var(--subtle);margin-top:2px}
+  .tier{display:inline-block;padding:2px 9px;border-radius:999px;font-size:10px;font-weight:700;font-family:'JetBrains Mono'}
+  .tier.frontier{background:#F5F3FF;color:var(--violet);border:1px solid #C4B5FD}
+  .tier.cheap{background:#EFF6FF;color:var(--steel-600);border:1px solid #93C5FD}
+  .tier.embed{background:#ECFDF5;color:#047857;border:1px solid #6EE7B7}
+  td .prompt{font-style:italic;color:var(--navy-700);font-size:12px}
+
+  /* param-flow cards */
+  .params{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:18px}
+  .pcard{background:white;border:1px solid var(--navy-100);border-radius:16px;padding:20px 22px}
+  .pcard h3{font-family:'Fraunces',serif;font-size:1.05rem;color:var(--navy-900);display:flex;align-items:center;gap:8px}
+  .pcard ol{margin:12px 0 0 0;padding:0;list-style:none;counter-reset:s}
+  .pcard li{counter-increment:s;display:flex;gap:10px;padding:5px 0;font-size:12.5px;color:var(--navy-700);line-height:1.5}
+  .pcard li::before{content:counter(s);flex:0 0 20px;height:20px;border-radius:6px;background:var(--navy-50);color:var(--navy-700);font-weight:700;font-size:11px;display:inline-flex;align-items:center;justify-content:center;font-family:'JetBrains Mono'}
+  .pcard code{background:var(--navy-50);padding:1px 6px;border-radius:4px;font-size:11px;color:var(--steel-600)}
+
+  /* governor */
+  .gov{margin-top:18px;background:white;border:1px solid var(--navy-100);border-radius:16px;padding:22px}
+  .ladder{display:flex;align-items:center;gap:0;margin-top:14px;flex-wrap:wrap}
+  .rung{flex:1;min-width:130px;padding:12px 14px;border:1px solid var(--navy-100);border-radius:10px;text-align:center;background:var(--canvas)}
+  .rung .lvl{font-weight:700;font-size:12px;color:var(--navy-900);font-family:'JetBrains Mono'}
+  .rung .bud{font-size:10.5px;color:var(--subtle);margin-top:2px}
+  .rung-arr{padding:0 8px;color:var(--navy-300);font-size:18px}
+
+  .note{margin-top:16px;padding:14px 18px;background:var(--navy-50);border-left:3px solid var(--steel-500);border-radius:0 12px 12px 0;font-size:13px;color:var(--navy-700);line-height:1.6}
+  .note b{color:var(--navy-900)}
+  .warn{border-left-color:var(--amber);background:#FFFBEB;color:#78350F}
+  .warn b{color:#92400E}
+
+  footer{margin-top:56px;padding-top:22px;border-top:1px solid var(--navy-100);text-align:center;color:var(--subtle);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand"><img src="aryx-logo.png" alt="Aryx"/><span class="name">A R Y X</span></div>
+  <h1>The LLM agents — what they are, what they call, where their&nbsp;params&nbsp;come&nbsp;from</h1>
+  <p class="sub">There is no monolithic "agent." Aryx has <b>13 narrow LLM call-sites</b> + <b>2 embedding call-sites</b>, each a small focused function with its own system prompt, schema, and tier. They all funnel through one Broker → one provider router → one wire path. This is the whole map, read straight from the code.</p>
+</header>
+
+<!-- LIVE CONFIG -->
+<section>
+  <div class="live">
+    <span class="dot"></span>
+    <b>Live right now on EC2:</b>
+    <span class="pill">provider = google</span>
+    <span class="pill">menial = gemini-flash-latest</span>
+    <span class="pill">answer = gemini-flash-latest</span>
+    <span class="pill">endpoint = generativelanguage…/openai</span>
+    <span class="pill">key set ✓</span>
+    <span style="font-size:12px;color:var(--subtle)">→ every tier currently resolves to <code style="font-family:'JetBrains Mono';font-size:11px">gemini-flash-latest</code> over the OpenAI-compatible path.</span>
+  </div>
+</section>
+
+<!-- 1. THE STACK -->
+<section>
+  <h2><span class="n">1</span>The stack — every call goes through these five layers</h2>
+  <p class="sec-lede">A call-site never talks to a model directly. It asks the Broker for a <em>tier</em>; the Broker picks a model; <code>llm.py</code> dispatches to the right provider; one HTTP function does the wire.</p>
+
+  <div class="flow">
+    <div class="layer">
+      <div class="layer-tag">Layer 1 · Call-sites (the "agents")</div>
+      <div class="boxes c5">
+        <div class="box frontier"><div class="t">brief_draft</div><div class="d">draft 5-field brief</div></div>
+        <div class="box frontier"><div class="t">ontology_assist</div><div class="d">suggest attributes</div></div>
+        <div class="box frontier"><div class="t">mapping · adjudicate · relationships</div><div class="d">map / same-entity? / edge name</div></div>
+        <div class="box cheap"><div class="t">extract · tag</div><div class="d">mentions, field types</div></div>
+        <div class="box cheap"><div class="t">ask: terms + synthesise</div><div class="d">parse Q, write answer</div></div>
+      </div>
+    </div>
+    <div class="arrow-row">▼ &nbsp; each calls one of two entry helpers &nbsp; ▼</div>
+    <div class="layer">
+      <div class="layer-tag">Layer 2 · Entry helpers</div>
+      <div class="boxes c2">
+        <div class="box core"><div class="t">complete_json(broker, tier, system, user, schema)</div><div class="d">structured output · used by the pipeline agents · src/aryx/llm.py</div></div>
+        <div class="box core"><div class="t">llm_runtime.chat(role, system, user)</div><div class="d">plain text · used by Ask + discovery · live-swappable via Settings</div></div>
+      </div>
+    </div>
+    <div class="arrow-row">▼ &nbsp; both ask the Broker to choose a model for the tier &nbsp; ▼</div>
+    <div class="layer">
+      <div class="layer-tag">Layer 3 · Broker — tier → model</div>
+      <div class="boxes c3">
+        <div class="box core"><div class="t">Broker.choose(tier)</div><div class="d">asks Governor for effective tier (downgrade if budget spent), returns first ModelSpec registered for it</div></div>
+        <div class="box"><div class="t">TokenGovernor</div><div class="d">per-tier budgets; charge() after every call; downgrade on overflow</div></div>
+        <div class="box"><div class="t">SecretProvider</div><div class="d">resolves api_key_ref → real key (env / Settings panel)</div></div>
+      </div>
+    </div>
+    <div class="arrow-row">▼ &nbsp; llm.py dispatches on spec.provider &nbsp; ▼</div>
+    <div class="layer">
+      <div class="layer-tag">Layer 4 · Provider router (src/aryx/llm.py)</div>
+      <div class="boxes c3">
+        <div class="box"><div class="t">provider == "anthropic"</div><div class="d">Claude SDK · structured outputs · anthropic_json()</div></div>
+        <div class="box"><div class="t">provider == "ollama"</div><div class="d">native /api/chat JSON mode · ollama_json()</div></div>
+        <div class="box"><div class="t">anything else</div><div class="d">OpenAI-compatible /chat/completions · openai_json() · ← Gemini lives here</div></div>
+      </div>
+    </div>
+    <div class="arrow-row">▼ &nbsp; one wire function &nbsp; ▼</div>
+    <div class="layer">
+      <div class="layer-tag">Layer 5 · Wire (src/aryx/llm_providers.py)</div>
+      <div class="boxes c2">
+        <div class="box"><div class="t">post_json(url, body, headers, timeout)</div><div class="d">urllib POST · 429 retry w/ backoff · timeout = ARYX_LLM_TIMEOUT (120s)</div></div>
+        <div class="box embed"><div class="t">Broker.embed(texts)</div><div class="d">separate path · Ollama /api/embed · nomic-embed-text · 60s timeout</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span class="lg"><span class="sw f"></span> frontier tier — the "hard decision" model</span>
+    <span class="lg"><span class="sw c"></span> cheap tier — the fast/menial model</span>
+    <span class="lg"><span class="sw e"></span> embeddings — always local Ollama</span>
+  </div>
+</section>
+
+<!-- 2. THE AGENTS -->
+<section>
+  <h2><span class="n">2</span>The 13 agents — every call-site, exact</h2>
+  <p class="sec-lede">Each row is one function that calls an LLM. "Tier" is what it asks the Broker for. The prompt column quotes the real system prompt opener from the code.</p>
+
+  <table>
+    <thead><tr><th style="width:20%">Agent / file</th><th style="width:9%">Tier</th><th style="width:28%">What it's for</th><th>System prompt (verbatim opener)</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><div class="who">Brief drafter</div><div class="file">brief_draft.draft_from_text</div></td>
+        <td><span class="tier frontier">frontier</span></td>
+        <td>Turn a one-line goal + optional doc into the 5-field brief (domain, aim, objectives, scope, roles).</td>
+        <td><span class="prompt">"You are a knowledge-modelling analyst. From the user's seed sentence and any supplied document text, produce a crisp ontology brief…"</span></td>
+      </tr>
+      <tr>
+        <td><div class="who">Attribute suggester</div><div class="file">ontology_assist.suggest_attrs</div></td>
+        <td><span class="tier frontier">frontier</span></td>
+        <td>Propose 4–10 new attribute names for a type, given the brief + existing attrs (the canvas "AI: suggest").</td>
+        <td><span class="prompt">"You are an ontology modeller. Given a brief and an entity type name (plus any existing attributes), propose 4-10 ADDITIONAL attribute names…"</span></td>
+      </tr>
+      <tr>
+        <td><div class="who">Schema mapper</div><div class="file">ontology/mapping.categorize</div></td>
+        <td><span class="tier frontier">frontier</span></td>
+        <td>Classify a source dataset against the ontology; propose the type + field→attribute mapping + confidence.</td>
+        <td><span class="prompt">"You are an ontology mapper. Given a source dataset's profiled and tagged fields plus the current ontology, choose the best canonical type…"</span></td>
+      </tr>
+      <tr>
+        <td><div class="who">ER adjudicator</div><div class="file">resolution/adjudicate.adjudicate</div></td>
+        <td><span class="tier frontier">frontier</span></td>
+        <td>The hard 1–5% of entity-resolution: "are these two records the same real-world thing?" → {same, reason}.</td>
+        <td><span class="prompt">"You decide whether two records describe the SAME real-world entity. Account for abbreviations, casing, legal suffixes, and typos…"</span></td>
+      </tr>
+      <tr>
+        <td><div class="who">Relationship inferer</div><div class="file">relationships.infer_relationship</div></td>
+        <td><span class="tier frontier">frontier</span></td>
+        <td>Decide if two entities are related and name the directed edge → {related, name, confidence}.</td>
+        <td><span class="prompt">"You decide whether two entities are related and, if so, name the directed relationship from A to B in lowercase snake_case…"</span></td>
+      </tr>
+      <tr>
+        <td><div class="who">Mention extractor</div><div class="file">ontology/extract.extract_mentions</div></td>
+        <td><span class="tier cheap">cheap</span></td>
+        <td>Per document chunk: pull entity mentions (type, name, attrs, verbatim span). Span-validated to fight hallucination.</td>
+        <td><span class="prompt">"You extract entity mentions from document text for a domain-specific knowledge graph. For each mention return: (1) type — a singular PascalCase noun…"</span></td>
+      </tr>
+      <tr>
+        <td><div class="who">Field tagger</div><div class="file">pipeline/tag.tag_fields</div></td>
+        <td><span class="tier cheap">cheap</span></td>
+        <td>Label each profiled DB/file field with a semantic type + PII flag (email, person_name, …).</td>
+        <td><span class="prompt">"You label data fields with a concise semantic type and flag PII. Use lowercase snake_case types such as email, person_name, country_code…"</span></td>
+      </tr>
+      <tr>
+        <td><div class="who">Doc type inferer</div><div class="file">pipeline/doc_discovery._infer_type</div></td>
+        <td><span class="tier cheap">cheap</span><div class="file" style="margin-top:4px">role: menial</div></td>
+        <td>From a sample of rows, name the real-world thing each row is + the match keys. Falls back to filename heuristic.</td>
+        <td><span class="prompt">"You name the real-world thing each ROW of a data file represents, for a knowledge graph."</span></td>
+      </tr>
+      <tr>
+        <td><div class="who">Table mapper (DB)</div><div class="file">pipeline/schema_agent.discover_mappings</div></td>
+        <td><span class="tier cheap">cheap</span><div class="file" style="margin-top:4px">role: menial</div></td>
+        <td>Map relational tables → ontology types + discover inferred relationships. Heuristic fallback.</td>
+        <td><span class="prompt">"You map relational tables to a knowledge-graph ontology."</span></td>
+      </tr>
+      <tr>
+        <td><div class="who">Ask · term extractor</div><div class="file">api/ask_api._extract_terms</div></td>
+        <td><span class="tier cheap">cheap</span><div class="file" style="margin-top:4px">role: menial</div></td>
+        <td>Pull 1–3 search terms from the user's question (uses chat history to resolve "it/they/this").</td>
+        <td><span class="prompt">"Extract the specific search terms a graph lookup needs."</span></td>
+      </tr>
+      <tr>
+        <td><div class="who">Ask · answer synthesiser</div><div class="file">api/ask_api._synthesise</div></td>
+        <td><span class="tier cheap">cheap</span><div class="file" style="margin-top:4px">role: answer</div></td>
+        <td>Write the grounded answer from retrieved graph facts + the always-on workspace overview. Strips &lt;think&gt;.</td>
+        <td><span class="prompt">"You are Aryx, a knowledge-graph assistant."</span></td>
+      </tr>
+      <tr>
+        <td><div class="who">Chunk embedder</div><div class="file">pipeline/embed.embed_chunks</div></td>
+        <td><span class="tier embed">embed</span></td>
+        <td>Vectorise document chunks for semantic search. Whole doc's chunks in one call.</td>
+        <td><span class="prompt">— no prompt — calls Broker.embed() → Ollama /api/embed (nomic-embed-text)</span></td>
+      </tr>
+      <tr>
+        <td><div class="who">Block embedder (ER)</div><div class="file">resolution/run._block_embeddings</div></td>
+        <td><span class="tier embed">embed</span></td>
+        <td>Embed record text for similarity scoring inside resolution blocking. Optional — degrades to string match.</td>
+        <td><span class="prompt">— no prompt — Broker.embed(); returns {} on failure so ER still runs</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note"><b>The "menial / answer" roles vs "frontier / cheap" tiers.</b> The pipeline agents ask for a <em>tier</em> directly (frontier or cheap). The Ask + discovery agents go through <code>llm_runtime.chat(role, …)</code> where role is <code>menial</code> or <code>answer</code> — that picks the model <em>name</em>, but the underlying request is always tier <code>cheap</code>. So the two vocabularies meet at the model registration in <code>_local_broker()</code>: menial_model → cheap tier, answer_model → frontier tier.</div>
+</section>
+
+<!-- 3. WHERE PARAMS COME FROM -->
+<section>
+  <h2><span class="n">3</span>Where the params come from</h2>
+  <p class="sec-lede">"Params" = which model, which endpoint, which key, what budget. There are two broker-construction paths; both read the same live Settings state.</p>
+
+  <div class="params">
+    <div class="pcard">
+      <h3>🛠 Pipeline path — <code>_local_broker()</code></h3>
+      <p style="font-size:12.5px;color:var(--subtle);margin-top:6px">admin_api.py · used by ingest, extract, mapping, adjudicate, relationships</p>
+      <ol>
+        <li>Reads live config from <code>llm_runtime.status()</code> (provider, menial_model, answer_model, endpoint).</li>
+        <li>Registers TWO ModelSpecs: <code>menial_model → tier "cheap"</code>, <code>answer_model → tier "frontier"</code>.</li>
+        <li>Sets <code>local=True</code> only when provider is ollama; else attaches <code>api_key_ref</code> + endpoint.</li>
+        <li>Embed config: <code>nomic-embed-text</code> on local Ollama (override via <code>ARYX_EMBED_MODEL</code> / <code>_ENDPOINT</code>).</li>
+        <li>Secrets resolved by <code>llm_runtime._RuntimeSecrets</code> → the key typed in Settings.</li>
+      </ol>
+    </div>
+    <div class="pcard">
+      <h3>💬 Ask path — <code>_broker_for(model)</code></h3>
+      <p style="font-size:12.5px;color:var(--subtle);margin-top:6px">llm_runtime.py · used by ask term/synthesise + doc/table discovery</p>
+      <ol>
+        <li><code>chat(role)</code> picks the model name: role=menial→menial_model, else answer_model.</li>
+        <li>Builds a ONE-model Broker registered at tier <code>cheap</code> for that model.</li>
+        <li>Same live <code>_state</code> dict — so a Settings change hits Ask <em>and</em> the pipeline instantly, no restart.</li>
+        <li>Calls <code>complete_text(..., "cheap", ..., think=False)</code> — keeps fast models out of "thinking" mode.</li>
+        <li>Every call logged to <code>aryx_llm_call</code> (role, model, provider, tokens, latency, error).</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="note"><b>The source of truth for live params</b> is the in-process <code>_state</code> dict in <code>llm_runtime.py</code>, seeded from env (<code>ARYX_LLM_PROVIDER</code>, <code>ARYX_LLM_MENIAL_MODEL</code>, <code>ARYX_LLM_REASON_MODEL</code>, <code>ARYX_LLM_BASE_URL</code>, <code>ARYX_LLM_API_KEY</code>) and overwritten live by the Settings panel via <code>set_config()</code>. The key is held in process memory only — never written to disk or git.</div>
+</section>
+
+<!-- 4. GOVERNOR -->
+<section>
+  <h2><span class="n">4</span>The Governor — budgets &amp; automatic downgrade</h2>
+  <p class="sec-lede">Every completion calls <code>broker.charge(tier, tokens)</code>. Before each <code>choose()</code>, the Governor checks if the requested tier has blown its budget — if so it walks down the ladder to a cheaper tier.</p>
+
+  <div class="gov">
+    <div class="ladder">
+      <div class="rung"><div class="lvl">frontier</div><div class="bud">budget 2,000,000 tok</div></div>
+      <div class="rung-arr">→</div>
+      <div class="rung"><div class="lvl">mid</div><div class="bud">budget 10,000,000 tok</div></div>
+      <div class="rung-arr">→</div>
+      <div class="rung"><div class="lvl">cheap</div><div class="bud">0 = unlimited</div></div>
+      <div class="rung-arr">→</div>
+      <div class="rung"><div class="lvl">local</div><div class="bud">0 = unlimited</div></div>
+    </div>
+    <div class="note" style="margin-top:16px">Budgets live in <code>catalog.json</code>. <code>0 or missing = unlimited</code>. When a tier with a positive budget is exhausted, <code>effective_tier()</code> returns the next non-exhausted rung to the right. So a frontier blowout silently degrades to cheap rather than erroring — the job keeps running on a cheaper model.</div>
+  </div>
+
+  <div class="note warn"><b>Reality check on catalog.json today:</b> its <code>"models": []</code> is empty — the real models are registered at runtime by <code>_local_broker()</code> / <code>_broker_for()</code> from the live Settings state. So catalog.json currently only supplies the <em>budgets</em> and the <em>embed</em> config; the model roll-call comes from Settings. With provider=google + one model for both roles, frontier and cheap both resolve to <code>gemini-flash-latest</code> right now.</div>
+</section>
+
+<!-- 5. END TO END -->
+<section>
+  <h2><span class="n">5</span>Two end-to-end traces</h2>
+  <div class="params">
+    <div class="pcard">
+      <h3>📄 Ingesting a PDF</h3>
+      <ol>
+        <li><b>tag</b> (cheap) — label the fields.</li>
+        <li><b>embed</b> — vectorise chunks on local nomic-embed-text.</li>
+        <li><b>extract_mentions</b> (cheap) — one call per chunk, span-validated.</li>
+        <li><b>mapping.categorize</b> (frontier) — fit mentions to ontology types.</li>
+        <li><b>adjudicate</b> (frontier) — only on the ambiguous ER pairs.</li>
+        <li><b>infer_relationship</b> (frontier) — name edges between entities.</li>
+        <li>All bounded by the 120s LLM + 300s per-doc timeouts.</li>
+      </ol>
+    </div>
+    <div class="pcard">
+      <h3>💬 Answering a question</h3>
+      <ol>
+        <li><b>_extract_terms</b> (menial→cheap) — pull nouns/ids from the question + history.</li>
+        <li>Deterministic graph retrieval in FalkorDB (no LLM).</li>
+        <li>Always attach the <b>workspace overview</b> (kinds, counts, aim).</li>
+        <li><b>_synthesise</b> (answer) — write the grounded answer, cite entity ids.</li>
+        <li>Strip <code>&lt;think&gt;</code>, log to <code>aryx_llm_call</code>, render markdown.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Aryx · LLM agents architecture · read straight from src/aryx · {provider live = google / gemini-flash-latest}
+</footer>
+</div>
+</body>
+</html>
