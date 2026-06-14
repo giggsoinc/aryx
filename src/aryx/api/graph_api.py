@@ -7,11 +7,11 @@ from fastapi import APIRouter, Depends, FastAPI, HTTPException
 
 from aryx.config import get_settings
 from aryx.graph import GraphReader
-from aryx.workspaces import ws_graph
+from aryx.ports import ports
 
 
 def _reader(workspace_id: int = 1) -> GraphReader:
-    return GraphReader(get_settings().graph_url, ws_graph(workspace_id))
+    return ports().graph_reader(workspace_id)  # type: ignore[return-value]
 
 
 def graph_router() -> APIRouter:

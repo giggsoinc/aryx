@@ -8,16 +8,12 @@ import psycopg
 from psycopg import sql
 from psycopg.types.json import Json
 
+from aryx.naming import ws_graph  # noqa: F401  re-exported for back-compat
 from aryx.queries import load
 
 logger = logging.getLogger(__name__)
 
 _PARTITIONED = ["aryx_landed_record", "aryx_entity", "aryx_entity_member", "aryx_relationship"]
-
-
-def ws_graph(workspace_id: int) -> str:
-    """FalkorDB graph name for a workspace."""
-    return f"aryx_ws_{int(workspace_id)}"
 
 
 class WorkspaceStore:

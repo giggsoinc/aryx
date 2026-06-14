@@ -12,8 +12,8 @@ from fastapi import APIRouter
 
 from aryx import llm_runtime
 from aryx.config import get_settings
+from aryx.ports import ports
 from aryx.queries import load
-from aryx.workspaces import ws_graph
 
 
 def _db() -> psycopg.Connection:
@@ -50,8 +50,7 @@ def _recent_llm(conn: psycopg.Connection) -> list[dict[str, Any]]:
 
 def _graph_stats(workspace_id: int) -> dict[str, int]:
     try:
-        from aryx.graph import GraphReader
-        reader = GraphReader(get_settings().graph_url, ws_graph(workspace_id))
+        reader = ports().graph_reader(workspace_id)
         return {"entities": len(reader.find_entities(limit=500)),
                 "relationships": len(reader.all_relationships())}
     except Exception:
@@ -71,6 +70,7 @@ def observability_router() -> APIRouter:
                 "llm_recent": _recent_llm(conn),
                 "graph": _graph_stats(workspace_id),
                 "model_config": llm_runtime.status(),
+                "platform": ports().describe(),
             }
         finally:
             conn.close()

@@ -17,16 +17,15 @@ from pydantic import BaseModel
 from aryx import llm_runtime
 from aryx.api.ask_overview import build as build_overview
 from aryx.config import get_settings
-from aryx.graph import GraphReader
 from aryx.graph.retrieve import all_types, retrieve
+from aryx.ports import GraphReaderPort, ports
 from aryx.store.ask_history_store import AskHistoryStore
-from aryx.workspaces import ws_graph
 
 logger = logging.getLogger(__name__)
 
 
-def _reader(workspace_id: int = 1) -> GraphReader:
-    return GraphReader(get_settings().graph_url, ws_graph(workspace_id))
+def _reader(workspace_id: int = 1) -> GraphReaderPort:
+    return ports().graph_reader(workspace_id)
 
 
 class Turn(BaseModel):
