@@ -39,13 +39,18 @@ export default function HomePage() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // First-run redirect: empty workspace → guided setup.
+  // First-run redirect: empty workspace → guided setup. "Empty" means
+  // zero records, regardless of whether stub types exist.
+  const [isEmptyWorkspace, setIsEmptyWorkspace] =
+    useState<boolean | null>(null);
   useEffect(() => {
     api.getOntology(workspaceId).then((d) => {
-      const empty = (d.entity_count || 0) === 0 && (d.types || []).length === 0;
-      if (empty) router.replace("/start");
-    }).catch(() => {});
-  }, [workspaceId, router]);
+      const isEmpty = (d.entity_count || 0) === 0;
+      setIsEmptyWorkspace(isEmpty);
+      if (isEmpty && turns.length === 0) router.replace("/start");
+    }).catch(() => setIsEmptyWorkspace(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId]);
 
   const send = async (question?: string) => {
     const q = (question ?? input).trim();
@@ -158,8 +163,11 @@ export default function HomePage() {
             onChange={setInput}
             onSubmit={() => send()}
             busy={busy}
+            disabled={isEmptyWorkspace === true}
             placeholder={
-              empty
+              isEmptyWorkspace === true
+                ? "This workspace is empty — onboard data first to ask questions."
+                : turns.length === 0
                 ? "Ask Aryx about your knowledge graph…  (⌘K to focus)"
                 : "Continue the conversation…"
             }

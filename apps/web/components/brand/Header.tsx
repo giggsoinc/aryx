@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { ChevronDown, MessageCircle, Network, Plus } from "lucide-react";
+import { ChevronDown, MessageCircle, Network, Plus, Sparkles } from "lucide-react";
 import { Logo } from "./Logo";
 import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
 import { useWorkspace } from "@/lib/workspace";
@@ -43,6 +43,8 @@ export function Header(props: HeaderProps) {
                       active={pathname === "/"} />
             <NavLink href="/model" icon={<Network size={14} />} label="Model"
                       active={pathname?.startsWith("/model") || false} />
+            <NavLink href="/start" icon={<Sparkles size={14} />} label="Onboard"
+                      active={pathname?.startsWith("/start") || false} />
           </nav>
         </div>
         <div className="flex items-center gap-2">
