@@ -112,6 +112,11 @@ export const api = {
       started_at?: string; finished_at?: string | null;
     }>>(`/admin/jobs?workspace_id=${workspaceId}`),
 
+  getJobEvents: (jobId: string) =>
+    fetchJSON<Array<{
+      stage: string; pct: number; detail: string; ts: string;
+    }>>(`/admin/jobs/${jobId}/events`),
+
   getIngestQuestions: (workspaceId: number, status = "pending") =>
     fetchJSON<IngestQuestion[]>(
       `/admin/ingest-questions?workspace_id=${workspaceId}&status=${status}&limit=50`,

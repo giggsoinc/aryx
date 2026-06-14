@@ -65,6 +65,14 @@ class JobStore:
                 cur.execute(load("select_recent_jobs"), (workspace_id,))
                 return [_row(r) for r in cur.fetchall()]
 
+    def events(self, job_id: str) -> list[dict[str, Any]]:
+        """Return the live event log for one job, newest first."""
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(load("select_job_events"), (job_id,))
+                return [{"stage": r[0], "pct": r[1], "detail": r[2],
+                         "ts": r[3]} for r in cur.fetchall()]
+
     def archive_old(self, days: int = 30) -> int:
         """Archive then purge finished jobs (and old events) older than `days`.
 

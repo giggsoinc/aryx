@@ -35,6 +35,15 @@ def jobs_router() -> APIRouter:
             raise HTTPException(status_code=404, detail="job not found")
         return job
 
+    @router.get("/jobs/{job_id}/events")
+    def get_job_events(job_id: str) -> list[dict[str, Any]]:
+        """Live progress events for a job, newest first (≤80 rows)."""
+        jobs = _store()
+        try:
+            return jobs.events(job_id)
+        finally:
+            jobs.close()
+
     @router.post("/jobs/{job_id}/resume")
     def resume_job(job_id: str) -> dict[str, Any]:
         """Stage-checkpoint status for a job's run (G5).
