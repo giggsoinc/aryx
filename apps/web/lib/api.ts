@@ -171,6 +171,24 @@ export const api = {
       `/admin/datasources/${datasourceId}/test`, { method: "POST", body: "{}" },
     ),
 
+  /** Multipart file upload → kicks the file ingest pipeline server-side. */
+  uploadFiles: async (workspaceId: number, files: File[],
+                       ontologyType = "Document",
+                       matchKeys = "name") => {
+    const form = new FormData();
+    for (const f of files) form.append("files", f);
+    form.append("ontology_type", ontologyType);
+    form.append("match_keys", matchKeys);
+    form.append("workspace_id", String(workspaceId));
+    const res = await fetch(`${BASE}/admin/ingest/file`,
+                            { method: "POST", body: form });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`${res.status} ${res.statusText}: ${detail}`);
+    }
+    return res.json() as Promise<{ status: string; job_id: string }>;
+  },
+
   // ── AI ontology assist (option f) ────────────────────────────────────
   suggestAttrs: (workspaceId: number, typeName: string, existing: string[]) =>
     fetchJSON<{ attributes: string[]; rationale: string }>(

@@ -9,15 +9,17 @@ import { Goals } from "@/components/start/Goals";
 import { Confirm } from "@/components/start/Confirm";
 import { Sources, type SourceKind } from "@/components/start/Sources";
 import { Connect } from "@/components/start/Connect";
+import { Files } from "@/components/start/Files";
 import { Running } from "@/components/start/Running";
 import { Done } from "@/components/start/Done";
 
 type Step =
-  | "intro" | "goals" | "confirm" | "sources" | "connect"
+  | "intro" | "goals" | "confirm" | "sources" | "connect" | "files"
   | "running" | "done";
 
-/** Guided setup. Single state machine, no URL routing — back/forward by
- *  state so the user always lands where they left off in a page refresh. */
+/** Guided setup state machine. Loops through every picked source kind:
+ *  Database → Connect, Files → Files upload step. Manual is informational
+ *  for now (Inspector on /model handles manual type creation). */
 export default function StartWizard() {
   const router = useRouter();
   const { workspaceId } = useWorkspace();
@@ -25,6 +27,16 @@ export default function StartWizard() {
   const [step, setStep] = useState<Step>("intro");
   const [brief, setBrief] = useState<Brief>({});
   const [sources, setSources] = useState<SourceKind[]>(["database"]);
+
+  /** After a source completes, advance through any remaining picked
+   *  sources before flipping to "running". */
+  const nextSource = (completed: SourceKind) => {
+    const remaining = sources.filter((s) => s !== completed);
+    setSources(remaining);
+    if (remaining.includes("database")) setStep("connect");
+    else if (remaining.includes("files")) setStep("files");
+    else setStep("running");
+  };
 
   return (
     <>
@@ -52,7 +64,9 @@ export default function StartWizard() {
           initial={sources}
           onContinue={(picked) => {
             setSources(picked);
-            setStep(picked.includes("database") ? "connect" : "running");
+            if (picked.includes("database")) setStep("connect");
+            else if (picked.includes("files")) setStep("files");
+            else setStep("running");
           }}
           onBack={() => setStep("confirm")}
         />
@@ -62,8 +76,17 @@ export default function StartWizard() {
         <Connect
           workspaceId={workspaceId}
           kind="postgres"
-          onConnected={() => setStep("running")}
+          onConnected={() => nextSource("database")}
           onBack={() => setStep("sources")}
+        />
+      )}
+
+      {step === "files" && (
+        <Files
+          workspaceId={workspaceId}
+          onUploaded={() => nextSource("files")}
+          onBack={() => setStep("sources")}
+          onSkip={() => nextSource("files")}
         />
       )}
 
