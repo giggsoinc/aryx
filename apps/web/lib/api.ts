@@ -98,6 +98,20 @@ export const api = {
       body: JSON.stringify({ name, attributes, workspace_id: workspaceId }),
     }),
 
+  getJob: (jobId: string) =>
+    fetchJSON<{
+      job_id: string; status: string; stage: string | null;
+      pct: number | null; detail: string | null; error: string | null;
+    }>(`/admin/jobs/${jobId}`),
+
+  listJobs: (workspaceId: number) =>
+    fetchJSON<Array<{
+      job_id: string; source_system: string; source_dataset: string;
+      status: string; stage: string | null; pct: number | null;
+      detail: string | null; error: string | null;
+      started_at?: string; finished_at?: string | null;
+    }>>(`/admin/jobs?workspace_id=${workspaceId}`),
+
   getIngestQuestions: (workspaceId: number, status = "pending") =>
     fetchJSON<IngestQuestion[]>(
       `/admin/ingest-questions?workspace_id=${workspaceId}&status=${status}&limit=50`,

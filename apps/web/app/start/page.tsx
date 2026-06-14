@@ -27,6 +27,7 @@ export default function StartWizard() {
   const [step, setStep] = useState<Step>("intro");
   const [brief, setBrief] = useState<Brief>({});
   const [sources, setSources] = useState<SourceKind[]>(["database"]);
+  const [jobId, setJobId] = useState<string | null>(null);
 
   /** After a source completes, advance through any remaining picked
    *  sources before flipping to "running". */
@@ -84,7 +85,7 @@ export default function StartWizard() {
       {step === "files" && (
         <Files
           workspaceId={workspaceId}
-          onUploaded={() => nextSource("files")}
+          onUploaded={(id) => { setJobId(id); nextSource("files"); }}
           onBack={() => setStep("sources")}
           onSkip={() => nextSource("files")}
         />
@@ -93,6 +94,7 @@ export default function StartWizard() {
       {step === "running" && (
         <Running
           workspaceId={workspaceId}
+          jobId={jobId}
           onDone={() => setStep("done")}
           onSkip={() => router.push("/model")}
         />

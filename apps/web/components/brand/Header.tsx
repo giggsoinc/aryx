@@ -11,6 +11,7 @@ import { api } from "@/lib/api";
 import { useWorkspace } from "@/lib/workspace";
 import { cn } from "@/lib/cn";
 import { HITLBadge } from "@/components/hitl/HITLBadge";
+import { JobsBadge } from "@/components/jobs/JobsBadge";
 
 interface HeaderProps {
   /** Optional explicit overrides; defaults to the WorkspaceProvider. */
@@ -54,6 +55,7 @@ export function Header(props: HeaderProps) {
           </nav>
         </div>
         <div className="flex items-center gap-2">
+          <JobsBadge />
           {showBell && <HITLBadge />}
           <WorkspacePicker
             workspaces={ws.workspaces}

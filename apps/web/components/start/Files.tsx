@@ -8,7 +8,7 @@ import { StepShell, ExampleBox } from "./StepShell";
 
 interface Props {
   workspaceId: number;
-  onUploaded: () => void;
+  onUploaded: (jobId: string | null) => void;
   onBack: () => void;
   onSkip: () => void;
 }
@@ -46,8 +46,8 @@ export function Files({ workspaceId, onUploaded, onBack, onSkip }: Props) {
     setBusy(true);
     setError(null);
     try {
-      await api.uploadFiles(workspaceId, files);
-      onUploaded();
+      const r = await api.uploadFiles(workspaceId, files);
+      onUploaded(r.job_id || null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
     } finally {

@@ -9,55 +9,100 @@ import { Pipeline, PIPELINE_STEPS } from "./Pipeline";
 
 interface Props {
   workspaceId: number;
+  /** Job id returned by the upload / connect step. When null, no real
+   *  job to poll — we show a generic "running in background" message. */
+  jobId: string | null;
   onDone: () => void;
   onSkip: () => void;
 }
 
-const POLL_MS = 6_000;
-const STEP_DURATION_MS = 3_000;
+const JOB_POLL_MS = 3_000;
+const QUESTIONS_POLL_MS = 8_000;
 
-/** Screen 5 — live progress through the pipeline + HITL inline.
- *  V1: the wizard starts a "demo" cadence — backend ingest fires via the
- *  Streamlit ingest flow today, so this screen polls entity counts and
- *  pending questions, and advances visual progress while waiting. */
-export function Running({ workspaceId, onDone, onSkip }: Props) {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [doneIndices, setDoneIndices] = useState<number[]>([]);
+/** Map backend stage names to the visual pipeline index. The pipeline
+ *  is the user-facing story: read → tag → dedupe → link → map → ready.
+ *  Pipeline stages on the backend may be: extract / land / tag / map /
+ *  resolve / relate / project / done. */
+const STAGE_TO_INDEX: Record<string, number> = {
+  extract: 0, read: 0,
+  land: 0, landed: 0,
+  tag: 1, tagging: 1,
+  map: 1, mapping: 1, "map-fields": 1,
+  resolve: 2, dedupe: 2, cluster: 2,
+  relate: 3, link: 3, "fk-link": 3,
+  project: 4,
+  done: 5, complete: 5, ready: 5,
+};
+
+function stageIndex(stage: string | null): number {
+  if (!stage) return 0;
+  const key = stage.toLowerCase().trim();
+  if (key in STAGE_TO_INDEX) return STAGE_TO_INDEX[key];
+  // Loose match: any stage containing one of the known tokens.
+  for (const [k, v] of Object.entries(STAGE_TO_INDEX)) {
+    if (key.includes(k)) return v;
+  }
+  return 0;
+}
+
+/** Screen 5 — REAL pipeline progress driven by /admin/jobs/{job_id}.
+ *  When job is null (e.g. user only set up a brief), polls HITL only. */
+export function Running({ workspaceId, jobId, onDone, onSkip }: Props) {
+  const [stage, setStage] = useState<string | null>(null);
+  const [pct, setPct] = useState<number>(0);
+  const [detail, setDetail] = useState<string | null>(null);
+  const [jobStatus, setJobStatus] = useState<string>("queued");
+  const [error, setError] = useState<string | null>(null);
   const [questions, setQuestions] = useState<IngestQuestion[]>([]);
 
+  // Poll the job — real backend state.
   useEffect(() => {
-    if (activeIndex >= PIPELINE_STEPS.length - 1) return;
-    const t = setTimeout(() => {
-      setDoneIndices((d) => [...d, activeIndex]);
-      setActiveIndex((i) => i + 1);
-    }, STEP_DURATION_MS);
-    return () => clearTimeout(t);
-  }, [activeIndex]);
+    if (!jobId) return;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const j = await api.getJob(jobId);
+        if (cancelled) return;
+        setStage(j.stage);
+        setPct(j.pct ?? 0);
+        setDetail(j.detail);
+        setJobStatus(j.status);
+        setError(j.error);
+        if (j.status === "complete" || j.status === "failed") return;
+        setTimeout(tick, JOB_POLL_MS);
+      } catch {
+        if (!cancelled) setTimeout(tick, JOB_POLL_MS);
+      }
+    };
+    tick();
+    return () => { cancelled = true; };
+  }, [jobId]);
 
-  const refresh = useCallback(async () => {
+  // Poll HITL queue independently.
+  const refreshQuestions = useCallback(async () => {
     try {
-      const qs = await api.getIngestQuestions(workspaceId, "pending");
-      setQuestions(qs);
-    } catch {
-      /* ignore */
-    }
+      setQuestions(await api.getIngestQuestions(workspaceId, "pending"));
+    } catch { /* ignore */ }
   }, [workspaceId]);
 
   useEffect(() => {
-    refresh();
-    const t = setInterval(refresh, POLL_MS);
+    refreshQuestions();
+    const t = setInterval(refreshQuestions, QUESTIONS_POLL_MS);
     return () => clearInterval(t);
-  }, [refresh]);
+  }, [refreshQuestions]);
 
   const answer = async (q: IngestQuestion, value: string) => {
     try {
       await api.answerIngestQuestion(q.id, value, "wizard");
     } finally {
-      refresh();
+      refreshQuestions();
     }
   };
 
-  const finished = activeIndex === PIPELINE_STEPS.length - 1;
+  const active = stageIndex(stage);
+  const done = Array.from({ length: active }, (_, i) => i);
+  const finished = jobStatus === "complete" || (!jobId && questions.length === 0
+    && active >= PIPELINE_STEPS.length - 1);
 
   return (
     <StepShell progress={85}>
@@ -65,13 +110,36 @@ export function Running({ workspaceId, onDone, onSkip }: Props) {
         Aryx is reading your data…
       </h1>
       <p className="mt-3 max-w-lg text-center text-[14px] text-subtle">
-        You can leave this open or come back later. When Aryx isn't sure, it'll
-        ask you here.
+        {jobId
+          ? `Real job state — polling /admin/jobs/${jobId.slice(0, 8)}… every ${JOB_POLL_MS / 1000}s.`
+          : "No active ingest job. Open Observability or come back later."}
       </p>
 
       <div className="mt-8 w-full">
-        <Pipeline activeIndex={activeIndex} doneIndices={doneIndices} />
+        <Pipeline activeIndex={finished ? PIPELINE_STEPS.length - 1 : active}
+                   doneIndices={finished ? [0, 1, 2, 3, 4] : done} />
       </div>
+
+      {jobId && (
+        <div className="mt-4 w-full max-w-2xl rounded-xl border border-navy-100 bg-white px-4 py-3">
+          <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-subtle">
+            <span>Stage</span>
+            <span className="font-mono text-navy-700">
+              {stage || "queued"} · {pct}% · {jobStatus}
+            </span>
+          </div>
+          {detail && (
+            <div className="mt-1 truncate text-[12px] text-navy-700">
+              {detail}
+            </div>
+          )}
+          {error && (
+            <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] text-rose-700">
+              {error}
+            </div>
+          )}
+        </div>
+      )}
 
       {questions.length > 0 && (
         <section className="mt-6 w-full max-w-2xl space-y-3">
