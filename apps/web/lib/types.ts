@@ -55,6 +55,9 @@ export interface OntologyType {
 }
 
 export interface OntologyRelationship {
+  /** Backend row id — present only for declared relationship types
+   *  (W2 / aryx_relationship_type). Subclass + entity-derived edges have none. */
+  id?: number;
   name: string;
   source_type?: string;
   target_type?: string;

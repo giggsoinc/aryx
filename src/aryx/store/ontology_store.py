@@ -89,5 +89,15 @@ class OntologyStore:
         logger.info("ontology type approved ws=%s name=%s",
                     self._workspace_id, name)
 
+    def delete_type(self, name: str) -> None:
+        """Remove a type from this workspace. Instances are not touched —
+        callers (the API) decide whether to refuse on non-empty types."""
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(load("delete_ontology_type"),
+                            (self._workspace_id, name))
+        logger.info("ontology type deleted ws=%s name=%s",
+                    self._workspace_id, name)
+
     def close(self) -> None:
         """No-op: connections are managed by the shared pool (G12)."""

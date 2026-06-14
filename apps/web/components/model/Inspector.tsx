@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, CheckCircle2, GitBranch } from "lucide-react";
+import { X, CheckCircle2, GitBranch, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
 import type { Axiom, OntologyType, Rule, SurvivorshipPolicy } from "@/lib/types";
@@ -47,6 +47,23 @@ export function Inspector({
       setBusy(false);
     }
   };
+
+  const [confirmDelete, setConfirmDelete] = useState("");
+  const deleteThis = async () => {
+    if (!type || confirmDelete !== type.name) return;
+    setBusy(true);
+    try {
+      await api.deleteType(workspaceId, type.name);
+      setConfirmDelete("");
+      onChanged();
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Reset the delete confirmation whenever the selected type switches.
+  useEffect(() => { setConfirmDelete(""); }, [type?.name]);
 
   const isProposed = type?.status === "proposed";
   const typeRules = rules.filter((r) => r.when_type === type?.name);
@@ -143,6 +160,42 @@ export function Inspector({
             {tab === "axioms" && <AxiomsView axioms={typeAxioms} />}
             {tab === "rules" && <RulesView rules={typeRules} />}
           </div>
+
+          <footer className="border-t border-navy-100 bg-navy-50/40 px-5 py-3">
+            {confirmDelete === type.name ? (
+              <div className="space-y-2">
+                <p className="text-[11px] text-rose-700">
+                  About to delete the type. Records of this type stay in the
+                  graph but are no longer schema-registered.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={deleteThis}
+                    disabled={busy}
+                    className="focus-ring inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-rose-500 disabled:opacity-60"
+                  >
+                    <Trash2 size={12} /> Delete {type.name}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete("")}
+                    className="focus-ring rounded-lg border border-navy-100 bg-white px-3 py-1.5 text-[12px] font-medium text-navy-700 hover:bg-navy-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(type.name)}
+                className="focus-ring inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-[12px] font-medium text-rose-600 hover:bg-rose-50"
+              >
+                <Trash2 size={12} /> Delete this type
+              </button>
+            )}
+          </footer>
 
         </motion.aside>
       )}

@@ -93,10 +93,7 @@ def ontology_router() -> APIRouter:
     @router.post("/types/{name}/parent")
     def set_parent(name: str, body: dict,
                     workspace_id: int = 1) -> dict:
-        """Set or clear the parent_type for a type (rdfs:subClassOf).
-
-        Body: ``{"parent_type": "Vehicle"}`` or ``{"parent_type": null}`` to clear.
-        """
+        """Set or clear parent_type (body.parent_type str|null)."""
         parent = body.get("parent_type")
         return _ob.set_parent(name, str(parent) if parent else None,
                                 workspace_id)
@@ -108,6 +105,11 @@ def ontology_router() -> APIRouter:
                             body.get("attributes") or {},
                             str(body.get("status", "approved")),
                             workspace_id=int(body.get("workspace_id", 1)))
+
+    @router.delete("/types/{name}")
+    def delete_type(name: str, workspace_id: int = 1) -> dict:
+        """Remove a type from one workspace (schema-level only)."""
+        return _ob.delete_type(name, workspace_id)
 
     @router.get("/export")
     def export_graph(workspace_id: int = 1, format: str = "turtle") -> Response:

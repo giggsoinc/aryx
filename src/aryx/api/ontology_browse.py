@@ -26,11 +26,7 @@ def approve(name: str, workspace_id: int = 1) -> dict[str, Any]:
 def add_type(name: str, attributes: Any, status: str = "approved",
              source: str = "manual",
              workspace_id: int = 1) -> dict[str, Any]:
-    """Manually create an ontology type in one workspace.
-
-    ``attributes`` accepts either a ``list[str]`` of attribute names or a
-    ``dict`` whose keys are attribute names (values ignored).
-    """
+    """Manually create an ontology type. attributes: list[str] | dict[str,_]."""
     from aryx.models import OntologyType
     if isinstance(attributes, dict):
         attrs = [str(k) for k in attributes.keys()]
@@ -96,6 +92,17 @@ def set_parent(name: str, parent: str | None,
     finally:
         store.close()
     return {"status": "ok", "name": name, "parent_type": parent}
+
+
+def delete_type(name: str, workspace_id: int = 1) -> dict[str, Any]:
+    """Remove a type from one workspace. Schema-level only — entity
+    instances of this type are not deleted (callers handle separately)."""
+    store = OntologyStore(get_settings().rdb_dsn, workspace_id)
+    try:
+        store.delete_type(name)
+    finally:
+        store.close()
+    return {"status": "deleted", "name": name}
 
 
 def list_browse(workspace_id: int) -> dict[str, Any]:

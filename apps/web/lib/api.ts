@@ -60,6 +60,18 @@ export const api = {
       { method: "POST", body: JSON.stringify({ parent }) },
     ),
 
+  deleteType: (workspaceId: number, name: string) =>
+    fetchJSON<{ status: string }>(
+      `/ontology/types/${encodeURIComponent(name)}?workspace_id=${workspaceId}`,
+      { method: "DELETE" },
+    ),
+
+  deleteRelationshipType: (relId: number) =>
+    fetchJSON<{ status: string }>(
+      `/ontology/relationships/${relId}`,
+      { method: "DELETE" },
+    ),
+
   getAxioms: (workspaceId: number) =>
     fetchJSON<{ axioms: Axiom[] }>(`/ontology/axioms?workspace_id=${workspaceId}`)
       .then((d) => d.axioms || []),

@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Background, BackgroundVariant, Controls, MiniMap, ReactFlow,
   ReactFlowProvider, useEdgesState, useNodesState,
-  type Edge, type Node, type NodeMouseHandler, type OnConnect, addEdge,
+  type Edge, type EdgeMouseHandler, type Node, type NodeMouseHandler,
+  type OnConnect, addEdge,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { api } from "@/lib/api";
@@ -56,6 +57,9 @@ function ontologyToGraph(doc: OntologyDoc): { nodes: Node[]; edges: Edge[] } {
       target: r.target_type,
       label: r.name,
       style: { stroke: "#4068A8" },
+      // Carry the declared-relationship row id (if any) so an edge click
+      // can DELETE the right row. Subclass + entity-derived edges have no id.
+      data: r.id ? { relId: r.id } : undefined,
     });
   }
   return { nodes, edges };
@@ -86,6 +90,7 @@ function CanvasInner() {
             name: r.name,
             source_type: r.source_type,
             target_type: r.target_type,
+            id: r.id,
           })),
         ],
       };
@@ -106,6 +111,19 @@ function CanvasInner() {
   }, []);
 
   const onPaneClick = useCallback(() => setSelected(null), []);
+
+  const onEdgeClick: EdgeMouseHandler = useCallback(async (_, edge) => {
+    const relId = (edge.data as { relId?: number } | undefined)?.relId;
+    if (!relId) return; // only declared relationships are deletable today
+    const label = (edge.label as string) || "this relationship";
+    if (!window.confirm(`Delete relationship "${label}"?`)) return;
+    try {
+      await api.deleteRelationshipType(relId);
+      await load();
+    } catch (e) {
+      console.error("Failed to delete relationship", e);
+    }
+  }, [load]);
 
   const onConnect: OnConnect = useCallback(
     async (c) => {
@@ -167,6 +185,7 @@ function CanvasInner() {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeClick={onNodeClick}
+          onEdgeClick={onEdgeClick}
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
           fitView
