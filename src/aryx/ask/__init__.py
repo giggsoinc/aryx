@@ -6,6 +6,8 @@ can show provenance and score ontology-on vs ontology-off fairly.
 """
 from __future__ import annotations
 
+from aryx.ask.ab import AbResult, Variant, run_ab
 from aryx.ask.grounding import Citation, Grounding, build_grounding
 
-__all__ = ["Citation", "Grounding", "build_grounding"]
+__all__ = ["Citation", "Grounding", "build_grounding",
+           "AbResult", "Variant", "run_ab"]
