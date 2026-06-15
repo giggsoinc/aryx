@@ -1,6 +1,7 @@
 import type {
-  AbResult, AskResponse, Axiom, Brief, Datasource, IngestQuestion, OntologyDoc,
-  QuizSpec, ReasonerCheck, Rule, SurvivorshipPolicy, Workspace,
+  AbResult, AskResponse, Axiom, Brief, DataEntitiesPage, DataSummary,
+  Datasource, IngestQuestion, OntologyDoc, QuizSpec, ReasonerCheck, Rule,
+  SurvivorshipPolicy, Workspace,
 } from "./types";
 
 // Same-origin relative path. Next.js rewrites /api/* → FastAPI internally
@@ -48,6 +49,20 @@ export const api = {
   labReasoner: (workspaceId: number) =>
     fetchJSON<ReasonerCheck & { error?: string }>(
       `/lab/reasoner?workspace_id=${workspaceId}`,
+    ),
+
+  // ── Data Explorer (v2) ───────────────────────────────────────────────
+  dataSummary: (workspaceId: number) =>
+    fetchJSON<DataSummary & { error?: string }>(
+      `/data/summary?workspace_id=${workspaceId}`,
+    ),
+
+  dataEntities: (workspaceId: number, type?: string,
+                 limit = 50, offset = 0) =>
+    fetchJSON<DataEntitiesPage & { error?: string }>(
+      `/data/entities?workspace_id=${workspaceId}` +
+        (type ? `&type=${encodeURIComponent(type)}` : "") +
+        `&limit=${limit}&offset=${offset}`,
     ),
 
   // ── Ontology / modelling ──────────────────────────────────────────────

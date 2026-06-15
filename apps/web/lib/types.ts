@@ -77,6 +77,41 @@ export interface ReasonerCheck {
   blocked: number;
 }
 
+// ── Data Explorer (v2) ──────────────────────────────────────────────────
+export interface DataTypeCount { name: string; count: number }
+export interface DataSourceCount { source: string; count: number }
+
+export interface DataSummary {
+  total_entities: number;
+  type_count: number;
+  types: DataTypeCount[];
+  sources: DataSourceCount[];
+  source_records: number;
+  duplicates_merged: number;
+}
+
+export interface ProvenanceRef {
+  system: string;
+  dataset: string;
+  record_id: string;
+}
+
+export interface DataEntity {
+  id: number;
+  type: string;
+  name: string;
+  attributes: Record<string, unknown>;
+  sources: ProvenanceRef[];
+}
+
+export interface DataEntitiesPage {
+  type: string | null;
+  total: number;
+  offset: number;
+  limit: number;
+  items: DataEntity[];
+}
+
 export interface Workspace {
   id: number;
   name: string;

@@ -16,6 +16,7 @@ from aryx.api.brief_api import brief_router
 from aryx.api.axioms_api import axioms_router, shapes_router
 from aryx.api.ask_history_api import ask_history_router
 from aryx.api.connect_api import connect_router
+from aryx.api.data_api import data_router
 from aryx.api.datasource_api import datasource_router
 from aryx.api.demo_ingest_api import demo_ingest_router
 from aryx.api.doc_discover_api import doc_discover_router
@@ -99,6 +100,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_router())
     app.include_router(ask_router())
     app.include_router(lab_router())
+    app.include_router(data_router())
     app.include_router(ask_history_router())
     app.include_router(jobs_router())
     app.include_router(file_ingest_router())
