@@ -70,6 +70,13 @@ export interface AbResult {
   scorecard: AbScorecard;
 }
 
+export interface ReasonerCheck {
+  axioms_checked: number;
+  entities_scanned: number;
+  violations: number;
+  blocked: number;
+}
+
 export interface Workspace {
   id: number;
   name: string;

@@ -63,8 +63,14 @@ def _violates_domain(attributes: dict[str, Any], payload: dict[str, Any],
     return not _is_subtype(entity_type, subject_type, ancestors_of)
 
 
-def validate_workspace(workspace_id: int, dsn: str) -> dict[str, Any]:
-    """Walk entities + axioms; record violations; return a summary."""
+def validate_workspace(workspace_id: int, dsn: str,
+                       record: bool = True) -> dict[str, Any]:
+    """Walk entities + axioms; return a summary of contradictions.
+
+    With ``record=True`` (post-projection) violations are persisted for audit.
+    With ``record=False`` (the Accuracy Lab) it is a pure read: it counts what
+    the reasoner *would* block right now without mutating the audit trail.
+    """
     axiom_store = AxiomStore(dsn)
     try:
         axioms = axiom_store.list_(workspace_id)
@@ -92,7 +98,7 @@ def validate_workspace(workspace_id: int, dsn: str) -> dict[str, Any]:
     finally:
         estore.close()
 
-    recorder = AxiomStore(dsn)
+    recorder = AxiomStore(dsn) if record else None
     violations = 0
     try:
         for entity_id, ontology_type, attributes in entities:
@@ -103,8 +109,9 @@ def validate_workspace(workspace_id: int, dsn: str) -> dict[str, Any]:
                     reason = (f"cardinality_max violated: "
                               f"{ax['payload'].get('property')}={count} "
                               f"> {ax['payload'].get('max')}")
-                    recorder.record_violation(
-                        workspace_id, int(entity_id), int(ax["id"]), reason)
+                    if recorder:
+                        recorder.record_violation(
+                            workspace_id, int(entity_id), int(ax["id"]), reason)
                     violations += 1
             for ax in domain_axioms:
                 if _violates_domain(attributes or {}, ax["payload"],
@@ -114,11 +121,13 @@ def validate_workspace(workspace_id: int, dsn: str) -> dict[str, Any]:
                               f"{ax['payload'].get('property')} "
                               f"requires {ax['subject_type']}, "
                               f"got {ontology_type}")
-                    recorder.record_violation(
-                        workspace_id, int(entity_id), int(ax["id"]), reason)
+                    if recorder:
+                        recorder.record_violation(
+                            workspace_id, int(entity_id), int(ax["id"]), reason)
                     violations += 1
     finally:
-        recorder.close()
+        if recorder:
+            recorder.close()
     summary = {
         "axioms_checked": (sum(len(v) for v in cardinality_by_type.values())
                            + len(domain_axioms)),

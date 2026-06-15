@@ -1,6 +1,6 @@
 import type {
   AbResult, AskResponse, Axiom, Brief, Datasource, IngestQuestion, OntologyDoc,
-  QuizSpec, Rule, SurvivorshipPolicy, Workspace,
+  QuizSpec, ReasonerCheck, Rule, SurvivorshipPolicy, Workspace,
 } from "./types";
 
 // Same-origin relative path. Next.js rewrites /api/* → FastAPI internally
@@ -44,6 +44,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ question, workspace_id: workspaceId }),
     }),
+
+  labReasoner: (workspaceId: number) =>
+    fetchJSON<ReasonerCheck & { error?: string }>(
+      `/lab/reasoner?workspace_id=${workspaceId}`,
+    ),
 
   // ── Ontology / modelling ──────────────────────────────────────────────
   getOntology: (workspaceId: number) =>

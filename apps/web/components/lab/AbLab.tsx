@@ -5,6 +5,7 @@ import { FlaskConical, Loader2, Sparkles } from "lucide-react";
 import { api } from "@/lib/api";
 import { useWorkspace } from "@/lib/workspace";
 import type { AbResult } from "@/lib/types";
+import { ReasonerCard } from "./ReasonerCard";
 import { ScoreCard } from "./ScoreCard";
 import { VariantCard } from "./VariantCard";
 
@@ -86,6 +87,10 @@ export function AbLab() {
             {ex}
           </button>
         ))}
+      </div>
+
+      <div className="mt-4">
+        <ReasonerCard />
       </div>
 
       {error && (

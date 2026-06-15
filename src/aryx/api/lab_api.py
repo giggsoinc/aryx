@@ -59,4 +59,17 @@ def lab_router() -> APIRouter:
         model = llm_runtime.status().get("answer_model", "")
         return run_ab(req.question, entities, answer_on, answer_off, model).to_dict()
 
+    @router.get("/reasoner")
+    def reasoner(workspace_id: int = 1) -> dict:
+        """Read-only: how many contradictions the axioms would block right now."""
+        from aryx.config import get_settings
+        from aryx.reasoning.axiom_validator import validate_workspace
+        try:
+            summary = validate_workspace(workspace_id, get_settings().rdb_dsn,
+                                         record=False)
+        except Exception as exc:  # noqa: BLE001 — surface to the Lab UI
+            logger.warning("lab reasoner failed: %s", exc)
+            return {"error": f"reasoner unavailable: {exc}"}
+        return {**summary, "blocked": summary.get("violations", 0)}
+
     return router
