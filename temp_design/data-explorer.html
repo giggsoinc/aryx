@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Aryx · Data Explorer — transparency surface</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root{
+    --navy-50:#F2F5FB;--navy-100:#E4EAF4;--navy-200:#C2CFE3;--navy-300:#94A8CB;
+    --navy-400:#5F7BAA;--navy-500:#3A578C;--navy-600:#27416E;--navy-700:#1A2F55;
+    --navy-800:#0F1F3D;--navy-900:#0A1530;
+    --steel-400:#5F8AD2;--steel-500:#4068A8;--steel-600:#2D4B8A;
+    --canvas:#F8F9FC;--ink:#0F1726;--subtle:#5A6478;
+    --cust:#4068A8;--site:#0E9488;--device:#7C3AED;--ticket:#E11D48;--agent:#D97706;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;padding:0}
+  .mono{font-family:'JetBrains Mono',monospace}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 26px;border-bottom:1px solid var(--navy-100);background:rgba(248,249,252,.9);position:sticky;top:0;z-index:5}
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand img{width:30px;height:30px}
+  .brand .nm{font-weight:600;letter-spacing:.3em;font-size:13px;color:var(--navy-900)}
+  .nav{display:flex;gap:4px}
+  .nav a{font-size:13px;font-weight:500;color:var(--navy-600);padding:6px 12px;border-radius:8px;text-decoration:none}
+  .nav a.on{background:var(--navy-800);color:#fff}
+  .ws{font-size:12px;font-weight:600;color:var(--navy-700);border:1px solid var(--navy-100);background:#fff;border-radius:999px;padding:6px 14px;display:inline-flex;gap:8px;align-items:center}
+  .ws .dot{width:7px;height:7px;border-radius:50%;background:var(--steel-500)}
+
+  .wrap{max-width:1240px;margin:0 auto;padding:26px}
+  .lede{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap}
+  h1{font-family:'Fraunces',serif;font-size:1.9rem;color:var(--navy-900);letter-spacing:-.01em}
+  .sub{color:var(--subtle);font-size:13.5px;margin-top:4px;max-width:640px}
+
+  /* summary strip */
+  .summary{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-top:18px}
+  .card{background:#fff;border:1px solid var(--navy-100);border-radius:16px;padding:16px 18px;box-shadow:0 1px 2px rgba(10,21,48,.04),0 8px 24px rgba(10,21,48,.05)}
+  .card h3{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.13em;color:var(--subtle)}
+  .typecounts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .tc{flex:1;min-width:96px;border-radius:12px;padding:10px 12px;color:#fff}
+  .tc .n{font-family:'Fraunces',serif;font-size:1.5rem;font-weight:600}
+  .tc .l{font-size:11px;opacity:.92;font-weight:500}
+  .sources{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+  .src{display:flex;align-items:center;gap:10px;font-size:12.5px}
+  .src .bar{height:7px;border-radius:4px;background:var(--steel-500)}
+  .src .sys{font-weight:600;color:var(--navy-800);width:120px;flex:0 0 120px}
+  .src .ct{margin-left:auto;color:var(--subtle);font-size:11px}
+
+  /* lens tabs */
+  .lenses{display:flex;gap:4px;margin-top:24px;border-bottom:1px solid var(--navy-100)}
+  .lens{font-size:13px;font-weight:600;color:var(--subtle);padding:9px 16px;border-bottom:2px solid transparent;cursor:pointer;display:flex;align-items:center;gap:7px}
+  .lens.on{color:var(--navy-900);border-bottom-color:var(--steel-500)}
+  .lens .ic{width:15px;height:15px}
+
+  .panel{display:none;margin-top:18px}
+  .panel.on{display:block;animation:rise .25s ease}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* TREE */
+  .tree{background:#fff;border:1px solid var(--navy-100);border-radius:16px;overflow:hidden}
+  .trow{display:flex;align-items:center;gap:10px;padding:11px 16px;border-top:1px solid var(--navy-50);font-size:13.5px}
+  .trow:first-child{border-top:none}
+  .trow .tw{width:9px;height:9px;border-radius:2px;flex:0 0 9px}
+  .trow .nm{font-weight:600;color:var(--navy-900)}
+  .trow .ct{margin-left:auto;font-size:11px;color:var(--subtle);background:var(--navy-50);border-radius:999px;padding:2px 9px;font-weight:600}
+  .trow.l2{padding-left:42px;background:#FCFDFF;font-size:12.5px}
+  .trow.l2 .nm{font-weight:500;color:var(--navy-700)}
+  .trow.l3{padding-left:70px;background:#FBFCFE;font-size:11.5px;color:var(--subtle)}
+  .trow.l3 .prov{margin-left:auto;font-family:'JetBrains Mono';font-size:10.5px;color:var(--steel-600)}
+  .chev{color:var(--navy-300);font-size:11px;width:12px}
+
+  /* TABLE */
+  .tablewrap{display:grid;grid-template-columns:170px 1fr;gap:14px}
+  .typelist{background:#fff;border:1px solid var(--navy-100);border-radius:14px;overflow:hidden;height:fit-content}
+  .typelist .ti{display:flex;align-items:center;gap:8px;padding:10px 13px;font-size:12.5px;font-weight:500;color:var(--navy-700);border-top:1px solid var(--navy-50);cursor:pointer}
+  .typelist .ti:first-child{border-top:none}
+  .typelist .ti.on{background:var(--navy-50);color:var(--navy-900);font-weight:600}
+  .typelist .ti .d{width:8px;height:8px;border-radius:2px}
+  .typelist .ti .c{margin-left:auto;font-size:10.5px;color:var(--subtle)}
+  .grid{background:#fff;border:1px solid var(--navy-100);border-radius:14px;overflow:hidden}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  thead th{text-align:left;background:var(--navy-50);color:var(--navy-700);font-weight:600;padding:9px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  tbody td{padding:9px 14px;border-top:1px solid var(--navy-50);color:var(--navy-800)}
+  tbody tr:hover{background:#FCFDFF;cursor:pointer}
+  tbody tr.sel{background:var(--navy-50)}
+  .pill{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--navy-50);color:var(--navy-600)}
+  .gridfoot{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-top:1px solid var(--navy-100);font-size:11px;color:var(--subtle)}
+
+  /* provenance drawer */
+  .drawer{margin-top:14px;background:linear-gradient(180deg,#fff,#FCFDFF);border:1px solid var(--steel-400);border-radius:14px;padding:16px 18px}
+  .drawer h4{font-family:'Fraunces',serif;font-size:1.05rem;color:var(--navy-900)}
+  .drawer .meta{font-size:11px;color:var(--subtle);margin-top:2px}
+  .provline{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:12px;background:#fff;border:1px solid var(--navy-100);border-radius:10px;padding:8px 12px}
+  .provline .b{width:18px;height:18px;border-radius:5px;background:var(--navy-800);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  .provline .path{font-family:'JetBrains Mono';font-size:11px;color:var(--steel-600)}
+  .provline .src{margin-left:auto;color:var(--subtle);font-size:11px}
+
+  /* GRAPH */
+  .graphwrap{background:#fff;border:1px solid var(--navy-100);border-radius:16px;padding:8px;position:relative}
+  .legend{position:absolute;top:14px;left:14px;display:flex;gap:12px;flex-wrap:wrap;background:rgba(255,255,255,.9);border:1px solid var(--navy-100);border-radius:10px;padding:7px 12px;font-size:11px}
+  .legend span{display:inline-flex;align-items:center;gap:6px;color:var(--navy-700);font-weight:500}
+  .legend i{width:9px;height:9px;border-radius:50%}
+  .ghint{position:absolute;bottom:14px;right:16px;font-size:11px;color:var(--subtle)}
+  .note{margin-top:22px;font-size:12px;color:var(--subtle);border-left:3px solid var(--steel-400);padding-left:12px;line-height:1.6}
+  .note b{color:var(--navy-800)}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><img src="aryx-logo.png" alt=""/><span class="nm">A R Y X</span></div>
+  <div class="nav">
+    <a href="#">Ask</a><a href="#">Model</a><a class="on" href="#">Data</a>
+    <a href="#">Lab</a><a href="#">Onboard</a>
+  </div>
+  <span class="ws"><span class="dot"></span>DEMO</span>
+</div>
+
+<div class="wrap">
+  <div class="lede">
+    <div>
+      <h1>Where your data lives.</h1>
+      <p class="sub">Every entity Aryx resolved, what type it is, and the exact
+      source record it came from — nothing hidden in a database you can't see.</p>
+    </div>
+    <span class="mono" style="font-size:11px;color:var(--subtle)">workspace: DEMO · radio-equipment support</span>
+  </div>
+
+  <!-- summary -->
+  <div class="summary">
+    <div class="card">
+      <h3>500 entities · 5 types</h3>
+      <div class="typecounts">
+        <div class="tc" style="background:var(--cust)"><div class="n">10</div><div class="l">Customers</div></div>
+        <div class="tc" style="background:var(--site)"><div class="n">22</div><div class="l">Sites</div></div>
+        <div class="tc" style="background:var(--device)"><div class="n">253</div><div class="l">Devices</div></div>
+        <div class="tc" style="background:var(--ticket)"><div class="n">200</div><div class="l">Tickets</div></div>
+        <div class="tc" style="background:var(--agent)"><div class="n">15</div><div class="l">Agents</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>From 2 sources</h3>
+      <div class="sources">
+        <div class="src"><span class="sys">postgres.support</span><span class="bar" style="width:62%"></span><span class="ct">312 records</span></div>
+        <div class="src"><span class="sys">salesforce.Account</span><span class="bar" style="width:43%;background:var(--steel-400)"></span><span class="ct">215 records</span></div>
+      </div>
+      <p style="font-size:11px;color:var(--subtle);margin-top:10px">527 source records → resolved into 500 entities (27 duplicates merged).</p>
+    </div>
+  </div>
+
+  <!-- lens tabs -->
+  <div class="lenses">
+    <div class="lens on" onclick="lens('tree',this)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h6M3 12h10M3 18h6"/></svg>Tree</div>
+    <div class="lens" onclick="lens('table',this)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>Table</div>
+    <div class="lens" onclick="lens('graph',this)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 7l8 9M17 7l-3 9"/></svg>Graph</div>
+  </div>
+
+  <!-- TREE -->
+  <div class="panel on" id="p-tree">
+    <div class="tree">
+      <div class="trow"><span class="chev">▾</span><span class="tw" style="background:var(--cust)"></span><span class="nm">Customer</span><span class="ct">10</span></div>
+      <div class="trow l2"><span class="chev">▾</span><span class="nm">NetOps Atlantic</span><span class="ct">id 682</span></div>
+      <div class="trow l3"><span>industry: Telecom · tier: Enterprise · region: US-East</span><span class="prov">postgres.support#cust_14</span></div>
+      <div class="trow l3"><span>also matched in</span><span class="prov">salesforce.Account#0013x</span></div>
+      <div class="trow l2"><span class="chev">▸</span><span class="nm">Regional Wireless Co</span><span class="ct">id 683</span></div>
+      <div class="trow l2"><span class="chev">▸</span><span class="nm">Metro Telecom</span><span class="ct">id 684</span></div>
+      <div class="trow"><span class="chev">▸</span><span class="tw" style="background:var(--device)"></span><span class="nm">Device</span><span class="ct">253</span></div>
+      <div class="trow"><span class="chev">▸</span><span class="tw" style="background:var(--ticket)"></span><span class="nm">Ticket</span><span class="ct">200</span></div>
+      <div class="trow"><span class="chev">▸</span><span class="tw" style="background:var(--agent)"></span><span class="nm">Agent</span><span class="ct">15</span></div>
+      <div class="trow"><span class="chev">▸</span><span class="tw" style="background:var(--site)"></span><span class="nm">Site</span><span class="ct">22</span></div>
+    </div>
+    <p class="note"><b>Tree lens</b> = the ontology, populated. Expand a type → real
+    entities → each entity's attributes and the <b>source record it traces back
+    to</b>. The "also matched in" line is Aryx showing its work: this one customer
+    was deduplicated across Postgres and Salesforce.</p>
+  </div>
+
+  <!-- TABLE -->
+  <div class="panel" id="p-table">
+    <div class="tablewrap">
+      <div class="typelist">
+        <div class="ti"><span class="d" style="background:var(--cust)"></span>Customer<span class="c">10</span></div>
+        <div class="ti on"><span class="d" style="background:var(--device)"></span>Device<span class="c">253</span></div>
+        <div class="ti"><span class="d" style="background:var(--ticket)"></span>Ticket<span class="c">200</span></div>
+        <div class="ti"><span class="d" style="background:var(--agent)"></span>Agent<span class="c">15</span></div>
+        <div class="ti"><span class="d" style="background:var(--site)"></span>Site<span class="c">22</span></div>
+      </div>
+      <div>
+        <div class="grid">
+          <table>
+            <thead><tr><th>Name</th><th>Model</th><th>Firmware</th><th>Site</th><th>Sources</th></tr></thead>
+            <tbody>
+              <tr class="sel"><td>SectorMaster-3000 #A11</td><td>SM-3000</td><td>v4.2.1</td><td>Chicago</td><td><span class="pill">2</span></td></tr>
+              <tr><td>WaveLink-400 #C07</td><td>WL-400</td><td>v2.8.0</td><td>Seattle</td><td><span class="pill">1</span></td></tr>
+              <tr><td>SectorMaster-3000 #A12</td><td>SM-3000</td><td>v4.1.9</td><td>Chicago</td><td><span class="pill">1</span></td></tr>
+              <tr><td>WaveLink-400 #C09</td><td>WL-400</td><td>v2.8.0</td><td>Denver</td><td><span class="pill">2</span></td></tr>
+            </tbody>
+          </table>
+          <div class="gridfoot"><span>Showing 1–4 of 253</span><span>sort · filter · export ↓</span></div>
+        </div>
+        <div class="drawer">
+          <h4>SectorMaster-3000 #A11 <span class="pill" style="background:#F5F3FF;color:var(--device)">Device · id 412</span></h4>
+          <div class="meta">model SM-3000 · firmware v4.2.1 · installed at Site "Chicago" · 6 open tickets</div>
+          <div class="provline"><span class="b">1</span><span class="path">postgres.support.devices#dev_0411</span><span class="src">primary record</span></div>
+          <div class="provline"><span class="b">2</span><span class="path">salesforce.Asset#02i7x00000</span><span class="src">merged duplicate</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="note"><b>Table lens</b> = the records browser. Pick a type, get a
+    sortable/filterable grid; click a row → the <b>provenance drawer</b> traces
+    the golden record back to every source row that built it. This is the literal
+    thread from the UI to the database.</p>
+  </div>
+
+  <!-- GRAPH -->
+  <div class="panel" id="p-graph">
+    <div class="graphwrap">
+      <div class="legend">
+        <span><i style="background:var(--cust)"></i>Customer</span>
+        <span><i style="background:var(--site)"></i>Site</span>
+        <span><i style="background:var(--device)"></i>Device</span>
+        <span><i style="background:var(--ticket)"></i>Ticket</span>
+        <span><i style="background:var(--agent)"></i>Agent</span>
+      </div>
+      <svg viewBox="0 0 900 440" style="width:100%;height:auto">
+        <g stroke="#C2CFE3" stroke-width="1.4">
+          <line x1="180" y1="120" x2="330" y2="120"/><line x1="330" y1="120" x2="480" y2="90"/>
+          <line x1="330" y1="120" x2="480" y2="170"/><line x1="480" y1="170" x2="640" y2="150"/>
+          <line x1="480" y1="170" x2="640" y2="220"/><line x1="640" y1="220" x2="780" y2="200"/>
+          <line x1="480" y1="90" x2="640" y2="110"/><line x1="330" y1="300" x2="480" y2="280"/>
+          <line x1="180" y1="300" x2="330" y2="300"/><line x1="480" y1="280" x2="640" y2="300"/>
+          <line x1="640" y1="300" x2="780" y2="320"/><line x1="480" y1="280" x2="640" y2="220"/>
+        </g>
+        <g font-family="Inter" font-size="10" fill="#fff" text-anchor="middle">
+          <g><circle cx="180" cy="120" r="22" fill="#4068A8"/><text y="124">Cust</text></g>
+          <g><circle cx="180" cy="300" r="22" fill="#4068A8"/><text y="304">Cust</text></g>
+          <g><circle cx="330" cy="120" r="18" fill="#0E9488"/><text y="124">Site</text></g>
+          <g><circle cx="330" cy="300" r="18" fill="#0E9488"/><text y="304">Site</text></g>
+          <g><circle cx="480" cy="90" r="15" fill="#7C3AED"/><text y="93">Dev</text></g>
+          <g><circle cx="480" cy="170" r="15" fill="#7C3AED"/><text y="173">Dev</text></g>
+          <g><circle cx="480" cy="280" r="15" fill="#7C3AED"/><text y="283">Dev</text></g>
+          <g><circle cx="640" cy="110" r="13" fill="#E11D48"/><text y="113">Tkt</text></g>
+          <g><circle cx="640" cy="150" r="13" fill="#E11D48"/><text y="153">Tkt</text></g>
+          <g><circle cx="640" cy="220" r="13" fill="#E11D48"/><text y="223">Tkt</text></g>
+          <g><circle cx="640" cy="300" r="13" fill="#E11D48"/><text y="303">Tkt</text></g>
+          <g><circle cx="780" cy="200" r="16" fill="#D97706"/><text y="204">Agt</text></g>
+          <g><circle cx="780" cy="320" r="16" fill="#D97706"/><text y="324">Agt</text></g>
+        </g>
+      </svg>
+      <div class="ghint">cluster by type · expand a node · query into a region</div>
+    </div>
+    <p class="note"><b>Graph lens</b> = the knowledge graph itself — Customer →
+    Site → Device → Ticket → Agent, the way the data actually connects. For 500+
+    nodes it clusters by type and lets you query into a region rather than
+    rendering everything (the "query-don't-render" rule from the scale design).</p>
+  </div>
+
+  <p class="note" style="margin-top:26px;border-color:var(--steel-500)">
+    <b>Backend is already there.</b> Tree + Table + Graph all read existing
+    endpoints — <span class="mono" style="font-size:11px">/entities</span>,
+    <span class="mono" style="font-size:11px">/graph</span>,
+    <span class="mono" style="font-size:11px">/entities/{id}/neighbors</span>,
+    provenance. This is a frontend surface (a new <b>Data</b> tab), not new
+    pipeline work. Approve the layout and I'll build it slice by slice:
+    Tree → Table+provenance → Graph.
+  </p>
+</div>
+
+<script>
+  function lens(id, el){
+    document.querySelectorAll('.lens').forEach(l=>l.classList.remove('on'));
+    el.classList.add('on');
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+    document.getElementById('p-'+id).classList.add('on');
+  }
+</script>
+</body>
+</html>
