@@ -1,5 +1,5 @@
 import type {
-  AskResponse, Axiom, Brief, Datasource, IngestQuestion, OntologyDoc,
+  AbResult, AskResponse, Axiom, Brief, Datasource, IngestQuestion, OntologyDoc,
   QuizSpec, Rule, SurvivorshipPolicy, Workspace,
 } from "./types";
 
@@ -36,6 +36,13 @@ export const api = {
     fetchJSON<AskResponse>("/ask", {
       method: "POST",
       body: JSON.stringify({ question, workspace_id: workspaceId, history }),
+    }),
+
+  // ── Accuracy Lab (v2) ────────────────────────────────────────────────
+  labAb: (question: string, workspaceId: number) =>
+    fetchJSON<AbResult & { error?: string }>("/lab/ab", {
+      method: "POST",
+      body: JSON.stringify({ question, workspace_id: workspaceId }),
     }),
 
   // ── Ontology / modelling ──────────────────────────────────────────────
