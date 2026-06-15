@@ -5,8 +5,11 @@ import { Database, ListTree, Loader2, Network, Table2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useWorkspace } from "@/lib/workspace";
 import type { DataSummary } from "@/lib/types";
+import { GraphLens } from "./GraphLens";
 import { SummaryStrip } from "./SummaryStrip";
 import { TreeLens } from "./TreeLens";
+
+type Lens = "tree" | "graph";
 
 /** The Data tab: transparency over the workspace's resolved entities.
  *  Slice 1 ships the Tree lens; Table + Graph follow. */
@@ -14,6 +17,7 @@ export function DataExplorer() {
   const { workspaceId } = useWorkspace();
   const [summary, setSummary] = useState<DataSummary | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [lens, setLens] = useState<Lens>("tree");
 
   useEffect(() => {
     let live = true;
@@ -53,17 +57,30 @@ export function DataExplorer() {
           <SummaryStrip summary={summary} />
 
           <div className="flex items-center gap-1 border-b border-navy-100">
-            <span className="flex items-center gap-1.5 border-b-2 border-steel-500 px-4 py-2 text-[13px] font-semibold text-navy-900">
-              <ListTree size={15} /> Tree
-            </span>
+            <Tab icon={<ListTree size={15} />} label="Tree"
+                 active={lens === "tree"} onClick={() => setLens("tree")} />
+            <Tab icon={<Network size={15} />} label="Graph"
+                 active={lens === "graph"} onClick={() => setLens("graph")} />
             <Soon icon={<Table2 size={15} />} label="Table" />
-            <Soon icon={<Network size={15} />} label="Graph" />
           </div>
 
-          <TreeLens types={summary.types} />
+          {lens === "tree" ? <TreeLens types={summary.types} /> : <GraphLens />}
         </div>
       )}
     </div>
+  );
+}
+
+function Tab({ icon, label, active, onClick }: {
+  icon: React.ReactNode; label: string; active: boolean; onClick: () => void;
+}) {
+  return (
+    <button type="button" onClick={onClick}
+      className={"flex items-center gap-1.5 border-b-2 px-4 py-2 text-[13px] font-semibold " +
+        (active ? "border-steel-500 text-navy-900"
+                : "border-transparent text-subtle hover:text-navy-700")}>
+      {icon} {label}
+    </button>
   );
 }
 

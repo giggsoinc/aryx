@@ -84,3 +84,27 @@ def entities_view(entities: list[tuple[int, str, dict]],
     } for eid, etype, attrs in page]
     return {"type": ontology_type, "total": total,
             "offset": start, "limit": capped, "items": items}
+
+
+def graph_view(entities: list[tuple[int, str, dict]],
+               relationships: list[tuple[int, int, str]]) -> dict[str, Any]:
+    """Type-level knowledge map: nodes per type, edges aggregated by relation.
+
+    Renders the *shape* of the graph (Customer -HAS_SITE(22)-> Site ...) rather
+    than every node — legible at any scale, the query-don't-render rule.
+    """
+    id_type = {eid: etype for eid, etype, _ in entities}
+    type_counts = Counter(etype for _, etype, _ in entities)
+    edge_agg: Counter = Counter()
+    for src, tgt, name in relationships:
+        st, tt = id_type.get(src), id_type.get(tgt)
+        if st and tt:
+            edge_agg[(st, tt, name)] += 1
+    return {
+        "type_nodes": [{"type": t, "count": c}
+                       for t, c in type_counts.most_common()],
+        "type_edges": [{"source": s, "target": t, "name": n, "count": c}
+                       for (s, t, n), c in edge_agg.most_common()],
+        "entity_count": len(entities),
+        "relationship_count": len(relationships),
+    }

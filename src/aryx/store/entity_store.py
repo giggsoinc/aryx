@@ -123,5 +123,15 @@ class EntityStore:
                 cur.execute(load("select_relationships"), (self._ws,))
                 return [(r[0], r[1], r[2]) for r in cur.fetchall()]
 
+    def clear_relationships(self) -> int:
+        """Delete all relationships for this workspace; return rows removed.
+
+        Makes re-deriving FK edges idempotent (link_by_attribute appends).
+        """
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(load("delete_relationships"), (self._ws,))
+                return cur.rowcount
+
     def close(self) -> None:
         """No-op: connections are managed by the shared pool (G12)."""

@@ -112,6 +112,21 @@ export interface DataEntitiesPage {
   items: DataEntity[];
 }
 
+export interface GraphTypeNode { type: string; count: number }
+export interface GraphTypeEdge {
+  source: string;
+  target: string;
+  name: string;
+  count: number;
+}
+
+export interface GraphView {
+  type_nodes: GraphTypeNode[];
+  type_edges: GraphTypeEdge[];
+  entity_count: number;
+  relationship_count: number;
+}
+
 export interface Workspace {
   id: number;
   name: string;
