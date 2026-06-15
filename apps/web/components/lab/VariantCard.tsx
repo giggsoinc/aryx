@@ -1,6 +1,7 @@
 "use client";
 
 import { ShieldCheck, ShieldOff } from "lucide-react";
+import { Markdown } from "@/components/ask/Markdown";
 import type { AbVariant } from "@/lib/types";
 
 /** One side of the comparison: the answer + its verified grounding. */
@@ -32,9 +33,11 @@ export function VariantCard({ v }: { v: AbVariant }) {
         </span>
       </div>
 
-      <p className="mt-3 whitespace-pre-wrap text-[13.5px] leading-relaxed text-navy-800">
-        {v.answer || "(no answer)"}
-      </p>
+      <div className="mt-3 max-h-80 overflow-y-auto pr-1 text-[13.5px]">
+        {v.answer
+          ? <Markdown>{v.answer}</Markdown>
+          : <span className="text-subtle">(no answer)</span>}
+      </div>
 
       {on && (
         <div className="mt-4 border-t border-navy-100 pt-3">

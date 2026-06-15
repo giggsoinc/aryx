@@ -65,7 +65,14 @@ export function Header(props: HeaderProps) {
             activeName={active?.name}
             open={open}
             onToggle={() => setOpen((v) => !v)}
-            onSelect={(id) => { setWorkspace(id); setOpen(false); }}
+            onSelect={(id) => {
+              setWorkspace(id);
+              setOpen(false);
+              // Don't strand the user in onboarding after they pick an
+              // existing (possibly populated) workspace — go to Ask, which
+              // self-redirects back to /start only if it's truly empty.
+              if (pathname?.startsWith("/start")) router.push("/");
+            }}
             onCreated={async (id) => {
               await ws.refresh();
               setWorkspace(id);
