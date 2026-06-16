@@ -7,9 +7,10 @@ import { useWorkspace } from "@/lib/workspace";
 import type { DataSummary } from "@/lib/types";
 import { GraphLens } from "./GraphLens";
 import { SummaryStrip } from "./SummaryStrip";
+import { TableLens } from "./TableLens";
 import { TreeLens } from "./TreeLens";
 
-type Lens = "tree" | "graph";
+type Lens = "tree" | "table" | "graph";
 
 /** The Data tab: transparency over the workspace's resolved entities.
  *  Slice 1 ships the Tree lens; Table + Graph follow. */
@@ -59,12 +60,15 @@ export function DataExplorer() {
           <div className="flex items-center gap-1 border-b border-navy-100">
             <Tab icon={<ListTree size={15} />} label="Tree"
                  active={lens === "tree"} onClick={() => setLens("tree")} />
+            <Tab icon={<Table2 size={15} />} label="Table"
+                 active={lens === "table"} onClick={() => setLens("table")} />
             <Tab icon={<Network size={15} />} label="Graph"
                  active={lens === "graph"} onClick={() => setLens("graph")} />
-            <Soon icon={<Table2 size={15} />} label="Table" />
           </div>
 
-          {lens === "tree" ? <TreeLens types={summary.types} /> : <GraphLens />}
+          {lens === "tree" && <TreeLens types={summary.types} />}
+          {lens === "table" && <TableLens types={summary.types} />}
+          {lens === "graph" && <GraphLens />}
         </div>
       )}
     </div>
@@ -81,16 +85,5 @@ function Tab({ icon, label, active, onClick }: {
                 : "border-transparent text-subtle hover:text-navy-700")}>
       {icon} {label}
     </button>
-  );
-}
-
-function Soon({ icon, label }: { icon: React.ReactNode; label: string }) {
-  return (
-    <span className="flex cursor-default items-center gap-1.5 px-4 py-2 text-[13px] font-medium text-navy-300">
-      {icon} {label}
-      <span className="rounded-full bg-navy-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-navy-400">
-        soon
-      </span>
-    </span>
   );
 }
