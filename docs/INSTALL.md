@@ -4,7 +4,8 @@
 
 - **Docker & Docker Compose** — [Install](https://docs.docker.com/compose/install/)
 - **Git** — [Install](https://git-scm.com/)
-- **Python 3.13** (optional, for local dev without Docker)
+- **Python 3.11** (optional, for local dev without Docker)
+- **Node 20+** (optional, only to run the Next.js web UI outside Docker)
 - **Ollama** (optional, for local LLM models; included in docker-compose)
 
 ## Local Setup (Docker Compose)
@@ -34,8 +35,10 @@ docker compose up -d
 ```
 
 **Services:**
-- **UI** (Streamlit): http://localhost:8501
+- **Web UI** (Next.js — primary): http://localhost:3000
 - **API** (FastAPI): http://localhost:8088 (or http://localhost:8088/docs for OpenAPI)
+- **MCP** (SSE, for AI agents): http://localhost:8765/sse
+- **UI** (Streamlit — legacy): http://localhost:8501
 - **Postgres**: localhost:5432 (user: `aryx`, password from `.env`)
 - **FalkorDB**: localhost:6379
 - **Ollama**: localhost:11434
@@ -44,38 +47,48 @@ docker compose up -d
 
 ```bash
 docker compose ps
-# Should show: postgres, falkordb, ollama, api, ui all "Up"
+# Should show: postgres, falkordb, ollama, api, worker, mcp, ui, web — all "Up"
 
-curl http://localhost:8088/health
-# Returns: {"status": "ok"}
+curl http://localhost:8088/health   # API → {"status": "ok"}
+curl -o /dev/null -w "%{http_code}\n" http://localhost:3000   # web → 200
 ```
 
-### 5. First Ingest
+### 5. First Ingest (the /start wizard)
 
-1. Open http://localhost:8501 (Streamlit UI)
-2. Go to **Ingest tab**
-3. Provide context: *"Customer support tickets linked to customers and products"*
-4. **Database tab**: Click "Connect & introspect"
-   - **RDBMS:** postgresql
-   - **Host:** postgres (internal docker network)
-   - **Port:** 5432
-   - **Database:** aryx
-   - **User:** aryx
-   - **Password:** (from `.env`)
-5. Click **"Connect & introspect"** → agent discovers tables → **Confirm & ingest**
+The primary onboarding flow is the **guided wizard** in the web UI:
+
+1. Open http://localhost:3000 → top-right workspace picker → **New workspace**
+2. You land on **`/start`**:
+   - **Goals** — describe what you're tracking and your objectives;
+     Aryx drafts a brief from it (edit/confirm)
+   - **Sources** — add a data source:
+     - **Database** (`postgres`/`postgresql`/`mysql`/`mariadb`/`oracle`/`rest`):
+       host `postgres`, port `5432`, db `aryx`, user `aryx`, password from `.env`
+       (or any external DB), or
+     - **Files** — upload CSV / PDF / DOCX / PPTX / JSON
+   - **Run** — the pipeline discovers schema → resolves entities → projects the
+     graph; watch live progress, then land on **Done**
+3. Explore the result in **Ask**, **Data**, **Model**, and **Lab**.
+
+> Optional demo data: `curl -X POST localhost:8088/demo/load -H 'Content-Type: application/json' -d '{"ticket_count":200}'`
+> loads synthetic radio-equipment support data into the source tables.
 
 ## EC2 Deployment
 
 ### Prerequisites
 
 - **EC2 instance** (t3.large+, 4 vCPU, 8GB RAM, 50GB disk)
-- **SSH key** (`~/.ssh/aryx-key.pem`)
-- **Security group** allows ports 22 (SSH), 80/443 (HTTP/S), 8501 (UI), 8088 (API)
+- **SSH key** (e.g. `~/.ssh/rvdts-oracle-key.pem`)
+- **Security group** inbound: 22 (SSH), **3000 (web UI)**, 8088 (API),
+  **8765 (MCP)**, optionally 8501 (legacy Streamlit), 80/443 if behind a proxy
+
+> Current deployment: `ec2-user@ec2-3-91-73-197.compute-1.amazonaws.com`,
+> app dir `/home/ec2-user/aryx`, tracks branch `main`.
 
 ### 1. SSH & Clone
 
 ```bash
-ssh -i ~/.ssh/aryx-key.pem ec2-user@<instance-ip>
+ssh -i ~/.ssh/rvdts-oracle-key.pem ec2-user@<instance-ip>
 cd /home/ec2-user
 git clone https://github.com/giggsoinc/aryx.git
 cd aryx
@@ -103,7 +116,8 @@ docker compose up -d
 
 ```bash
 docker compose ps
-docker logs -f aryx-ui-1  # Watch UI startup
+docker logs -f aryx-web-1   # watch the Next.js web UI start
+docker logs -f aryx-api-1   # watch the API + migrations
 ```
 
 ### 5. Updating a running deployment (git-only flow)
@@ -111,24 +125,26 @@ docker logs -f aryx-ui-1  # Watch UI startup
 Never `docker run`/`scp` ad-hoc changes. All updates flow through git:
 
 ```bash
-ssh -i ~/.ssh/aryx-key.pem ec2-user@<instance-ip>
+ssh -i ~/.ssh/rvdts-oracle-key.pem ec2-user@<instance-ip>
 cd /home/ec2-user/aryx
 git pull origin main
-docker compose build
-docker compose up -d
+# Rebuild what changed: api/worker/mcp/ui share the Python image; web is the
+# Next.js app. Python changes -> rebuild api (and worker/mcp/ui); UI changes -> web.
+docker compose build api web
+docker compose up -d api web
 ```
 
 If behaviour doesn't match the new code (compose served a stale layer),
-force a clean rebuild and verify:
+force a clean rebuild and verify the file is actually in the image:
 
 ```bash
-docker compose build --no-cache
-docker compose up -d --force-recreate
-docker compose exec api python -c "import aryx.resolution.confidence; print('ok')"
+docker compose build --no-cache api web
+docker compose up -d --force-recreate api web
+docker compose exec api test -f /app/src/aryx/ports/container.py && echo ok
 ```
 
-Database migrations (`src/aryx/store/migrations/*.sql`, currently 0001-0023)
-are idempotent and apply automatically on API startup — no manual step.
+Database migrations (`src/aryx/store/migrations/*.sql`, currently 27) are
+idempotent and apply automatically on API startup — no manual step.
 
 ### 6. Tuning (optional .env keys)
 
@@ -147,8 +163,10 @@ ARYX_PROJECT_DIRTY_MAX=0.30
 
 ### 7. Access
 
-- **UI:** http://<instance-ip>:8501
-- **API:** http://<instance-ip>:8088
+- **Web UI:** http://<instance-ip>:3000  (primary)
+- **API:** http://<instance-ip>:8088  (`/docs` for OpenAPI)
+- **MCP (SSE):** http://<instance-ip>:8765/sse
+- **Streamlit (legacy):** http://<instance-ip>:8501
 
 ## Troubleshooting
 
@@ -203,14 +221,25 @@ source venv/bin/activate
 # Install deps
 pip install -r requirements.txt
 
-# Run API
-python -m uvicorn src.aryx.api.main:app --reload --port 8088
+# Run API (PYTHONPATH=src so `aryx` is importable)
+PYTHONPATH=src python -m uvicorn aryx.api.main:app --reload --port 8088
 
-# Run UI (separate terminal)
+# Run the Next.js web UI (separate terminal)
+cd apps/web && npm install && \
+  ARYX_API_URL_INTERNAL=http://localhost:8088 npm run dev   # → http://localhost:3000
+
+# Or the legacy Streamlit UI
 streamlit run src/aryx/ui/main.py --server.port=8501
 ```
 
 (Requires external Postgres + FalkorDB + Ollama. See `docker-compose.yml` for connection strings.)
+
+Run the test suite (no Docker needed for the pure-logic subset):
+
+```bash
+PYTHONPATH=src python -m pytest tests/test_ports_seam.py tests/test_grounding.py \
+  tests/test_ab.py tests/test_explore.py -q
+```
 
 ## Verification Checklist
 
@@ -219,28 +248,27 @@ After starting services, verify everything is healthy:
 ```bash
 # 1. All containers running
 docker compose ps
-# Expect: postgres, falkordb, ollama, api, worker, ui — all "Up"
+# Expect: postgres, falkordb, ollama, api, worker, mcp, ui, web — all "Up"
 
 # 2. API health
-curl http://localhost:8088/health
-# Returns: {"status": "ok"}
+curl http://localhost:8088/health        # {"status": "ok"}
 
-# 3. Migrations applied (23 expected)
-docker compose exec api python -c "
-from aryx.store.migrate import applied_count
-print(f'Migrations: {applied_count()}')"
+# 3. Web UI loads
+curl -o /dev/null -w "%{http_code}\n" http://localhost:3000   # 200
 
-# 4. Ollama model available
-docker compose exec ollama ollama list
-# Should show nomic-embed-text (pulled by ollama-init)
+# 4. Platform / edition (Phase 0 ports seam)
+curl -s "http://localhost:8088/admin/observability?workspace_id=1" | grep -o '"edition":"[a-z-]*"'
 
-# 5. FalkorDB reachable
+# 5. Ollama model available
+docker compose exec ollama ollama list    # should show nomic-embed-text
+
+# 6. FalkorDB reachable (FalkorStore needs a url + graph name)
 docker compose exec api python -c "
 from aryx.graph.falkor_store import FalkorStore
-fs = FalkorStore(); print(f'FalkorDB: ok')"
+from aryx.config import get_settings
+FalkorStore(get_settings().graph_url, 'aryx_ws_1'); print('FalkorDB: ok')"
 
-# 6. UI loads
-# Open http://localhost:8501 — should show workspace selector
+# 7. Open http://localhost:3000 — pick a workspace, land on /start or Ask
 ```
 
 ## Next Steps
