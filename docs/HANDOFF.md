@@ -8,12 +8,48 @@ Paste-ready context for a fresh Claude Code session. Keep this current as the co
 
 | | |
 |---|---|
-| **Project** | Aryx — knowledge-graph platform (Python 3.13, FastAPI, FalkorDB, Postgres+pgvector, Ollama) |
+| **Project** | Aryx — discovery-driven knowledge-graph engine (Python 3.11, FastAPI, FalkorDB, Postgres+pgvector, Ollama; Next.js 15 web UI) |
+| **Editions** | **Aryx Lite** (v1, this repo, GPL candidate) · **Aryx Enterprise** (v2, in build) · **Aryx-o** (v2.1, Oracle ADB native). See `docs/EDITIONS.md`. |
 | **Repo** | https://github.com/giggsoinc/aryx.git (branch `main`) |
 | **EC2** | `ec2-user@ec2-3-91-73-197.compute-1.amazonaws.com` · key `~/.ssh/rvdts-oracle-key.pem` |
 | **Local dir** | `/Users/giggso/AntiGravity_Projects/Aryx` |
-| **EC2 app dir** | `/home/ec2-user/aryx` (real git clone via read-only deploy key) |
-| **Live** | UI `http://3.91.73.197:8501` · REST API `:8088` · MCP SSE `:8765` |
+| **EC2 app dir** | `/home/ec2-user/aryx` (real git clone) |
+| **Live** | **Next.js web UI `http://3.91.73.197:3000`** (primary) · Streamlit `:8501` (legacy) · REST API `:8088` · MCP SSE `:8765/sse` |
+
+---
+
+## V2 status — current state (2026-06-15)
+
+The product now has a **Next.js web UI** (`apps/web/`, isolated deploy unit) as the
+primary surface — Streamlit is legacy. Surfaces live today: **Ask** (grounded
+Q&A + citations), **Model** (ontology canvas), **Data** (transparency explorer),
+**Lab** (Accuracy Lab), **Onboard** (`/start` wizard).
+
+**V2 Enterprise feature ledger** (phases from `temp_design/ontology-v2/08-v2-attack-plan.html`):
+
+| Phase | Feature | Status |
+|---|---|---|
+| Rebrand | Aryx Lite branding + `docs/EDITIONS.md` + attack plan | ✅ done (`97e6fe3`) |
+| **0 — Ports & adapters seam** | 6 capability ports, default adapters, config-driven loading, edition flag | ✅ done (`0cdd3f0`) |
+| **1 — Accuracy Lab** | 1.1 groundedness engine · 1.2 ontology on/off A/B · 1.3 reasoner-check · 1.4 `/lab` UI | ✅ done (`345cfb5`→`b62baa9`) |
+| **Data Explorer** (bonus) | Tree lens · Graph lens (type-level map) · `/data/relate` FK-derive | ✅ Tree+Graph done (`28ce224`,`8604e11`); **Table lens pending** |
+| **2 — Workbench core** | Map at scale · Properties + SKOS relation registry · Axioms + reasoner enforcement · Governance | ⬜ not started |
+| **3 — Scale + ops** | Connector framework (autoscaling workers) · pipeline observability · domain funnel | ⬜ not started |
+| **4 — Engine deepening** | Ontology inference · surgical Deliberation Adjudicator · LLM Router · HITL learning loop | ⬜ not started |
+| **5 — Proof surfaces** | Cost & Sovereignty screen · Interchange (OWL/RDF round-trip — partial in v1) | ⬜ not started |
+
+Live bug fixes shipped this session: Lab markdown rendering + onboarding-redirect
+escape (`eda54a5`). DEMO workspace (id 1) now has **527 entities / 682 FK-derived
+relationships** (radio-equipment support).
+
+New backend since the sections below were written: `aryx.ports` (hexagonal seam),
+`aryx.edition`, `aryx.naming`, `aryx.ask` (grounding + A/B engine),
+`aryx.explore` (data-explorer read model), API routers `lab_api`, `data_api`.
+Tests: `test_ports_seam`, `test_grounding`, `test_ab`, `test_explore` (all green).
+
+> Sections 3–6 below describe the **Lite/v1** internals and remain accurate for
+> the pipeline, LLM layer, and Streamlit UI. Treat the Next.js UI + V2 surfaces
+> above as the current front end.
 
 ---
 
@@ -43,8 +79,12 @@ Paste-ready context for a fresh Claude Code session. Keep this current as the co
 ```bash
 # after committing + pushing locally:
 ssh -i ~/.ssh/rvdts-oracle-key.pem ec2-user@ec2-3-91-73-197.compute-1.amazonaws.com \
-  "cd /home/ec2-user/aryx && git pull --ff-only && \
-   docker compose build --no-cache api ui && docker compose up -d --force-recreate api ui"
+  "cd /home/ec2-user/aryx && git pull origin main && \
+   docker compose build api web && docker compose up -d api web"
+# Python changes touch api/worker/mcp/ui (shared aryx package) → rebuild those too
+# when the seam/pipeline changes. Next.js changes → rebuild web. EC2 now tracks
+# `main`. Cache-aware build is usually fine; verify new files are in the image
+# (docker compose exec api test -f /app/src/aryx/...), force --no-cache on doubt.
 
 # DB migrations run on ingest, or force them:
 docker exec aryx-api-1 python -c \
