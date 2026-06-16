@@ -32,7 +32,7 @@ Q&A + citations), **Model** (ontology canvas), **Data** (transparency explorer),
 | Rebrand | Aryx Lite branding + `docs/EDITIONS.md` + attack plan | ✅ done (`97e6fe3`) |
 | **0 — Ports & adapters seam** | 6 capability ports, default adapters, config-driven loading, edition flag | ✅ done (`0cdd3f0`) |
 | **1 — Accuracy Lab** | 1.1 groundedness engine · 1.2 ontology on/off A/B · 1.3 reasoner-check · 1.4 `/lab` UI | ✅ done (`345cfb5`→`b62baa9`) |
-| **Data Explorer** (bonus) | Tree lens · Graph lens (type-level map) · `/data/relate` FK-derive | ✅ Tree+Graph done (`28ce224`,`8604e11`); **Table lens pending** |
+| **Data Explorer** (bonus) | Tree · Table · Graph (type-level map) lenses · `/data/relate` FK-derive | ✅ done (`28ce224`,`8604e11`,`dfa72f1`) |
 | **2 — Workbench core** | Map at scale · Properties + SKOS relation registry · Axioms + reasoner enforcement · Governance | ⬜ not started |
 | **3 — Scale + ops** | Connector framework (autoscaling workers) · pipeline observability · domain funnel | ⬜ not started |
 | **4 — Engine deepening** | Ontology inference · surgical Deliberation Adjudicator · LLM Router · HITL learning loop | ⬜ not started |
