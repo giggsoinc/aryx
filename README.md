@@ -15,6 +15,11 @@
 
 ## Features
 
+### Web App (primary UI)
+- **Next.js 15 web app** (`apps/web/`) — isolated deploy unit, talks to the API only over HTTP. Surfaces: **Ask** (`/`), **Model** (`/model`, ontology canvas), **Data** (`/data`, transparency explorer), **Lab** (`/lab`, the Accuracy Lab), **Onboard** (`/start`, guided wizard). The Streamlit UI (`src/aryx/ui/`) still exists but is legacy.
+- **Accuracy Lab** (`/lab`) — runs the same model with the ontology ON vs OFF, side-by-side, with a groundedness scorecard and citations traced to source records; plus a read-only reasoner-check.
+- **Data Explorer** (`/data`) — three lenses: Tree (types → entities → provenance), Table (records grid + provenance drawer), Graph (type-level knowledge map). Every record traceable to `system.dataset#record`.
+
 ### Ingest & Discovery
 - **Multi-source ingest** — Postgres, MySQL, Oracle connectors; CSV/PDF/DOCX/PPTX/JSON file upload
 - **Auto-discovery** — AI agent maps source schemas to entity types; no upfront ontology required
@@ -37,15 +42,17 @@
 
 ### Intelligence
 - **Chat (Ask)** — Natural-language queries with LLM reasoning, source provenance, and conversation context
-- **MCP integration** — 3 tools (list, ask, act) for external AI agents; SSE transport
+- **MCP integration** — 21 tools (workspace / brief / datasource / ingest / ontology / ask / act) for external AI agents; SSE transport
 - **Actions (kinetic layer)** — Declarative JSON DSL mutations with guard conditions, human approval gate, and before/after audit log; agent-initiated actions are always-pending
 
 ### Platform
+- **Editions** — Aryx Lite (v1) / Enterprise (v2) / Aryx-o (v2.1, Oracle ADB native); see [docs/EDITIONS.md](docs/EDITIONS.md)
+- **Ports & adapters seam** (`aryx.ports`) — 6 capability ports (Relational, Graph, Vector, LLM, Reasoner, Compute) with config-driven adapters, so the substrate is swappable (the Oracle-readiness foundation)
 - **Workspace isolation** — LIST-partitioned Postgres tables; independent graphs, ontologies, and policies per workspace
 - **Local + cloud models** — Ollama for cheap stages (tagging, scoring); Claude/OpenAI/Gemini for frontier decisions (~1-5% of volume)
 - **API-key auth** — Off/optional/required modes; fail-closed (exceptions reject, never pass)
 - **Connection pooling** — psycopg3 shared pool singleton; all 10 stores pooled
-- **23 idempotent migrations** — Auto-apply on API startup; zero manual migration steps
+- **27 idempotent migrations** — Auto-apply on API startup; zero manual migration steps
 - **Measured quality** — `make er-bench` on Febrl1: P=1.00 / R=0.59 / F1=0.74; band thresholds derived from measured sweep, not opinion
 
 ## Quick Start
@@ -54,11 +61,12 @@
 git clone https://github.com/giggsoinc/aryx.git
 cd aryx
 docker compose up -d
-# UI: http://localhost:8501
-# API: http://localhost:8088/docs
+# Web UI:  http://localhost:3000   (primary)
+# API:     http://localhost:8088/docs
+# MCP SSE: http://localhost:8765/sse
 ```
 
-First time? **Ingest tab** → provide context (e.g., "Customer support accounts with company info") → connect a database or upload files.
+First time? Open the web UI → create a workspace → land on the **`/start`** wizard: set your goals → add a source (connect a database or upload a file) → run.
 
 ## Documentation
 
@@ -67,7 +75,7 @@ First time? **Ingest tab** → provide context (e.g., "Customer support accounts
 | **[Install Guide](docs/INSTALL.md)** | Local Docker setup, EC2 deployment, git-only update flow, tuning env keys |
 | **[User Guide](docs/USER_GUIDE.md)** | UI walkthrough, ingest, Ask, Graph, adjudication queue, actions, survivorship |
 | **[Feature Matrix](docs/FEATURES.md)** | All capabilities with status and component references |
-| **[Architecture](docs/ARCHITECTURE.md)** | System design, resolution funnel, data flow, 23 API routes, 3 MCP tools |
+| **[Architecture](docs/ARCHITECTURE.md)** | System design, resolution funnel, data flow, API routers, MCP tools |
 | **[Ingestion Guide](docs/INGESTION_GUIDE.md)** | Database and document ingest step-by-step |
 | **[RDF Export](docs/RDF_EXPORT_GUIDE.md)** | Export to SPARQL, semantic web tools, LLM pipelines |
 | **[Benchmarks](docs/wiki/BENCHMARKS.md)** | Append-only P/R/F1 measurements |
@@ -79,13 +87,14 @@ First time? **Ingest tab** → provide context (e.g., "Customer support accounts
 
 | Layer | Tech |
 |-------|------|
-| **API** | FastAPI (23 routers, OpenAPI docs) |
-| **UI** | Streamlit |
-| **Database** | PostgreSQL 16 (source of truth, LIST-partitioned) |
-| **Graph** | FalkorDB (rebuildable projection) |
-| **LLM** | Ollama (local) + Anthropic Claude / OpenAI / Gemini (frontier) |
-| **Agent protocol** | MCP (list, ask, act) over SSE |
+| **API** | FastAPI (27 routers, OpenAPI docs) |
+| **Web UI** | Next.js 15 (App Router, Tailwind) |
+| **Database** | PostgreSQL 16 + pgvector (source of truth, LIST-partitioned by `workspace_id`) |
+| **Graph** | FalkorDB (one named graph per workspace, `aryx_ws_<id>`) |
+| **LLM** | Ollama (local) + Anthropic / OpenAI / Gemini (frontier, runtime-swappable) |
+| **Agent protocol** | MCP — 21 tools over SSE |
 | **Deployment** | Docker Compose (local + EC2) |
+| **Legacy UI** | Streamlit (`src/aryx/ui/`) |
 
 ## Contributing
 

@@ -39,8 +39,16 @@ Q&A + citations), **Model** (ontology canvas), **Data** (transparency explorer),
 | **5 — Proof surfaces** | Cost & Sovereignty screen · Interchange (OWL/RDF round-trip — partial in v1) | ⬜ not started |
 
 Live bug fixes shipped this session: Lab markdown rendering + onboarding-redirect
-escape (`eda54a5`). DEMO workspace (id 1) now has **527 entities / 682 FK-derived
-relationships** (radio-equipment support).
+escape (`eda54a5`); Lab empty-workspace state + data-driven example questions
+(`96ebfc0` — the Lab no longer looks broken on an empty workspace and its example
+chips are built from real entities). DEMO workspace (id 1) now has **527 entities /
+682 FK-derived relationships** (radio-equipment support).
+
+Docs brought current to V2 (this sweep): `README.md`, `docs/{FEATURES,ARCHITECTURE,
+USER_GUIDE,INSTALL,HANDOFF,EDITIONS}.md` — Next.js web UI, 27 routers, 21 MCP
+tools, 27 migrations, the ports seam, Lab + Data surfaces. Still-stale/historical
+(low priority): `Current_State_Aryx.md`, `docs/doc_delta*.md`,
+`docs/wiki/sources/gap_map.md`, `docs/diagrams/technical-flow.html`.
 
 New backend since the sections below were written: `aryx.ports` (hexagonal seam),
 `aryx.edition`, `aryx.naming`, `aryx.ask` (grounding + A/B engine),

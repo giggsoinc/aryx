@@ -1,15 +1,25 @@
 # Feature Matrix
 
-Comprehensive list of Aryx capabilities as of the gap-closure program completion (June 2026).
+Comprehensive list of Aryx capabilities as of the V2 release (June 2026).
+
+## Editions
+
+| Edition | Version | Notes | Component |
+|---------|---------|-------|-----------|
+| Lite | v1 | Core ingest → resolve → graph → Ask | `edition.py`, `ARYX_EDITION` |
+| Enterprise | v2 | Web UI, Accuracy Lab, Data Explorer, ports & adapters | `edition.py`, `ARYX_EDITION` |
+| Aryx-o | v2.1 | Oracle-native adapter set | `edition.py`, `ARYX_EDITION` |
+
+See [EDITIONS.md](EDITIONS.md) for the full edition matrix.
 
 ## Ingest & Discovery
 
 | Feature | Status | Component |
 |---------|--------|-----------|
 | Postgres connector (streaming) | Done | `connectors/postgres.py` |
-| MySQL connector | Done | `connectors/mysql.py` |
-| Oracle connector | Done | `connectors/oracle.py` |
-| File upload (CSV, JSON, PDF, DOCX, PPTX, images) | Done | `connectors/file.py` |
+| MySQL / MariaDB / Oracle connector | Done | `connectors/sql_source.py` |
+| REST API connector | Done | `connectors/rest_api.py` |
+| File upload (CSV, JSON, PDF, DOCX, PPTX, images) | Done | `connectors/{csv_source,json_source,pdf,docx,pptx,image}.py` |
 | AI auto-discovery (schema → entity types) | Done | `pipeline/orchestrate.py` |
 | Context-driven discovery (user provides domain context) | Done | UI Ingest tab |
 | Streaming one-record-at-a-time pipeline | Done | `pipeline/spine.py` |
@@ -58,6 +68,55 @@ Comprehensive list of Aryx capabilities as of the gap-closure program completion
 | Business rules engine | Done | `reasoning/engine.py` |
 | OWL axiom management | Done | `api/axioms_api.py` |
 
+## Web UI (V2)
+
+Next.js application (`apps/web/`, isolated from the Python service). Streamlit is legacy.
+
+| Feature | Status | Component |
+|---------|--------|-----------|
+| Ask surface (grounded NL Q&A) | Done | `apps/web/app/page.tsx` (`/`) |
+| Model surface (ontology view/edit) | Done | `apps/web/app/model/` (`/model`) |
+| Data surface (Data Explorer) | Done | `apps/web/app/data/` (`/data`) |
+| Lab surface (Accuracy Lab) | Done | `apps/web/app/lab/` (`/lab`) |
+| Onboard wizard | Done | `apps/web/app/start/` (`/start`) |
+| Streamlit UI (legacy) | Done | `ui/` |
+
+## Accuracy Lab (V2)
+
+Trust and evaluation surface at `/lab` (`api/lab_api.py`, `aryx.ask`).
+
+| Feature | Status | Component |
+|---------|--------|-----------|
+| Groundedness engine (claim → citations traced to source records) | Done | `ask/grounding.py` |
+| Hallucination signal (ungrounded-claim detection) | Done | `ask/grounding.py` |
+| Ontology on/off A/B (same model, ON vs OFF, scorecard) | Done | `ask/ab.py` |
+| Read-only reasoner-check (axiom contradictions, dry-run) | Done | `api/lab_api.py` |
+
+## Data Explorer (V2)
+
+Multi-lens data browser at `/data` (`api/data_api.py`, `aryx.explore`).
+
+| Feature | Status | Component |
+|---------|--------|-----------|
+| Tree lens (types → entities → attributes + provenance) | Done | `explore.py` |
+| Table lens (records grid + provenance drawer) | Done | `explore.py` |
+| Graph lens (type-level map — nodes per type sized by count, edges aggregated by relationship) | Done | `explore.py` |
+| FK-relate (derive relationships from foreign-key attribute links) | Done | `api/data_api.py` (`/data/relate`) |
+
+## Ports & Adapters (V2)
+
+Capability seam (`aryx.ports`) — the Oracle-readiness foundation. Adapter selection is config-driven via `ARYX_ADAPTER_*`.
+
+| Capability Port | Default Adapter | Component |
+|-----------------|-----------------|-----------|
+| Relational | Postgres | `ports/protocols.py`, `ports/container.py` |
+| Graph (read) | FalkorDB | `ports/protocols.py` |
+| Graph (write) | FalkorDB | `ports/protocols.py` |
+| Vector | Postgres | `ports/protocols.py` |
+| LLM | Ollama | `ports/protocols.py` |
+| Reasoner | (built-in) | `ports/protocols.py` |
+| Compute | (built-in) | `ports/protocols.py` |
+
 ## Actions (Kinetic Layer)
 
 | Feature | Status | Component |
@@ -88,7 +147,9 @@ Comprehensive list of Aryx capabilities as of the gap-closure program completion
 | API-key auth (off/optional/required) | Done (G4) | `api/security.py` |
 | Fail-closed auth (exception → reject) | Done (G4) | `api/security.py` |
 | psycopg3 connection pooling | Done (G12) | `store/pool.py` |
-| 23 idempotent migrations (auto-apply) | Done | `store/migrations/` |
+| 27 idempotent migrations (auto-apply) | Done | `store/migrations/` |
+| Ports & adapters seam (config-driven) | Done (V2) | `ports/` |
+| Editions (Lite / Enterprise / Aryx-o) | Done (V2) | `edition.py` |
 | Docker Compose deployment | Done | `docker-compose.yml` |
 | Git-only update flow (EC2) | Done | [INSTALL.md](INSTALL.md) |
 | Provider-agnostic LLM broker | Done | `llm/broker.py` |
@@ -98,12 +159,18 @@ Comprehensive list of Aryx capabilities as of the gap-closure program completion
 
 ## MCP Integration
 
-| Feature | Status | Component |
-|---------|--------|-----------|
-| `list` tool (browse entities) | Done | `mcp/tools.py` |
-| `ask` tool (NL graph queries) | Done | `mcp/tools.py` |
-| `act` tool (request mutations) | Done (G13) | `mcp/act.py` |
-| SSE transport | Done | `mcp/sse.py` |
+21 tools over SSE (`mcp/server.py`, `mcp/sse.py`). Grouped below.
+
+| Tool group | Tools | Component |
+|------------|-------|-----------|
+| Workspace | `workspace_create`, `workspace_list`, `workspace_select` | `mcp/server.py` |
+| Brief | `brief_set`, `brief_get`, `brief_draft`, `brief_save` | `mcp/onboard.py`, `mcp/tools_onboard.py` |
+| Datasource | `datasource_add`, `datasource_list`, `datasource_test`, `datasource_quiz`, `datasource_delete` | `mcp/datasource.py`, `mcp/tools_datasource.py` |
+| Ingest | `ingest_questions`, `ingest_answer`, `ingest_status` | `mcp/ingest_hitl.py`, `mcp/tools_ingest.py` |
+| Ontology | `ontology_get`, `ontology_export` | `mcp/ontology.py`, `mcp/tools_ontology.py` |
+| Entities | `entities_preview` | `mcp/tools.py` |
+| Core | `ask`, `act`, `list` | `mcp/tools.py`, `mcp/act.py` |
+| SSE transport | — | `mcp/sse.py` |
 
 ## Quality & Testing
 
@@ -115,6 +182,6 @@ Comprehensive list of Aryx capabilities as of the gap-closure program completion
 | Febrl1 F1 | 0.74 | `make er-bench-quick` |
 | Blocking recall | 0.852 | `make er-bench` |
 | Python source files | 174 | `src/aryx/` |
-| SQL migrations | 23 | `store/migrations/` |
-| API routers | 23 | `api/main.py` |
-| MCP tools | 3 | `mcp/tools.py` |
+| SQL migrations | 27 | `store/migrations/` |
+| API routers | 27 | `api/main.py` |
+| MCP tools | 21 | `mcp/server.py` |
