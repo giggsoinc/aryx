@@ -118,17 +118,17 @@
         <span class="layer-title">UI · what users see</span>
         <span class="layer-hint">Next.js 15 · Streamlit · Claude Desktop / Cursor / Continue</span>
       </div>
-      <div class="row cols-4">
+      <div class="row cols-6">
         <div class="box accent">
           <div class="ico">✨</div>
-          <div class="label">Start wizard</div>
-          <div class="desc">7-step guided onboarding · AI-drafted brief</div>
+          <div class="label">Onboard</div>
+          <div class="desc">Guided wizard · AI-drafted brief</div>
           <div class="port">/start :3000</div>
         </div>
         <div class="box accent">
           <div class="ico">💬</div>
           <div class="label">Ask</div>
-          <div class="desc">Workspace peek banner · markdown answers · citations</div>
+          <div class="desc">Markdown answers · citations</div>
           <div class="port">/ :3000</div>
         </div>
         <div class="box accent">
@@ -137,10 +137,22 @@
           <div class="desc">React Flow canvas · inspector · AI suggest</div>
           <div class="port">/model :3000</div>
         </div>
+        <div class="box accent">
+          <div class="ico">🗄</div>
+          <div class="label">Data</div>
+          <div class="desc">Tree · Table · Graph lenses · provenance</div>
+          <div class="port">/data :3000</div>
+        </div>
+        <div class="box accent">
+          <div class="ico">🧪</div>
+          <div class="label">Lab</div>
+          <div class="desc">Ontology on/off A/B · groundedness scorecard</div>
+          <div class="port">/lab :3000</div>
+        </div>
         <div class="box">
           <div class="ico">⚙️</div>
-          <div class="label">Streamlit admin</div>
-          <div class="desc">Ingest, observability, settings</div>
+          <div class="label">Streamlit</div>
+          <div class="desc">Legacy admin</div>
           <div class="port">:8501</div>
         </div>
       </div>
@@ -181,7 +193,7 @@
       <div class="layer-head">
         <span class="layer-num">2</span>
         <span class="layer-title">API · the contract</span>
-        <span class="layer-hint">FastAPI :8088 · MCP server :8765/sse · 24 routers · 21 MCP tools</span>
+        <span class="layer-hint">FastAPI :8088 · MCP server :8765/sse · 27 routers · 21 MCP tools</span>
       </div>
       <div class="row cols-6">
         <div class="box"><div class="label">/admin/workspaces</div><div class="desc">CRUD · brief · survivorship · purge · nuke</div></div>
@@ -190,6 +202,8 @@
         <div class="box"><div class="label">/admin/ingest-*</div><div class="desc">DB / docs / REST · HITL queue</div></div>
         <div class="box"><div class="label">/ask · /graph · /entities</div><div class="desc">Grounded Q&amp;A · workspace overview ride-along</div></div>
         <div class="box"><div class="label">/actions · /adjudication</div><div class="desc">Kinetic DSL · review queue</div></div>
+        <div class="box accent"><div class="label">/lab/*</div><div class="desc">Accuracy Lab · ontology on/off A/B · reasoner-check</div></div>
+        <div class="box accent"><div class="label">/data/*</div><div class="desc">Explorer · summary · entities · graph · FK-relate</div></div>
       </div>
 
       <div class="ask-flow">
@@ -202,6 +216,8 @@
           <div class="ask-step always"><div class="t">Overview ride-along</div><div class="d">Always: kinds + counts + samples + aim. No more "not stored" dead-ends.</div></div>
           <div class="ask-arr">›</div>
           <div class="ask-step"><div class="t">Synthesise</div><div class="d">Answer LLM · ground if facts found · summarise from overview if not</div></div>
+          <div class="ask-arr">›</div>
+          <div class="ask-step always"><div class="t">Verify grounding</div><div class="d">build_grounding · cite source records · flag unbacked claims (the Lab reads this)</div></div>
           <div class="ask-arr">›</div>
           <div class="ask-step"><div class="t">Markdown out</div><div class="d">Persist to ask_history · render via react-markdown</div></div>
         </div>
@@ -249,7 +265,7 @@
       <div class="layer-head">
         <span class="layer-num">4</span>
         <span class="layer-title">Storage · source of truth + projections</span>
-        <span class="layer-hint">26 migrations · LIST partitioned · pooled · graph rebuildable</span>
+        <span class="layer-hint">27 migrations · LIST partitioned · pooled · graph rebuildable · behind capability ports</span>
       </div>
       <div class="row cols-4">
         <div class="box accent">
@@ -277,6 +293,22 @@
         </div>
       </div>
 
+      <div class="band" style="margin-top:14px;background:linear-gradient(135deg,#EFF6FF 0%,white 100%);border-color:var(--steel-400);">
+        <div class="glyph">🧬</div>
+        <div>
+          <strong>Ports &amp; adapters seam — the substrate is swappable</strong>
+          <p>
+            Every store sits behind a capability <em>port</em> (Relational · Graph ·
+            Vector · LLM · Reasoner · Compute) resolved from config
+            (<code>ARYX_ADAPTER_*</code>). Default adapters = Postgres / FalkorDB /
+            Ollama. <strong>Aryx-o</strong> (v2.1) swaps in Oracle ADB · RDF/Property
+            Graph · AI Vector · OCI GenAI &mdash; an adapter swap, not a rewrite.
+            <code>ARYX_EDITION</code> gates Lite / Enterprise / Aryx-o. See
+            <code>aryx.ports</code>, <code>aryx.edition</code>.
+          </p>
+        </div>
+      </div>
+
       <div class="ws-split">
         <div class="row-h">Workspace split (today's setup)</div>
         <div class="ws-cards">
@@ -296,9 +328,9 @@
 
   <div class="stats">
     <div class="stat"><div class="n">21</div><div class="l">MCP tools shipped</div></div>
-    <div class="stat"><div class="n">24</div><div class="l">FastAPI routers</div></div>
-    <div class="stat"><div class="n">26</div><div class="l">DB migrations</div></div>
-    <div class="stat"><div class="n">3</div><div class="l">Web surfaces (Start · Ask · Model)</div></div>
+    <div class="stat"><div class="n">27</div><div class="l">FastAPI routers</div></div>
+    <div class="stat"><div class="n">27</div><div class="l">DB migrations</div></div>
+    <div class="stat"><div class="n">5</div><div class="l">Web surfaces (Ask · Model · Data · Lab · Onboard)</div></div>
   </div>
 
   <footer>

@@ -58,7 +58,7 @@
   .hitl p { color: #78350F; font-size: 13px; line-height: 1.5; margin-top: 2px; }
 
   /* Surfaces tile */
-  .surfaces { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .surfaces { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
   .surface { background: white; border: 1px solid var(--navy-100); border-radius: 14px; padding: 20px; text-align: center; }
   .surface .ico { font-size: 28px; }
   .surface .label { margin-top: 10px; font-weight: 600; color: var(--navy-900); }
@@ -135,25 +135,62 @@
   </section>
 
   <section>
-    <h2>Three surfaces, one knowledge graph</h2>
+    <h2>Five surfaces, one knowledge graph</h2>
     <div class="surfaces">
       <div class="surface">
         <div class="ico">✨</div>
-        <div class="label">Start</div>
-        <div class="hint">Guided 7-step setup</div>
+        <div class="label">Onboard</div>
+        <div class="hint">Guided setup wizard</div>
         <div class="url">/start</div>
       </div>
       <div class="surface">
         <div class="ico">💬</div>
         <div class="label">Ask</div>
-        <div class="hint">Chat over your graph</div>
+        <div class="hint">Cited answers over your graph</div>
         <div class="url">/</div>
       </div>
       <div class="surface">
         <div class="ico">🗺</div>
         <div class="label">Model</div>
-        <div class="hint">Canvas + inspector</div>
+        <div class="hint">Ontology canvas + inspector</div>
         <div class="url">/model</div>
+      </div>
+      <div class="surface">
+        <div class="ico">🗄</div>
+        <div class="label">Data</div>
+        <div class="hint">See every record + its source</div>
+        <div class="url">/data</div>
+      </div>
+      <div class="surface">
+        <div class="ico">🧪</div>
+        <div class="label">Lab</div>
+        <div class="hint">Prove the answers are grounded</div>
+        <div class="url">/lab</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Prove it &mdash; the Accuracy Lab</h2>
+    <p class="sub" style="margin:0 0 18px 0;text-align:left;max-width:760px">
+      The hardest question a buyer asks: <em>does the ontology actually make AI
+      answers more accurate?</em> The Lab settles it &mdash; the <strong>same model</strong>,
+      the <strong>same question</strong>, answered twice.
+    </p>
+    <div class="surfaces" style="grid-template-columns:1fr 1fr">
+      <div class="track" style="border-color:var(--emerald)">
+        <span class="badge agent">Ontology ON</span>
+        <h3>Grounded &amp; cited</h3>
+        <p class="lede">Answers from the resolved knowledge graph &mdash; every claim
+        traced back to a real source record (<code style="font-size:11px">system.dataset#id</code>).
+        A scorecard shows citations and evidence used.</p>
+      </div>
+      <div class="track" style="border-color:var(--navy-200)">
+        <span class="badge actor" style="background:#F1F5F9;color:#475569">Ontology OFF</span>
+        <h3>Asserted, not grounded</h3>
+        <p class="lede">The same model with no workspace grounding &mdash; fluent,
+        confident, and <strong>unverifiable</strong>. Nothing traces to your data.
+        That gap is the value of the ontology, made visible.</p>
       </div>
     </div>
   </section>
