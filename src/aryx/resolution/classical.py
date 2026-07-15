@@ -32,7 +32,13 @@ def block(records: list[ResolutionRecord], max_block_size: int = 5000) -> dict[s
 
 def string_score(left: str, right: str) -> float:
     """Similarity ratio of two strings in [0, 1]."""
-    return SequenceMatcher(None, normalize(left), normalize(right)).ratio()
+    l, r = normalize(left), normalize(right)
+    # Blank match text carries no identity. SequenceMatcher scores "" vs ""
+    # as 1.0 (perfect match), so a mis-configured match_key would silently
+    # collapse every record into one entity. Treat any empty side as no match.
+    if not l or not r:
+        return 0.0
+    return SequenceMatcher(None, l, r).ratio()
 
 
 def cosine(left: list[float], right: list[float]) -> float:
