@@ -130,3 +130,37 @@ def entity_graph_view(entities: list[tuple[int, str, dict]],
         "entity_count": len(nodes),
         "relationship_count": len(edges),
     }
+
+
+def entity_detail(entities: list[tuple[int, str, dict]],
+                  provenance: list[tuple[int, str, str, str]],
+                  relationships: list[tuple[int, int, str]],
+                  entity_id: int) -> dict[str, Any] | None:
+    """One entity's full record: attributes, source provenance, and neighbours.
+
+    Powers the graph side panel — clicking a node shows what it is, where it
+    came from, and everything it connects to (with edge label + direction).
+    Returns None when the id is not in this workspace.
+    """
+    meta = {eid: (etype, attrs) for eid, etype, attrs in entities}
+    if entity_id not in meta:
+        return None
+    name_of = {eid: display_name(a, eid) for eid, _, a in entities}
+    type_of = {eid: t for eid, t, _ in entities}
+    rels: list[dict[str, Any]] = []
+    for src, tgt, name in relationships:
+        if src == entity_id and tgt in meta:
+            rels.append({"direction": "out", "name": name, "other_id": tgt,
+                         "other_name": name_of[tgt], "other_type": type_of[tgt]})
+        elif tgt == entity_id and src in meta:
+            rels.append({"direction": "in", "name": name, "other_id": src,
+                         "other_name": name_of[src], "other_type": type_of[src]})
+    etype, attrs = meta[entity_id]
+    return {
+        "id": entity_id,
+        "type": etype,
+        "name": display_name(attrs, entity_id),
+        "attributes": attrs or {},
+        "sources": _prov_by_entity(provenance).get(entity_id, []),
+        "relationships": rels,
+    }

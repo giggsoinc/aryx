@@ -137,6 +137,23 @@ export interface EntityGraphView {
   relationship_count: number;
 }
 
+export interface EntityRelationship {
+  direction: "in" | "out";
+  name: string;
+  other_id: number;
+  other_name: string;
+  other_type: string;
+}
+
+export interface EntityDetail {
+  id: number;
+  type: string;
+  name: string;
+  attributes: Record<string, unknown>;
+  sources: { system: string; dataset: string; record_id: string }[];
+  relationships: EntityRelationship[];
+}
+
 export interface Workspace {
   id: number;
   name: string;

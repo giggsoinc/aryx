@@ -1,6 +1,6 @@
 import type {
   AbResult, AskResponse, Axiom, Brief, DataEntitiesPage, DataSummary,
-  Datasource, EntityGraphView, GraphView, IngestQuestion, OntologyDoc, QuizSpec,
+  Datasource, EntityDetail, EntityGraphView, GraphView, IngestQuestion, OntologyDoc, QuizSpec,
   ReasonerCheck, Rule, SurvivorshipPolicy, Workspace,
 } from "./types";
 
@@ -73,6 +73,11 @@ export const api = {
   dataGraphEntity: (workspaceId: number) =>
     fetchJSON<EntityGraphView & { error?: string }>(
       `/data/graph?workspace_id=${workspaceId}&level=entity`,
+    ),
+
+  dataEntityDetail: (workspaceId: number, entityId: number) =>
+    fetchJSON<EntityDetail & { error?: string }>(
+      `/data/entity/${entityId}?workspace_id=${workspaceId}`,
     ),
 
   // ── Ontology / modelling ──────────────────────────────────────────────
