@@ -68,17 +68,50 @@ def anthropic_json(
     return json.loads(text), resp.usage.input_tokens, resp.usage.output_tokens
 
 
+def _loads_lenient(content: str) -> dict[str, Any]:
+    """Parse a model's JSON response, salvaging malformed/truncated output.
+
+    Local models occasionally emit invalid JSON (a trailing comma, a cut-off
+    object at num_predict). A bare json.loads would raise and surface as a 500
+    to the caller. Try a strict parse, then the outermost {...} substring, and
+    finally fall back to an empty dict so the pipeline degrades gracefully.
+    """
+    if not content:
+        return {}
+    try:
+        parsed = json.loads(content)
+        return parsed if isinstance(parsed, dict) else {}
+    except (json.JSONDecodeError, TypeError):
+        pass
+    start, end = content.find("{"), content.rfind("}")
+    if 0 <= start < end:
+        try:
+            parsed = json.loads(content[start:end + 1])
+            return parsed if isinstance(parsed, dict) else {}
+        except (json.JSONDecodeError, TypeError):
+            pass
+    logger.warning("ollama_json: unparseable model output (%d chars), using {}",
+                   len(content))
+    return {}
+
+
 def ollama_json(spec: ModelSpec, system: str,
                 user: str) -> tuple[dict[str, Any], int, int]:
     """Call an Ollama model in JSON mode via /api/chat."""
     out = post_json(
         (spec.endpoint or "").rstrip("/") + "/api/chat",
+        # think=False: JSON extraction never needs chain-of-thought. On
+        # hybrid "thinking" models (e.g. lfm2.5-thinking) the reasoning phase
+        # adds ~70s/call for no gain since format=json already constrains
+        # output — it only risks wrapping the JSON in prose. Ignored by
+        # non-thinking models, so it's safe across the tier ladder.
         {"model": spec.name, "format": "json", "stream": False,
+         "think": False,
          "messages": [{"role": "system", "content": system},
                       {"role": "user", "content": user}]},
         {},
     )
-    data = json.loads(out["message"]["content"])
+    data = _loads_lenient(out.get("message", {}).get("content", ""))
     return data, int(out.get("prompt_eval_count", 0)), int(out.get("eval_count", 0))
 
 
