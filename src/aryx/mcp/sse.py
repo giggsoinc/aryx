@@ -14,8 +14,11 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.routing import Mount, Route
 
+from aryx.config import get_settings
+from aryx.logging_setup import configure_logging
 from aryx.mcp.server import server
 
+configure_logging(get_settings().log_level)
 logger = logging.getLogger(__name__)
 
 sse = SseServerTransport("/messages/")

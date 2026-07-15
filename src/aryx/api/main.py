@@ -8,6 +8,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 
+from aryx.config import get_settings
+from aryx.logging_setup import configure_logging
 from aryx.api.actions_api import actions_router
 from aryx.api.adjudication_api import adjudication_router
 from aryx.api.admin_api import admin_router
@@ -35,6 +37,7 @@ from aryx.api.rules_api import rules_router
 from aryx.api.versions_api import versions_router
 from aryx.api.workspace_api import workspace_router
 
+configure_logging(get_settings().log_level)
 logger = logging.getLogger(__name__)
 
 
