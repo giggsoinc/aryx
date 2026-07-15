@@ -1,7 +1,7 @@
 import type {
   AbResult, AskResponse, Axiom, Brief, DataEntitiesPage, DataSummary,
-  Datasource, GraphView, IngestQuestion, OntologyDoc, QuizSpec, ReasonerCheck,
-  Rule, SurvivorshipPolicy, Workspace,
+  Datasource, EntityGraphView, GraphView, IngestQuestion, OntologyDoc, QuizSpec,
+  ReasonerCheck, Rule, SurvivorshipPolicy, Workspace,
 } from "./types";
 
 // Same-origin relative path. Next.js rewrites /api/* → FastAPI internally
@@ -68,6 +68,11 @@ export const api = {
   dataGraph: (workspaceId: number) =>
     fetchJSON<GraphView & { error?: string }>(
       `/data/graph?workspace_id=${workspaceId}`,
+    ),
+
+  dataGraphEntity: (workspaceId: number) =>
+    fetchJSON<EntityGraphView & { error?: string }>(
+      `/data/graph?workspace_id=${workspaceId}&level=entity`,
     ),
 
   // ── Ontology / modelling ──────────────────────────────────────────────

@@ -65,16 +65,19 @@ def data_router() -> APIRouter:
             return {"error": f"data unavailable: {exc}", "items": []}
 
     @router.get("/graph")
-    def graph(workspace_id: int = 1) -> dict:
-        """Type-level knowledge map: nodes per type, edges aggregated by relation."""
+    def graph(workspace_id: int = 1, level: str = "type") -> dict:
+        """Knowledge map. level=type → aggregated shape; level=entity → per-entity."""
         store = _store(workspace_id)
         try:
+            if level == "entity":
+                return explore.entity_graph_view(store.list_entities(),
+                                                 store.list_relationships())
             return explore.graph_view(store.list_entities(),
                                       store.list_relationships())
         except Exception as exc:  # noqa: BLE001
             logger.warning("data graph failed: %s", exc)
             return {"error": f"graph unavailable: {exc}",
-                    "type_nodes": [], "type_edges": []}
+                    "type_nodes": [], "type_edges": [], "nodes": [], "edges": []}
 
     @router.post("/relate")
     def relate(req: RelateRequest) -> dict:

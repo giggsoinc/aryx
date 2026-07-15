@@ -108,3 +108,25 @@ def graph_view(entities: list[tuple[int, str, dict]],
         "entity_count": len(entities),
         "relationship_count": len(relationships),
     }
+
+
+def entity_graph_view(entities: list[tuple[int, str, dict]],
+                      relationships: list[tuple[int, int, str]]) -> dict[str, Any]:
+    """Entity-level graph: one node per resolved entity, one edge per link.
+
+    The detail companion to ``graph_view`` — shows the specific mappings
+    (which Company each Customer belongs to) rather than the aggregated shape.
+    Intended for small/scoped graphs; the UI offers it as an opt-in toggle.
+    """
+    id_type = {eid: etype for eid, etype, _ in entities}
+    nodes = [{"id": eid, "type": etype, "name": display_name(attrs, eid)}
+             for eid, etype, attrs in entities]
+    edges = [{"source": src, "target": tgt, "name": name}
+             for src, tgt, name in relationships
+             if src in id_type and tgt in id_type]
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "entity_count": len(nodes),
+        "relationship_count": len(edges),
+    }
