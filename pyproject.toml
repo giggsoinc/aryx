@@ -1,0 +1,35 @@
+[project]
+name = "aryx"
+version = "1.0.0"
+description = "Aryx Lite — ontology layer for multi-source entity resolution and knowledge graphs"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "BUSL-1.1" }
+authors = [{ name = "Giggso Inc.", email = "hello@giggso.com" }]
+keywords = ["knowledge-graph", "entity-resolution", "ontology", "rag"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "License :: Other/Proprietary License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# Runtime deps remain pinned in requirements.txt for Docker/repro installs.
+# This file declares packaging identity and license for BSL release tooling.
+
+[project.urls]
+Homepage = "https://github.com/giggsoinc/aryx"
+Documentation = "https://github.com/giggsoinc/aryx/tree/main/docs"
+Licensing = "https://github.com/giggsoinc/aryx/blob/main/docs/LICENSING.md"
+"Bug Tracker" = "https://github.com/giggsoinc/aryx/issues"
+Commercial = "mailto:licensing@giggso.com"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

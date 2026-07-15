@@ -6,10 +6,11 @@
 > Ollama; built for a single team's quick outcome mapping, not yet a
 > governed enterprise estate.
 >
-> **Editions:** **Aryx Lite** (v1, this repo — candidate for GPL) ·
+> **Editions:** **Aryx Lite** (v1, this repo — **BSL 1.1**) ·
 > **Aryx Enterprise** (v2 — scale, governance, sovereignty, the Accuracy
-> Lab) · **Aryx-o** (v2.1 — Enterprise native on Oracle ADB and other
-> hyperscalers). See [docs/EDITIONS.md](docs/EDITIONS.md).
+> Lab · commercial) · **Aryx-o** (v2.1 — Enterprise native on Oracle ADB
+> and other hyperscalers · commercial). See [docs/EDITIONS.md](docs/EDITIONS.md)
+> and [docs/LICENSING.md](docs/LICENSING.md).
 
 **Aryx** ingests records from databases and documents, resolves duplicates across sources into single entities, infers relationships, and builds a searchable knowledge graph. Use it to reason over messy, multi-source data — customers from Postgres and Salesforce, support tickets from email and Jira, products from inventory and e-commerce — all deduplicated and linked in one place.
 
@@ -98,8 +99,21 @@ First time? Open the web UI → create a workspace → land on the **`/start`** 
 
 ## Contributing
 
-See [CLAUDE.md](CLAUDE.md) for development practices (Raven discipline).
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [CLAUDE.md](CLAUDE.md) (Raven discipline).
 
 ## License
 
-MIT
+**Business Source License 1.1 (BSL 1.1)** — source-available, not OSI open source.
+
+| | |
+|---|---|
+| **Licensor** | Giggso Inc. |
+| **You may** | Use, modify, and run Aryx Lite for evaluation, research, and **internal production** |
+| **You may not** | Offer Aryx Lite (or a derivative) as a **competing multi-tenant / hosted product** without a commercial license |
+| **Change Date** | 2029-07-15 — then this version becomes **GPL-3.0-or-later** |
+| **Commercial** | [licensing@giggso.com](mailto:licensing@giggso.com) |
+
+Full legal text: [`LICENSE`](LICENSE) · Plain English: [`docs/LICENSING.md`](docs/LICENSING.md) · Copyright notice: [`NOTICE`](NOTICE)
+
+> BSL is not Apache/MIT. It is designed so teams can adopt Aryx freely, while
+> commercial re-hosting of a competing service requires a paid license.

@@ -1,0 +1,14 @@
+Aryx Lite
+Copyright (c) 2025–2026 Giggso Inc.
+
+This product is licensed under the Business Source License 1.1 (BSL 1.1).
+See the LICENSE file in the root of this repository for the full text and
+the BSL parameters (Licensor, Additional Use Grant, Change Date, Change License).
+
+"Aryx", "Aryx Lite", "Aryx Enterprise", "Aryx-o", and "Giggso" are trademarks
+of Giggso Inc. This license does not grant trademark rights except as required
+to identify the origin of the Licensed Work.
+
+Third-party dependencies (Python packages, npm packages, container base images)
+remain under their respective licenses. See requirements.txt, apps/web/package.json,
+and upstream project licenses.

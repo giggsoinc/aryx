@@ -13,7 +13,7 @@ first) — made possible because the core is built behind swappable ports.
 | **Audience** | Teams, analysts, OSS users | Enterprise data + AI orgs | Oracle / Azure / GCP shops |
 | **Substrate** | Postgres · FalkorDB · Ollama (bundled) | Pluggable adapters; commodity defaults | Native: Oracle ADB · Oracle RDF/Property Graph · AI Vector Search · OCI GenAI · Oracle OWL reasoner |
 | **Scope** | Brief → ingest → resolve → map → Ask, single workspace, modest scale | Everything in the v2 design set (below) | Same Enterprise engine; substrate swapped via adapters, not surgery |
-| **Licensing** | Candidate for **GPL** (open core) | Commercial | Commercial |
+| **Licensing** | **BSL 1.1** (→ GPL-3.0-or-later on 2029-07-15) | Commercial EULA | Commercial EULA |
 
 ## Aryx Lite (v1) — what it is today
 
@@ -25,8 +25,9 @@ front door** — quick outcome mapping for a single team, not a 200M-row,
 multi-source, governed estate.
 
 > Lite is intentionally *not* the enterprise product. It's the wedge: a
-> clueless user reaches a useful ontology in minutes. GPL keeps that
-> front door wide open.
+> clueless user reaches a useful ontology in minutes. **BSL 1.1** keeps
+> that front door wide open for self-host and internal use, while blocking
+> unlicensed competing SaaS re-hosts. See [LICENSING.md](LICENSING.md).
 
 ## Aryx Enterprise (v2) — what we're building
 

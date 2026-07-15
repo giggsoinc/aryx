@@ -1,6 +1,12 @@
 # Aryx worker image — 12-factor, slim Python base. Portable across
 # ECS / EKS / OCI (orchestrator chosen at rollout, not build time).
+# License: Business Source License 1.1 (see /LICENSE in the source repo).
 FROM python:3.13-slim
+
+LABEL org.opencontainers.image.title="Aryx Lite" \
+      org.opencontainers.image.vendor="Giggso Inc." \
+      org.opencontainers.image.licenses="BUSL-1.1" \
+      org.opencontainers.image.source="https://github.com/giggsoinc/aryx"
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

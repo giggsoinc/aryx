@@ -1,8 +1,10 @@
 {
   "name": "aryx-web",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
-  "description": "Aryx web UI — isolated Next.js app. Replaceable: no shared code with the Python backend, only the FastAPI JSON contract.",
+  "license": "BUSL-1.1",
+  "author": "Giggso Inc.",
+  "description": "Aryx web UI — isolated Next.js app. Replaceable: no shared code with the Python backend, only the FastAPI JSON contract. Licensed under BSL 1.1 (see LICENSE in repo root).",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",

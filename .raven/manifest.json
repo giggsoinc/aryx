@@ -121,13 +121,23 @@
   "project_rules": {
     "forbidden_frameworks": [],
     "forbidden_file_extensions": [],
-    "license": "",
+    "license": "BUSL-1.1",
     "commit_convention": "conventional",
     "require_approval_gates": false,
     "ui_framework": "",
     "phase_gated": false
   },
   "changelog": [
+    {
+      "version": "1.0",
+      "changed_by": "rv@giggso.com",
+      "github_id": "",
+      "audit_tag": "Aryx",
+      "changed_at": "2026-07-15T12:57:16Z",
+      "changes": "License: Business Source License 1.1 (BSL) for Aryx Lite release 1.0.0; commercial contact licensing@giggso.com",
+      "pr": "pending",
+      "approved_by": "rv@giggso.com"
+    },
     {
       "version": "1.0",
       "changed_by": "rv@giggso.com",
