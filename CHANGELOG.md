@@ -46,6 +46,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Large graphs use a hub-and-spoke cluster layout (company + its people) packed
   into a scrollable grid. (`components/data/GraphLens.tsx`, `lib/api.ts`,
   `lib/types.ts`)
+- **Relationship exploration.** Click a node to highlight it, its neighbours,
+  and the connecting edges (dimming the rest) and open a side panel with the
+  entity's attributes, source records, and every relationship (label +
+  direction); click a relationship to walk the graph. New
+  `GET /data/entity/{id}`. (`explore.py`, `api/data_api.py`,
+  `components/data/GraphLens.tsx`)
+- **Graph search + type filters.** A search box locates and pans/zooms to any
+  entity; legend chips toggle entity types on/off to declutter the view.
+  (`components/data/GraphLens.tsx`)
 
 ### Changed
 

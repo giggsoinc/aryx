@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Maximize2, Minimize2, X, ArrowRight, ArrowLeft } from "lucide-react";
+import {
+  Loader2, Maximize2, Minimize2, X, ArrowRight, ArrowLeft, Search,
+} from "lucide-react";
 import {
   ReactFlow, Background, Controls, MiniMap, MarkerType, Position,
   useNodesState, useEdgesState,
@@ -103,10 +105,13 @@ export function GraphLens() {
   const [sel, setSel] = useState<string | null>(null);
   const [detail, setDetail] = useState<EntityDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [query, setQuery] = useState("");
+  const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
+  const [focusId, setFocusId] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
-    setG(null); setErr(null); setSel(null);
+    setG(null); setErr(null); setSel(null); setQuery(""); setHiddenTypes(new Set());
     api.dataGraphEntity(workspaceId)
       .then((d) => { if (live) (("error" in d && d.error) ? setErr(d.error!) : setG(d)); })
       .catch((e) => { if (live) setErr(e instanceof Error ? e.message : "failed"); });
@@ -141,24 +146,59 @@ export function GraphLens() {
     ? "fixed inset-0 z-[60] flex flex-col bg-white p-4"
     : "relative rounded-2xl border border-navy-100 bg-white p-3";
   const types = Array.from(new Set(g.nodes.map((n) => n.type)));
+  const q = query.trim().toLowerCase();
+  const matches = q
+    ? g.nodes.filter((n) => n.name.toLowerCase().includes(q)).slice(0, 8)
+    : [];
+  const pick = (id: number) => { setSel(String(id)); setFocusId(String(id)); setQuery(""); };
+  const toggleType = (t: string) => setHiddenTypes((prev) => {
+    const s = new Set(prev); s.has(t) ? s.delete(t) : s.add(t); return s;
+  });
 
   return (
     <div className={shell}>
-      <div className="mb-2 flex items-center justify-between px-2 pt-1 text-[11px] text-subtle">
+      <div className="mb-2 flex items-center justify-between gap-3 px-2 pt-1 text-[11px] text-subtle">
         <div className="flex items-center gap-3">
-          <span>{g.entity_count} entities · {g.relationship_count} relationships</span>
-          <span className="flex items-center gap-2">
-            {types.map((t, i) => (
-              <span key={t} className="flex items-center gap-1">
-                <span className="inline-block h-2.5 w-2.5 rounded-full"
-                      style={{ background: typeColor(i) }} />
-                {t}
-              </span>
-            ))}
+          <span className="whitespace-nowrap">{g.entity_count} entities · {g.relationship_count} relationships</span>
+          <span className="flex items-center gap-1.5">
+            {types.map((t, i) => {
+              const off = hiddenTypes.has(t);
+              return (
+                <button key={t} onClick={() => toggleType(t)}
+                  title={off ? `Show ${t}` : `Hide ${t}`}
+                  className={`flex items-center gap-1 rounded-full border border-navy-100 px-2 py-0.5 transition-colors ${off ? "text-navy-300" : "hover:bg-navy-50 text-navy-700"}`}>
+                  <span className="inline-block h-2 w-2 rounded-full"
+                        style={{ background: off ? "#CBD5E1" : typeColor(i) }} />
+                  <span className={off ? "line-through" : ""}>{t}</span>
+                </button>
+              );
+            })}
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="hidden sm:inline">click a node to explore · scroll to zoom</span>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search size={12} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-subtle" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && matches[0]) pick(matches[0].id); }}
+              placeholder="Find an entity…"
+              className="w-44 rounded-lg border border-navy-100 py-1 pl-6 pr-2 text-[11px] text-navy-800 outline-none focus:border-navy-300"
+            />
+            {matches.length ? (
+              <div className="absolute right-0 top-full z-20 mt-1 max-h-60 w-60 overflow-y-auto rounded-lg border border-navy-100 bg-white py-1 shadow-lg">
+                {matches.map((m) => (
+                  <button key={m.id} onClick={() => pick(m.id)}
+                    className="flex w-full items-center gap-2 px-2 py-1 text-left hover:bg-navy-50">
+                    <span className="inline-block h-2 w-2 shrink-0 rounded-full"
+                          style={{ background: typeColor(types.indexOf(m.type)) }} />
+                    <span className="truncate text-navy-800">{m.name}</span>
+                    <span className="ml-auto shrink-0 text-[10px] text-subtle">{m.type}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
           <button
             onClick={() => setFull((v) => !v)}
             className="flex items-center gap-1 rounded-lg border border-navy-100 px-2 py-1 font-medium text-navy-700 transition-colors hover:bg-navy-50"
@@ -169,7 +209,8 @@ export function GraphLens() {
           </button>
         </div>
       </div>
-      <Flow g={g} full={full} sel={sel} onSelect={setSel} />
+      <Flow g={g} full={full} sel={sel} onSelect={setSel}
+            hiddenTypes={hiddenTypes} focusId={focusId} />
       {sel ? (
         <DetailPanel
           detail={detail} loading={detailLoading}
@@ -182,9 +223,10 @@ export function GraphLens() {
   );
 }
 
-function Flow({ g, full, sel, onSelect }: {
+function Flow({ g, full, sel, onSelect, hiddenTypes, focusId }: {
   g: EntityGraphView; full: boolean;
   sel: string | null; onSelect: (id: string | null) => void;
+  hiddenTypes: Set<string>; focusId: string | null;
 }) {
   const [rf, setRf] = useState<ReactFlowInstance | null>(null);
 
@@ -192,6 +234,11 @@ function Flow({ g, full, sel, onSelect }: {
     const types = Array.from(new Set(g.nodes.map((n) => n.type)));
     return new Map(types.map((t, i) => [t, typeColor(i)]));
   }, [g]);
+
+  const idType = useMemo(
+    () => new Map(g.nodes.map((n) => [String(n.id), n.type])),
+    [g],
+  );
 
   // Neighbour adjacency for highlight.
   const neighbours = useMemo(() => {
@@ -246,30 +293,42 @@ function Flow({ g, full, sel, onSelect }: {
     setEdges(initial.edges);
   }, [initial, setNodes, setEdges]);
 
-  // Apply selection highlight — recomputed absolutely each time (no compounding),
-  // preserving node positions so dragging still works.
+  // Apply selection highlight + type filtering — recomputed absolutely each
+  // time (no compounding), preserving node positions so dragging still works.
   useEffect(() => {
     const near = sel ? neighbours.get(sel) : null;
     setNodes((cur) => cur.map((n) => {
       const active = !sel || n.id === sel || (near?.has(n.id) ?? false);
-      return { ...n, style: { ...n.style,
-        opacity: active ? 1 : 0.15,
-        boxShadow: n.id === sel ? RING : BASE_SHADOW } };
+      return { ...n, hidden: hiddenTypes.has(idType.get(n.id) || ""),
+        style: { ...n.style,
+          opacity: active ? 1 : 0.15,
+          boxShadow: n.id === sel ? RING : BASE_SHADOW } };
     }));
     setEdges((cur) => cur.map((e) => {
+      const endHidden = hiddenTypes.has(idType.get(e.source) || "")
+        || hiddenTypes.has(idType.get(e.target) || "");
       const inc = !!sel && (e.source === sel || e.target === sel);
-      return { ...e, animated: inc, style: { ...e.style,
+      return { ...e, hidden: endHidden, animated: inc, style: { ...e.style,
         opacity: !sel || inc ? 1 : 0.06,
         stroke: inc ? "#2D4B8A" : "#C2CFE3",
         strokeWidth: inc ? 2.2 : 1.4 } };
     }));
-  }, [sel, neighbours, setNodes, setEdges]);
+  }, [sel, neighbours, hiddenTypes, idType, setNodes, setEdges]);
 
   useEffect(() => {
     if (!rf) return;
     const t = setTimeout(() => rf.fitView({ padding: 0.15 }), 80);
     return () => clearTimeout(t);
   }, [rf, full, initial]);
+
+  // Center + zoom on the searched entity (reads live position from the
+  // instance so dragging other nodes doesn't re-trigger it).
+  useEffect(() => {
+    if (!rf || !focusId) return;
+    const n = rf.getNode(focusId);
+    if (n) rf.setCenter(n.position.x + NODE_W / 2, n.position.y + NODE_H / 2,
+                        { zoom: 1.3, duration: 500 });
+  }, [rf, focusId]);
 
   return (
     <div className={full ? "min-h-0 flex-1 rounded-xl bg-[#FAFBFD]" : "rounded-xl bg-[#FAFBFD]"}
