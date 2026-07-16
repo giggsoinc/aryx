@@ -195,11 +195,53 @@ ARYX_PROJECT_DIRTY_MAX=0.30
 
 ---
 
+## Prebuilt images (Docker Hub)
+
+Official images are published under Docker Hub user **`giggsodocker`**:
+
+| Image | Role |
+|-------|------|
+| [`giggsodocker/aryx-lite`](https://hub.docker.com/r/giggsodocker/aryx-lite) | API, worker, MCP (Python) |
+| [`giggsodocker/aryx-lite-web`](https://hub.docker.com/r/giggsodocker/aryx-lite-web) | Next.js product UI |
+
+`docker-compose.yml` already references those image names.
+
+| Tag | Meaning |
+|-----|---------|
+| `latest` | Current release build |
+| `1.0.0` / `v1.0.0` | Semver from `pyproject.toml` / `aryx.__version__` |
+| `<git-sha>` | Exact commit (e.g. `a98a954`) |
+
+```bash
+# Pull + run without a local build
+docker compose pull
+docker compose up -d
+
+# Pin a version
+export ARYX_IMAGE=giggsodocker/aryx-lite:1.0.0
+export ARYX_WEB_IMAGE=giggsodocker/aryx-lite-web:1.0.0
+docker compose up -d
+```
+
+### Publish a new release (maintainers)
+
+Requires Docker Desktop running and `docker login` as **`giggsodocker`** (or a token with push rights).
+
+```bash
+docker login
+./scripts/docker-hub-publish.sh          # latest + git SHA + version from pyproject.toml
+./scripts/docker-hub-publish.sh 1.1.0    # override version tags
+```
+
+---
+
 ## Updating a deployment
 
 ```bash
 cd aryx
 git pull origin main
+docker compose pull                     # prefer Hub images when available
+# or rebuild from source:
 docker compose build api web worker mcp
 docker compose up -d api web worker mcp
 ```
