@@ -3,6 +3,11 @@ from __future__ import annotations
 
 import streamlit as st
 
+from aryx.config import get_settings
+from aryx.logging_setup import configure_logging
+
+configure_logging(get_settings().log_level)
+
 st.set_page_config(
     page_title="Aryx",
     page_icon="🕸️",

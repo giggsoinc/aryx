@@ -125,3 +125,41 @@ def run_pipeline(
     _emit(on_progress, "Done", 100, f"{entities} entities, {relationships} relationships")
     logger.info("pipeline complete %s", summary)
     return summary
+
+
+def link_entities(
+    dsn: str, graph_url: str, workspace_id: int, fk_links: list[dict],
+) -> dict[str, int]:
+    """Create FK edges across already-resolved entities, then re-project.
+
+    A post-ingest pass for multi-source uploads: once every file's entities
+    have landed, materialize the cross-file foreign-key edges (exact value
+    matches only) and re-project the workspace graph so the edges appear.
+
+    Args:
+        dsn: Postgres DSN.
+        graph_url: FalkorDB connection URL.
+        workspace_id: Workspace to link and project.
+        fk_links: FK specs — {source_type, source_attr, target_type,
+            target_attr, name}.
+
+    Returns:
+        {relationships, ...projection counts}.
+    """
+    estore = EntityStore(dsn, workspace_id)
+    relationships = 0
+    try:
+        for spec in fk_links:
+            relationships += link_by_attribute(
+                estore, spec["source_type"], spec["source_attr"],
+                spec["target_type"], spec["target_attr"], spec["name"],
+            )
+        type_ancestors = _build_type_ancestors(dsn)
+        counts = project_graph(
+            estore, FalkorStore(graph_url, ws_graph(workspace_id)),
+            type_ancestors=type_ancestors, workspace_id=workspace_id,
+        )
+    finally:
+        estore.close()
+    logger.info("link_entities workspace=%s relationships=%d", workspace_id, relationships)
+    return {"relationships": relationships, **counts}

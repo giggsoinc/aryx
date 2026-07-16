@@ -39,7 +39,18 @@ def _threshold(env: str, default: float) -> float:
 def _block_embeddings(
     records: list[ResolutionRecord], broker: Broker
 ) -> dict[int, list[float]]:
-    """Embed a block's texts locally; empty dict if embeddings unavailable."""
+    """Embed a block's texts locally; empty dict if embeddings unavailable.
+
+    Embeddings help fuzzy free-text matching, but for short structured keys
+    (an ID/code) they are pure cost — and noise: two adjacent IDs embed to
+    near-identical vectors (cosine ~1.0), spuriously inflating similarity into
+    the adjudication band. Embedding thousands of records is also the dominant
+    wall-clock cost at scale. So skip them when the block's text is short and
+    fall back to string-only scoring, which is faster and more accurate here.
+    """
+    min_chars = int(_threshold("ARYX_ER_EMBED_MIN_CHARS", 40))
+    if max((len(r.text) for r in records), default=0) < min_chars:
+        return {}
     try:
         vectors = broker.embed([r.text for r in records])
     except Exception:  # embeddings are optional — fall back to string-only  # noqa: BLE001
@@ -49,8 +60,17 @@ def _block_embeddings(
 
 def _route_pair(left: ResolutionRecord, right: ResolutionRecord, score: float,
                 broker: Broker, union: UnionFind,
-                review: ReviewSink | None) -> None:
-    """Apply the four-way threshold routing to one scored pair."""
+                review: ReviewSink | None,
+                adj_budget: list[int] | None = None) -> None:
+    """Apply the four-way threshold routing to one scored pair.
+
+    ``adj_budget`` is a one-element mutable counter of remaining LLM
+    adjudications for the run. Each frontier call on a local model costs
+    seconds, so a large source can spawn thousands of band pairs and make
+    resolve run for hours. Once the budget is spent, band pairs are queued for
+    human review instead of auto-merged — bounding wall-clock without ever
+    auto-merging on an unverified guess.
+    """
     auto = _threshold("ARYX_ER_AUTO_MERGE", 0.92)
     adj = _threshold("ARYX_ER_ADJUDICATE", 0.90)
     rev = _threshold("ARYX_ER_REVIEW", 0.75)
@@ -58,6 +78,14 @@ def _route_pair(left: ResolutionRecord, right: ResolutionRecord, score: float,
         union.union(left.record_id, right.record_id)
         return
     if score >= adj:
+        if adj_budget is not None and adj_budget[0] <= 0:
+            if review is not None:
+                review.offer(left, right, score, llm_verdict=None,
+                             llm_reason="adjudication budget exhausted",
+                             status="pending")
+            return
+        if adj_budget is not None:
+            adj_budget[0] -= 1
         try:
             same = adjudicate(left, right, broker)
             if review is not None:
@@ -127,6 +155,14 @@ def resolve(
     for record in records:
         union.add(record.record_id)
 
+    # Cap total LLM adjudications per run. Each frontier call on a local model
+    # costs 20-60s, and short/embedding-similar keys can push thousands of
+    # pairs into the adjudication band — so per-pair LLM adjudication simply
+    # doesn't scale on a laptop. Default 0 (deterministic threshold-only:
+    # >=auto merges, band pairs queue for review — fast and correct for keyed
+    # data). Set ARYX_ER_MAX_ADJUDICATIONS>0 when a fast model is configured.
+    adj_budget = [max(0, int(_threshold("ARYX_ER_MAX_ADJUDICATIONS", 0)))]
+
     for group in block(records).values():
         embeddings = _block_embeddings(group, broker)
         for i in range(len(group)):
@@ -136,7 +172,10 @@ def resolve(
                                    embeddings.get(left.record_id),
                                    embeddings.get(right.record_id))
                 pair_scores[(left.record_id, right.record_id)] = score
-                _route_pair(left, right, score, broker, union, review)
+                _route_pair(left, right, score, broker, union, review, adj_budget)
+    if adj_budget[0] <= 0:
+        logger.warning("adjudication budget exhausted — remaining band pairs "
+                       "queued for review, not auto-merged")
 
     results = [
         (_materialize(member_ids, by_id, pair_scores, ontology_type, policy),

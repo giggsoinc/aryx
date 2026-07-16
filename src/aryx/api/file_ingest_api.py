@@ -6,6 +6,8 @@ Documents (PDF/DOCX/PPTX/images) go through chunk→PII→embed→extract→enti
 """
 from __future__ import annotations
 
+import csv
+import io
 import json
 import logging
 import uuid
@@ -20,7 +22,8 @@ from aryx.config import get_settings
 from aryx.connectors.csv_source import CsvConnector
 from aryx.connectors.doc_router import DocumentRouterConnector
 from aryx.connectors.json_source import JsonConnector
-from aryx.pipeline.orchestrate import run_pipeline
+from aryx.pipeline.doc_discovery import _infer_type, infer_fk_links
+from aryx.pipeline.orchestrate import link_entities, run_pipeline
 from aryx.store.chunk_store import ChunkStore
 from aryx.store.job_store import JobStore
 from aryx.store.migrate import apply_migrations
@@ -43,6 +46,22 @@ def _save_tmp(data: bytes, suffix: str) -> Path:
     return Path(tmp.name)
 
 
+def _colvals(data: bytes, suffix: str) -> dict[str, Any]:
+    """Return {colvals: {column -> [values]}} for FK discovery ({} on failure)."""
+    if suffix == ".json":
+        return {"colvals": {}}
+    try:
+        reader = csv.DictReader(io.StringIO(data.decode("utf-8", "ignore")))
+        cols: dict[str, list[str]] = {}
+        for row in reader:
+            for k, v in row.items():
+                if k is not None:
+                    cols.setdefault(k, []).append((v or "").strip())
+        return {"colvals": cols}
+    except csv.Error:
+        return {"colvals": {}}
+
+
 def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                match_keys: list[str], fk_links: list[dict], job_id: str,
                workspace_id: int = 1) -> None:
@@ -52,21 +71,60 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
     try:
         data_files = [(d, n) for d, n in items if Path(n).suffix.lower() in _DATA_EXTS]
         doc_files = [(d, n) for d, n in items if Path(n).suffix.lower() in _DOC_EXTS]
+        # Per-file plans feed cross-file FK inference once everything has landed.
+        plans: list[dict[str, Any]] = []
         for data, name in data_files:
             suffix = Path(name).suffix.lower()
             if suffix == ".json":
                 connector = JsonConnector(_save_tmp(data, ".json"), system="json")
             else:
                 connector = CsvConnector(data, system="csv", dataset=Path(name).stem)
+            # Per-file type/key inference. A single (type, match_keys) pair
+            # cannot fit a heterogeneous batch of files, and the UI default
+            # ("Document" / "name") matches no real CSV column — which yields
+            # empty match text and collapses every row into one entity. When
+            # the caller didn't pin a concrete type, infer the row entity and
+            # its identifying columns from this file's own header + sample.
+            otype, keys = ontology_type, match_keys
+            if not otype or otype.lower() == "document":
+                plan = _infer_type(data[:800].decode("utf-8", "ignore"), name, "")
+                otype, keys = plan["ontology_type"], plan["match_keys"]
+                logger.info("inferred %s -> type=%s keys=%s", name, otype, keys)
+            cv = _colvals(data, suffix)
+            # Validate match keys against real columns. A bogus key (the LLM
+            # invents one, or wrong casing) forces the whole-row fallback in
+            # landed_records — which makes every row's match text huge and
+            # similar, exploding pairwise scoring + adjudication into hours.
+            # Repair deterministically: use the most-unique column (the natural
+            # key) so matching is both fast and correct.
+            cols = list(cv["colvals"].keys())
+            valid = [k for k in keys if k in cols]
+            if valid:
+                keys = valid
+            elif cols:
+                best = max(cols, key=lambda c: len({v for v in cv["colvals"][c] if v}))
+                logger.info("match_keys %s not columns of %s; using key '%s'",
+                            keys, name, best)
+                keys = [best]
+            plans.append({"ontology_type": otype, **cv})
             jobs.update_stage(job_id, "Ingest", 20, f"Processing {name}")
             run_pipeline(
                 connector=connector, dsn=settings.rdb_dsn,
                 system=suffix.lstrip("."), dataset=Path(name).stem,
-                ontology_type=ontology_type, match_keys=match_keys,
+                ontology_type=otype, match_keys=keys,
                 graph_url=settings.graph_url, broker=broker,
                 on_progress=lambda s, p, d: jobs.update_stage(job_id, s, p, d),
                 fk_links=fk_links, workspace_id=workspace_id,
             )
+        # Cross-file relationships. The UI sends no fk_links, so with every
+        # entity now landed, infer foreign-key edges from the files' columns
+        # and materialize the ones whose values actually match, then re-project.
+        if not fk_links and len(plans) >= 2:
+            jobs.update_stage(job_id, "Link", 92, "Inferring relationships")
+            inferred = infer_fk_links(plans)
+            if inferred:
+                link_entities(settings.rdb_dsn, settings.graph_url,
+                              workspace_id, inferred)
         if doc_files:
             jobs.update_stage(job_id, "Documents", 50, f"Chunking {len(doc_files)} doc(s)")
             paths = [_save_tmp(d, Path(n).suffix) for d, n in doc_files]
@@ -86,7 +144,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
             )
         jobs.finish(job_id, run_id=None, status="complete")
     except Exception as exc:  # noqa: BLE001
-        logger.warning("file ingest failed job=%s: %s", job_id, exc)
+        logger.warning("file ingest failed job=%s: %s", job_id, exc, exc_info=True)
         jobs.finish(job_id, run_id=None, status="failed", error=str(exc))
     finally:
         jobs.close()

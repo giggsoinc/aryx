@@ -78,6 +78,8 @@ services:
       - ARYX_LLM_MENIAL_MODEL=${ARYX_LLM_MENIAL_MODEL:-qwen3.5:0.8b}
       - ARYX_LLM_REASON_MODEL=${ARYX_LLM_REASON_MODEL:-lfm2.5-thinking:latest}
       - ARYX_LLM_API_KEY=${ARYX_LLM_API_KEY:-}
+      # DEBUG-level app logging (overrides ARYX_LOG_LEVEL from .env)
+      - ARYX_LOG_LEVEL=DEBUG
     ports:
       - "8088:8000"
     depends_on:
@@ -98,6 +100,9 @@ services:
     build: .
     env_file: .env
     command: ["uvicorn", "aryx.mcp.sse:app", "--host", "0.0.0.0", "--port", "8765"]
+    environment:
+      # DEBUG-level app logging (overrides ARYX_LOG_LEVEL from .env)
+      - ARYX_LOG_LEVEL=DEBUG
     ports:
       - "8765:8765"
     depends_on:
@@ -111,6 +116,8 @@ services:
     command: ["streamlit", "run", "src/aryx/ui/app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
     environment:
       - ARYX_API_URL=http://api:8000
+      # DEBUG-level app logging (overrides ARYX_LOG_LEVEL from .env)
+      - ARYX_LOG_LEVEL=DEBUG
     ports:
       - "8501:8501"
     depends_on:

@@ -51,7 +51,16 @@ class EntityStore:
                 rows = cur.fetchall()
         records = []
         for record_id, payload, source_system, cleaned_at in rows:
-            text = " ".join(str(payload.get(a, "")) for a in key_attrs).strip()
+            # Guard against malformed key_attrs (e.g. a nested list from LLM
+            # inference) — a non-string key would raise "unhashable type" on
+            # payload.get(). Only hashable string keys can index the payload.
+            safe_keys = [a for a in key_attrs if isinstance(a, str)]
+            text = " ".join(str(payload.get(a, "")) for a in safe_keys).strip()
+            if not text:
+                # key_attrs matched no payload keys — fall back to the whole
+                # row so distinct records keep distinct match text instead of
+                # all collapsing on empty text.
+                text = " ".join(str(v) for v in payload.values()).strip()
             records.append(ResolutionRecord(
                 record_id=record_id, text=text, payload=payload,
                 source_system=source_system, cleaned_at=cleaned_at,

@@ -127,6 +127,16 @@ export interface GraphView {
   relationship_count: number;
 }
 
+export interface GraphEntityNode { id: number; type: string; name: string }
+export interface GraphEntityEdge { source: number; target: number; name: string }
+
+export interface EntityGraphView {
+  nodes: GraphEntityNode[];
+  edges: GraphEntityEdge[];
+  entity_count: number;
+  relationship_count: number;
+}
+
 export interface Workspace {
   id: number;
   name: string;
