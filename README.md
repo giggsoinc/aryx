@@ -17,7 +17,7 @@
 ## Features
 
 ### Web App (primary UI)
-- **Next.js 15 web app** (`apps/web/`) — isolated deploy unit, talks to the API only over HTTP. Surfaces: **Ask** (`/`), **Model** (`/model`, ontology canvas), **Data** (`/data`, transparency explorer), **Lab** (`/lab`, the Accuracy Lab), **Onboard** (`/start`, guided wizard). The Streamlit UI (`src/aryx/ui/`) still exists but is legacy.
+- **Next.js 15 web app** (`apps/web/`) — primary UI, talks to the API only over HTTP. Surfaces: **Ask** (`/`), **Model** (`/model`), **Data** (`/data`), **Lab** (`/lab`), **Onboard** (`/start`), **Settings** (`/settings` — LLM provider / keys: Ollama, Anthropic, OpenAI-compatible, Gemini, Grok).
 - **Accuracy Lab** (`/lab`) — runs the same model with the ontology ON vs OFF, side-by-side, with a groundedness scorecard and citations traced to source records; plus a read-only reasoner-check.
 - **Data Explorer** (`/data`) — three lenses: Tree (types → entities → provenance), Table (records grid + provenance drawer), Graph (type-level knowledge map). Every record traceable to `system.dataset#record`.
 
@@ -62,12 +62,13 @@
 git clone https://github.com/giggsoinc/aryx.git
 cd aryx
 docker compose up -d
-# Web UI:  http://localhost:3000   (primary)
+# Web UI:  http://localhost:3000
+# Settings: http://localhost:3000/settings  (LLM provider / API keys)
 # API:     http://localhost:8088/docs
 # MCP SSE: http://localhost:8765/sse
 ```
 
-First time? Open the web UI → create a workspace → land on the **`/start`** wizard: set your goals → add a source (connect a database or upload a file) → run.
+First time? Open the web UI → create a workspace → land on the **`/start`** wizard: set your goals → add a source (connect a database or upload a file) → run. Configure Gemini/Grok/OpenAI/Ollama under **Settings**.
 
 ## Documentation
 
@@ -95,7 +96,7 @@ First time? Open the web UI → create a workspace → land on the **`/start`** 
 | **LLM** | Ollama (local) + Anthropic / OpenAI / Gemini (frontier, runtime-swappable) |
 | **Agent protocol** | MCP — 21 tools over SSE |
 | **Deployment** | Docker Compose (local + EC2) |
-| **Legacy UI** | Streamlit (`src/aryx/ui/`) |
+| **UI** | Next.js (`apps/web`) — Settings for live LLM provider/key |
 
 ## Contributing
 

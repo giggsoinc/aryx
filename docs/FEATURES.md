@@ -54,7 +54,7 @@ See [EDITIONS.md](EDITIONS.md) for the full edition matrix.
 | Incremental projection (dirty-set watermark) | Done (G8) | `store/projection_store.py` |
 | Auto mode selection (full vs incremental) | Done (G8) | `project.py` |
 | Entity tombstones (delete propagation) | Done (G8) | `graph/falkor_store.py` |
-| Interactive graph explorer (Streamlit) | Done | `ui/graph_panel.py` |
+| Interactive graph explorer (web) | Done | `apps/web` Data / Model surfaces |
 | Entity drill-down (properties, neighbors, provenance) | Done | UI Graph tab |
 | Shortest-path queries | Done | `graph/falkor_store.py` |
 
@@ -70,7 +70,7 @@ See [EDITIONS.md](EDITIONS.md) for the full edition matrix.
 
 ## Web UI (V2)
 
-Next.js application (`apps/web/`, isolated from the Python service). Streamlit is legacy.
+Next.js application (`apps/web/`, isolated from the Python service).
 
 | Feature | Status | Component |
 |---------|--------|-----------|
@@ -79,7 +79,7 @@ Next.js application (`apps/web/`, isolated from the Python service). Streamlit i
 | Data surface (Data Explorer) | Done | `apps/web/app/data/` (`/data`) |
 | Lab surface (Accuracy Lab) | Done | `apps/web/app/lab/` (`/lab`) |
 | Onboard wizard | Done | `apps/web/app/start/` (`/start`) |
-| Streamlit UI (legacy) | Done | `ui/` |
+| Settings — LLM provider / keys | Done | `apps/web/app/settings` |
 
 ## Accuracy Lab (V2)
 

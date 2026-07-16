@@ -66,6 +66,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   enable via `ARYX_ER_MAX_ADJUDICATIONS` / `ARYX_ER_EMBED_MIN_CHARS`.
   (`resolution/run.py`)
 
+## [1.0.1] — 2026-07-15
+
+### Removed
+
+- **Streamlit UI** (`src/aryx/ui/`, compose service `ui` on :8501, `streamlit` deps)
+- `.streamlit/` theme config from the Python image
+
+### Added
+
+- **Next.js Settings** (`/settings`) — live LLM provider config (Ollama, Anthropic,
+  OpenAI-compatible, Gemini, Grok/xAI) via `GET/POST` llm config API
+- `ARYX_LLM_*` documented in `.env.example`
+
+### Changed
+
+- Primary UI is Next.js only; docs (README, INSTALL, ARCHITECTURE, FEATURES, USER_GUIDE) updated
+
 ## [1.0.0] — 2026-07-15
 
 ### Added

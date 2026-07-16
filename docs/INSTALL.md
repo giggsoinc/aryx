@@ -38,7 +38,7 @@ docker compose up -d
 - **Web UI** (Next.js — primary): http://localhost:3000
 - **API** (FastAPI): http://localhost:8088 (or http://localhost:8088/docs for OpenAPI)
 - **MCP** (SSE, for AI agents): http://localhost:8765/sse
-- **UI** (Streamlit — legacy): http://localhost:8501
+- **Settings** (LLM provider/keys): http://localhost:3000/settings
 - **Postgres**: localhost:5432 (user: `aryx`, password from `.env`)
 - **FalkorDB**: localhost:6379
 - **Ollama**: localhost:11434
@@ -47,7 +47,7 @@ docker compose up -d
 
 ```bash
 docker compose ps
-# Should show: postgres, falkordb, ollama, api, worker, mcp, ui, web — all "Up"
+# Should show: postgres, falkordb, ollama, api, worker, mcp, web — all "Up"
 
 curl http://localhost:8088/health   # API → {"status": "ok"}
 curl -o /dev/null -w "%{http_code}\n" http://localhost:3000   # web → 200
@@ -80,7 +80,7 @@ The primary onboarding flow is the **guided wizard** in the web UI:
 - **EC2 instance** (t3.large+, 4 vCPU, 8GB RAM, 50GB disk)
 - **SSH key** (e.g. `~/.ssh/rvdts-oracle-key.pem`)
 - **Security group** inbound: 22 (SSH), **3000 (web UI)**, 8088 (API),
-  **8765 (MCP)**, optionally 8501 (legacy Streamlit), 80/443 if behind a proxy
+  **8765 (MCP)**, 80/443 if behind a proxy
 
 > Current deployment: `ec2-user@ec2-3-91-73-197.compute-1.amazonaws.com`,
 > app dir `/home/ec2-user/aryx`, tracks branch `main`.
@@ -163,20 +163,19 @@ ARYX_PROJECT_DIRTY_MAX=0.30
 
 ### 7. Access
 
-- **Web UI:** http://<instance-ip>:3000  (primary)
+- **Web UI:** http://<instance-ip>:3000
+- **Settings (LLM keys):** http://<instance-ip>:3000/settings
 - **API:** http://<instance-ip>:8088  (`/docs` for OpenAPI)
 - **MCP (SSE):** http://<instance-ip>:8765/sse
-- **Streamlit (legacy):** http://<instance-ip>:8501
 
 ## Troubleshooting
 
 ### Port Already in Use
 
 ```bash
-# Kill process on port 8501
-lsof -ti :8501 | xargs kill -9
-
-# Or use different port in docker-compose override
+# Kill process on port 3000 or 8088
+lsof -ti :3000 | xargs kill -9
+lsof -ti :8088 | xargs kill -9
 ```
 
 ### Postgres Connection Refused
@@ -227,9 +226,7 @@ PYTHONPATH=src python -m uvicorn aryx.api.main:app --reload --port 8088
 # Run the Next.js web UI (separate terminal)
 cd apps/web && npm install && \
   ARYX_API_URL_INTERNAL=http://localhost:8088 npm run dev   # → http://localhost:3000
-
-# Or the legacy Streamlit UI
-streamlit run src/aryx/ui/main.py --server.port=8501
+# LLM Settings: http://localhost:3000/settings
 ```
 
 (Requires external Postgres + FalkorDB + Ollama. See `docker-compose.yml` for connection strings.)
@@ -248,7 +245,7 @@ After starting services, verify everything is healthy:
 ```bash
 # 1. All containers running
 docker compose ps
-# Expect: postgres, falkordb, ollama, api, worker, mcp, ui, web — all "Up"
+# Expect: postgres, falkordb, ollama, api, worker, mcp, web — all "Up"
 
 # 2. API health
 curl http://localhost:8088/health        # {"status": "ok"}

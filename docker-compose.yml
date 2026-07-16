@@ -110,23 +110,8 @@ services:
         condition: service_started
     restart: unless-stopped
 
-  ui:
-    build: .
-    env_file: .env
-    command: ["streamlit", "run", "src/aryx/ui/app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
-    environment:
-      - ARYX_API_URL=http://api:8000
-      # DEBUG-level app logging (overrides ARYX_LOG_LEVEL from .env)
-      - ARYX_LOG_LEVEL=DEBUG
-    ports:
-      - "8501:8501"
-    depends_on:
-      api:
-        condition: service_healthy
-    restart: unless-stopped
-
-  # Next.js web UI — isolated deploy unit. Talks to FastAPI only via HTTP.
-  # No shared code with Python; replaceable without touching the backend.
+  # Next.js web UI — primary product surface (Streamlit UI removed).
+  # Talks to FastAPI only via HTTP; replaceable without touching the backend.
   web:
     build:
       context: ./apps/web

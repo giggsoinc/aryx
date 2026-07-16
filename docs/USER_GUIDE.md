@@ -13,7 +13,7 @@ This guide walks through the **Next.js web UI**, the primary interface. Open it 
 
 The top nav has five surfaces — **Ask**, **Model**, **Data**, **Lab**, **Onboard** — plus a workspace picker on the right. A new, empty workspace drops you straight into Onboard.
 
-> **Legacy:** an older Streamlit UI (port 8501) still exists for some admin operations. It is no longer the primary interface; everything below describes the web UI.
+> **UI:** Next.js on port 3000 is the only product UI. Configure LLM providers under **Settings** (`/settings`).
 
 ---
 

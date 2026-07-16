@@ -58,7 +58,6 @@
       "spacy~",
       "pgvector~",
       "mcp~",
-      "streamlit~",
       "rdflib~"
     ]
   },

@@ -14,14 +14,14 @@ Paste-ready context for a fresh Claude Code session. Keep this current as the co
 | **EC2** | `ec2-user@ec2-3-91-73-197.compute-1.amazonaws.com` · key `~/.ssh/rvdts-oracle-key.pem` |
 | **Local dir** | `/Users/giggso/AntiGravity_Projects/Aryx` |
 | **EC2 app dir** | `/home/ec2-user/aryx` (real git clone) |
-| **Live** | **Next.js web UI `http://3.91.73.197:3000`** (primary) · Streamlit `:8501` (legacy) · REST API `:8088` · MCP SSE `:8765/sse` |
+| **Live** | **Next.js web UI `http://3.91.73.197:3000`** (primary) · REST API `:8088` · MCP SSE `:8765/sse` |
 
 ---
 
 ## V2 status — current state (2026-06-15)
 
 The product now has a **Next.js web UI** (`apps/web/`, isolated deploy unit) as the
-primary surface — Streamlit is legacy. Surfaces live today: **Ask** (grounded
+Surfaces live today: **Ask** (grounded
 Q&A + citations), **Model** (ontology canvas), **Data** (transparency explorer),
 **Lab** (Accuracy Lab), **Onboard** (`/start` wizard).
 
@@ -56,7 +56,7 @@ New backend since the sections below were written: `aryx.ports` (hexagonal seam)
 Tests: `test_ports_seam`, `test_grounding`, `test_ab`, `test_explore` (all green).
 
 > Sections 3–6 below describe the **Lite/v1** internals and remain accurate for
-> the pipeline, LLM layer, and Streamlit UI. Treat the Next.js UI + V2 surfaces
+> the pipeline and LLM layer. Treat the Next.js UI + V2 surfaces
 > above as the current front end.
 
 ---
@@ -105,7 +105,7 @@ In-network hosts: `postgres:5432`, `ollama:11434`, `falkordb:6379`.
 
 ## 3. Architecture
 
-- **UI** (Streamlit, `src/aryx/ui/`) talks **only** to the REST API. Thin clients auto-attach the
+- **UI** (Next.js, `apps/web/`) talks **only** to the REST API. Thin clients auto-attach the
   active `workspace_id` to every scoped call:
   - `ui/api.py` — graph, ask, jobs, workspaces, llm-config, observability.
   - `ui/ingest_client.py` — db ingest, connect/discover, multi-table, docs summary/confirm.

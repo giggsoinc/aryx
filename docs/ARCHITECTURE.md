@@ -20,7 +20,7 @@ Two structural changes define the current generation:
    | `/lab` | **Lab** | Accuracy Lab — ontology-on vs ontology-off A/B |
    | `/start` | **Onboard** | Guided workspace + source onboarding wizard |
 
-   The **Streamlit** app (`src/aryx/ui/`) is **legacy** but still present and runnable.
+   The Streamlit app was **removed**; use Next.js (`apps/web`) including `/settings` for LLM config.
 
 2. **Ports & adapters (hexagonal) seam.** `src/aryx/ports/` introduces a substrate-swappable seam so the platform is not welded to Postgres/FalkorDB/Ollama:
 
@@ -226,7 +226,7 @@ All entity tables LIST-partitioned by workspace_id for isolation and physical pu
 | Language | Python 3.13 | Type hints; SQL in .sql files (DB-Guard enforced) |
 | API | FastAPI | Async; auto-OpenAPI; Pydantic validation |
 | UI (primary) | Next.js 15 | Isolated deploy unit; HTTP-only to API via `/api` proxy |
-| UI (legacy) | Streamlit | Original UI; still present and runnable |
+| UI | Next.js (`apps/web`) | Primary product UI; `/settings` for LLM provider |
 | Substrate seam | Ports & adapters | `module:Class` adapters per port; substrate-swappable (Lite/Enterprise/Aryx-o) |
 | Database | PostgreSQL 16 | ACID, FTS, partitioning, JSONB |
 | Graph | FalkorDB | Fast traversal; wipe/rebuild safe |

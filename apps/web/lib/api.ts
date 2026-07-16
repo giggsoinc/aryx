@@ -1,7 +1,8 @@
 import type {
   AbResult, AskResponse, Axiom, Brief, DataEntitiesPage, DataSummary,
-  Datasource, EntityDetail, EntityGraphView, GraphView, IngestQuestion, OntologyDoc, QuizSpec,
-  ReasonerCheck, Rule, SurvivorshipPolicy, Workspace,
+  Datasource, EntityDetail, EntityGraphView, GraphView, IngestQuestion,
+  LlmConfig, LlmConfigUpdate, OntologyDoc, QuizSpec, ReasonerCheck, Rule,
+  SurvivorshipPolicy, Workspace,
 } from "./types";
 
 // Same-origin relative path. Next.js rewrites /api/* → FastAPI internally
@@ -266,4 +267,13 @@ export const api = {
         }),
       },
     ),
+
+  // ── LLM provider (runtime; process memory — not persisted to disk) ──
+  getLlmConfig: () => fetchJSON<LlmConfig>("/llm/config"),
+
+  setLlmConfig: (cfg: LlmConfigUpdate) =>
+    fetchJSON<LlmConfig>("/admin/llm/config", {
+      method: "POST",
+      body: JSON.stringify(cfg),
+    }),
 };

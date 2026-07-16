@@ -35,3 +35,7 @@ Thumbs.db
 # Live tech-scope snapshot (Andie/Raven — read + append across sessions)
 Current_State_Aryx.md
 Current_State_Aryx.html
+
+# Local Raven ops notes (not product docs)
+docs/raven_html.md
+raven_html.md

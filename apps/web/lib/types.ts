@@ -19,6 +19,23 @@ export interface Usage {
   answer_model?: string;
 }
 
+/** Live LLM runtime config (GET /llm/config · POST /admin/llm/config). */
+export interface LlmConfig {
+  provider: string;
+  menial_model: string;
+  answer_model: string;
+  endpoint: string;
+  api_key_set: boolean;
+}
+
+export interface LlmConfigUpdate {
+  provider?: string;
+  menial_model?: string;
+  answer_model?: string;
+  endpoint?: string;
+  api_key?: string;
+}
+
 export interface AskResponse {
   answer: string;
   terms: string[];
