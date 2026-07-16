@@ -6,7 +6,17 @@
 #   --file <path>        — scans a single file directly
 # Exit 1 = hard block.
 
-import sys, os, re, subprocess, argparse
+import sys, os, re, subprocess, argparse, json
+from pathlib import Path
+_PROJECT = Path(os.environ.get("CLAUDE_PROJECT_DIR", str(Path.cwd()))).resolve()
+
+# Windows: reconfigure stdout/stderr to UTF-8 so emoji in print() don't crash
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        if hasattr(_stream, "reconfigure"):
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 parser = argparse.ArgumentParser(description="Raven Secret Scanner")
 parser.add_argument("--pr",                action="store_true", help="PR mode — scan diff vs base branch")
@@ -16,6 +26,18 @@ parser.add_argument("--base-ref",          default=None,        help="Base branc
 args = parser.parse_args()
 
 PR_MODE = args.pr or args.changed_files_only
+
+# When invoked as a PostToolUse hook (no --file, no --pr), read file path from
+# the hook JSON payload on stdin instead of requiring jq shell substitution.
+if not args.file and not PR_MODE and not sys.stdin.isatty():
+    try:
+        payload = json.loads(sys.stdin.read())
+        _fp = (payload.get("tool_input") or {}).get("file_path") or \
+              (payload.get("tool_response") or {}).get("filePath")
+        if _fp:
+            args.file = _fp
+    except Exception:
+        pass
 
 # ── Secret patterns ────────────────────────────────────────────────────────────
 PATTERNS = [
@@ -80,26 +102,26 @@ def file_content(path):
     except:
         return ""
 
-# ── Check 1: .gitignore exists ─────────────────────────────────────────────────
-if not os.path.exists(".gitignore"):
+# ── Check 1: .gitignore exists (pre-commit / PR mode only — not hook mode) ─────
+_gitignore = _PROJECT / ".gitignore"
+if not args.file and not _gitignore.exists():
     violations.append("❌ .gitignore missing at project root — create one immediately")
-    violations.append("   Run: curl -fsSL https://www.gitignore.io/api/python,node,macos > .gitignore")
 else:
-    gitignore_content = open(".gitignore").read()
+    gitignore_content = _gitignore.read_text(encoding="utf-8", errors="ignore") if _gitignore.exists() else ""
 
-    # ── Check 2: .gitignore covers critical entries ────────────────────────────
-    for entry in REQUIRED_GITIGNORE:
-        # Check if entry or equivalent is covered
-        base = entry.replace("*","").replace(".","").strip("/")
-        if entry not in gitignore_content and base not in gitignore_content:
-            warnings.append(f"⚠️  .gitignore missing: {entry}")
+    # ── Check 2: .gitignore covers critical entries (pre-commit / PR mode) ────
+    if not args.file:
+        for entry in REQUIRED_GITIGNORE:
+            base = entry.replace("*","").replace(".","").strip("/")
+            if entry not in gitignore_content and base not in gitignore_content:
+                warnings.append(f"⚠️  .gitignore missing: {entry}")
 
 # ── Check 3: .env file exists but not gitignored ──────────────────────────────
 for env_file in [".env", ".env.local", ".env.production", ".env.staging"]:
-    if os.path.exists(env_file):
-        gitignore_ok = os.path.exists(".gitignore") and (
-            env_file in open(".gitignore").read() or
-            ".env" in open(".gitignore").read()
+    if (_PROJECT / env_file).exists():
+        gitignore_ok = _gitignore.exists() and (
+            env_file in gitignore_content or
+            ".env" in gitignore_content
         )
         if not gitignore_ok:
             violations.append(f"❌ {env_file} exists but is NOT in .gitignore — exposure risk")
@@ -136,9 +158,33 @@ if violations:
     for v in violations:
         print(f"  {v}")
     print()
-    sys.exit(1)
 
-if not warnings:
+    # In hook mode (--file): write a flag so session-gate.py can warn at session end.
+    # In pre-commit mode: hard block (exit 1) without writing the flag (git handles it).
+    if args.file:
+        try:
+            from datetime import datetime as _dt, timezone as _tz
+            _cache = _PROJECT / ".raven" / ".cache"
+            _cache.mkdir(parents=True, exist_ok=True)
+            _flag_path = _cache / "secret-scan-flags.json"
+            _existing: list = []
+            if _flag_path.exists():
+                try:
+                    _existing = json.loads(_flag_path.read_text(encoding="utf-8-sig")).get("flags", [])
+                except Exception:
+                    _existing = []
+            _existing.append({
+                "file":       args.file,
+                "violations": violations,
+                "ts":         _dt.now(_tz.utc).isoformat(),
+            })
+            _flag_path.write_text(json.dumps({"flags": _existing}, indent=2))
+        except Exception:
+            pass  # flag write failure must never block hook execution
+    else:
+        sys.exit(1)
+
+if not warnings and not violations:
     print("✅ Secret scan passed")
 
 sys.exit(0)

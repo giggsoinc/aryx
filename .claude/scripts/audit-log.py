@@ -6,6 +6,9 @@
 
 import json, sys, os, re, gzip, base64
 from datetime import datetime, timezone
+from pathlib import Path
+
+_PROJECT = Path(os.environ.get("CLAUDE_PROJECT_DIR", str(Path.cwd()))).resolve()
 
 REDACT = re.compile(
     r'(api[_-]?key|password|token|secret)["\s:=]+["\']?[A-Za-z0-9+/._-]{8,}',
@@ -17,8 +20,8 @@ def safe(fn):
     except: return None
 
 def load_config():
-    manifest = safe(lambda: json.load(open(".raven/manifest.json"))) or {}
-    secrets  = safe(lambda: json.load(open(".raven/manifest.secrets.json"))) or {}
+    manifest = safe(lambda: json.loads(open(_PROJECT / ".raven" / "manifest.json", encoding="utf-8-sig").read())) or {}
+    secrets  = safe(lambda: json.loads(open(_PROJECT / ".raven" / "manifest.secrets.json", encoding="utf-8-sig").read())) or {}
     return manifest, secrets
 
 def build_entry(data, manifest):
@@ -79,7 +82,7 @@ def audit_path(manifest, secrets, date_str, fernet):
     return f"raven/{project}/{dev_safe}/{audit_tag}/{date_str}{ext}"
 
 # ── AWS S3 ─────────────────────────────────────────────────────────────────────
-def write_s3(line, secrets):
+def write_s3(line, manifest, secrets):
     def _write():
         import boto3
         audit  = secrets.get("audit", {})
@@ -106,7 +109,7 @@ def write_s3(line, secrets):
     safe(_write)
 
 # ── Google Cloud Storage ───────────────────────────────────────────────────────
-def write_gcs(line, secrets):
+def write_gcs(line, manifest, secrets):
     def _write():
         from google.cloud import storage
         audit  = secrets.get("audit", {})
@@ -129,7 +132,7 @@ def write_gcs(line, secrets):
     safe(_write)
 
 # ── Azure Blob Storage ─────────────────────────────────────────────────────────
-def write_azure(line, secrets):
+def write_azure(line, manifest, secrets):
     def _write():
         from azure.storage.blob import BlobServiceClient
         audit  = secrets.get("audit", {})
@@ -153,7 +156,7 @@ def write_azure(line, secrets):
     safe(_write)
 
 # ── OCI Object Storage ─────────────────────────────────────────────────────────
-def write_oci(line, secrets):
+def write_oci(line, manifest, secrets):
     def _write():
         import oci, io
         audit      = secrets.get("audit", {})
@@ -180,9 +183,10 @@ def write_oci(line, secrets):
 def write_local(line, secrets):
     def _write():
         if not secrets.get("audit", {}).get("local_fallback", False): return
-        os.makedirs(".raven/audit", exist_ok=True)
+        audit_dir = _PROJECT / ".raven" / "audit"
+        audit_dir.mkdir(parents=True, exist_ok=True)
         date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        open(f".raven/audit/fallback-{date_str}.log","a").write(line+"\n")
+        open(audit_dir / f"fallback-{date_str}.log", "a").write(line + "\n")
     safe(_write)
 
 # ── Main ───────────────────────────────────────────────────────────────────────
@@ -193,10 +197,10 @@ def main():
 
     provider = detect_provider(manifest, secrets)
 
-    if   provider in ("s3",  "aws"):   write_s3(line, secrets)
-    elif provider in ("gcs", "gcp"):   write_gcs(line, secrets)
-    elif provider == "azure":          write_azure(line, secrets)
-    elif provider == "oci":            write_oci(line, secrets)
+    if   provider in ("s3",  "aws"):   write_s3(line, manifest, secrets)
+    elif provider in ("gcs", "gcp"):   write_gcs(line, manifest, secrets)
+    elif provider == "azure":          write_azure(line, manifest, secrets)
+    elif provider == "oci":            write_oci(line, manifest, secrets)
 
     # Always try local fallback regardless of provider (if enabled)
     write_local(line, secrets)

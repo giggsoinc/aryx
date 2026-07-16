@@ -61,7 +61,7 @@
       "rdflib~"
     ]
   },
-  "raven_version": "3.3.0",
+  "raven_version": "4.4.0",
   "standards": "raven-v3.0",
   "approval_mode": "auto",
   "guard": {
@@ -98,15 +98,30 @@
   },
   "approved_skills": {
     "giggso": [
+      "andie",
+      "andie-frames",
+      "andie-guru",
+      "andie-jr",
+      "damage-control",
+      "raven-applog",
+      "raven-assign",
+      "raven-blueteaming",
+      "raven-contribute",
       "raven-core",
+      "raven-dashboard",
+      "raven-document",
       "raven-expert",
+      "raven-fetch",
+      "raven-log",
       "raven-plan",
+      "raven-refactor",
       "raven-review",
       "raven-security",
-      "raven-refactor",
+      "raven-spec",
       "raven-test",
-      "raven-document",
-      "andie"
+      "raven-trinity",
+      "task-observer",
+      "tools-landscape"
     ],
     "anthropic": [
       "debug",
@@ -127,6 +142,16 @@
     "phase_gated": false
   },
   "changelog": [
+    {
+      "version": "1.0",
+      "changed_by": "rv@giggso.com",
+      "github_id": "",
+      "audit_tag": "Aryx",
+      "changed_at": "2026-07-16T13:11:44Z",
+      "changes": "Raven Enterprise engine sync 3.3.0 \u2192 4.4.0 (scripts, skills, hooks, statusLine)",
+      "pr": "pending",
+      "approved_by": "rv@giggso.com"
+    },
     {
       "version": "1.0",
       "changed_by": "rv@giggso.com",

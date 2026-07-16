@@ -16,6 +16,14 @@ import json, os, sys, time, hashlib
 from pathlib import Path
 from datetime import datetime, timezone
 
+# Windows: reconfigure stdout/stderr to UTF-8 so emoji in print() don't crash
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        if hasattr(_stream, "reconfigure"):
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 # ── Config ────────────────────────────────────────────────────────────────────
 
 POLICY_PATHS = [
@@ -109,28 +117,35 @@ def prompt_user(mcp_name: str, tool_name: str) -> str:
     """
     First-use inline prompt. Returns: 'always' | 'session' | 'never' | 'timeout'.
     Auto-continues as 'session' after PROMPT_TIMEOUT_SECONDS.
+    Cross-platform: uses threading instead of select.select().
     """
+    import threading
     print(f"\n🟡 MCP not in policy: {mcp_name} / {tool_name}", flush=True)
     print(f"   Add to policy?", flush=True)
     print(f"   [A] Always allow  [S] Session only  [N] Never  [?] What is this?", flush=True)
     print(f"   (auto-continues in {PROMPT_TIMEOUT_SECONDS}s → session only)", flush=True)
 
-    import select
-    start = time.time()
-    while time.time() - start < PROMPT_TIMEOUT_SECONDS:
-        ready = select.select([sys.stdin], [], [], 0.5)[0]
-        if ready:
-            choice = sys.stdin.readline().strip().upper()
-            if choice in ("A", "ALWAYS"):     return "always"
-            if choice in ("S", "SESSION"):    return "session"
-            if choice in ("N", "NEVER"):      return "never"
-            if choice in ("?", "HELP"):
+    result = [None]
+
+    def _read():
+        while result[0] is None:
+            line = sys.stdin.readline().strip().upper()
+            if line in ("A", "ALWAYS"):
+                result[0] = "always"; return
+            if line in ("S", "SESSION"):
+                result[0] = "session"; return
+            if line in ("N", "NEVER"):
+                result[0] = "never"; return
+            if line in ("?", "HELP"):
                 print(f"\n   '{mcp_name}' is an MCP server providing tool '{tool_name}'.", flush=True)
                 print(f"   MCPs can read files, call APIs, or access external services.", flush=True)
                 print(f"   Check your .mcp.json or Claude settings to see how it's configured.", flush=True)
                 print(f"   [A] Always allow  [S] Session only  [N] Never", flush=True)
 
-    return "timeout"   # auto-continue as session-only
+    t = threading.Thread(target=_read, daemon=True)
+    t.start()
+    t.join(PROMPT_TIMEOUT_SECONDS)
+    return result[0] or "timeout"   # auto-continue as session-only
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
@@ -186,9 +201,10 @@ def main():
             queue_signal(event)
             if mode == "hard":
                 sys.exit(1)
-            # shadow/soft: warn but allow
-            event["action"] = "allowed"
-            queue_signal(event)
+            # shadow/soft: warn but allow — use a fresh copy so the queued
+            # "blocked" event is not mutated into a second conflicting entry
+            allowed_event = {**event, "action": "allowed", "reason": "shadow_override"}
+            queue_signal(allowed_event)
             sys.exit(0)
 
     # 3. Unregistered MCP — mode determines behaviour

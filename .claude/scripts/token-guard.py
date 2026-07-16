@@ -54,13 +54,15 @@ def main():
     tokens_est = stats.get("tokens_estimated", 0)
 
     if tokens_est > HIGH_TOKEN_THRESHOLD:
-        # Queue an alert to stream-signal
-        queue = load_json(SIGNAL_Q, {"events": []})
-        queue.setdefault("events", []).append({
-            "type":      "token_alert",
-            "tokens":    tokens_est,
-            "threshold": HIGH_TOKEN_THRESHOLD,
-            "ts":        now,
+        # Queue an alert to stream-signal (flat list — matches stream-signal.py format)
+        queue = load_json(SIGNAL_Q, default=[])
+        if not isinstance(queue, list):
+            queue = []
+        queue.append({
+            "event_type":       "token_checkpoint",
+            "tokens_estimated": tokens_est,
+            "threshold":        HIGH_TOKEN_THRESHOLD,
+            "ts":               now,
         })
         SIGNAL_Q.write_text(json.dumps(queue, indent=2))
 

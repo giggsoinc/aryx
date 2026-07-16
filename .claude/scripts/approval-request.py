@@ -58,9 +58,48 @@ def send_email_notification(secrets: dict, request: dict):
     smtp_user  = secrets.get("smtp_user", os.environ.get("SMTP_USER", ""))
     smtp_pass  = secrets.get("smtp_password", os.environ.get("SMTP_PASSWORD", ""))
     from_email = secrets.get("smtp_from", os.environ.get("SMTP_FROM", "raven@giggso.com"))
-    admin_email = secrets.get("admin_email", os.environ.get("HUB_ALERT_EMAIL", ""))
+    # shared_inbox is the canonical key — admin_email and HUB_ALERT_EMAIL are fallbacks
+    admin_email = (
+        secrets.get("admin_email")
+        or secrets.get("shared_inbox")
+        or os.environ.get("HUB_ALERT_EMAIL", "")
+    )
 
-    if not admin_email or not smtp_host:
+    if not admin_email:
+        print(
+            "[RAVEN WARN] Guard event not emailed — no recipient configured. "
+            "Set 'shared_inbox' (or 'admin_email') in .raven/manifest.secrets.json.",
+            file=sys.stderr,
+        )
+        return
+
+    if not smtp_host:
+        print(
+            "[RAVEN WARN] Guard event not emailed — smtp_host not configured. "
+            "Required keys in manifest.secrets.json: smtp_host, smtp_port, "
+            "smtp_user, smtp_password, smtp_from, shared_inbox.",
+            file=sys.stderr,
+        )
+        # Write the missed notification to local audit so it's not silently lost
+        try:
+            import pathlib
+            from datetime import datetime, timezone
+            audit_dir = pathlib.Path(".raven/audit")
+            audit_dir.mkdir(parents=True, exist_ok=True)
+            date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            import json as _json
+            entry = _json.dumps({
+                "ts":     datetime.now(timezone.utc).isoformat(),
+                "event":  "notification_suppressed",
+                "reason": "smtp_not_configured",
+                "request_type": request.get("type", ""),
+                "resource":     request.get("resource", ""),
+                "recipient":    admin_email,
+            })
+            with open(audit_dir / f"{date_str}.log", "a") as f:
+                f.write(entry + "\n")
+        except Exception:
+            pass
         return
 
     hub_url     = request.get("hub_url", "")

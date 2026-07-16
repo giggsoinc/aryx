@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """
-Raven — MCP Server (platform-agnostic)
-Exposes Raven as an MCP plugin for Claude Code, OpenAI Codex, or any MCP-compatible agent.
+Raven Enterprise — MCP Server (Claude Code only)
+Exposes Raven as an MCP plugin for Claude Code.
 
 Claude Code:  claude mcp add raven -- python3 ~/.raven/mcp/server.py
-Codex:        Settings → MCP Servers → python3 ~/.raven-codex/mcp/server.py
 
 Tools exposed:
   raven_status        — check manifest, version, mode
@@ -36,7 +35,6 @@ def find_scripts_dir() -> Path:
         cwd / ".raven" / "scripts",
         cwd / ".claude" / "scripts",
         Path(os.path.dirname(__file__)),           # same dir as this server.py
-        Path.home() / ".raven-codex" / "scripts",
         Path.home() / ".raven" / "scripts",
     ]:
         if candidate.exists() and (candidate / "cve-check.py").exists():

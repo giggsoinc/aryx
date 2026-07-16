@@ -33,10 +33,10 @@ Syncs all registered Raven projects to the current engine version.
 
 1. **Locate raven-core**
    ```bash
-   RAVEN_CORE=~/projects/raven-core
+   RAVEN_CORE=~/AntiGravity_Projects/raven-core
    SYNC_SCRIPT="$RAVEN_CORE/registry/raven-sync.py"
    ```
-   If not found → STOP with: "raven-core not found at expected path. Check ~/projects/raven-core"
+   If not found → STOP with: "raven-core not found at expected path. Check ~/AntiGravity_Projects/raven-core"
 
 2. **Run the sync script** with the flags passed by the user:
    ```bash
@@ -50,10 +50,10 @@ Syncs all registered Raven projects to the current engine version.
    ────────────────────────────────────────────────────────────
    
      ✅ Up to date (1)
-        my-project                    v2.8.0
+        lockey                    v2.8.0
    
      ⚠️  Stale — needs update (2)
-        my-service             v2.7.0 → v2.8.0
+        fin-processor             v2.7.0 → v2.8.0
         Dev-Claude-Arch           unknown → v2.8.0
    
      ❌ Path not found (0)
@@ -73,6 +73,7 @@ Syncs all registered Raven projects to the current engine version.
 | Engine scripts (4 py files) | `.claude/scripts/` |
 | MCP server (`server.py`) | `.claude/mcp/` |
 | Andie skill | `.claude/skills/andie/` |
+| Andie Jr skill | `.claude/skills/andie-jr/` |
 | Tools landscape | `.claude/skills/tools-landscape/` |
 | Version stamp | `.raven/raven_version` |
 | Git commit | Auto-committed |
@@ -101,12 +102,12 @@ Projects with no remote → committed locally, no push.
 
 ```bash
 # 1. Bump version
-echo "3.0.0" > ~/projects/raven-core/VERSION
+echo "2.9.0" > ~/AntiGravity_Projects/raven-core/VERSION
 
-# 2. Bundle to platform repos
-bash ~/projects/raven-core/bundle.sh
+# 2. Promote updated skills/scripts into ~/.claude/skills and raven-core mirrors
+#    (bundle.sh has been removed; update source files directly)
 
-# 3. Commit and push raven-core
+# 3. Commit and push raven-core and platform repos as needed
 # (then run:)
 /raven-registry-sync --all
 ```

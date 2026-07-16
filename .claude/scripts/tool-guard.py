@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """
-Raven Enterprise — Tool Guard (PreToolUse)
+Raven Enterprise — Tool Guard v1.1 (PreToolUse)
 Hard-blocks restricted operations on any tool call.
 Returns continue:false with reason when a rule fires.
+
+On every block:
+  - Writes unconditional audit entry to .raven/audit/YYYY-MM-DD.log
+  - Fires emit-violation.py async (non-blocking)
 
 Blocked patterns:
   Bash: rm -rf / root  ·  sudo  ·  curl | bash  ·  wget | sh
@@ -11,7 +15,8 @@ Blocked patterns:
   Read: reading .env / SSH keys / cloud credential files
 """
 
-import json, re, sys
+import json, re, sys, os, subprocess, pathlib
+from datetime import datetime, timezone
 
 # ── Rule sets ──────────────────────────────────────────────────────────────────
 
@@ -47,11 +52,57 @@ READ_BLOCK = [
     (r"manifest\.secrets\.json$", "reading manifest.secrets.json is not allowed from skills/agents"),
 ]
 
+SCRIPTS_DIR = pathlib.Path(__file__).parent
+
+
 def check_rules(patterns: list, text: str) -> str | None:
     for pattern, reason in patterns:
         if re.search(pattern, text, re.IGNORECASE):
             return reason
     return None
+
+
+def _emit_guard_block(tool: str, reason: str, detail: str) -> None:
+    """Write unconditional audit entry and fire emit-violation — never raises."""
+    # 1. Unconditional local audit (always writes, no local_fallback gate required)
+    try:
+        audit_dir = pathlib.Path(".raven/audit")
+        audit_dir.mkdir(parents=True, exist_ok=True)
+        date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        entry = json.dumps({
+            "ts":      datetime.now(timezone.utc).isoformat(),
+            "event":   "guard_block",
+            "guard":   "tool-guard",
+            "tool":    tool,
+            "reason":  reason,
+            "detail":  detail[:300],
+            "action":  "blocked",
+            "dev":     os.environ.get("GIT_AUTHOR_EMAIL", os.environ.get("USER", "unknown")),
+            "session": os.environ.get("CLAUDE_SESSION_ID", ""),
+            "project": os.path.basename(os.getcwd()),
+        })
+        with open(audit_dir / f"{date_str}.log", "a") as f:
+            f.write(entry + "\n")
+    except Exception:
+        pass
+
+    # 2. Fire emit-violation.py async — does not block the hook response
+    try:
+        emit = SCRIPTS_DIR / "emit-violation.py"
+        if emit.exists():
+            subprocess.Popen(
+                [
+                    "python3", str(emit),
+                    "--type",     "tool_guard_block",
+                    "--severity", "P2",
+                    "--detail",   f"{tool}: {reason} — {detail[:100]}",
+                    "--blocked",
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+    except Exception:
+        pass
 
 
 def main():
@@ -64,29 +115,40 @@ def main():
     inputs = payload.get("tool_input", {})
 
     reason = None
+    detail = ""
 
     if tool == "Bash":
         cmd = inputs.get("command", "")
         reason = check_rules(BASH_BLOCK, cmd)
+        detail = cmd
 
     elif tool in ("Write", "MultiEdit"):
         path = inputs.get("file_path", "")
         reason = check_rules(WRITE_BLOCK, path)
+        detail = path
 
     elif tool == "Edit":
         path = inputs.get("file_path", "")
         reason = check_rules(WRITE_BLOCK, path)
+        detail = path
 
     elif tool == "Read":
         path = inputs.get("file_path", "")
         reason = check_rules(READ_BLOCK, path)
+        detail = path
 
     if reason:
+        # Audit + notify BEFORE returning the block decision
+        _emit_guard_block(tool, reason, detail)
+
         print(json.dumps({
             "hookSpecificOutput": {
                 "hookEventName":     "PreToolUse",
                 "permissionDecision": "deny",
-                "permissionDecisionReason": f"[RAVEN:GUARD] {reason}",
+                "permissionDecisionReason": (
+                    f"[RAVEN:GUARD] {reason}\n"
+                    f"Block recorded in .raven/audit/."
+                ),
             }
         }))
         sys.exit(0)

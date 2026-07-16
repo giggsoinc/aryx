@@ -27,7 +27,7 @@ SYNC_LOG_PATH     = Path(".raven/.cache/policy-sync.json")
 
 def load_json(path: Path, default=None):
     try:
-        return json.loads(path.read_text()) if path.exists() else (default or {})
+        return json.loads(path.read_text(encoding="utf-8-sig")) if path.exists() else (default or {})
     except Exception:
         return default or {}
 

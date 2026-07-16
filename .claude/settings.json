@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/scripts/tool-guard.py",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/tool-guard.py\"",
             "timeout": 10
           }
         ]
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/scripts/schema-guard.py",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/schema-guard.py\"",
             "timeout": 10
           }
         ]
@@ -26,42 +26,120 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/scripts/mcp-guard.py",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/mcp-guard.py\"",
             "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/truth-guard.py\" --hook",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/damage-control/bash-tool-damage-control.py\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/damage-control/edit-tool-damage-control.py\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/damage-control/write-tool-damage-control.py\"",
+            "timeout": 5
           }
         ]
       }
     ],
-
     "UserPromptSubmit": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/scripts/model-router.py --prompt \"$PROMPT\" --write-json 2>/dev/null || true",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/triage-router.py\" 2>/dev/null || true",
+            "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/architect-router.py\" 2>/dev/null || true",
+            "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/model-router.py\" --write-json 2>/dev/null || true",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "python3 .claude/scripts/cve-prompt-guard.py 2>/dev/null || true",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/cve-prompt-guard.py\" 2>/dev/null || true",
             "async": true
           }
         ]
       }
     ],
-
     "PostToolUse": [
       {
-        "matcher": "Write|Edit|MultiEdit",
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/scripts/secret-scan.py --file \"$(jq -r '.tool_input.file_path // .tool_response.filePath // empty' 2>/dev/null)\" 2>/dev/null || true",
+            "command": "{ stdindata=$(cat); echo \"$stdindata\" | grep -q 'gh pr' && echo \"$stdindata\" | python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/pr-signal.py\" 2>/dev/null; } || true",
             "async": true
           },
           {
             "type": "command",
-            "command": "python3 .claude/scripts/db-guard.py 2>/dev/null || true",
+            "command": "{ stdindata=$(cat); echo \"$stdindata\" | grep -q 'gh pr create' && echo \"$stdindata\" | python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/pr-attribute.py\" 2>/dev/null; } || true",
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "{ stdindata=$(cat); echo \"$stdindata\" | grep -q 'git commit' && echo \"$stdindata\" | python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/contribute-signoff.py\" 2>/dev/null; } || true",
+            "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/secret-scan.py\" 2>/dev/null || true",
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/db-guard.py\" 2>/dev/null || true",
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/loc-tracker.py\" 2>/dev/null || true",
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/edit-tracker.py\" 2>/dev/null || true",
             "async": true
           }
         ]
@@ -71,66 +149,98 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/scripts/audit-log.py 2>/dev/null || true",
-            "async": true
-          },
-          {
-            "type": "command",
-            "command": "python3 .claude/scripts/stream-signal.py 2>/dev/null || true",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/audit-log.py\" 2>/dev/null || true",
             "async": true
           }
         ]
       }
     ],
-
     "PreCompact": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/scripts/token-guard.py 2>/dev/null || true"
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/token-guard.py\" 2>/dev/null || true"
           }
         ]
       }
     ],
-
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/scripts/policy-sync.py 2>/dev/null || true",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/policy-sync.py\" 2>/dev/null || true",
             "timeout": 8
           },
           {
             "type": "command",
-            "command": "python3 .claude/scripts/session-start.py 2>/dev/null || true",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/session-start.py\" 2>/dev/null || true",
             "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/raven-async.py\" 2>/dev/null || true",
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/contribute-init.py\" 2>/dev/null || true",
+            "async": true
           }
         ]
       }
     ],
-
     "Stop": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/scripts/stream-signal.py 2>/dev/null || true",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/stream-signal.py\" 2>/dev/null || true",
             "async": true
           },
           {
             "type": "command",
-            "command": "python3 .claude/scripts/session-gate.py 2>/dev/null || true",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/session-gate.py\" 2>/dev/null || true",
             "async": true
           },
           {
             "type": "command",
-            "command": "python3 .claude/scripts/audit-log.py 2>/dev/null || true",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/audit-log.py\" 2>/dev/null || true",
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/obsidian-log.py\" 2>/dev/null || true",
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/metrics-rollup.py\" 2>/dev/null || true",
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/dashboard.py\" --html --current-project 2>/dev/null || true",
             "async": true
           }
         ]
       }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/session-end.py\" 2>/dev/null || true",
+            "timeout": 8
+          }
+        ]
+      }
     ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/token-meter.py\" --statusline"
   }
 }
