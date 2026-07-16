@@ -24,6 +24,7 @@ docker compose up -d
 - Prefer small, reviewable PRs with a clear problem statement.
 - Add or update tests when behavior changes.
 - Product UI is **Next.js only** (`apps/web`). Graph store is **FalkorDB**.
+- Optional **Claude Code / Raven** workflow (hooks & skills already in `.claude/`): see [docs/RAVEN.md](docs/RAVEN.md).
 
 ## License of contributions
 
