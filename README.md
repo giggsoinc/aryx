@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/aryx-logo.png" alt="Aryx" width="160" />
+</p>
+
 # Aryx Lite
 
 **Point Aryx at your data. Get a deduplicated, linked knowledge graph you can ask questions of — with provenance on every answer.**
