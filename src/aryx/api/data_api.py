@@ -64,6 +64,19 @@ def data_router() -> APIRouter:
             logger.warning("data entities failed: %s", exc)
             return {"error": f"data unavailable: {exc}", "items": []}
 
+    @router.get("/entity/{entity_id}")
+    def entity(entity_id: int, workspace_id: int = 1) -> dict:
+        """One entity's attributes, source records, and relationships."""
+        store = _store(workspace_id)
+        try:
+            detail = explore.entity_detail(
+                store.list_entities(), store.list_members_provenance(),
+                store.list_relationships(), entity_id)
+            return detail or {"error": "entity not found"}
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("data entity detail failed: %s", exc)
+            return {"error": f"detail unavailable: {exc}"}
+
     @router.get("/graph")
     def graph(workspace_id: int = 1, level: str = "type") -> dict:
         """Knowledge map. level=type → aggregated shape; level=entity → per-entity."""
