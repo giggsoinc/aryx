@@ -1,39 +1,44 @@
 # Contributing to Aryx Lite
 
-Thanks for helping improve Aryx.
+Thanks for helping improve Aryx. Please read the
+[Code of Conduct](CODE_OF_CONDUCT.md) first.
+
+## Ways to contribute
+
+- Bug reports and feature ideas (use [issue templates](.github/ISSUE_TEMPLATE/))
+- Docs and examples (`docs/`, `examples/`)
+- Fixes and features via pull request
+
+## Development
+
+```bash
+# API unit tests (no full stack required for this subset)
+PYTHONPATH=src pytest -q tests/test_ports_seam.py tests/test_grounding.py \
+  tests/test_ab.py tests/test_explore.py tests/test_blocking.py
+
+# Full stack: see docs/INSTALL.md
+docker compose up -d
+```
+
+- Do not commit secrets (`.env`, API keys, `manifest.secrets.json`).
+- Prefer small, reviewable PRs with a clear problem statement.
+- Add or update tests when behavior changes.
+- Product UI is **Next.js only** (`apps/web`). Graph store is **FalkorDB**.
 
 ## License of contributions
 
-This project is licensed under the **Business Source License 1.1** (see
-[`LICENSE`](LICENSE) and [`docs/LICENSING.md`](docs/LICENSING.md)).
+This project is **BSL 1.1** ([`LICENSE`](LICENSE), [`docs/LICENSING.md`](docs/LICENSING.md)).
 
-By submitting a contribution (pull request, patch, or other submission), you
-agree that:
+By submitting a contribution you agree that:
 
-1. You have the right to submit the contribution.
-2. You license your contribution to Giggso Inc. and recipients under the same
-   **BSL 1.1** terms that apply to the Licensed Work (including the Change Date
-   and Change License in `LICENSE`).
-3. You grant Giggso Inc. the right to relicense your contribution as part of
-   commercial Aryx editions (Enterprise / Aryx-o) without additional obligation
-   to you, while the public Lite tree remains under BSL until the Change Date.
+1. You have the right to submit it.
+2. You license it under the same **BSL 1.1** terms as the Licensed Work.
+3. Maintainers may include it in other Aryx distributions under compatible terms
+   while the public Lite tree remains under BSL until the Change Date.
 
-If you cannot accept these terms, do not submit the contribution—open an issue
-instead and describe the idea.
-
-## Development practices
-
-- Follow [CLAUDE.md](CLAUDE.md) / Raven discipline when working in this repo.
-- Do not commit secrets, `.env`, or `manifest.secrets.json`.
-- Prefer small, reviewable PRs with a clear problem statement.
-- Add or update tests when behavior changes.
+If you cannot accept these terms, open an issue with the idea instead of a PR.
 
 ## Security
 
-Report vulnerabilities privately when possible (see `SECURITY.md` if present,
-or email the maintainers via the GitHub org). Do not file public issues for
-active exploits.
-
-## Code of conduct
-
-Be respectful. No harassment, spam, or bad-faith license stripping in PRs.
+Report vulnerabilities privately — see [SECURITY.md](SECURITY.md). Do not file
+public issues for active exploits.

@@ -1,0 +1,7 @@
+ticket_id,customer_id,subject,status,priority
+T100,C001,Radio link down at site A,open,high
+T101,C001,Firmware upgrade window,closed,medium
+T102,C002,Invoice mismatch on PO-44,open,low
+T103,C003,Device offline overnight,open,high
+T104,C005,Return label request,closed,low
+T105,C002,SLA credit inquiry,open,medium

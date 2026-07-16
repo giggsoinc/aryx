@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Install & user docs
+    url: https://github.com/giggsoinc/aryx/blob/main/docs/INSTALL.md
+    about: Setup, ports, env, troubleshooting
+  - name: User guide
+    url: https://github.com/giggsoinc/aryx/blob/main/docs/USER_GUIDE.md
+    about: How to use Ask, Data, Model, Lab, Settings
