@@ -1,276 +1,320 @@
-# Installation Guide
+# Install Guide — Aryx Lite
+
+Get Aryx running with Docker Compose (recommended), then open the web UI and onboard data.
+
+| Doc | Audience |
+|-----|----------|
+| **This guide** | Operators and developers installing Aryx |
+| [User guide](USER_GUIDE.md) | People using the product UI day to day |
+| [Licensing](LICENSING.md) | BSL terms in plain English |
+
+**Repository:** https://github.com/giggsoinc/aryx (public)
+
+---
 
 ## Prerequisites
 
-- **Docker & Docker Compose** — [Install](https://docs.docker.com/compose/install/)
-- **Git** — [Install](https://git-scm.com/)
-- **Python 3.11** (optional, for local dev without Docker)
-- **Node 20+** (optional, only to run the Next.js web UI outside Docker)
-- **Ollama** (optional, for local LLM models; included in docker-compose)
+| Tool | Notes |
+|------|--------|
+| **Docker** + **Docker Compose** v2 | [Install Docker](https://docs.docker.com/get-docker/) |
+| **Git** | Clone the repo |
+| **RAM** | **8 GB+** recommended (Ollama pulls local models) |
+| **Disk** | Several GB for images + model weights |
+| Python 3.11+ / Node 20+ | Optional — only for non-Docker local development |
 
-## Local Setup (Docker Compose)
+---
 
-### 1. Clone & Navigate
+## 1. Clone
 
 ```bash
 git clone https://github.com/giggsoinc/aryx.git
 cd aryx
 ```
 
-### 2. Configure Environment
+---
 
-Copy `.env.example` to `.env` (if provided), or set defaults:
+## 2. Configure environment
 
 ```bash
-# .env (or set via shell)
-export POSTGRES_PASSWORD=aryx_dev_password
-export POSTGRES_DB=aryx
-export OLLAMA_NUM_PARALLEL=1
+cp .env.example .env
 ```
 
-### 3. Start Services
+Edit `.env` before production use. Important variables:
 
 ```bash
-docker compose up -d
-```
-
-**Services:**
-- **Web UI** (Next.js — primary): http://localhost:3000
-- **API** (FastAPI): http://localhost:8088 (or http://localhost:8088/docs for OpenAPI)
-- **MCP** (SSE, for AI agents): http://localhost:8765/sse
-- **Settings** (LLM provider/keys): http://localhost:3000/settings
-- **Postgres**: localhost:5432 (user: `aryx`, password from `.env`)
-- **FalkorDB**: localhost:6379
-- **Ollama**: localhost:11434
-
-### 4. Verify
-
-```bash
-docker compose ps
-# Should show: postgres, falkordb, ollama, api, worker, mcp, web — all "Up"
-
-curl http://localhost:8088/health   # API → {"status": "ok"}
-curl -o /dev/null -w "%{http_code}\n" http://localhost:3000   # web → 200
-```
-
-### 5. First Ingest (the /start wizard)
-
-The primary onboarding flow is the **guided wizard** in the web UI:
-
-1. Open http://localhost:3000 → top-right workspace picker → **New workspace**
-2. You land on **`/start`**:
-   - **Goals** — describe what you're tracking and your objectives;
-     Aryx drafts a brief from it (edit/confirm)
-   - **Sources** — add a data source:
-     - **Database** (`postgres`/`postgresql`/`mysql`/`mariadb`/`oracle`/`rest`):
-       host `postgres`, port `5432`, db `aryx`, user `aryx`, password from `.env`
-       (or any external DB), or
-     - **Files** — upload CSV / PDF / DOCX / PPTX / JSON
-   - **Run** — the pipeline discovers schema → resolves entities → projects the
-     graph; watch live progress, then land on **Done**
-3. Explore the result in **Ask**, **Data**, **Model**, and **Lab**.
-
-> Optional demo data: `curl -X POST localhost:8088/demo/load -H 'Content-Type: application/json' -d '{"ticket_count":200}'`
-> loads synthetic radio-equipment support data into the source tables.
-
-## EC2 Deployment
-
-### Prerequisites
-
-- **EC2 instance** (t3.large+, 4 vCPU, 8GB RAM, 50GB disk)
-- **SSH key** (e.g. `~/.ssh/rvdts-oracle-key.pem`)
-- **Security group** inbound: 22 (SSH), **3000 (web UI)**, 8088 (API),
-  **8765 (MCP)**, 80/443 if behind a proxy
-
-> Current deployment: `ec2-user@ec2-3-91-73-197.compute-1.amazonaws.com`,
-> app dir `/home/ec2-user/aryx`, tracks branch `main`.
-
-### 1. SSH & Clone
-
-```bash
-ssh -i ~/.ssh/rvdts-oracle-key.pem ec2-user@<instance-ip>
-cd /home/ec2-user
-git clone https://github.com/giggsoinc/aryx.git
-cd aryx
-```
-
-### 2. Create `.env`
-
-```bash
-cat > .env <<'EOF'
-POSTGRES_PASSWORD=production_secret_here
+# Database (used by Compose to seed Postgres)
+POSTGRES_PASSWORD=change-me-in-production
 POSTGRES_DB=aryx
-OLLAMA_NUM_PARALLEL=1
+
+# App DSN — inside Compose network, host is "postgres"
+ARYX_RDB_DSN=postgresql://aryx:change-me-in-production@postgres:5432/aryx
+ARYX_GRAPH_URL=redis://falkordb:6379
+
 ARYX_LOG_LEVEL=INFO
-EOF
+
+# LLM boot defaults (also changeable live in the UI under Settings)
+ARYX_LLM_PROVIDER=ollama
+ARYX_LLM_BASE_URL=http://ollama:11434
+ARYX_LLM_MENIAL_MODEL=qwen3.5:0.8b
+ARYX_LLM_REASON_MODEL=lfm2.5-thinking:latest
+ARYX_LLM_API_KEY=
+
+# API auth: off | optional (default) | required
+# For any network-exposed deploy, use required and issue keys.
+ARYX_API_AUTH=optional
 ```
 
-### 3. Start
+**Never commit `.env`.** It is gitignored.
+
+### LLM providers (optional)
+
+Defaults use **Ollama** in Compose (no API key). For cloud models, either:
+
+1. Open **http://localhost:3000/settings** after start and save provider / model / key, or  
+2. Set env before start, for example:
 
 ```bash
-docker compose build --no-cache
+# Gemini (OpenAI-compatible endpoint)
+ARYX_LLM_PROVIDER=google
+ARYX_LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
+ARYX_LLM_REASON_MODEL=gemini-2.0-flash
+ARYX_LLM_API_KEY=your-google-api-key
+
+# Grok (xAI)
+ARYX_LLM_PROVIDER=xai
+ARYX_LLM_BASE_URL=https://api.x.ai/v1
+ARYX_LLM_REASON_MODEL=grok-3
+ARYX_LLM_API_KEY=your-xai-key
+```
+
+Keys saved in **Settings** stay in API **process memory** (not written to disk). They reset when the API container restarts unless set via env.
+
+---
+
+## 3. Start the stack
+
+```bash
 docker compose up -d
 ```
 
-### 4. Verify
+**First run:** `ollama-init` downloads models (`qwen3.5:0.8b`, `lfm2.5-thinking`, `nomic-embed-text`). Wait until `docker compose ps` shows services healthy and Ollama lists those models.
+
+### Services and ports
+
+| Service | Host URL / port | Role |
+|---------|-----------------|------|
+| **web** | http://localhost:3000 | Next.js product UI |
+| **api** | http://localhost:8088 | FastAPI (`/docs` = OpenAPI) |
+| **mcp** | http://localhost:8765/sse | MCP SSE for agents |
+| **postgres** | localhost:**55432** → container 5432 | Source of truth (+ pgvector) |
+| **falkordb** | localhost:6379 | Graph projection |
+| **ollama** | (internal) | Local LLM runtime |
+| **worker** | (internal) | Background jobs |
+
+> Host Postgres is on **55432** to avoid clashing with a local Postgres on 5432. Inside Docker, apps still use `postgres:5432`.
+
+There is **no Streamlit service**.
+
+---
+
+## 4. Verify
 
 ```bash
 docker compose ps
-docker logs -f aryx-web-1   # watch the Next.js web UI start
-docker logs -f aryx-api-1   # watch the API + migrations
+# Expect Up: postgres, falkordb, ollama, api, worker, mcp, web
+
+curl -s http://localhost:8088/health
+# {"status":"ok"}  (or similar healthy payload)
+
+curl -o /dev/null -w "%{http_code}\n" http://localhost:3000
+# 200
+
+docker compose exec ollama ollama list
+# should list pulled models after ollama-init finishes
 ```
 
-### 5. Updating a running deployment (git-only flow)
+Open:
 
-Never `docker run`/`scp` ad-hoc changes. All updates flow through git:
+1. http://localhost:3000 — product UI  
+2. http://localhost:3000/settings — confirm LLM provider  
+3. Create a **workspace** → **Onboard** (`/start`)
+
+Optional demo data into support tables:
 
 ```bash
-ssh -i ~/.ssh/rvdts-oracle-key.pem ec2-user@<instance-ip>
-cd /home/ec2-user/aryx
-git pull origin main
-# Rebuild what changed: api/worker/mcp/ui share the Python image; web is the
-# Next.js app. Python changes -> rebuild api (and worker/mcp/ui); UI changes -> web.
-docker compose build api web
-docker compose up -d api web
+curl -X POST http://localhost:8088/demo/load \
+  -H 'Content-Type: application/json' \
+  -d '{"ticket_count":200}'
 ```
 
-If behaviour doesn't match the new code (compose served a stale layer),
-force a clean rebuild and verify the file is actually in the image:
+---
+
+## 5. First-time product path
+
+1. **New workspace** (header picker).  
+2. **Onboard** — goals → brief → database and/or files → pipeline runs.  
+3. **Data → Graph** — interactive entity graph (search, filters, click for detail).  
+4. **Ask** — grounded questions with citations.  
+5. **Lab** — ontology ON vs OFF (needs populated workspace).
+
+Details: [USER_GUIDE.md](USER_GUIDE.md).
+
+---
+
+## Security checklist (exposed hosts)
+
+If ports are reachable beyond your laptop:
+
+| Action | Why |
+|--------|-----|
+| Set `ARYX_API_AUTH=required` | Default `optional` allows unauthenticated API use |
+| Change `POSTGRES_PASSWORD` / DSN | Defaults are for local demo only |
+| Do not publish Postgres/FalkorDB to the public internet | Data stores |
+| Prefer a reverse proxy + TLS | Terminate HTTPS in front of 3000/8088 |
+| Set `ARYX_LOG_LEVEL=INFO` in production | Compose may use DEBUG on the API for local debugging |
+
+MCP bearer tokens: issue tokens when you leave open “no tokens issued” allow-all behaviour. See architecture/security notes in the codebase (`ARYX_MCP_AUTH_OPTIONAL`).
+
+---
+
+## Entity resolution knobs (optional)
+
+Defaults are tuned for **fast local** runs (LLM adjudication off by default):
+
+```bash
+ARYX_ER_AUTO_MERGE=0.92
+ARYX_ER_ADJUDICATE=0.90
+ARYX_ER_REVIEW=0.75
+# Max LLM adjudications per resolve run (0 = off; pairs go to review queue)
+ARYX_ER_MAX_ADJUDICATIONS=0
+# Skip embedding scoring when match text is shorter than this many chars
+ARYX_ER_EMBED_MIN_CHARS=40
+ARYX_ER_CHUNK_THRESHOLD=100000
+ARYX_PROJECT_DIRTY_MAX=0.30
+```
+
+---
+
+## Updating a deployment
+
+```bash
+cd aryx
+git pull origin main
+docker compose build api web worker mcp
+docker compose up -d api web worker mcp
+```
+
+- **Python/API changes** → rebuild `api` (and `worker` / `mcp` if those images share the same Dockerfile).  
+- **Web UI changes** → rebuild `web`.  
+- Migrations under the store layer apply **automatically** on API startup (idempotent).
+
+Force clean rebuild if behaviour looks stale:
 
 ```bash
 docker compose build --no-cache api web
 docker compose up -d --force-recreate api web
-docker compose exec api test -f /app/src/aryx/ports/container.py && echo ok
 ```
 
-Database migrations (`src/aryx/store/migrations/*.sql`, currently 27) are
-idempotent and apply automatically on API startup — no manual step.
+---
 
-### 6. Tuning (optional .env keys)
+## Cloud VM sketch (e.g. EC2)
+
+1. Instance: **4 vCPU / 8 GB RAM / 50 GB+** disk.  
+2. Security group: **22**, **3000**, **8088**, **8765** (and 80/443 if proxied). Prefer restrict source IPs.  
+3. Clone, `.env` with strong secrets, `docker compose up -d`.  
+4. Access via `http://<public-ip>:3000` (or HTTPS via proxy).
+
+Do not rely on shared demo IPs from old docs; use your own host.
+
+---
+
+## Local development (without full Compose UI)
+
+Still need Postgres, FalkorDB, and usually Ollama (Compose those three, or run equivalents).
 
 ```bash
-# REST auth: off | optional (default) | required
-ARYX_API_AUTH=optional
-# ER funnel thresholds (defaults from the G9 measured sweep)
-ARYX_ER_AUTO_MERGE=0.92
-ARYX_ER_ADJUDICATE=0.90
-ARYX_ER_REVIEW=0.75
-# Chunked resolution kicks in above this record count
-ARYX_ER_CHUNK_THRESHOLD=100000
-# Incremental projection when dirty-set below this fraction
-ARYX_PROJECT_DIRTY_MAX=0.30
-```
-
-### 7. Access
-
-- **Web UI:** http://<instance-ip>:3000
-- **Settings (LLM keys):** http://<instance-ip>:3000/settings
-- **API:** http://<instance-ip>:8088  (`/docs` for OpenAPI)
-- **MCP (SSE):** http://<instance-ip>:8765/sse
-
-## Troubleshooting
-
-### Port Already in Use
-
-```bash
-# Kill process on port 3000 or 8088
-lsof -ti :3000 | xargs kill -9
-lsof -ti :8088 | xargs kill -9
-```
-
-### Postgres Connection Refused
-
-```bash
-# Check if postgres is healthy
-docker compose exec postgres pg_isready -U aryx
-
-# View logs
-docker logs aryx-postgres-1
-```
-
-### Ollama Models Slow / Out of Memory
-
-Edit `docker-compose.yml`:
-```yaml
-ollama:
-  environment:
-    - OLLAMA_NUM_PARALLEL=1  # Reduce parallel model loads
-    - OLLAMA_MAX_VRAM=4gb    # Cap VRAM usage
-```
-
-Rebuild: `docker compose up -d ollama`
-
-### UI Won't Load / Blank Page
-
-```bash
-# Restart UI container
-docker compose restart ui
-
-# Check logs
-docker logs -f aryx-ui-1
-```
-
-## Development (Without Docker)
-
-```bash
-# Create venv
-python3.13 -m venv venv
-source venv/bin/activate
-
-# Install deps
+# API
+python3.13 -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-
-# Run API (PYTHONPATH=src so `aryx` is importable)
+export ARYX_RDB_DSN=postgresql://aryx:aryx@localhost:55432/aryx
+export ARYX_GRAPH_URL=redis://localhost:6379
+export ARYX_LLM_BASE_URL=http://localhost:11434
 PYTHONPATH=src python -m uvicorn aryx.api.main:app --reload --port 8088
 
-# Run the Next.js web UI (separate terminal)
-cd apps/web && npm install && \
-  ARYX_API_URL_INTERNAL=http://localhost:8088 npm run dev   # → http://localhost:3000
-# LLM Settings: http://localhost:3000/settings
+# Web (separate terminal)
+cd apps/web
+npm install
+ARYX_API_URL_INTERNAL=http://localhost:8088 npm run dev
+# → http://localhost:3000
 ```
 
-(Requires external Postgres + FalkorDB + Ollama. See `docker-compose.yml` for connection strings.)
-
-Run the test suite (no Docker needed for the pure-logic subset):
+Smoke tests (no full stack required for pure unit subset):
 
 ```bash
 PYTHONPATH=src python -m pytest tests/test_ports_seam.py tests/test_grounding.py \
   tests/test_ab.py tests/test_explore.py -q
 ```
 
-## Verification Checklist
+---
 
-After starting services, verify everything is healthy:
+## Troubleshooting
+
+### Port already in use
 
 ```bash
-# 1. All containers running
-docker compose ps
-# Expect: postgres, falkordb, ollama, api, worker, mcp, web — all "Up"
-
-# 2. API health
-curl http://localhost:8088/health        # {"status": "ok"}
-
-# 3. Web UI loads
-curl -o /dev/null -w "%{http_code}\n" http://localhost:3000   # 200
-
-# 4. Platform / edition (Phase 0 ports seam)
-curl -s "http://localhost:8088/admin/observability?workspace_id=1" | grep -o '"edition":"[a-z-]*"'
-
-# 5. Ollama model available
-docker compose exec ollama ollama list    # should show nomic-embed-text
-
-# 6. FalkorDB reachable (FalkorStore needs a url + graph name)
-docker compose exec api python -c "
-from aryx.graph.falkor_store import FalkorStore
-from aryx.config import get_settings
-FalkorStore(get_settings().graph_url, 'aryx_ws_1'); print('FalkorDB: ok')"
-
-# 7. Open http://localhost:3000 — pick a workspace, land on /start or Ask
+lsof -ti :3000 | xargs kill -9
+lsof -ti :8088 | xargs kill -9
+# Postgres host mapping uses 55432
+lsof -ti :55432 | xargs kill -9
 ```
 
-## Next Steps
+### API unhealthy / migrations
 
-- [User Guide](USER_GUIDE.md) — Navigate the UI, adjudication queue, actions
-- [Feature Matrix](FEATURES.md) — All capabilities at a glance
-- [Ingestion Guide](INGESTION_GUIDE.md) — Detailed ingest workflow
-- [Architecture](ARCHITECTURE.md) — System design deep-dive
+```bash
+docker compose logs -f api
+```
+
+Migrations run on API startup. Fix DSN/password mismatches in `.env`.
+
+### Web blank or 502
+
+```bash
+docker compose logs -f web
+docker compose restart web
+# Confirm proxy target: ARYX_API_URL_INTERNAL=http://api:8000 inside Compose
+```
+
+### Ollama slow or OOM
+
+Reduce parallelism; ensure enough RAM. First model pull is large.
+
+```bash
+docker compose logs ollama ollama-init
+docker compose exec ollama ollama list
+```
+
+### LLM errors in Ask / onboard
+
+1. Check **Settings** → provider, endpoint, model ids.  
+2. For Ollama, endpoint from the API container is usually `http://ollama:11434` (not `localhost`).  
+3. Restart API after changing env-based keys: `docker compose up -d api`.
+
+### Resolve takes too long
+
+Confirm `ARYX_ER_MAX_ADJUDICATIONS=0` (default). Check match keys are real columns (upload path repairs bad keys). See User guide / Features for ER behaviour.
+
+---
+
+## License
+
+Aryx Lite is **BSL 1.1**. Internal production use is allowed under the Additional Use Grant; competing multi-tenant hosting requires a commercial license. See [LICENSING.md](LICENSING.md) and root [`LICENSE`](../LICENSE).
+
+---
+
+## Next steps
+
+- [User guide](USER_GUIDE.md) — use the product  
+- [Features](FEATURES.md) — capability matrix  
+- [Architecture](ARCHITECTURE.md) — design  
+- [Ingestion guide](INGESTION_GUIDE.md) — deeper ingest detail  

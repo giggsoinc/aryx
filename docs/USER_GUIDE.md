@@ -1,230 +1,241 @@
-# User Guide
+# User Guide — Aryx Lite
 
-## Overview
+Aryx turns the data you already have into a **knowledge graph you can ask questions of**, and ties every answer back to **real source records**.
 
-Aryx turns the data you already have into a **knowledge graph you can ask questions of** — and proves every answer against the real source records it came from. Where most tools make you design a schema up front, Aryx is discovery-driven: you state what you want to figure out in plain English, point it at your data, and it proposes the model for you to approve.
+You do **not** design a full schema up front. You state goals in plain English, point Aryx at databases or files, approve the model it proposes, and explore.
 
-Everything is organised around **workspaces** — fully isolated projects, each with its own data partitions and graph. Use one per use case (Customer Support, Sales Pipeline, BoM), and nothing leaks between them.
-
-This guide walks through the **Next.js web UI**, the primary interface. Open it at:
-
-- **Local:** http://localhost:3000
-- **Live box:** http://3.91.73.197:3000
-
-The top nav has five surfaces — **Ask**, **Model**, **Data**, **Lab**, **Onboard** — plus a workspace picker on the right. A new, empty workspace drops you straight into Onboard.
-
-> **UI:** Next.js on port 3000 is the only product UI. Configure LLM providers under **Settings** (`/settings`).
+Everything lives in **workspaces** — isolated projects (partitions + graph). Use one workspace per use case (e.g. Support, Sales, BoM).
 
 ---
 
-## The Top Nav
+## Open the app
 
-Across the top of every page you'll find:
+| Environment | URL |
+|-------------|-----|
+| Local (Docker) | http://localhost:3000 |
+| Your server | http://\<host\>:3000 |
 
-- **Logo** (left) — returns to Ask.
-- **Ask** · **Model** · **Data** · **Lab** · **Onboard** — the five surfaces.
-- **Jobs chip** — a live spinner appears here while any ingest job is running; click it for per-job status.
-- **Questions bell** — appears when the workspace has pending human-in-the-loop questions (hidden during the Onboard wizard and on empty workspaces).
-- **Workspace picker** (right) — switch or create workspaces.
+**Only UI:** Next.js. There is no Streamlit interface.
 
----
-
-## 1. Workspaces (Picker, Top-Right)
-
-The pill on the top right shows your active workspace. Click it to drop down a panel:
-
-1. **Switch** — pick any workspace in the list; the dot marks the active one. Switching reloads every surface against that workspace's isolated data and graph. (If you switch while inside the Onboard wizard, Aryx routes you to Ask so you're not stranded mid-setup.)
-2. **New workspace…** — the dropdown morphs into an inline form (no modal). Give it a **Name** (e.g. *Sales Pipeline*) and an optional one-line description of what it's for, then **Create & open setup**.
-
-Creating a workspace routes you straight into the **Onboard** wizard, because a fresh workspace has its own empty partitions and graph and needs data before anything else works.
-
-> Each workspace is fully isolated — its own partitions, its own graph. One workspace per project keeps data clean.
+| Need | Where |
+|------|--------|
+| Install / ports / env | [INSTALL.md](INSTALL.md) |
+| LLM keys / provider | **Settings** → `/settings` |
+| API docs | http://localhost:8088/docs |
 
 ---
 
-## 2. Onboard (`/start`) — Guided Setup
+## Top navigation
 
-Onboard is a step-by-step wizard that takes you from "I have some data" to "I can ask questions of it." Progress shows along the top; you can leave and come back.
+| Control | Purpose |
+|---------|---------|
+| **Logo** | Jump to Ask |
+| **Ask** | Grounded Q&A |
+| **Model** | Ontology canvas (types & relationships) |
+| **Data** | Transparency explorer (Tree / Table / Graph) |
+| **Lab** | Accuracy Lab (ontology ON vs OFF) |
+| **Onboard** | Guided setup wizard (`/start`) |
+| **Settings** | LLM provider, models, API key |
+| **Jobs** chip | Live ingest/job progress |
+| **Questions** bell | Human-in-the-loop queue |
+| **Workspace** picker | Switch or create workspaces |
 
-### Step 1 — Your goals
+A **new empty workspace** routes you into Onboard automatically.
 
-> *"What do you want Aryx to help you figure out?"*
+---
 
-List 2–5 questions or goals in plain English — *"Find customers at risk of churning," "See where my BoM has single-source risk."* Starter chips are there to adapt. The **nouns in your goals become the first kinds of records** Aryx looks for, and the goals themselves become the test of whether the model works. (You can **Skip** and do this later.)
+## 1. Workspaces
 
-### Step 2 — Confirm the brief
+1. Open the **workspace pill** (top right).  
+2. **Switch** — reloads every surface for that workspace’s isolated data.  
+3. **New workspace…** — name + optional description → **Create & open setup**.
 
-Aryx reads your goals back as a short brief:
+Each workspace has its own partitions and graph. Prefer **one workspace per project**.
 
-- **You track** — the domain
-- **You want** — the aim
-- **In scope** — the candidate kinds of records (shown as chips)
+---
 
-If it's right, **Looks right — keep going**. If not, hit **Let me edit**, adjust any field inline, and save. Anything unexpected later gets flagged for your review — nothing happens silently.
+## 2. Settings (`/settings`) — models & keys
 
-### Step 3 — Pick your sources
+Controls the **LLM engine** used for Ask, discovery, and related stages.
 
-Tick any that apply (you can mix them):
+| Field | Notes |
+|-------|--------|
+| **Provider** | Local (Ollama), Claude (Anthropic), OpenAI / compatible, Gemini, Grok (xAI) |
+| **Fast model** | Lighter tasks (e.g. term extraction) |
+| **Answer model** | Main reasoning / answers |
+| **Endpoint** | Base URL (Ollama inside Docker: `http://ollama:11434`) |
+| **API key** | Required for cloud providers; leave blank for local Ollama |
 
-- **Database** — Postgres, MySQL, Oracle, and more
-- **Files** — PDF, CSV, Word, Excel, slides, JSON, images
-- **Add by hand** — informational here; you create types manually on the **Model** canvas
+**Save** applies **live** (no restart). Keys are held in API process memory and are **not** written to git. Restarting the API clears UI-saved keys unless set in `.env` (see [INSTALL.md](INSTALL.md)).
 
-The wizard loops through every source you pick — Database first, then Files.
+---
 
-### Step 4a — Connect a database
+## 3. Onboard (`/start`) — guided setup
 
-The connection form is driven by the database type. Supported dialects include **postgres / postgresql**, **mysql / mariadb**, **oracle**, and a generic **rest** source.
+Progress steps along the top; you can leave and return.
 
-Fill in host, database, user, password (and an **Advanced** disclosure for port, dialect, schema, extra context). Click **Connect**:
+### Step 1 — Goals
 
-- Aryx opens a **read-only** test connection and lists your tables.
-- Your **password is encrypted before it touches disk** with a server-only key, and the UI never shows it again.
-- If the test fails, you see the error inline and can fix it.
+Describe 2–5 things you want to figure out in plain English  
+(*“Find customers at risk of churn,” “Match tickets to expert agents”*).  
+Nouns in your goals seed the kinds of records Aryx looks for. You can skip.
 
-### Step 4b — Upload files
+### Step 2 — Brief
 
-Drag files onto the drop zone or click to browse. Accepted: **PDF · DOCX · PPTX · CSV · JSON · images** (plus TXT/MD). Limits today: up to **50 files, 2 MB each, 50 MB total**. Oversize files are flagged in red. Click **Upload & continue**.
+Aryx restates: domain, aim, in-scope record kinds. Confirm or edit.
 
-Behind the scenes each document is **chunked → PII-screened → embedded for semantic search → entities extracted** into your graph.
+### Step 3 — Sources
 
-### Step 5 — Pipeline runs (live)
+Pick any mix of:
 
-The pipeline runs with live progress. You can watch it here, or via the **Jobs chip** in the header. If Aryx hits a decision only a human should make, it **pauses and asks** — answer in the Questions drawer (see *Human-in-the-loop* below) to unblock it.
+- **Database** — Postgres, MySQL/MariaDB, Oracle, REST-style sources  
+- **Files** — CSV, JSON, PDF, DOCX, PPTX, images (limits: see upload UI; typically up to 50 files / 2 MB each / 50 MB total)  
+- **Add by hand** — create types later on the Model canvas  
+
+### Step 4a — Database
+
+Fill host, database, user, password (Advanced: port, dialect, schema). **Connect** runs a **read-only** test and lists tables. Passwords are encrypted before storage; the UI does not show them again.
+
+Inside Compose, host for the bundled DB is often `postgres` (not `localhost`).
+
+### Step 4b — Files
+
+Drag-and-drop or browse. Multi-file CSV/JSON batches get **per-file type and match-key inference** (so everything is not forced to a single “Document” type). After files land, Aryx can **infer cross-file relationships** and re-project the graph.
+
+### Step 5 — Pipeline
+
+Live progress here and in the **Jobs** chip. If a decision needs a human, Aryx **pauses** and queues a **Question** (bell).
 
 ### Step 6 — Done
 
-> *"Here's what I learned:"*
-
-Tiles show each kind of record Aryx found and how many of each, plus total records and connections. This screen **auto-refreshes** while ingest jobs are still running, so counts catch up as records land. From here jump to **Ask Aryx a question** or **See the map** (Model).
+Summary tiles of types and counts (auto-refresh while jobs finish). Jump to **Ask** or **Model**.
 
 ---
 
-## 3. Ask (`/`) — Question Your Graph
+## 4. Ask (`/`) — question your graph
 
-Ask is natural-language Q&A grounded in the workspace's resolved entities. Every answer is backed by the real records behind it.
+1. Type a question (or use a starter chip).  
+2. Answer streams with **citation / provenance** when grounded.  
+3. Use follow-up chips to dig deeper.
 
-1. Type a question in the composer (⌘K focuses it), or click a **starter chip**.
-2. The answer streams in. **Provenance/citation pills** appear beneath it, tracing the answer back to source entities.
-3. **Follow-up chips** let you keep the thread going — *"What else do we know about that Customer?", "Show me the underlying records."*
+**Tips**
 
-**What grounds best:**
-
-- **Entity-specific questions** — naming a specific kind of record or a specific entity (*"Tell me about the Customer NetOps Atlantic," "Which Agents have resolved the most Tickets?"*) ground tightly, because Aryx can lock onto a concrete noun.
-- **Generic / meta questions** — broad questions answer from a **workspace overview** rather than a specific entity.
-
-If the active workspace is empty, the composer is disabled and prompts you to onboard data first.
+- Name a **type or entity** (*“Tell me about Customer NetOps Atlantic”*) for tighter grounding.  
+- Empty workspaces disable Ask until you onboard data.
 
 ---
 
-## 4. Data (`/data`) — The Transparency Explorer
+## 5. Data (`/data`) — transparency explorer
 
-Data is where you see **everything Aryx resolved** — what type each thing is and the exact source record it traces to. Nothing hidden in a database you can't see.
+See **what was resolved** and **where it came from**.
 
-At the top, a **summary strip** shows:
-
-- **Entities · types** — total count and a coloured tile per type with its count.
-- **Sources** — each source with a bar and its record count.
-- **The dedup story** — e.g. *"5,000 source records → 3,200 entities (1,800 duplicates merged)."*
-
-Below that, three lenses:
+**Summary strip:** entity counts by type, sources, and a **dedup story**  
+(*N source records → M entities, K duplicates merged*).
 
 ### Tree lens
 
-Expandable hierarchy: **types → entities → attributes**. Expand a type to page through its entities; expand an entity to see its attributes plus the **provenance chips** (`system.dataset#record_id`) for every source record that contributed to it.
+**Types → entities → attributes**, with provenance chips  
+(`system.dataset#record_id`) on contributing sources.
 
 ### Table lens
 
-Pick a type from the left rail to get a **per-type records grid**. Columns are the most common attributes; **click any header to sort**. **Click a row** to open a **provenance drawer** showing the entity's attributes and a numbered trace of every source record (`system.dataset#record_id`) it was built from. Page in more rows with **Show more**.
+Per-type grid; sort by headers; row click opens a **provenance drawer**. **Show more** pages rows.
 
-### Graph lens
+### Graph lens (entity-level)
 
-A **type-level knowledge map**: one node per type, **sized by entity count**, with edges **labelled by relationship name and count**. It stays legible at any scale. If entities exist but no relationships are defined yet, the map shows the types and tells you to connect them with foreign-key links.
+Interactive **entity** graph (not only type bubbles):
 
----
+| Action | Result |
+|--------|--------|
+| Pan / zoom / minimap | Navigate large graphs |
+| Drag nodes | Rearrange for reading |
+| Fullscreen | Focused exploration |
+| **Search** | Find an entity by name and focus the camera |
+| **Type chips** | Toggle types on/off to declutter |
+| **Click a node** | Highlight it and its neighbours; open a **detail panel** |
+| Detail panel | Type, attributes, source records, relationships; click a related entity to walk the graph |
+| Large graphs | Hub-and-spoke **cluster layout** for readability |
 
-## 5. Model (`/model`) — The Ontology Canvas
-
-Model is the visual ontology: the entity types Aryx found and how they relate. It's an interactive canvas (drag, zoom, mini-map, re-layout).
-
-- **Nodes** are entity types, each showing its attributes, instance count, and status (**proposed** vs **approved**).
-- **Edges** are relationships — `subClassOf` for inheritance, named relationship types between types.
-- **Toolbar** — re-layout, refresh, and **New type**, with live type/relationship counts.
-
-**Click a type** to open the right-hand **Inspector**:
-
-- **Approve this type** — proposed types (discovered during ingest) pass through an approval gate before they're active.
-- **Attributes** tab — view/edit attributes, with an **AI: suggest attributes** button that proposes attribute names (with a rationale) as chips you accept one at a time.
-- **Survivorship** tab — set how duplicate records merge into the golden record (default strategy plus per-attribute overrides; see *Entity resolution* below).
-- **Axioms** tab — structural constraints (e.g. disjoint, cardinality) the reasoner enforces.
-- **Rules** tab — inference rules (`when <attribute> <op> <value> → <action>`).
-- **Delete this type** — type-and-confirm deletion (records stay in the graph but are no longer schema-registered).
-
-**Add relationships** by dragging from one type's handle to another — Aryx prompts for a snake_case name (e.g. `opened_by`) and persists it. **Click an edge** to delete a declared relationship.
-
-If the workspace has no types yet, an empty state points you back to guided setup or lets you add records by hand.
+If relationships are missing, upload multi-file data with shared keys or define relationships on **Model**.
 
 ---
 
-## 6. Lab (`/lab`) — The Accuracy Lab
+## 6. Model (`/model`) — ontology canvas
 
-The Lab answers one question: **does the ontology actually make answers more accurate?**
+Visual model of **entity types** and **relationships**.
 
-You ask a question, and Aryx runs the **same model twice**:
+- **Nodes** — attributes, instance counts, status (**proposed** vs **approved**).  
+- **Edges** — named relationships / inheritance.  
+- **Toolbar** — re-layout, refresh, **New type**.
 
-- **Ontology ON** — grounded in your knowledge graph, with citations to real source records.
-- **Ontology OFF** — no grounding; the model answering from its own parameters alone.
+**Inspector** (click a type):
 
-> **Needs a workspace with data.** On an empty workspace the Lab shows an empty-state pointing you to onboard or switch workspaces — it has nothing to contrast otherwise. On a populated workspace, **example questions are generated from real entities** in that workspace, so a click actually grounds.
+- Approve proposed types  
+- Attributes (+ AI suggest)  
+- **Survivorship** — how conflicting values win on merge  
+- Axioms / rules  
+- Delete type (confirm)
 
-Results:
-
-- **Scorecard** — four metrics, on vs off: **Grounded** (yes/no), **Citations**, **Source records**, **Evidence used**.
-- **Two variant cards** — the ON answer with its citations (each citation naming the entity, its type, and the `system.dataset#record_id`) and an evidence-coverage bar; the OFF answer marked ungrounded, with nothing traceable.
-- **Reasoner-check card** — a third proof dimension the LLM can't fake: how many axioms are enforced across how many entities, and how many contradictions the reasoner would **block** that a text-only answer would let through. (If no axioms are defined, it nudges you to add some in Model.)
+Drag between type handles to **add a relationship**. Click an edge to remove it.
 
 ---
 
-## Human-in-the-Loop (Questions Drawer)
+## 7. Lab (`/lab`) — Accuracy Lab
 
-When ingest needs a human call, Aryx **pauses and queues a question** instead of guessing. The **Questions bell** in the header lights up with a count.
+Answers: **does the ontology make answers better?**
 
-Open the drawer to:
+Same question, same model, two modes:
 
-1. Read each pending question (tagged by kind).
-2. Pick from suggested options, or type your own answer — the **AI suggestion** pre-fills when there is one.
+- **Ontology ON** — grounded in your graph + citations  
+- **Ontology OFF** — no graph grounding  
+
+Plus a **reasoner-check** (structural constraints the LLM cannot fake). Needs a **populated** workspace; empty workspaces show an empty state.
+
+---
+
+## Human-in-the-loop (Questions)
+
+When ingest or resolution needs a human decision, Aryx **queues a question** instead of guessing.
+
+1. Open the **bell** in the header.  
+2. Read the prompt; pick a suggestion or type an answer.  
 3. **Answer** to unblock the pipeline.
 
-When the queue is empty, the drawer reads *"All caught up."*
+Also used for ambiguous entity-resolution pairs in the review band.
 
 ---
 
-## Entity Resolution & Survivorship
+## Entity resolution & survivorship (what you feel in the product)
 
-After ingest, Aryx resolves duplicates automatically so each real-world thing is **one** entity:
+After ingest, Aryx:
 
-- It blocks records by shared keys, scores candidate pairs, and merges the confident ones — auto-merging strong matches, routing borderline pairs for review (these surface as questions), and rejecting weak ones.
-- Merged clusters collapse into a single **golden record**.
-- The **dedup story** on the Data tab (*N source records → M entities, K duplicates merged*) is the visible result.
+1. Blocks candidate duplicates by keys  
+2. Scores pairs  
+3. Auto-merges strong matches, queues mid-band for review, rejects weak ones  
+4. Builds a **golden record** per cluster  
 
-**Survivorship policy** (Model → Inspector → Survivorship) controls *which* value wins when sources disagree on an attribute. Set a default strategy and override per attribute — for example, let `revenue` take the most-recent value while everything else follows source priority.
+Defaults favour **speed on local models** (LLM adjudication can be limited via env — see [INSTALL.md](INSTALL.md)).  
 
----
-
-## Practical Tips
-
-- **State goals in plain English.** The nouns become your model — *"Match support tickets to the right expert agent"* gives Aryx `tickets` and `agents` to find.
-- **Name entities when you ask.** *"Tell me about the Customer NetOps Atlantic"* grounds far better than *"tell me about customers."*
-- **Trust the chain.** Every entity, every answer, every Lab citation traces to a `system.dataset#record_id`. Use the Data tab's provenance drawer to verify anything.
-- **Approve, don't assume.** Proposed types and relationships wait for your nod in Model before they're active.
-- **One workspace per project.** Customers, Sales, and Products deserve separate, isolated graphs.
-- **The Lab is your proof.** When someone asks "is the AI just making this up?", run the same question on/off and show them the scorecard.
+**Survivorship** (Model → Inspector → Survivorship) controls which source wins when attributes disagree (default strategy + per-attribute overrides).
 
 ---
 
-## Next Steps
+## Practical tips
 
-- [Install Guide](INSTALL.md) — Get running locally or on EC2
-- [Feature Matrix](FEATURES.md) — All capabilities at a glance
-- [Architecture](ARCHITECTURE.md) — How Aryx works under the hood
-- [Ingestion Guide](INGESTION_GUIDE.md) — Detailed ingest walkthrough
+- **State goals in plain English** — nouns become model seeds.  
+- **Name entities in Ask** — better grounding.  
+- **Trust the chain** — use Data provenance for anything important.  
+- **Approve types** on Model before treating them as final.  
+- **One workspace per project.**  
+- **Use Lab** when someone asks if the AI is inventing answers.  
+- **Configure Settings** before blaming “LLM unavailable” errors.
+
+---
+
+## Related docs
+
+- [Install](INSTALL.md) — Docker, env, security, updates  
+- [Features](FEATURES.md) — full capability list  
+- [Architecture](ARCHITECTURE.md) — how it works  
+- [Ingestion guide](INGESTION_GUIDE.md) — deeper ingest  
+- [Licensing](LICENSING.md) — BSL summary  

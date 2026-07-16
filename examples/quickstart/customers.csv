@@ -1,0 +1,6 @@
+customer_id,name,city,tier
+C001,NetOps Atlantic,Boston,enterprise
+C002,Harbor Logistics,Seattle,midmarket
+C003,Summit Health,Denver,enterprise
+C004,Plainfield Schools,Plainfield,public
+C005,Orbit Retail,Austin,smb
