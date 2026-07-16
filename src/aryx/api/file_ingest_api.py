@@ -34,7 +34,7 @@ _DATA_EXTS = {".json", ".csv"}
 _DOC_EXTS = {".pdf", ".pptx", ".ppt", ".docx", ".doc", ".rtf",
              ".jpg", ".jpeg", ".png", ".tiff", ".tif", ".bmp"}
 _ALL = _DATA_EXTS | _DOC_EXTS
-_MAX_FILE = 2 * 1024 * 1024
+_MAX_FILE = 20 * 1024 * 1024
 _MAX_TOTAL = 50 * 1024 * 1024
 _MAX_FILES = 50
 
@@ -169,7 +169,7 @@ def file_ingest_router() -> APIRouter:
         for f in files:
             data = await f.read()
             if len(data) > _MAX_FILE:
-                raise HTTPException(400, f"{f.filename}: exceeds 2 MB limit")
+                raise HTTPException(400, f"{f.filename}: exceeds 20 MB limit")
             total += len(data)
             if total > _MAX_TOTAL:
                 raise HTTPException(400, f"Total upload exceeds 50 MB limit")

@@ -14,7 +14,7 @@ interface Props {
 }
 
 const ACCEPT = ".pdf,.docx,.doc,.pptx,.ppt,.txt,.md,.csv,.json,.png,.jpg,.jpeg";
-const MAX_PER = 2 * 1024 * 1024;
+const MAX_PER = 20 * 1024 * 1024;
 const MAX_TOTAL = 50 * 1024 * 1024;
 const MAX_FILES = 50;
 
@@ -61,7 +61,7 @@ export function Files({ workspaceId, onUploaded, onBack, onSkip }: Props) {
         Drop the files you want Aryx to read.
       </h1>
       <p className="mt-3 max-w-lg text-center text-[14px] text-subtle">
-        PDFs, Word docs, slides, CSVs, JSON, images. Up to 50 files, 2&nbsp;MB
+        PDFs, Word docs, slides, CSVs, JSON, images. Up to 50 files, 20&nbsp;MB
         each, 50&nbsp;MB total — for now.
       </p>
 
