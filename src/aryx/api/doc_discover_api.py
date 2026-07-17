@@ -23,7 +23,7 @@ from aryx.store.job_store import JobStore
 from aryx.store.migrate import apply_migrations
 
 logger = logging.getLogger(__name__)
-_MAX_FILE = 2 * 1024 * 1024
+_MAX_FILE = 20 * 1024 * 1024
 
 
 class ConfirmRequest(BaseModel):
@@ -89,7 +89,7 @@ def doc_discover_router() -> APIRouter:
         for f in files:
             data = await f.read()
             if len(data) > _MAX_FILE:
-                raise HTTPException(400, f"{f.filename}: exceeds 2 MB")
+                raise HTTPException(400, f"{f.filename}: exceeds 20 MB")
             items.append((data, f.filename or "upload"))
         did = uuid.uuid4().hex
         jobs = JobStore(settings.rdb_dsn)
