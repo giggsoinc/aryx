@@ -1,21 +1,27 @@
-# Aryx Lite
+# Docker Hub — Aryx Lite images
 
-**Point Aryx at your data. Get a deduplicated, linked knowledge graph you can ask questions of — with provenance on every answer.**
+Public images under **[giggsodocker](https://hub.docker.com/u/giggsodocker)** (no login required to pull).
 
-Aryx Lite is a **source-available (BSL 1.1)** knowledge-graph platform for a single team: ingest databases and files, resolve duplicates into golden entities, project a queryable graph, and answer questions with citations.
+| Image | Role | Hub |
+|-------|------|-----|
+| **`giggsodocker/aryx-lite`** | Python runtime: **API**, **worker**, **MCP** (same image, different commands) | [hub.docker.com/r/giggsodocker/aryx-lite](https://hub.docker.com/r/giggsodocker/aryx-lite) |
+| **`giggsodocker/aryx-lite-web`** | **Next.js** product UI | [hub.docker.com/r/giggsodocker/aryx-lite-web](https://hub.docker.com/r/giggsodocker/aryx-lite-web) |
 
-## Repository overview
+Source: [github.com/giggsoinc/aryx](https://github.com/giggsoinc/aryx) · License: **BSL 1.1** → GPL-3.0-or-later on **2029-07-15**
+
+---
+
+## Repository overview (product)
+
+**Aryx Lite** turns the data you already have into a **workspace-scoped knowledge graph** you can ask questions of — with **provenance** on answers and merges.
 
 | | |
 |---|---|
-| **Product** | Aryx Lite — outcome mapping → ontology → graph → grounded Ask |
-| **Source** | [github.com/giggsoinc/aryx](https://github.com/giggsoinc/aryx) |
-| **This image** | Python runtime: **API**, **worker**, and **MCP** (same image, different commands) |
-| **Companion UI** | [`giggsodocker/aryx-lite-web`](https://hub.docker.com/r/giggsodocker/aryx-lite-web) (Next.js) |
+| **Edition** | Aryx Lite — single-team outcome mapping (laptop / small server) |
 | **System of record** | PostgreSQL 16 (+ pgvector) |
 | **Graph projection** | [FalkorDB](https://github.com/FalkorDB/FalkorDB) (rebuildable; never sole truth) |
+| **UI** | Next.js only — no Streamlit |
 | **Default LLM** | Ollama (local); Settings also supports Anthropic, OpenAI-compatible, Gemini, Grok |
-| **License** | Business Source License 1.1 → GPL-3.0-or-later on **2029-07-15** |
 
 ### What the stack does
 
@@ -25,28 +31,42 @@ Aryx Lite is a **source-available (BSL 1.1)** knowledge-graph platform for a sin
 4. **Link** — cross-file relationships → workspace graph  
 5. **Explore** — Ask (cited answers), Model canvas, Data explorer (tree / table / entity graph), Accuracy Lab  
 
-### Image tags
+---
+
+## Tags (both images)
+
+Tags are kept in sync when maintainers run `./scripts/docker-hub-publish.sh`.
 
 | Tag | Meaning |
 |-----|---------|
 | `latest` | Current release build |
-| `1.0.0` / `v1.0.0` | Semver (matches `aryx.__version__`) |
+| `1.0.0` | Semver (matches `aryx.__version__` / `pyproject.toml`) |
+| `v1.0.0` | Same release, `v`-prefixed |
 | `<git-sha>` | Exact commit (e.g. `a98a954`) |
 
 ```bash
-docker pull giggsodocker/aryx-lite:1.0.0
+# Backend (API / worker / MCP)
 docker pull giggsodocker/aryx-lite:latest
+docker pull giggsodocker/aryx-lite:1.0.0
+docker pull giggsodocker/aryx-lite:v1.0.0
+
+# Web UI
+docker pull giggsodocker/aryx-lite-web:latest
+docker pull giggsodocker/aryx-lite-web:1.0.0
+docker pull giggsodocker/aryx-lite-web:v1.0.0
 ```
 
-### Quick start (full stack)
+---
 
-Prefer the Compose file in the source repo (Postgres, FalkorDB, Ollama, API, worker, MCP, web):
+## Quick start (full stack)
+
+Prefer Compose from the source repo (Postgres, FalkorDB, Ollama, API, worker, MCP, web):
 
 ```bash
 git clone https://github.com/giggsoinc/aryx.git
 cd aryx
 cp .env.example .env
-docker compose pull    # uses giggsodocker/aryx-lite + aryx-lite-web when available
+docker compose pull    # public Hub images — no docker login required
 docker compose up -d
 ```
 
@@ -56,16 +76,40 @@ docker compose up -d
 | API / OpenAPI | http://localhost:8088/docs |
 | MCP (SSE) | http://localhost:8765/sse |
 
-This image alone is the **backend**. For a complete product experience, run Compose (or pair with `aryx-lite-web` + Postgres + FalkorDB + LLM).
+Pin versions:
 
-### Architecture (short)
+```bash
+export ARYX_IMAGE=giggsodocker/aryx-lite:1.0.0
+export ARYX_WEB_IMAGE=giggsodocker/aryx-lite-web:1.0.0
+docker compose up -d
+```
+
+---
+
+## Image-specific notes
+
+### `aryx-lite` (this is the backend image)
+
+- One image, three roles via command: **api**, **worker**, **mcp**
+- Needs Postgres + FalkorDB (+ LLM) for a working stack
+- Does **not** include the browser UI
+
+### `aryx-lite-web`
+
+- Next.js UI; talks HTTP only (same-origin `/api` proxy to the API)
+- Pair with `aryx-lite` + Postgres + FalkorDB + LLM for a full product experience
+
+---
+
+## Architecture (short)
 
 - **Postgres** = source of truth (entities, relationships, provenance, checkpoints)  
 - **FalkorDB** = rebuildable graph projection (one named graph per workspace)  
-- **Next.js UI** talks HTTP only (same-origin `/api` proxy) — no Python in the browser app  
 - **Ports & adapters** seam for Lite / Enterprise / Aryx-o substrate swaps  
 
-### Docs
+---
+
+## Docs
 
 - [Install](https://github.com/giggsoinc/aryx/blob/main/docs/INSTALL.md)  
 - [User guide](https://github.com/giggsoinc/aryx/blob/main/docs/USER_GUIDE.md)  

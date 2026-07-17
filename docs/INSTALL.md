@@ -5,6 +5,7 @@ Get Aryx running with Docker Compose (recommended), then open the web UI and onb
 | Doc | Audience |
 |-----|----------|
 | **This guide** | Operators and developers installing Aryx |
+| [Docker Hub images](DOCKERHUB.md) | Public image names, tags, Hub overview |
 | [User guide](USER_GUIDE.md) | People using the product UI day to day |
 | [Licensing](LICENSING.md) | BSL terms in plain English |
 
@@ -93,9 +94,19 @@ Keys saved in **Settings** stay in API **process memory** (not written to disk).
 
 ## 3. Start the stack
 
+Compose uses **public** Docker Hub images by default (no `docker login` required to pull):
+
+| Image | Role |
+|-------|------|
+| [`giggsodocker/aryx-lite`](https://hub.docker.com/r/giggsodocker/aryx-lite) | API, worker, MCP |
+| [`giggsodocker/aryx-lite-web`](https://hub.docker.com/r/giggsodocker/aryx-lite-web) | Next.js UI |
+
 ```bash
+docker compose pull          # recommended — download published images
 docker compose up -d
 ```
+
+If pull fails and you have source checked out, Compose can **build** from the local Dockerfiles instead.
 
 **First run:** `ollama-init` downloads models (`qwen3.5:0.8b`, `lfm2.5-thinking`, `nomic-embed-text`). Wait until `docker compose ps` shows services healthy and Ollama lists those models.
 
@@ -197,23 +208,35 @@ ARYX_PROJECT_DIRTY_MAX=0.30
 
 ## Prebuilt images (Docker Hub)
 
-Official images are published under Docker Hub user **`giggsodocker`**:
+Official **public** images under **`giggsodocker`** (pull does **not** require login):
 
-| Image | Role |
-|-------|------|
-| [`giggsodocker/aryx-lite`](https://hub.docker.com/r/giggsodocker/aryx-lite) | API, worker, MCP (Python) |
-| [`giggsodocker/aryx-lite-web`](https://hub.docker.com/r/giggsodocker/aryx-lite-web) | Next.js product UI |
+| Image | Role | Hub overview |
+|-------|------|----------------|
+| [`giggsodocker/aryx-lite`](https://hub.docker.com/r/giggsodocker/aryx-lite) | API, worker, MCP (Python) | Repository overview + tags on the Hub page |
+| [`giggsodocker/aryx-lite-web`](https://hub.docker.com/r/giggsodocker/aryx-lite-web) | Next.js product UI | Companion overview + same tag set |
 
-`docker-compose.yml` already references those image names.
+Canonical copy for Hub paste / maintainers: **[DOCKERHUB.md](DOCKERHUB.md)**.
+
+`docker-compose.yml` references:
+
+- `ARYX_IMAGE` (default `giggsodocker/aryx-lite:latest`)
+- `ARYX_WEB_IMAGE` (default `giggsodocker/aryx-lite-web:latest`)
+
+### Tags (both images)
 
 | Tag | Meaning |
 |-----|---------|
 | `latest` | Current release build |
-| `1.0.0` / `v1.0.0` | Semver from `pyproject.toml` / `aryx.__version__` |
+| `1.0.0` | Semver from `pyproject.toml` / `aryx.__version__` |
+| `v1.0.0` | Same release, `v`-prefixed |
 | `<git-sha>` | Exact commit (e.g. `a98a954`) |
 
 ```bash
-# Pull + run without a local build
+# Pull both images explicitly
+docker pull giggsodocker/aryx-lite:latest
+docker pull giggsodocker/aryx-lite-web:latest
+
+# Or pull everything Compose needs, then run
 docker compose pull
 docker compose up -d
 
@@ -225,13 +248,15 @@ docker compose up -d
 
 ### Publish a new release (maintainers)
 
-Requires Docker Desktop running and `docker login` as **`giggsodocker`** (or a token with push rights).
+Requires Docker Desktop running and `docker login` as **`giggsodocker`** (or a token with push rights). After push, keep both Hub repos **public** and refresh the Overview tab from [DOCKERHUB.md](DOCKERHUB.md) (or the image-specific sections there).
 
 ```bash
 docker login
 ./scripts/docker-hub-publish.sh          # latest + git SHA + version from pyproject.toml
 ./scripts/docker-hub-publish.sh 1.1.0    # override version tags
 ```
+
+Publishes **both** `aryx-lite` and `aryx-lite-web` with the same tags.
 
 ---
 
@@ -240,7 +265,7 @@ docker login
 ```bash
 cd aryx
 git pull origin main
-docker compose pull                     # prefer Hub images when available
+docker compose pull                     # public Hub images (aryx-lite + aryx-lite-web)
 # or rebuild from source:
 docker compose build api web worker mcp
 docker compose up -d api web worker mcp
