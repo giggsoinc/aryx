@@ -42,12 +42,26 @@ def post_json(url: str, body: dict[str, Any], headers: dict[str, str],
             with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
                 return json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
-            if exc.code != 429 or attempt == 4:
-                raise
-            logger.warning("429 throttled — sleep %.1fs then retry (%d/5)",
-                           delay, attempt + 2)
-            time.sleep(delay)
-            delay = min(delay * 2, 16.0)
+            if exc.code == 429 and attempt < 4:
+                logger.warning("429 throttled — sleep %.1fs then retry (%d/5)",
+                               delay, attempt + 2)
+                time.sleep(delay)
+                delay = min(delay * 2, 16.0)
+                continue
+            # Surface the provider's real error instead of a bare HTTP code.
+            # Gemini/OpenAI return an explanatory JSON body (e.g. a blocked key
+            # shows 403 API_KEY_SERVICE_BLOCKED, masked as 500 by the OpenAI
+            # shim) — without this the caller only sees "HTTP Error 500" and
+            # can't tell a key/permission problem from a server crash.
+            detail = ""
+            try:
+                detail = exc.read().decode("utf-8", "ignore").strip()
+            except Exception:  # noqa: BLE001 — best-effort body read
+                pass
+            raise RuntimeError(
+                f"LLM provider error: HTTP {exc.code} from {url}"
+                + (f" — {detail[:500]}" if detail else f" ({exc.reason})")
+            ) from exc
     raise RuntimeError("unreachable")
 
 
