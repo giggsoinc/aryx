@@ -146,7 +146,7 @@ In-network hosts: `postgres:5432`, `ollama:11434`, `falkordb:6379`.
 - **Multi-source ingest** (#3): connection-first, **context-driven auto-discovery agent**.
   Multi-RDBMS via SQLAlchemy (Postgres/MySQL/MariaDB/Oracle/SQLite; SQL Server needs ODBC).
   `/admin/connect → /discover → /ingest/multi`. File/folder upload (JSON, CSV, PDF, PPTX, DOCX,
-  images; ≤50 files, 2 MB each, 50 MB total). **Self-discovering documents** (no ontology fields):
+  images; ≤50 files, 20 MB each, 50 MB total). **Self-discovering documents** (no ontology fields):
   `/admin/docs/read → /summary → /confirm` (`doc_discovery.py`, `discoveries.py`, `records_source.py`).
 - **Workspaces + partitioning**: isolate use-cases. `aryx_workspace` table, LIST partitions per
   workspace, named graph per workspace. Sidebar selector (`ui/workspace_bar.py`) switch/create/delete;

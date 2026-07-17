@@ -1,6 +1,6 @@
 """File ingest API: upload up to 50 files (JSON/CSV/PDF/DOCX/PPTX/images).
 
-Limits: 2 MB per file, 50 MB total per request, max 50 files.
+Limits: 20 MB per file, 50 MB total per request, max 50 files.
 JSON/CSV go through the standard entity pipeline.
 Documents (PDF/DOCX/PPTX/images) go through chunk→PII→embed→extract→entity.
 """
@@ -193,7 +193,11 @@ def file_ingest_router() -> APIRouter:
 
     @router.get("/ingest/supported")
     def supported_types() -> dict[str, Any]:
-        return {"file_types": sorted(_ALL), "max_files": _MAX_FILES,
-                "max_file_mb": 2, "max_total_mb": 50}
+        return {
+            "file_types": sorted(_ALL),
+            "max_files": _MAX_FILES,
+            "max_file_mb": _MAX_FILE // (1024 * 1024),
+            "max_total_mb": _MAX_TOTAL // (1024 * 1024),
+        }
 
     return router

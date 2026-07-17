@@ -89,7 +89,7 @@ Aryx restates: domain, aim, in-scope record kinds. Confirm or edit.
 Pick any mix of:
 
 - **Database** — Postgres, MySQL/MariaDB, Oracle, REST-style sources  
-- **Files** — CSV, JSON, PDF, DOCX, PPTX, images (limits: see upload UI; typically up to 50 files / 2 MB each / 50 MB total)  
+- **Files** — CSV, JSON, PDF, DOCX, PPTX, images (limits: see upload UI; typically up to 50 files / 20 MB each / 50 MB total)  
 - **Add by hand** — create types later on the Model canvas  
 
 ### Step 4a — Database
