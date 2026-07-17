@@ -76,7 +76,7 @@ customers
 **When to use:** You have unstructured data (PDFs, Word docs, CSV files, emails).
 
 **Requirements:**
-- Documents to ingest (PDF, PPTX, DOCX, CSV, JSON, images — max 2 MB per file, 50 files total)
+- Documents to ingest (PDF, PPTX, DOCX, CSV, JSON, images — max 20 MB per file, 50 files total)
 - One-sentence description of content (e.g., *"Customer support tickets: include customer names, product names, issue descriptions"*)
 
 **Step-by-step:**
@@ -90,7 +90,7 @@ customers
 2. **Upload files** (Step 2)
    - Drag & drop or click upload
    - System accepts: JSON, CSV, PDF, PPTX, DOCX, RTF, images (jpg, png, tiff)
-   - Max 50 files, 2 MB each, 50 MB total
+   - Max 50 files, 20 MB each, 50 MB total
 
 3. **Read & discover** (Step 2 button)
    - Click **"Read & discover"** → system extracts text from all files
