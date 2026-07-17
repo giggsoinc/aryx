@@ -10,8 +10,9 @@
 [![License: BSL 1.1](https://img.shields.io/badge/license-BSL%201.1-blue.svg)](LICENSE)
 [![Graph: FalkorDB](https://img.shields.io/badge/graph-FalkorDB-red.svg)](https://github.com/FalkorDB/FalkorDB)
 [![Docker](https://img.shields.io/badge/docker-giggsodocker%2Faryx--lite-blue.svg)](https://hub.docker.com/r/giggsodocker/aryx-lite)
+[![Docker Web](https://img.shields.io/badge/docker-aryx--lite--web-blue.svg)](https://hub.docker.com/r/giggsodocker/aryx-lite-web)
 
-[Install](docs/INSTALL.md) · [User guide](docs/USER_GUIDE.md) · [Quickstart data](examples/quickstart/) · [Contributing](CONTRIBUTING.md) · [Raven (Claude Code)](docs/RAVEN.md) · [Code of conduct](CODE_OF_CONDUCT.md) · [Licensing](docs/LICENSING.md)
+[Install](docs/INSTALL.md) · [Docker Hub](docs/DOCKERHUB.md) · [User guide](docs/USER_GUIDE.md) · [Quickstart data](examples/quickstart/) · [Contributing](CONTRIBUTING.md) · [Raven (Claude Code)](docs/RAVEN.md) · [Code of conduct](CODE_OF_CONDUCT.md) · [Licensing](docs/LICENSING.md)
 
 > **Public · source-available (BSL 1.1).** Postgres is the system of record; the live knowledge graph is projected into **[FalkorDB](https://github.com/FalkorDB/FalkorDB)**.
 
@@ -27,10 +28,10 @@
 | **Not (yet)** | Multi-tenant governed enterprise estate (that path is Enterprise / Aryx-o) |
 | **SoT / graph** | PostgreSQL truth · FalkorDB rebuildable projection |
 | **UI** | Next.js only (`apps/web`) — no Streamlit |
-| **Images** | [`giggsodocker/aryx-lite`](https://hub.docker.com/r/giggsodocker/aryx-lite) (API · worker · MCP) · [`aryx-lite-web`](https://hub.docker.com/r/giggsodocker/aryx-lite-web) |
-| **Tags** | `latest` · `1.0.0` · `v1.0.0` · git short SHA |
+| **Images (public)** | [`giggsodocker/aryx-lite`](https://hub.docker.com/r/giggsodocker/aryx-lite) (API · worker · MCP) · [`giggsodocker/aryx-lite-web`](https://hub.docker.com/r/giggsodocker/aryx-lite-web) (Next.js UI) |
+| **Tags** | `latest` · `1.0.0` · `v1.0.0` · git short SHA (same tags on both images) |
 | **License** | BSL 1.1 → GPL-3.0-or-later on 2029-07-15 · [details](docs/LICENSING.md) |
-| **Docker Hub overview** | [docs/DOCKERHUB.md](docs/DOCKERHUB.md) |
+| **Docker Hub overview** | [docs/DOCKERHUB.md](docs/DOCKERHUB.md) · [aryx-lite](https://hub.docker.com/r/giggsodocker/aryx-lite) · [aryx-lite-web](https://hub.docker.com/r/giggsodocker/aryx-lite-web) |
 
 ---
 
@@ -52,14 +53,19 @@ Built for a **single team’s** outcome mapping on a laptop or small server — 
 
 **Requirements:** [Docker](https://docs.docker.com/get-docker/) + Docker Compose · ~8 GB RAM recommended (Ollama models)
 
-**Images (Docker Hub):** [`giggsodocker/aryx-lite`](https://hub.docker.com/r/giggsodocker/aryx-lite) (`latest` · `1.0.0` · `v1.0.0`) · [`giggsodocker/aryx-lite-web`](https://hub.docker.com/r/giggsodocker/aryx-lite-web)
+**Images (Docker Hub, public — no login to pull):**
+
+| Image | Role | Tags |
+|-------|------|------|
+| [`giggsodocker/aryx-lite`](https://hub.docker.com/r/giggsodocker/aryx-lite) | API · worker · MCP | `latest` · `1.0.0` · `v1.0.0` · `<sha>` |
+| [`giggsodocker/aryx-lite-web`](https://hub.docker.com/r/giggsodocker/aryx-lite-web) | Next.js UI | same tags |
 
 ```bash
 git clone https://github.com/giggsoinc/aryx.git
 cd aryx
 cp .env.example .env          # edit passwords / LLM keys as needed
-docker compose pull           # optional — use Hub images when published
-docker compose up -d          # builds locally if pull is empty
+docker compose pull           # pulls public Hub images (no docker login)
+docker compose up -d          # builds from source only if pull/build policy requires it
 ```
 
 First boot pulls LLM models into Ollama (can take several minutes).
@@ -75,7 +81,7 @@ Then: open the web UI → **New workspace** → **Onboard** (`/start`) → goals
 
 **Sample data:** upload the CSVs in [`examples/quickstart/`](examples/quickstart/) (customers + tickets) to exercise multi-file ingest and the entity graph.
 
-Full steps, ports, and troubleshooting: **[docs/INSTALL.md](docs/INSTALL.md)** · UI walkthrough: **[docs/USER_GUIDE.md](docs/USER_GUIDE.md)**
+Full steps, ports, and troubleshooting: **[docs/INSTALL.md](docs/INSTALL.md)** · Hub copy: **[docs/DOCKERHUB.md](docs/DOCKERHUB.md)** · UI walkthrough: **[docs/USER_GUIDE.md](docs/USER_GUIDE.md)**
 
 ### Smoke check (API)
 
@@ -84,11 +90,12 @@ curl -s http://localhost:8088/health
 # then open http://localhost:3000
 ```
 
-### Pull a pinned backend image
+### Pull pinned images
 
 ```bash
 docker pull giggsodocker/aryx-lite:1.0.0
-# or: docker pull giggsodocker/aryx-lite:latest
+docker pull giggsodocker/aryx-lite-web:1.0.0
+# or latest / v1.0.0 / git short SHA
 ```
 
 ---
