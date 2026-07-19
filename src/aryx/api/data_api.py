@@ -54,7 +54,7 @@ def _hierarchy_for(
 
     Generalised (not workspace-specific): first honour the columns the user
     named in THIS workspace's goal (reusing ingest's column honouring, so the
-    grouping matches what they asked for — e.g. contract_number, line_number);
+    grouping matches what they asked for — e.g. parent_key, child_key);
     otherwise auto-detect a hub/spoke shape from the data. Returns (None, None)
     when neither applies, so the caller renders a flat view.
     """

@@ -102,12 +102,12 @@ def grouped_entities_view(entities: list[tuple[int, str, dict]],
                           hub_attr: str, label_attr: str | None = None,
                           ontology_type: str | None = None,
                           group_limit: int = 25, group_offset: int = 0) -> dict[str, Any]:
-    """Entities grouped under their hub value (e.g. every line by contract_number).
+    """Entities grouped under their hub value (e.g. child rows by parent_key).
 
     The table companion to the hub/spoke graph: rows are bucketed by
-    ``hub_attr`` so all of a contract's lines sit together under one header.
+    ``hub_attr`` so related child rows sit together under one header.
     Paginated by GROUP (``group_offset``/``group_limit``) so large sources stay
-    responsive. Each row is labelled by ``label_attr`` (line_number) when given,
+    responsive. Each row is labelled by ``label_attr`` when given,
     else its display name. General — the caller supplies the columns.
     """
     by_entity = _prov_by_entity(provenance)
@@ -173,7 +173,7 @@ def _attr_values(entities: list[tuple[int, str, dict]],
 
 
 def _parent_type(otype: str) -> str:
-    """Name the hub concept after its spokes: ContractLine -> Contract."""
+    """Name the hub concept after its spokes: ChildLine -> Child."""
     for suf in ("Lines", "Items", "Line", "Item"):
         if otype.endswith(suf) and len(otype) > len(suf):
             return otype[:-len(suf)]
@@ -185,13 +185,11 @@ def detect_hierarchy(
 ) -> tuple[str, str | None] | None:
     """Detect a hub/spoke shape: a grouping key + a within-group discriminator.
 
-    Contract-line data (10k rows sharing ~1.5k contract_numbers, each line
-    distinguished by line_number) reads as thousands of disconnected nodes in
-    the flat entity view. When one attribute groups the rows (an identifier
-    like ``contract_number`` with many-to-one cardinality) and another makes
-    each row unique within its group (``line_number``), we can render a hub per
-    group with its lines hanging off it — the "how each contract connects to
-    its line items" view the goal asks for.
+    Hierarchical data (many child rows sharing a smaller set of parent keys,
+    each child distinguished by another key) reads as thousands of disconnected
+    nodes in the flat entity view. When one attribute groups the rows and
+    another makes each row unique within its group, we can render a hub per
+    group with its children hanging off it.
 
     Returns ``(hub_attr, label_attr)`` or None when the data isn't hierarchical
     (so the caller falls back to the flat view). ``label_attr`` may be None,
@@ -233,7 +231,7 @@ def detect_hierarchy(
     hub_attr = hub[1]
 
     # Label: makes (hub, label) unique across rows; prefer identifier-like with
-    # the fewest distinct values (a positional discriminator like line_number,
+    # the fewest distinct values (a positional discriminator like child_key,
     # not a high-cardinality Product Number).
     label: tuple[tuple[int, int], str] | None = None
     for k in attrs:
@@ -262,11 +260,11 @@ def entity_graph_view(entities: list[tuple[int, str, dict]],
 
     The detail companion to ``graph_view`` — shows the specific mappings
     (which Company each Customer belongs to) rather than the aggregated shape.
-    When the entities form a hub/spoke shape (e.g. contract lines sharing a
-    contract_number), renders that hierarchy instead of a flat node soup.
+    When the entities form a hub/spoke shape, renders that hierarchy instead
+    of a flat node soup.
 
     ``hub_attr``/``label_attr`` let the caller pin the grouping to the columns
-    the user named in the goal (contract_number, line_number) — honoured over
+    the user named in the goal — honoured over
     auto-detection, which can pick a different-but-valid grouping (e.g. by
     Customer Number). Falls back to auto-detection, then the flat view.
     """
@@ -342,7 +340,7 @@ def _hub_spoke_view(entities: list[tuple[int, str, dict]],
     aggregate (no detail fetch). Each spoke links to its hub via HAS_ item.
     """
     otype = entities[0][1]
-    parent = _parent_type(otype)  # hub concept name: ContractLine -> Contract
+    parent = _parent_type(otype)  # hub concept name: ChildLine -> Child
     edge_name = f"HAS_{otype.upper()}"
     ids = {eid for eid, _, _ in entities}
     hub_ids: dict[str, str] = {}
@@ -385,7 +383,7 @@ def entity_detail(entities: list[tuple[int, str, dict]],
     Returns None when the id is not in this workspace.
 
     ``hub_attr`` mirrors the hub/spoke graph: when set, a synthesized edge to
-    the entity's hub (e.g. its Contract, by contract_number) is added so the
+    the entity's hub is added so the
     panel matches the picture. It's display-only — no stored relationship — so
     it also lists a hub's spokes when a hub node itself is inspected.
     """

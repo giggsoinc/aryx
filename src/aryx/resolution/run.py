@@ -163,8 +163,8 @@ def resolve(
     # code), identical text means the same real-world entity and different text
     # means a different one — so grouping by exact key is both correct and O(n).
     # This skips the O(n^2) block->score->adjudicate funnel entirely, which
-    # otherwise dominates wall-clock on large keyed sources (e.g. 10k contract
-    # lines keyed on contract_number+line_number). Gated on uniqueness so it
+    # otherwise dominates wall-clock on large keyed sources with composite
+    # parent/child keys. Gated on uniqueness so it
     # never collapses low-cardinality or free-text data that needs real fuzzy
     # matching. Tunable via ARYX_ER_EXACT_MIN_UNIQUENESS (default 0.95).
     min_uniq = _threshold("ARYX_ER_EXACT_MIN_UNIQUENESS", 0.95)

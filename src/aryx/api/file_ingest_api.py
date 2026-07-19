@@ -90,9 +90,9 @@ def _workspace_context(dsn: str, workspace_id: int) -> str:
 def _norm_tokens(text: str) -> list[str]:
     """Word tokens: lowercased, split on non-alphanumerics, plural-stripped.
 
-    So ``contract_number``, "Contract Numbers", and "contract number" all
-    normalise to ``[contract, number]`` — the drafter naturalises the goal's
-    tokens (e.g. writes "Line Numbers") and this maps them back to the column.
+    So ``parent_key``, "Parent Keys", and "parent key" all normalise to
+    ``[parent, key]`` — the drafter naturalises the goal's tokens and this maps
+    them back to the column.
     """
     out: list[str] = []
     for t in re.findall(r"[a-z0-9]+", text.lower()):
@@ -105,17 +105,17 @@ def _norm_tokens(text: str) -> list[str]:
 def _columns_in_context(context: str, cols: list[str]) -> list[str]:
     """Return the file columns the user explicitly named in the goal/brief.
 
-    Users often state the identity outright ("a Contract is identified by its
-    contract_number ... every line by its contract_number together with its
-    line_number"). When the goal names real columns, those ARE the match key
-    the user asked for — honour them instead of trusting the LLM's guess, which
-    is unreliable and here keyed on an unrelated column (APC).
+    Users often state the identity outright ("a parent is identified by
+    parent_key; every child by parent_key together with child_key"). When the
+    goal names real columns, those ARE the match key the user asked for —
+    honour them instead of trusting the LLM's guess, which may choose an
+    unrelated column.
 
     A column is "named" when EVERY word of its (normalised) name appears in the
-    context — so ``line_number`` matches "Line Numbers" but a ``Line Number
-    Sorter`` column (needs "sorter" too) does not. Returned in the order the
+    context — so ``child_key`` matches "Child Keys" but a ``Child Key Sorter``
+    column (needs "sorter" too) does not. Returned in the order the
     columns appear in the goal, so a composite key keeps the stated order
-    (contract_number before line_number).
+    (parent_key before child_key).
     """
     if not context or not cols:
         return []
@@ -174,7 +174,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
             # Honour columns the user explicitly named in the goal. If the
             # brief/context mentions real column names, those ARE the identity
             # the user asked for — use them directly (in stated order) instead
-            # of the LLM's guess. This is what "take contract_number" means.
+            # of the LLM's guess. This is what "use parent_key" means.
             named = _columns_in_context(context, cols)
             if named:
                 logger.info("honoring goal-named match keys for %s: %s", name, named)

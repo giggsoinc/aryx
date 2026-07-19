@@ -20,7 +20,7 @@ export function TableLens({ types }: { types: DataTypeCount[] }) {
   const [active, setActive] = useState(types[0]?.name ?? "");
   const [items, setItems] = useState<DataEntity[]>([]);
   const [total, setTotal] = useState(0);
-  // Grouped mode (hub/spoke, e.g. lines under their contract_number). null = flat.
+  // Grouped mode (hub/spoke, e.g. child rows under their parent key). null = flat.
   const [groups, setGroups] = useState<DataEntityGroup[] | null>(null);
   const [groupAttr, setGroupAttr] = useState("");
   const [labelAttr, setLabelAttr] = useState<string | null>(null);
