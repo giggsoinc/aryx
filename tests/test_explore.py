@@ -6,7 +6,14 @@ provenance. Pure functions, no DB.
 """
 from __future__ import annotations
 
-from aryx.explore import display_name, entities_view, graph_view, summarize
+from aryx.explore import (
+    display_name,
+    entities_view,
+    entity_detail,
+    entity_graph_view,
+    graph_view,
+    summarize,
+)
 
 ENTITIES = [
     (1, "Customer", {"name": "Acme Corp", "tier": "Enterprise"}),
@@ -74,3 +81,39 @@ def test_graph_view_aggregates_edges_by_type_and_name() -> None:
 def test_graph_view_ignores_dangling_edges() -> None:
     g = graph_view(ENTITIES, [(1, 999, "X")])  # 999 not an entity
     assert g["type_edges"] == []
+
+
+def test_materialized_hierarchy_uses_real_edges_and_line_labels() -> None:
+    entities = [
+        (10, "ContractLine", {"contract_number": "C-1", "line_number": "1"}),
+        (11, "ContractLine", {"contract_number": "C-1", "line_number": "2"}),
+        (20, "Contract", {"contract_number": "C-1", "name": "C-1"}),
+    ]
+    rels = [(20, 10, "HAS_CONTRACTLINE"), (20, 11, "HAS_CONTRACTLINE")]
+
+    g = entity_graph_view(
+        entities, rels, hub_attr="contract_number", label_attr="line_number")
+
+    assert not any(str(n["id"]).startswith("hub:") for n in g["nodes"])
+    assert {n["name"] for n in g["nodes"] if n["type"] == "ContractLine"} == {"1", "2"}
+    assert g["relationship_count"] == 2
+
+
+def test_entity_detail_title_uses_label_attr_without_duplicate_synthetic_hub() -> None:
+    entities = [
+        (10, "ContractLine", {"contract_number": "C-1", "line_number": "1"}),
+        (20, "Contract", {"contract_number": "C-1", "name": "C-1"}),
+    ]
+    detail = entity_detail(
+        entities, [], [(20, 10, "HAS_CONTRACTLINE")], 10,
+        hub_attr="contract_number", label_attr="line_number")
+
+    assert detail is not None
+    assert detail["name"] == "1"
+    assert detail["relationships"] == [{
+        "direction": "in",
+        "name": "HAS_CONTRACTLINE",
+        "other_id": 20,
+        "other_name": "C-1",
+        "other_type": "Contract",
+    }]

@@ -38,6 +38,9 @@ def _infer_type(sample: str, filename: str, context: str) -> dict[str, Any]:
            "for a knowledge graph.")
     user = (f"Goal: {context or 'general knowledge graph'}\nFile: {filename}\n"
             f"Sample rows:\n{sample[:600]}\n\nWhat real-world entity is each row? "
+            "If the Goal explicitly names the entity/type this file represents, "
+            "you MUST use that exact type name (singularised, PascalCase); only "
+            "infer the type from the columns when the Goal does not name it. "
             "Use a concrete singular noun like Customer, Company, Product, Order — "
             "NEVER generic words like Table, Row, Record, or Data. Reply ONLY as JSON "
             '{"ontology_type":"SingularPascalCase","match_keys":["the 1-2 columns '

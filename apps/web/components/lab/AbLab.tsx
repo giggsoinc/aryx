@@ -36,7 +36,8 @@ export function AbLab() {
         const page = await api.dataEntities(workspaceId, topType, 3, 0)
           .catch(() => null);
         if (!live) return;
-        const names = (page?.items || []).map((e) => e.name).filter(Boolean);
+        const names = (page && "items" in page ? page.items || [] : [])
+          .map((e) => e.name).filter(Boolean);
         setExamples(names.slice(0, 3).map((n) => `Tell me about ${n}`));
       }
     })();

@@ -105,6 +105,14 @@ def _route_pair(left: ResolutionRecord, right: ResolutionRecord, score: float,
                      llm_reason=None, status="pending")
 
 
+def _exact_key_groups(records: list[ResolutionRecord]) -> dict[str, list[int]]:
+    """Group record ids by identical match text (exact-key equivalence)."""
+    groups: dict[str, list[int]] = {}
+    for r in records:
+        groups.setdefault(r.text, []).append(r.record_id)
+    return groups
+
+
 def _materialize(member_ids: list[int], by_id: dict[int, ResolutionRecord],
                  pair_scores: dict[tuple[int, int], float],
                  ontology_type: str,
@@ -150,6 +158,36 @@ def resolve(
         (entity, members) pairs, one per cluster.
     """
     by_id = {r.record_id: r for r in records}
+
+    # Exact-key fast path. When the match text is a near-unique key (an ID or
+    # code), identical text means the same real-world entity and different text
+    # means a different one — so grouping by exact key is both correct and O(n).
+    # This skips the O(n^2) block->score->adjudicate funnel entirely, which
+    # otherwise dominates wall-clock on large keyed sources (e.g. 10k contract
+    # lines keyed on contract_number+line_number). Gated on uniqueness so it
+    # never collapses low-cardinality or free-text data that needs real fuzzy
+    # matching. Tunable via ARYX_ER_EXACT_MIN_UNIQUENESS (default 0.95).
+    min_uniq = _threshold("ARYX_ER_EXACT_MIN_UNIQUENESS", 0.95)
+    texts = [r.text for r in records if r.text]
+    if texts and len(set(texts)) / len(records) >= min_uniq:
+        groups = _exact_key_groups(records)
+        # A linear spanning chain of certain (1.0) edges per multi-member group
+        # gives true-duplicate clusters full confidence without an O(k^2) pass.
+        exact_scores: dict[tuple[int, int], float] = {
+            (a, b): 1.0
+            for ids in groups.values()
+            for a, b in zip(ids, ids[1:])
+        }
+        results = [
+            (_materialize(ids, by_id, exact_scores, ontology_type, policy),
+             [EntityMember(landed_record_id=mid) for mid in ids])
+            for ids in groups.values()
+        ]
+        logger.info("resolved via exact-key path records=%d entities=%d "
+                    "uniqueness=%.3f", len(records), len(results),
+                    len(set(texts)) / len(records))
+        return results
+
     union = UnionFind()
     pair_scores: dict[tuple[int, int], float] = {}
     for record in records:
