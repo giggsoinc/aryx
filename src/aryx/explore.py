@@ -270,17 +270,17 @@ def entity_graph_view(entities: list[tuple[int, str, dict]],
     """
     attr_names = {k for _, _, a in entities for k in (a or {})}
     if hub_attr and hub_attr in attr_names:
+        materialized = _materialized_hierarchy(
+            entities, relationships, hub_attr,
+            label_attr if label_attr in attr_names else None)
+        if materialized:
+            return materialized
         grouped_types = {
             etype for _, etype, attrs in entities
             if attrs and attrs.get(hub_attr) not in (None, "")
         }
         if len(grouped_types) != 1:
             return _flat_entity_graph(entities, relationships)
-        materialized = _materialized_hierarchy(
-            entities, relationships, hub_attr,
-            label_attr if label_attr in attr_names else None)
-        if materialized:
-            return materialized
         return _hub_spoke_view(entities, relationships, hub_attr,
                                label_attr if label_attr in attr_names else None)
     hier = detect_hierarchy(entities)
