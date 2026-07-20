@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Loader2, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { useWorkspace } from "@/lib/workspace";
 import { typeColor } from "@/lib/typeColor";
-import type { DataEntity, DataTypeCount } from "@/lib/types";
+import type {
+  DataEntity, DataEntityGroup, DataEntitiesGrouped, DataTypeCount,
+} from "@/lib/types";
 
 const PAGE = 50;
 const MAX_COLS = 6;
@@ -18,16 +20,35 @@ export function TableLens({ types }: { types: DataTypeCount[] }) {
   const [active, setActive] = useState(types[0]?.name ?? "");
   const [items, setItems] = useState<DataEntity[]>([]);
   const [total, setTotal] = useState(0);
+  // Grouped mode (hub/spoke, e.g. child rows under their parent key). null = flat.
+  const [groups, setGroups] = useState<DataEntityGroup[] | null>(null);
+  const [groupAttr, setGroupAttr] = useState("");
+  const [labelAttr, setLabelAttr] = useState<string | null>(null);
+  const [totalGroups, setTotalGroups] = useState(0);
   const [busy, setBusy] = useState(false);
   const [sort, setSort] = useState<Sort | null>(null);
   const [selected, setSelected] = useState<DataEntity | null>(null);
 
+  const apply = (d: Awaited<ReturnType<typeof api.dataEntities>>, append: boolean) => {
+    if ("grouped" in d && d.grouped) {
+      const g = d as DataEntitiesGrouped;
+      setGroups((prev) => append && prev ? [...prev, ...g.groups] : g.groups);
+      setGroupAttr(g.group_attr); setLabelAttr(g.label_attr);
+      setTotalGroups(g.total_groups);
+    } else {
+      const p = d as { items?: DataEntity[]; total?: number };
+      setGroups(null);
+      setItems((prev) => append ? [...prev, ...(p.items || [])] : (p.items || []));
+      setTotal(p.total || 0);
+    }
+  };
+
   useEffect(() => {
     if (!active) return;
     let live = true;
-    setBusy(true); setItems([]); setSelected(null); setSort(null);
-    api.dataEntities(workspaceId, active, PAGE, 0)
-      .then((d) => { if (live) { setItems(d.items || []); setTotal(d.total || 0); } })
+    setBusy(true); setItems([]); setGroups(null); setSelected(null); setSort(null);
+    api.dataEntities(workspaceId, active, PAGE, 0, true)
+      .then((d) => { if (live && !("error" in d && d.error)) apply(d, false); })
       .finally(() => { if (live) setBusy(false); });
     return () => { live = false; };
   }, [active, workspaceId]);
@@ -35,14 +56,19 @@ export function TableLens({ types }: { types: DataTypeCount[] }) {
   const loadMore = async () => {
     setBusy(true);
     try {
-      const d = await api.dataEntities(workspaceId, active, PAGE, items.length);
-      setItems((prev) => [...prev, ...(d.items || [])]);
+      const offset = groups ? groups.length : items.length;
+      const d = await api.dataEntities(workspaceId, active, PAGE, offset, true);
+      if (!("error" in d && d.error)) apply(d, true);
     } finally { setBusy(false); }
   };
 
+  const allItems = useMemo(
+    () => groups ? groups.flatMap((g) => g.items) : items,
+    [groups, items]);
+
   const cols = useMemo(() => {
     const freq = new Map<string, number>();
-    for (const it of items)
+    for (const it of allItems)
       for (const [k, v] of Object.entries(it.attributes || {})) {
         if (k === "name") continue;
         if (v == null || v === "" || typeof v === "object") continue;
@@ -50,26 +76,45 @@ export function TableLens({ types }: { types: DataTypeCount[] }) {
       }
     return [...freq.entries()].sort((a, b) => b[1] - a[1])
       .slice(0, MAX_COLS).map((e) => e[0]);
-  }, [items]);
+  }, [allItems]);
 
-  const rows = useMemo(() => {
-    if (!sort) return items;
+  const sortItems = (list: DataEntity[]) => {
+    if (!sort) return list;
     const val = (e: DataEntity) =>
       sort.col === "__name" ? e.name
         : sort.col === "__src" ? e.sources.length
         : (e.attributes?.[sort.col] ?? "");
-    return [...items].sort((a, b) => {
+    return [...list].sort((a, b) => {
       const x = val(a), y = val(b);
       const c = typeof x === "number" && typeof y === "number"
         ? x - y : String(x).localeCompare(String(y));
       return sort.dir === "asc" ? c : -c;
     });
-  }, [items, sort]);
+  };
 
   const toggleSort = (col: string) =>
     setSort((s) => s?.col === col
       ? { col, dir: s.dir === "asc" ? "desc" : "asc" }
       : { col, dir: "asc" });
+
+  const row = (e: DataEntity) => (
+    <tr key={e.id} onClick={() => setSelected(e)}
+      className={"cursor-pointer border-t border-navy-50 hover:bg-navy-50/40 " +
+        (selected?.id === e.id ? "bg-navy-50" : "")}>
+      <td className="px-3 py-2 font-medium text-navy-900">{e.name}</td>
+      {cols.map((c) => (
+        <td key={c} className="max-w-[200px] truncate px-3 py-2 text-navy-700">
+          {fmt(e.attributes?.[c])}
+        </td>
+      ))}
+      <td className="px-3 py-2">
+        <span className="rounded-full bg-navy-50 px-2 py-0.5 text-[10.5px] font-semibold text-navy-600">
+          {e.sources.length}
+        </span>
+      </td>
+    </tr>
+  );
+  const span = cols.length + 2;
 
   return (
     <div className="grid gap-4 md:grid-cols-[170px_1fr]">
@@ -91,7 +136,8 @@ export function TableLens({ types }: { types: DataTypeCount[] }) {
           <table className="w-full border-collapse text-[12.5px]">
             <thead>
               <tr className="bg-navy-50 text-[11px] uppercase tracking-[0.03em] text-navy-700">
-                <Th label="Entity" onClick={() => toggleSort("__name")} sort={sort} col="__name" />
+                <Th label={groups ? (labelAttr || "Entity") : "Entity"}
+                  onClick={() => toggleSort("__name")} sort={sort} col="__name" />
                 {cols.map((c) => (
                   <Th key={c} label={c} onClick={() => toggleSort(c)} sort={sort} col={c} />
                 ))}
@@ -99,35 +145,36 @@ export function TableLens({ types }: { types: DataTypeCount[] }) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((e) => (
-                <tr key={e.id} onClick={() => setSelected(e)}
-                  className={"cursor-pointer border-t border-navy-50 hover:bg-navy-50/40 " +
-                    (selected?.id === e.id ? "bg-navy-50" : "")}>
-                  <td className="px-3 py-2 font-medium text-navy-900">{e.name}</td>
-                  {cols.map((c) => (
-                    <td key={c} className="max-w-[200px] truncate px-3 py-2 text-navy-700">
-                      {fmt(e.attributes?.[c])}
+              {groups ? groups.map((grp) => (
+                <Fragment key={grp.key}>
+                  <tr className="border-t border-navy-100 bg-steel-50/60">
+                    <td colSpan={span} className="px-3 py-1.5 text-[11.5px] font-semibold text-navy-800">
+                      <span className="text-subtle">{groupAttr}:</span> {grp.key}
+                      <span className="ml-2 rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-navy-500">
+                        {grp.count} line{grp.count === 1 ? "" : "s"}
+                      </span>
                     </td>
-                  ))}
-                  <td className="px-3 py-2">
-                    <span className="rounded-full bg-navy-50 px-2 py-0.5 text-[10.5px] font-semibold text-navy-600">
-                      {e.sources.length}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-              {!busy && rows.length === 0 && (
-                <tr><td colSpan={cols.length + 2} className="px-3 py-8 text-center text-subtle">
+                  </tr>
+                  {sortItems(grp.items).map(row)}
+                </Fragment>
+              )) : sortItems(items).map(row)}
+              {!busy && allItems.length === 0 && (
+                <tr><td colSpan={span} className="px-3 py-8 text-center text-subtle">
                   No entities of this type.</td></tr>
               )}
             </tbody>
           </table>
           <div className="flex items-center justify-between border-t border-navy-100 px-3 py-2 text-[11px] text-subtle">
-            <span>{busy ? "loading…" : `Showing ${rows.length} of ${total}`}</span>
-            {!busy && items.length < total && (
+            <span>{busy ? "loading…"
+              : groups
+                ? `Showing ${groups.length} of ${totalGroups} ${groupAttr} group${totalGroups === 1 ? "" : "s"}`
+                : `Showing ${items.length} of ${total}`}</span>
+            {!busy && (groups ? groups.length < totalGroups : items.length < total) && (
               <button type="button" onClick={loadMore}
                 className="font-medium text-steel-600 hover:underline">
-                Show {Math.min(PAGE, total - items.length)} more
+                {groups
+                  ? `Show ${Math.min(25, totalGroups - groups.length)} more group${totalGroups - groups.length === 1 ? "" : "s"}`
+                  : `Show ${Math.min(PAGE, total - items.length)} more`}
               </button>
             )}
           </div>

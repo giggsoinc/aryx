@@ -6,7 +6,14 @@ provenance. Pure functions, no DB.
 """
 from __future__ import annotations
 
-from aryx.explore import display_name, entities_view, graph_view, summarize
+from aryx.explore import (
+    display_name,
+    entities_view,
+    entity_detail,
+    entity_graph_view,
+    graph_view,
+    summarize,
+)
 
 ENTITIES = [
     (1, "Customer", {"name": "Acme Corp", "tier": "Enterprise"}),
@@ -74,3 +81,62 @@ def test_graph_view_aggregates_edges_by_type_and_name() -> None:
 def test_graph_view_ignores_dangling_edges() -> None:
     g = graph_view(ENTITIES, [(1, 999, "X")])  # 999 not an entity
     assert g["type_edges"] == []
+
+
+def test_materialized_hierarchy_uses_real_edges_and_line_labels() -> None:
+    entities = [
+        (10, "ParentItem", {"parent_key": "P-1", "child_key": "1"}),
+        (11, "ParentItem", {"parent_key": "P-1", "child_key": "2"}),
+        (20, "Parent", {"parent_key": "P-1", "name": "P-1"}),
+    ]
+    rels = [(20, 10, "HAS_PARENTITEM"), (20, 11, "HAS_PARENTITEM")]
+
+    g = entity_graph_view(
+        entities, rels, hub_attr="parent_key", label_attr="child_key")
+
+    assert not any(str(n["id"]).startswith("hub:") for n in g["nodes"])
+    assert {n["name"] for n in g["nodes"] if n["type"] == "ParentItem"} == {"1", "2"}
+    assert g["relationship_count"] == 2
+
+
+def test_entity_detail_title_uses_label_attr_without_duplicate_synthetic_hub() -> None:
+    entities = [
+        (10, "ParentItem", {"parent_key": "P-1", "child_key": "1"}),
+        (20, "Parent", {"parent_key": "P-1", "name": "P-1"}),
+    ]
+    detail = entity_detail(
+        entities, [], [(20, 10, "HAS_PARENTITEM")], 10,
+        hub_attr="parent_key", label_attr="child_key")
+
+    assert detail is not None
+    assert detail["name"] == "1"
+    assert detail["relationships"] == [{
+        "direction": "in",
+        "name": "HAS_PARENTITEM",
+        "other_id": 20,
+        "other_name": "P-1",
+        "other_type": "Parent",
+    }]
+
+
+def test_named_grouping_does_not_relabel_mixed_types() -> None:
+    entities = [
+        (10, "Customer", {"parent_key": "P-1", "name": "Customer A"}),
+        (11, "Order", {"parent_key": "P-1", "name": "Order A"}),
+    ]
+
+    g = entity_graph_view(entities, [], hub_attr="parent_key")
+
+    assert {n["type"] for n in g["nodes"]} == {"Customer", "Order"}
+    assert g["edges"] == []
+
+
+def test_same_type_group_detail_does_not_add_phantom_parent() -> None:
+    entities = [
+        (10, "Transaction", {"account_key": "A-1", "name": "T-1"}),
+    ]
+
+    detail = entity_detail(entities, [], [], 10, hub_attr="account_key")
+
+    assert detail is not None
+    assert detail["relationships"] == []

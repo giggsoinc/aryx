@@ -36,8 +36,9 @@ function TypeRow({ type, color }: { type: DataTypeCount; color: string }) {
     setBusy(true);
     try {
       const page = await api.dataEntities(workspaceId, type.name, PAGE, loaded);
-      setItems((prev) => [...prev, ...(page.items || [])]);
-      setLoaded((n) => n + (page.items?.length || 0));
+      const rows = "items" in page ? (page.items || []) : [];
+      setItems((prev) => [...prev, ...rows]);
+      setLoaded((n) => n + rows.length);
     } finally {
       setBusy(false);
     }

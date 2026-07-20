@@ -64,6 +64,7 @@ class EntityStore:
             records.append(ResolutionRecord(
                 record_id=record_id, text=text, payload=payload,
                 source_system=source_system, cleaned_at=cleaned_at,
+                match_keys=safe_keys,
             ))
         return records
 
