@@ -105,7 +105,7 @@ def _norm_tokens(text: str) -> list[str]:
 def _columns_in_context(context: str, cols: list[str]) -> list[str]:
     """Return the file columns the user explicitly named in the goal/brief.
 
-    Users often state the identity outright ("a parent is identified by
+    Users sometimes state the identity outright ("a parent is identified by
     parent_key; every child by parent_key together with child_key"). When the
     goal names real columns, those ARE the match key the user asked for —
     honour them instead of trusting the LLM's guess, which may choose an
@@ -119,7 +119,31 @@ def _columns_in_context(context: str, cols: list[str]) -> list[str]:
     """
     if not context or not cols:
         return []
-    ctx_tokens = _norm_tokens(context)
+    identity_text = _identity_context(context)
+    if not identity_text:
+        return []
+    return _columns_named_in_text(identity_text, cols)
+
+
+def _identity_context(context: str) -> str:
+    """Extract clauses that explicitly declare record identity/key fields."""
+    clauses = re.split(r"[\n.;]+", context)
+    identity_re = re.compile(
+        r"\b("
+        r"identified\s+by|uniquely\s+identified\s+by|keyed\s+by|"
+        r"matched\s+by|dedupe(?:d)?\s+by|primary\s+key|unique\s+key|"
+        r"match\s+key|identity\s+key|identifier"
+        r")\b",
+        flags=re.IGNORECASE,
+    )
+    return " ".join(clause for clause in clauses if identity_re.search(clause))
+
+
+def _columns_named_in_text(text: str, cols: list[str]) -> list[str]:
+    """Return columns whose normalized names are fully present in text."""
+    if not text or not cols:
+        return []
+    ctx_tokens = _norm_tokens(text)
     ctx_set = set(ctx_tokens)
     first_at: dict[str, int] = {}
     for i, t in enumerate(ctx_tokens):

@@ -64,6 +64,12 @@ def _hierarchy_for(
     named = _columns_in_context(
         _workspace_context(get_settings().rdb_dsn, workspace_id), attr_names)
     if named:
+        typed = {
+            etype for _, etype, attrs in entities
+            if attrs and attrs.get(named[0]) not in (None, "")
+        }
+        if len(typed) != 1:
+            return None, None
         return named[0], (named[1] if len(named) > 1 else None)
     return explore.detect_hierarchy(entities) or (None, None)
 
@@ -186,6 +192,8 @@ def data_router() -> APIRouter:
                 store, entities, hub, label,
                 parent_type=req.parent_type, child_type=req.child_type,
                 edge_name=req.edge_name)
+            if result.get("error"):
+                return result
             projected = None
             if req.reproject:
                 background_tasks.add_task(_reproject, req.workspace_id, store)
@@ -238,6 +246,17 @@ def _materialize_hierarchy(
     child = child_type or Counter(etype for _, etype, _ in candidates).most_common(1)[0][0]
     candidates = [row for row in candidates if row[1] == child]
     parent = parent_type or explore._parent_type(child)
+    if parent == child:
+        return {
+            "hub_attr": hub_attr,
+            "label_attr": label_attr,
+            "parent_type": parent,
+            "child_type": child,
+            "edge_name": edge_name,
+            "created_hubs": 0,
+            "created_edges": 0,
+            "error": "materialization requires a distinct parent type",
+        }
     rel_name = edge_name or f"HAS_{child.upper()}"
 
     by_hub: dict[str, int] = {}

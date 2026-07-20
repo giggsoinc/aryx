@@ -117,3 +117,26 @@ def test_entity_detail_title_uses_label_attr_without_duplicate_synthetic_hub() -
         "other_name": "P-1",
         "other_type": "Parent",
     }]
+
+
+def test_named_grouping_does_not_relabel_mixed_types() -> None:
+    entities = [
+        (10, "Customer", {"parent_key": "P-1", "name": "Customer A"}),
+        (11, "Order", {"parent_key": "P-1", "name": "Order A"}),
+    ]
+
+    g = entity_graph_view(entities, [], hub_attr="parent_key")
+
+    assert {n["type"] for n in g["nodes"]} == {"Customer", "Order"}
+    assert g["edges"] == []
+
+
+def test_same_type_group_detail_does_not_add_phantom_parent() -> None:
+    entities = [
+        (10, "Transaction", {"account_key": "A-1", "name": "T-1"}),
+    ]
+
+    detail = entity_detail(entities, [], [], 10, hub_attr="account_key")
+
+    assert detail is not None
+    assert detail["relationships"] == []

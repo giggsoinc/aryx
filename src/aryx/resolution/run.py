@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 
 from aryx.broker import Broker
 from aryx.models import EntityMember, ResolutionRecord, ResolvedEntity
@@ -106,11 +107,25 @@ def _route_pair(left: ResolutionRecord, right: ResolutionRecord, score: float,
 
 
 def _exact_key_groups(records: list[ResolutionRecord]) -> dict[str, list[int]]:
-    """Group record ids by identical match text (exact-key equivalence)."""
+    """Group record ids by normalized explicit-key text."""
     groups: dict[str, list[int]] = {}
     for r in records:
-        groups.setdefault(r.text, []).append(r.record_id)
+        key = _normalize_exact_key(r.text)
+        if key:
+            groups.setdefault(key, []).append(r.record_id)
     return groups
+
+
+def _normalize_exact_key(text: str) -> str:
+    """Normalize declared exact keys more aggressively than fuzzy labels."""
+    return "".join(re.findall(r"[a-z0-9]+", text.lower()))
+
+
+def _can_use_exact_key_path(records: list[ResolutionRecord]) -> bool:
+    """Only use exact grouping when match text came from explicit key fields."""
+    if not records:
+        return False
+    return all(r.match_keys and _normalize_exact_key(r.text) for r in records)
 
 
 def _materialize(member_ids: list[int], by_id: dict[int, ResolutionRecord],
@@ -168,8 +183,10 @@ def resolve(
     # never collapses low-cardinality or free-text data that needs real fuzzy
     # matching. Tunable via ARYX_ER_EXACT_MIN_UNIQUENESS (default 0.95).
     min_uniq = _threshold("ARYX_ER_EXACT_MIN_UNIQUENESS", 0.95)
-    texts = [r.text for r in records if r.text]
-    if texts and len(set(texts)) / len(records) >= min_uniq:
+    texts = [_normalize_exact_key(r.text) for r in records
+             if _normalize_exact_key(r.text)]
+    if (_can_use_exact_key_path(records) and texts
+            and len(set(texts)) / len(records) >= min_uniq):
         groups = _exact_key_groups(records)
         # A linear spanning chain of certain (1.0) edges per multi-member group
         # gives true-duplicate clusters full confidence without an O(k^2) pass.

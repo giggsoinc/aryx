@@ -270,6 +270,12 @@ def entity_graph_view(entities: list[tuple[int, str, dict]],
     """
     attr_names = {k for _, _, a in entities for k in (a or {})}
     if hub_attr and hub_attr in attr_names:
+        grouped_types = {
+            etype for _, etype, attrs in entities
+            if attrs and attrs.get(hub_attr) not in (None, "")
+        }
+        if len(grouped_types) != 1:
+            return _flat_entity_graph(entities, relationships)
         materialized = _materialized_hierarchy(
             entities, relationships, hub_attr,
             label_attr if label_attr in attr_names else None)
@@ -406,15 +412,16 @@ def entity_detail(entities: list[tuple[int, str, dict]],
         if hv not in (None, ""):
             edge = f"HAS_{etype.upper()}"
             parent = _parent_type(etype)
-            has_real_hub = any(
-                r["direction"] == "in" and r["name"] == edge
-                and r["other_type"] == parent
-                for r in rels
-            )
-            if not has_real_hub:
-                rels.insert(0, {
-                    "direction": "in", "name": edge, "other_id": f"hub:{hv}",
-                    "other_name": str(hv), "other_type": parent})
+            if parent != etype:
+                has_real_hub = any(
+                    r["direction"] == "in" and r["name"] == edge
+                    and r["other_type"] == parent
+                    for r in rels
+                )
+                if not has_real_hub:
+                    rels.insert(0, {
+                        "direction": "in", "name": edge, "other_id": f"hub:{hv}",
+                        "other_name": str(hv), "other_type": parent})
     return {
         "id": entity_id,
         "type": etype,
