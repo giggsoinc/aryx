@@ -18,6 +18,13 @@ raven-claude-guard/
 .raven-claude/
 .raven-claude-guard/
 
+# Raven/Claude local engine state — machine-local, never commit
+.raven/state/
+.raven/backups/
+.raven/session-backups/
+.raven/.model-session.json
+apps/web/.claude/
+
 # Python
 __pycache__/
 *.py[cod]
