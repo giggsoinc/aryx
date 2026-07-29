@@ -158,7 +158,6 @@ Aryx is an application on top of FalkorDB (and Postgres), not a fork of the data
 | [Ingestion](docs/INGESTION_GUIDE.md) | Deep ingest walkthrough |
 | [Docker Hub overview](docs/DOCKERHUB.md) | Image description (API / worker / MCP) |
 | [Raven](docs/RAVEN.md) | Optional Claude Code workflow (`.claude` + manifest) |
-| [Benchmarks](docs/wiki/BENCHMARKS.md) | ER measurements |
 
 Diagrams: [Business view](docs/diagrams/business-view.html) · [Technical flow](docs/diagrams/technical-flow.html)
 
