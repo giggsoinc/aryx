@@ -128,7 +128,7 @@ def _infer_json_model_type(sample: str) -> dict[str, Any] | None:
 def _json_colvals(data: bytes) -> dict[str, list[str]]:
     """Flatten JSON rows into column values for cross-file FK inference."""
     try:
-        loaded = json.loads(data.decode("utf-8"))
+        loaded = json.loads(data.decode("utf-8-sig"))
     except (UnicodeDecodeError, json.JSONDecodeError, TypeError):
         return {}
     rows = loaded if isinstance(loaded, list) else [loaded]
@@ -277,12 +277,13 @@ def ingest_confirmed(data: dict[str, Any], approved_types: list[str],
         if not plan:
             continue
         jobs.update_stage(job_id, f"{step}/{total}", int(step * 90 / total), f"Adding {fname}")
+        tmp_path: Path | None = None
         if Path(fname).suffix.lower() == ".json":
             tmp = NamedTemporaryFile(suffix=".json", delete=False)
             tmp.write(plan["data"])
             tmp.close()
-            conn = JsonConnector(Path(tmp.name), system="json",
-                                 dataset=Path(fname).stem)
+            tmp_path = Path(tmp.name)
+            conn = JsonConnector(tmp_path, system="json", dataset=Path(fname).stem)
             link_plans.append({
                 "ontology_type": plan["ontology_type"],
                 "colvals": _json_colvals(plan["data"]),
@@ -293,10 +294,14 @@ def ingest_confirmed(data: dict[str, Any], approved_types: list[str],
                 "ontology_type": plan["ontology_type"],
                 "colvals": _csv_colvals(plan["data"]),
             })
-        run_pipeline(connector=conn, dsn=settings.rdb_dsn,
-                     system=Path(fname).suffix.lstrip("."), dataset=Path(fname).stem,
-                     ontology_type=plan["ontology_type"], match_keys=plan["match_keys"],
-                     graph_url=settings.graph_url, broker=broker, workspace_id=workspace_id)
+        try:
+            run_pipeline(connector=conn, dsn=settings.rdb_dsn,
+                         system=Path(fname).suffix.lstrip("."), dataset=Path(fname).stem,
+                         ontology_type=plan["ontology_type"], match_keys=plan["match_keys"],
+                         graph_url=settings.graph_url, broker=broker, workspace_id=workspace_id)
+        finally:
+            if tmp_path is not None:
+                tmp_path.unlink(missing_ok=True)
     inferred = infer_fk_links(link_plans)
     if inferred:
         jobs.update_stage(job_id, "Link", 92, "Inferring relationships")

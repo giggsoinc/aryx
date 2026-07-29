@@ -117,6 +117,21 @@ def test_numeric_conversion_clean_column() -> None:
     assert failed == 0 and reverted is False
 
 
+def test_numeric_conversion_clean_values_not_counted_as_changed() -> None:
+    # "100" -> 100.0 is a type change only (no formatting to strip), not a
+    # content repair — must not inflate the changed_rows count.
+    values, failed, changed, reverted = convert_column(["100", "200", "300"], "numeric_conversion")
+    assert values == [100.0, 200.0, 300.0]
+    assert changed == 0
+
+
+def test_numeric_conversion_formatting_cruft_counted_as_changed() -> None:
+    # "$200" and "1,000" needed real cleanup (currency/comma stripped);
+    # "100" did not, so only 2 of 3 rows should count as changed.
+    values, failed, changed, reverted = convert_column(["100", "$200", "1,000"], "numeric_conversion")
+    assert changed == 2
+
+
 def test_numeric_conversion_under_threshold_keeps_converted_values() -> None:
     # 1 bad out of 20 = 5% < 10% threshold -> stays converted, failure recorded.
     values_in = ["100"] * 19 + ["oops"]
@@ -141,6 +156,14 @@ def test_date_conversion_clean_column() -> None:
         ["2024-01-15", "2024-02-01", "2024-03-10"], "date_conversion")
     assert values == ["2024-01-15", "2024-02-01", "2024-03-10"]
     assert failed == 0 and reverted is False
+    assert changed == 0  # already ISO-formatted — nothing to reformat
+
+
+def test_date_conversion_reformatting_counted_as_changed() -> None:
+    values, failed, changed, reverted = convert_column(
+        ["2024-01-15", "2024/02/01"], "date_conversion")
+    assert values == ["2024-01-15", "2024-02-01"]
+    assert changed == 1  # only the slash-formatted date needed reformatting
 
 
 def test_date_conversion_over_threshold_reverts() -> None:
@@ -154,6 +177,13 @@ def test_boolean_conversion_clean_column() -> None:
     values, failed, changed, reverted = convert_column(["yes", "no", "yes", "no"], "boolean_conversion")
     assert values == [True, False, True, False]
     assert failed == 0 and reverted is False
+
+
+def test_boolean_conversion_never_counts_as_changed() -> None:
+    # Encoding "yes"/"no" to a Python bool is a type mapping, not a content
+    # repair — str("yes") != str(True) must not be treated as a change.
+    values, failed, changed, reverted = convert_column(["yes", "no", "yes", "no"], "boolean_conversion")
+    assert changed == 0
 
 
 def test_boolean_conversion_over_threshold_reverts() -> None:

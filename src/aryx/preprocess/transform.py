@@ -103,10 +103,22 @@ def convert_column(values: list[Any], operation: str) -> tuple[list[Any], int, i
         if result is None:
             failed += 1
             converted.append(None)
-        else:
-            converted.append(result)
-            if str(raw).strip() != str(result):
+            continue
+        converted.append(result)
+        # "Changed" means the operation actually repaired something in the
+        # text, not merely that the output's Python type reprs differently
+        # from the input string (e.g. "100" -> 100.0 must NOT count — it's
+        # the same value, just typed; str(100.0) != "100" would wrongly flag
+        # every clean numeric row as changed).
+        if operation == "numeric_conversion":
+            cleaned = s.replace(",", "").replace("$", "").replace("%", "").strip()
+            if cleaned != s:
                 changed += 1
+        elif operation == "date_conversion":
+            if s != str(result):
+                changed += 1
+        # boolean_conversion: encoding "yes"/"1"/etc. to a Python bool is a
+        # type mapping, not a content repair — never counted as changed.
 
     if non_null and (failed / len(non_null)) > THRESHOLD:
         return std, failed, 0, True  # unsafe: revert this column, keep original

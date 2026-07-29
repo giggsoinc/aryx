@@ -86,6 +86,16 @@ def test_json_flattening_and_roles() -> None:
     assert any("flattened" in lim for lim in p.limitations)
 
 
+def test_bom_prefixed_json_profiles_without_crashing() -> None:
+    # dataset/formats.py accepts BOM-prefixed JSON at ingest (utf-8-sig); the
+    # profiler must decode the same way or a legitimately-accepted file 500s
+    # here instead of profiling.
+    data = b'\xef\xbb\xbf[{"id": 1, "amt": 10.5}, {"id": 2, "amt": 20.0}]'
+    p = profile_dataset(data, "json", "ds_bom", "v1")
+    assert p.row_count == 2
+    assert p.profile_status == "valid"
+
+
 def test_duplicate_rows_counted() -> None:
     data = b"a,b\n1,x\n1,x\n2,y\n"
     p = profile_dataset(data, "csv", "ds", "v1")

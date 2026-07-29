@@ -52,7 +52,10 @@ _NUMERIC_RE = re.compile(r"^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$")
 def _load(data: bytes, fmt: str) -> tuple[list[dict[str, Any]], list[str]]:
     """Return (rows, column_order). CSV values are strings; JSON are flattened."""
     if fmt == "json":
-        loaded = json.loads(data.decode("utf-8"))
+        # utf-8-sig strips a leading BOM (common in Excel/Windows exports) —
+        # dataset/formats.py validates with the same codec at ingest, so a
+        # file accepted there must decode the same way here.
+        loaded = json.loads(data.decode("utf-8-sig"))
         raw = loaded if isinstance(loaded, list) else [loaded]
         rows = [_flatten(r) if isinstance(r, dict) else {"value": r} for r in raw]
     else:

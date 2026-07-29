@@ -24,6 +24,21 @@ def test_json_colvals_flattens_rows_for_fk_discovery() -> None:
     }
 
 
+def test_json_colvals_handles_bom_prefixed_input() -> None:
+    # dataset/formats.py accepts BOM-prefixed JSON (utf-8-sig) at ingest, so
+    # FK-discovery must decode the same way instead of raising on the BOM.
+    data = b"\xef\xbb\xbf" + _json([
+        {"model": "input.item", "fields": {"name": "chair"}},
+    ])
+
+    assert _colvals(data, ".json") == {
+        "colvals": {
+            "model": ["input.item"],
+            "fields.name": ["chair"],
+        }
+    }
+
+
 def test_json_model_discriminator_drives_type_and_match_keys() -> None:
     plan = _infer_type(
         '[{"model":"input.operationmaterial","fields":{'

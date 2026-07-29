@@ -77,8 +77,8 @@ def check_json_schema(spec: DashboardSpec, ctx: ValidationContext) -> tuple[Chec
 
 
 def check_column_existence(spec: DashboardSpec, ctx: ValidationContext) -> tuple[CheckResult, list[ValidationError], list[ValidationWarning]]:
-    """2. Every referenced field exists in the dataset profile."""
-    errors = _promote(spec, "unapproved_column")
+    """2. Every referenced field — and its dataset — exists in the workspace profile."""
+    errors = _promote(spec, "unapproved_column") + _promote(spec, "unknown_dataset")
     status = "failed" if errors else "passed"
     return CheckResult(check="column_existence", status=status), errors, []
 

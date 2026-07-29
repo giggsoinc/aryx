@@ -53,7 +53,7 @@ def _colvals(data: bytes, suffix: str) -> dict[str, Any]:
     """Return {colvals: {column -> [values]}} for FK discovery ({} on failure)."""
     if suffix == ".json":
         try:
-            loaded = json.loads(data.decode("utf-8"))
+            loaded = json.loads(data.decode("utf-8-sig"))
             rows = loaded if isinstance(loaded, list) else [loaded]
             cols: dict[str, list[str]] = {}
             for row in rows:

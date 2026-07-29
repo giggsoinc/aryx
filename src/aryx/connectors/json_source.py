@@ -28,7 +28,8 @@ class JsonConnector(Connector):
         self._dataset = dataset or path.stem
 
     def extract(self) -> Iterator[RawRecord]:
-        data = json.loads(self._path.read_text(encoding="utf-8"))
+        # utf-8-sig strips a leading BOM (common in Excel/Windows exports).
+        data = json.loads(self._path.read_text(encoding="utf-8-sig"))
         records = data if isinstance(data, list) else [data]
         for record in records:
             flat = _flatten(record)

@@ -286,3 +286,25 @@ def test_workspace_mode_type_check_uses_the_kpis_own_dataset() -> None:
               columns_by_dataset={"dataset_item": {"model": "categorical", "fields.cost": "numeric"}})
     report, _ = validate_spec(spec, ctx, validation_id="v1", attempt=1)
     assert any(e.code == "type_mismatch" and e.reference == "model" for e in report.errors)
+
+
+def test_workspace_mode_invented_dataset_id_is_rejected() -> None:
+    # ground_spec drops a KPI whose dataset_id doesn't exist and records an
+    # "unknown_dataset" grounding warning; C09 must promote that warning to a
+    # hard error so the spec isn't silently approved with content missing.
+    raw = {
+        "business_questions": GOOD_RAW["business_questions"],
+        "kpis": [{"kpi_id": "kpi_ghost", "operation": "sum", "dataset_id": "dataset_nonexistent",
+                 "source_columns": ["model"], "measure": "model"}],
+    }
+    spec = ground_spec(
+        raw, dataset_id="workspace_1", dataset_version="v1",
+        approved_columns=[], approved_operations=APPROVED_OPS,
+        approved_charts=APPROVED_CHARTS, datasets=WORKSPACE_DATASETS,
+    )
+    assert spec.kpis == []  # dropped at grounding time
+    ctx = _ctx(approved_columns={},
+              columns_by_dataset={"dataset_item": {"model": "categorical", "fields.cost": "numeric"}})
+    report, _ = validate_spec(spec, ctx, validation_id="v1", attempt=1)
+    assert report.status == "rejected"
+    assert any(e.code == "unknown_dataset" for e in report.errors)
