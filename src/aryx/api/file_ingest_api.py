@@ -21,10 +21,13 @@ from aryx.api.admin_api import _local_broker
 from aryx.config import get_settings
 from aryx.connectors.csv_source import CsvConnector
 from aryx.connectors.doc_router import DocumentRouterConnector
-from aryx.connectors.json_source import JsonConnector
+from aryx.connectors.json_source import JsonConnector, _flatten
+from aryx.dataset.ingest import register_dataset
 from aryx.pipeline.doc_discovery import _infer_type, infer_fk_links
+from aryx.pipeline.downstream import intent_ready, run_downstream
 from aryx.pipeline.orchestrate import link_entities, run_pipeline
 from aryx.store.chunk_store import ChunkStore
+from aryx.store.dataset_store import DatasetStore
 from aryx.store.job_store import JobStore
 from aryx.store.migrate import apply_migrations
 
@@ -49,7 +52,19 @@ def _save_tmp(data: bytes, suffix: str) -> Path:
 def _colvals(data: bytes, suffix: str) -> dict[str, Any]:
     """Return {colvals: {column -> [values]}} for FK discovery ({} on failure)."""
     if suffix == ".json":
-        return {"colvals": {}}
+        try:
+            loaded = json.loads(data.decode("utf-8"))
+            rows = loaded if isinstance(loaded, list) else [loaded]
+            cols: dict[str, list[str]] = {}
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                for k, v in _flatten(row).items():
+                    if v is not None:
+                        cols.setdefault(k, []).append(str(v).strip())
+            return {"colvals": cols}
+        except (UnicodeDecodeError, json.JSONDecodeError, TypeError):
+            return {"colvals": {}}
     try:
         reader = csv.DictReader(io.StringIO(data.decode("utf-8", "ignore")))
         cols: dict[str, list[str]] = {}
@@ -62,9 +77,36 @@ def _colvals(data: bytes, suffix: str) -> dict[str, Any]:
         return {"colvals": {}}
 
 
+def _snapshot_dataset(dsn: str, workspace_id: int, data: bytes, name: str,
+                      request_id: str) -> str | None:
+    """C02 — register the raw upload as an immutable, versioned dataset.
+
+    C03 (profile) and C04 (interpret) run later, gated on C01 (intent) being
+    valid — see the run_downstream() call in _run_files and the backfill
+    triggered from intent_api.capture.
+
+    Returns the dataset_id when a snapshot exists (so the caller can scope the
+    later graph/context steps to just this run's datasets), else None.
+    Best-effort: registration may never block ingestion.
+    """
+    try:
+        store = DatasetStore(dsn, workspace_id)
+        try:
+            result = register_dataset(data=data, file_name=name,
+                                      request_id=request_id, store=store)
+        finally:
+            store.close()
+    except Exception:  # noqa: BLE001 — snapshot is additive, never block ingest
+        logger.warning("dataset snapshot failed file=%s", name, exc_info=True)
+        return None
+    if result.ingestion_status not in ("accepted", "duplicate") or not result.dataset_version:
+        return None
+    return result.dataset_id
+
+
 def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                match_keys: list[str], fk_links: list[dict], job_id: str,
-               workspace_id: int = 1) -> None:
+               workspace_id: int = 1, request_id: str = "") -> None:
     settings = get_settings()
     jobs = JobStore(settings.rdb_dsn)
     broker = _local_broker()
@@ -73,10 +115,19 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
         doc_files = [(d, n) for d, n in items if Path(n).suffix.lower() in _DOC_EXTS]
         # Per-file plans feed cross-file FK inference once everything has landed.
         plans: list[dict[str, Any]] = []
+        snapshotted_ids: set[str] = set()  # datasets touched THIS run (for C07)
         for data, name in data_files:
             suffix = Path(name).suffix.lower()
+            # C02 — snapshot the raw upload before transform.
+            snapped = _snapshot_dataset(settings.rdb_dsn, workspace_id, data, name,
+                                        request_id)
+            if snapped:
+                snapshotted_ids.add(snapped)
             if suffix == ".json":
-                connector = JsonConnector(_save_tmp(data, ".json"), system="json")
+                connector = JsonConnector(
+                    _save_tmp(data, ".json"), system="json",
+                    dataset=Path(name).stem,
+                )
             else:
                 connector = CsvConnector(data, system="csv", dataset=Path(name).stem)
             # Per-file type/key inference. A single (type, match_keys) pair
@@ -125,6 +176,19 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
             if inferred:
                 link_entities(settings.rdb_dsn, settings.graph_url,
                               workspace_id, inferred)
+        # C03-C07 — profile, interpret, validate/version the graph, profile it,
+        # and assemble planning context for the datasets touched this run.
+        # Gated on C01: deferred until a valid intent exists for the workspace,
+        # at which point intent_api.capture backfills them itself.
+        if snapshotted_ids:
+            if intent_ready(settings.rdb_dsn, workspace_id):
+                run_downstream(settings.rdb_dsn, workspace_id, snapshotted_ids,
+                               broker=broker)
+            else:
+                logger.info(
+                    "intent not yet captured ws=%s; deferring C03-C07 for %d dataset(s)",
+                    workspace_id, len(snapshotted_ids),
+                )
         if doc_files:
             jobs.update_stage(job_id, "Documents", 50, f"Chunking {len(doc_files)} doc(s)")
             paths = [_save_tmp(d, Path(n).suffix) for d, n in doc_files]
@@ -161,6 +225,7 @@ def file_ingest_router() -> APIRouter:
         match_keys: str = Form(...),
         fk_links: str = Form("[]"),
         workspace_id: int = Form(1),
+        request_id: str = Form(""),
     ) -> dict[str, Any]:
         if len(files) > _MAX_FILES:
             raise HTTPException(400, f"Max {_MAX_FILES} files per upload")
@@ -187,7 +252,8 @@ def file_ingest_router() -> APIRouter:
             jobs.close()
         keys = [k.strip() for k in match_keys.split(",") if k.strip()]
         links = json.loads(fk_links) if fk_links else []
-        background_tasks.add_task(_run_files, items, ontology_type, keys, links, job_id, workspace_id)
+        background_tasks.add_task(_run_files, items, ontology_type, keys, links,
+                                  job_id, workspace_id, request_id)
         names = [n for _, n in items]
         return {"status": "queued", "job_id": job_id, "files": names, "count": len(items)}
 

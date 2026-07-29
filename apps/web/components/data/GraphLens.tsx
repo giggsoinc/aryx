@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Loader2, Maximize2, Minimize2, X, ArrowRight, ArrowLeft, Search,
+  Download, Loader2, Maximize2, Minimize2, X, ArrowRight, ArrowLeft, Search,
 } from "lucide-react";
 import {
   ReactFlow, Background, Controls, MiniMap, MarkerType, Position,
@@ -151,6 +151,27 @@ export function GraphLens() {
     ? g.nodes.filter((n) => n.name.toLowerCase().includes(q)).slice(0, 8)
     : [];
   const pick = (id: number) => { setSel(String(id)); setFocusId(String(id)); setQuery(""); };
+  const exportGraph = () => {
+    const payload = {
+      exported_at: new Date().toISOString(),
+      workspace_id: workspaceId,
+      entity_count: g.entity_count,
+      relationship_count: g.relationship_count,
+      nodes: g.nodes,
+      edges: g.edges,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `aryx-workspace-${workspaceId}-graph.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
   const toggleType = (t: string) => setHiddenTypes((prev) => {
     const s = new Set(prev); s.has(t) ? s.delete(t) : s.add(t); return s;
   });
@@ -199,6 +220,14 @@ export function GraphLens() {
               </div>
             ) : null}
           </div>
+          <button
+            onClick={exportGraph}
+            className="flex items-center gap-1 rounded-lg border border-navy-100 px-2 py-1 font-medium text-navy-700 transition-colors hover:bg-navy-50"
+            title="Export the visible graph data as JSON"
+          >
+            <Download size={13} />
+            Export
+          </button>
           <button
             onClick={() => setFull((v) => !v)}
             className="flex items-center gap-1 rounded-lg border border-navy-100 px-2 py-1 font-medium text-navy-700 transition-colors hover:bg-navy-50"

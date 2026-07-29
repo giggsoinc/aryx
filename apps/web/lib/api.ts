@@ -1,8 +1,10 @@
 import type {
   AbResult, AskResponse, Axiom, Brief, DataEntitiesPage, DataSummary,
   Datasource, EntityDetail, EntityGraphView, GraphView, IngestQuestion,
+  DatasetIngestResult, DatasetProfile, SemanticProfile, GraphIntakeResult, GraphProfile,
+  PlanningContext, PlannerResult,
   LlmConfig, LlmConfigUpdate, OntologyDoc, QuizSpec, ReasonerCheck, Rule,
-  SurvivorshipPolicy, Workspace,
+  SurvivorshipPolicy, UserIntent, UserIntentRequest, Workspace,
 } from "./types";
 
 // Same-origin relative path. Next.js rewrites /api/* → FastAPI internally
@@ -266,6 +268,92 @@ export const api = {
           workspace_id: workspaceId, type_name: typeName, existing,
         }),
       },
+    ),
+
+  // ── Dataset Upload & Ingestion (C02) — read-only; uploads via Onboard ──
+  listDatasetVersions: (workspaceId: number, limit = 50) =>
+    fetchJSON<DatasetIngestResult[]>(
+      `/dataset/versions?workspace_id=${workspaceId}&limit=${limit}`,
+    ),
+
+  getDataset: (datasetId: string, workspaceId: number) =>
+    fetchJSON<DatasetIngestResult>(
+      `/dataset/${encodeURIComponent(datasetId)}?workspace_id=${workspaceId}`,
+    ),
+
+  // ── Deterministic Dataset Profiler (C03) ─────────────────────────────
+  getProfile: (datasetId: string, workspaceId: number) =>
+    fetchJSON<DatasetProfile>(
+      `/profile/${encodeURIComponent(datasetId)}?workspace_id=${workspaceId}`,
+    ),
+
+  // ── Semantic Field Interpreter (C04) ─────────────────────────────────
+  getSemantic: (datasetId: string, workspaceId: number) =>
+    fetchJSON<SemanticProfile>(
+      `/semantic/${encodeURIComponent(datasetId)}?workspace_id=${workspaceId}`,
+    ),
+
+  // ── Context and Resource Retrieval (C07) ─────────────────────────────
+  getPlanningContext: (datasetId: string, workspaceId: number) =>
+    fetchJSON<PlanningContext>(
+      `/planning-context/${encodeURIComponent(datasetId)}?workspace_id=${workspaceId}`,
+    ),
+
+  getWorkspacePlanningContext: (workspaceId: number) =>
+    fetchJSON<PlanningContext>(`/planning-context/workspace?workspace_id=${workspaceId}`),
+
+  runWorkspacePlanningContext: (workspaceId: number) =>
+    fetchJSON<PlanningContext>(`/planning-context/workspace/run?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: "{}",
+    }),
+
+  // ── Andie Jr Planning Orchestrator (C08) — on-demand, calls a real LLM ──
+  runAndiePlanner: (datasetId: string, workspaceId: number) =>
+    fetchJSON<PlannerResult>(`/andie-planner/run?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: JSON.stringify({ dataset_id: datasetId }),
+    }),
+
+  runAndiePlannerWorkspace: (workspaceId: number) =>
+    fetchJSON<PlannerResult>(`/andie-planner/workspace/run?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: "{}",
+    }),
+
+  listAndiePlans: (workspaceId: number, limit = 50) =>
+    fetchJSON<PlannerResult[]>(
+      `/andie-planner/versions?workspace_id=${workspaceId}&limit=${limit}`,
+    ),
+
+  // ── Knowledge Graph Intake & Validation (C05) ────────────────────────
+  runGraphIntake: (workspaceId: number) =>
+    fetchJSON<GraphIntakeResult>(`/graph-intake/run?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: "{}",
+    }),
+
+  listGraphVersions: (workspaceId: number, limit = 50) =>
+    fetchJSON<GraphIntakeResult[]>(
+      `/graph-intake/versions?workspace_id=${workspaceId}&limit=${limit}`,
+    ),
+
+  // ── Knowledge Graph Profiler (C06) ───────────────────────────────────
+  getGraphProfile: (workspaceId: number) =>
+    fetchJSON<GraphProfile>(
+      `/graph-profile/graph_workspace_${workspaceId}?workspace_id=${workspaceId}`,
+    ),
+
+  // ── User Intent Capture (C01) ────────────────────────────────────────
+  captureIntent: (req: UserIntentRequest, workspaceId: number) =>
+    fetchJSON<UserIntent>(`/intent/capture?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: JSON.stringify(req),
+    }),
+
+  listIntents: (workspaceId: number, limit = 50) =>
+    fetchJSON<UserIntent[]>(
+      `/intent/captures?workspace_id=${workspaceId}&limit=${limit}`,
     ),
 
   // ── LLM provider (runtime; process memory — not persisted to disk) ──

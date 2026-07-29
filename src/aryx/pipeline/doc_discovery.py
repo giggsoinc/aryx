@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
@@ -19,8 +20,9 @@ from aryx.config import get_settings
 from aryx.connectors.csv_source import CsvConnector
 from aryx.connectors.doc_router import DocumentRouterConnector
 from aryx.connectors.json_source import JsonConnector
+from aryx.connectors.json_source import _flatten
 from aryx.connectors.records_source import RecordsConnector
-from aryx.pipeline.orchestrate import run_pipeline
+from aryx.pipeline.orchestrate import link_entities, run_pipeline
 from aryx.store.chunk_store import ChunkStore
 
 logger = logging.getLogger(__name__)
@@ -32,8 +34,56 @@ DATA_EXTS = {".json", ".csv"}
 
 _GENERIC = {"table", "row", "record", "data", "file", "entity", "item", "object", "dataset"}
 
+_MODEL_TYPES = {
+    "common.parameter": "Parameter",
+    "common.userpreference": "UserPreference",
+    "input.buffer": "Buffer",
+    "input.calendar": "Calendar",
+    "input.calendarbucket": "CalendarBucket",
+    "input.customer": "Customer",
+    "input.demand": "Demand",
+    "input.item": "Item",
+    "input.itemdistribution": "ItemDistribution",
+    "input.itemsupplier": "ItemSupplier",
+    "input.location": "Location",
+    "input.operation": "Operation",
+    "input.operationmaterial": "OperationMaterial",
+    "input.operationplan": "OperationPlan",
+    "input.operationresource": "OperationResource",
+    "input.resource": "Resource",
+    "input.resourceskill": "ResourceSkill",
+    "input.skill": "Skill",
+    "input.supplier": "Supplier",
+}
+
+_MODEL_KEYS = {
+    "common.parameter": ["fields.name"],
+    "common.userpreference": ["fields.property"],
+    "input.buffer": ["fields.id"],
+    "input.calendar": ["fields.name"],
+    "input.calendarbucket": ["fields.id"],
+    "input.customer": ["fields.name"],
+    "input.demand": ["fields.name"],
+    "input.item": ["fields.name"],
+    "input.itemdistribution": ["fields.item_id", "fields.location_id", "fields.origin_id"],
+    "input.itemsupplier": ["fields.item_id", "fields.location_id", "fields.supplier_id"],
+    "input.location": ["fields.name"],
+    "input.operation": ["fields.name"],
+    "input.operationmaterial": ["fields.operation_id", "fields.item_id", "fields.type"],
+    "input.operationplan": ["fields.reference"],
+    "input.operationresource": ["fields.operation_id", "fields.resource_id"],
+    "input.resource": ["fields.name"],
+    "input.resourceskill": ["fields.resource_id", "fields.skill_id"],
+    "input.skill": ["fields.name"],
+    "input.supplier": ["fields.name"],
+}
+
 
 def _infer_type(sample: str, filename: str, context: str) -> dict[str, Any]:
+    model_plan = _infer_json_model_type(sample)
+    if model_plan:
+        return model_plan
+
     sys = ("You name the real-world thing each ROW of a data file represents, "
            "for a knowledge graph.")
     user = (f"Goal: {context or 'general knowledge graph'}\nFile: {filename}\n"
@@ -53,6 +103,43 @@ def _infer_type(sample: str, filename: str, context: str) -> dict[str, Any]:
         return {"ontology_type": otype, "match_keys": _clean_keys(d.get("match_keys"))}
     except Exception:  # noqa: BLE001
         return {"ontology_type": fallback, "match_keys": ["name"]}
+
+
+def _infer_json_model_type(sample: str) -> dict[str, Any] | None:
+    """Use a JSON record's model discriminator before asking the LLM.
+
+    FrePPLe-style exports encode the business object in ``model`` and the row's
+    attributes in ``fields``. That signal is more precise than a short sample
+    prompt, especially for supply-chain data where many rows mention customers,
+    products, suppliers, and locations as references rather than row types.
+    """
+    match = re.search(r'"model"\s*:\s*"([^"]+)"', sample)
+    if not match:
+        return None
+    model = match.group(1).strip()
+    otype = _MODEL_TYPES.get(model)
+    if not otype:
+        leaf = re.split(r"[._-]+", model)[-1]
+        otype = leaf.title().replace(" ", "")
+    keys = _MODEL_KEYS.get(model, ["fields.name"])
+    return {"ontology_type": otype, "match_keys": keys}
+
+
+def _json_colvals(data: bytes) -> dict[str, list[str]]:
+    """Flatten JSON rows into column values for cross-file FK inference."""
+    try:
+        loaded = json.loads(data.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError, TypeError):
+        return {}
+    rows = loaded if isinstance(loaded, list) else [loaded]
+    cols: dict[str, list[str]] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        for k, v in _flatten(row).items():
+            if v is not None:
+                cols.setdefault(k, []).append(str(v).strip())
+    return cols
 
 
 def _clean_keys(raw: Any) -> list[str]:
@@ -174,6 +261,7 @@ def ingest_confirmed(data: dict[str, Any], approved_types: list[str],
     settings = get_settings()
     total = max(len(approved_types) + len(approved_files), 1)
     step = 0
+    link_plans: list[dict[str, Any]] = []
     for otype in approved_types:
         step += 1
         jobs.update_stage(job_id, f"{step}/{total}", int(step * 90 / total), f"Adding {otype}")
@@ -193,10 +281,40 @@ def ingest_confirmed(data: dict[str, Any], approved_types: list[str],
             tmp = NamedTemporaryFile(suffix=".json", delete=False)
             tmp.write(plan["data"])
             tmp.close()
-            conn = JsonConnector(Path(tmp.name), system="json")
+            conn = JsonConnector(Path(tmp.name), system="json",
+                                 dataset=Path(fname).stem)
+            link_plans.append({
+                "ontology_type": plan["ontology_type"],
+                "colvals": _json_colvals(plan["data"]),
+            })
         else:
             conn = CsvConnector(plan["data"], system="csv", dataset=Path(fname).stem)
+            link_plans.append({
+                "ontology_type": plan["ontology_type"],
+                "colvals": _csv_colvals(plan["data"]),
+            })
         run_pipeline(connector=conn, dsn=settings.rdb_dsn,
                      system=Path(fname).suffix.lstrip("."), dataset=Path(fname).stem,
                      ontology_type=plan["ontology_type"], match_keys=plan["match_keys"],
                      graph_url=settings.graph_url, broker=broker, workspace_id=workspace_id)
+    inferred = infer_fk_links(link_plans)
+    if inferred:
+        jobs.update_stage(job_id, "Link", 92, "Inferring relationships")
+        link_entities(settings.rdb_dsn, settings.graph_url, workspace_id, inferred)
+
+
+def _csv_colvals(data: bytes) -> dict[str, list[str]]:
+    """Return CSV column values for confirmed-ingest relationship discovery."""
+    import csv
+    import io
+
+    try:
+        reader = csv.DictReader(io.StringIO(data.decode("utf-8", "ignore")))
+        cols: dict[str, list[str]] = {}
+        for row in reader:
+            for k, v in row.items():
+                if k is not None:
+                    cols.setdefault(k, []).append((v or "").strip())
+        return cols
+    except csv.Error:
+        return {}
