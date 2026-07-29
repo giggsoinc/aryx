@@ -4,12 +4,16 @@ UnionFind primitives are covered in test_funnel_unionfind.py.
 """
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import pytest
 
 from aryx.resolution.blocking import MultiKeyBlocker
 from aryx.resolution.classical import block_key
 from aryx.resolution.cluster import golden_record
 from funnel_helpers import rec, run_funnel
+from aryx.models import ResolutionRecord
+from aryx.resolution.run import resolve
 
 _CLUSTER_NAMES = [
     "phoenix zirconium nebula", "neptune rhodium comet",
@@ -88,6 +92,30 @@ def test_funnel_single_record() -> None:
 def test_funnel_empty_input() -> None:
     """Empty input produces no clusters."""
     assert run_funnel([]) == {}
+
+
+def test_exact_key_shortcut_requires_metadata_and_normalizes_keys() -> None:
+    """Declared keys can use the fast path, but separator/case variants merge."""
+    broker = MagicMock()
+    records = [
+        ResolutionRecord(record_id=1, text="ACME-123",
+                         payload={"record_key": "ACME-123"}, match_keys=["record_key"]),
+        ResolutionRecord(record_id=2, text="acme 123",
+                         payload={"record_key": "acme 123"}, match_keys=["record_key"]),
+    ]
+    for i in range(3, 21):
+        records.append(ResolutionRecord(
+            record_id=i, text=f"ID-{i}",
+            payload={"record_key": f"ID-{i}"}, match_keys=["record_key"]))
+
+    results = resolve(records, broker, "Thing")
+    clusters = {
+        frozenset(m.landed_record_id for m in members)
+        for _, members in results
+    }
+
+    assert frozenset({1, 2}) in clusters
+    assert len(results) == 19
 
 
 def test_golden_record_order_independent() -> None:

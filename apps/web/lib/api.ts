@@ -1,5 +1,5 @@
 import type {
-  AbResult, AskResponse, Axiom, Brief, DataEntitiesPage, DataSummary,
+  AbResult, AskResponse, Axiom, Brief, DataEntitiesPage, DataEntitiesGrouped, DataSummary,
   Datasource, EntityDetail, EntityGraphView, GraphView, IngestQuestion,
   LlmConfig, LlmConfigUpdate, OntologyDoc, QuizSpec, ReasonerCheck, Rule,
   SurvivorshipPolicy, Workspace,
@@ -59,11 +59,11 @@ export const api = {
     ),
 
   dataEntities: (workspaceId: number, type?: string,
-                 limit = 50, offset = 0) =>
-    fetchJSON<DataEntitiesPage & { error?: string }>(
+                 limit = 50, offset = 0, group = false) =>
+    fetchJSON<(DataEntitiesPage | DataEntitiesGrouped) & { error?: string }>(
       `/data/entities?workspace_id=${workspaceId}` +
         (type ? `&type=${encodeURIComponent(type)}` : "") +
-        `&limit=${limit}&offset=${offset}`,
+        `&limit=${limit}&offset=${offset}` + (group ? "&group=1" : ""),
     ),
 
   dataGraph: (workspaceId: number) =>
@@ -80,6 +80,16 @@ export const api = {
     fetchJSON<EntityDetail & { error?: string }>(
       `/data/entity/${entityId}?workspace_id=${workspaceId}`,
     ),
+
+  materializeHierarchy: (workspaceId: number) =>
+    fetchJSON<{
+      hub_attr?: string; label_attr?: string | null;
+      parent_type?: string; child_type?: string; edge_name?: string;
+      created_hubs?: number; created_edges?: number; error?: string;
+    }>("/data/materialize-hierarchy", {
+      method: "POST",
+      body: JSON.stringify({ workspace_id: workspaceId }),
+    }),
 
   // ── Ontology / modelling ──────────────────────────────────────────────
   getOntology: (workspaceId: number) =>

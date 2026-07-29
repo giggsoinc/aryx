@@ -129,6 +129,22 @@ export interface DataEntitiesPage {
   items: DataEntity[];
 }
 
+export interface DataEntityGroup {
+  key: string;
+  count: number;
+  items: DataEntity[];
+}
+
+export interface DataEntitiesGrouped {
+  grouped: true;
+  group_attr: string;
+  label_attr: string | null;
+  total_groups: number;
+  group_offset: number;
+  group_limit: number;
+  groups: DataEntityGroup[];
+}
+
 export interface GraphTypeNode { type: string; count: number }
 export interface GraphTypeEdge {
   source: string;
@@ -144,8 +160,12 @@ export interface GraphView {
   relationship_count: number;
 }
 
-export interface GraphEntityNode { id: number; type: string; name: string }
-export interface GraphEntityEdge { source: number; target: number; name: string }
+export interface GraphEntityNode { id: number | string; type: string; name: string }
+export interface GraphEntityEdge {
+  source: number | string;
+  target: number | string;
+  name: string;
+}
 
 export interface EntityGraphView {
   nodes: GraphEntityNode[];
@@ -157,13 +177,13 @@ export interface EntityGraphView {
 export interface EntityRelationship {
   direction: "in" | "out";
   name: string;
-  other_id: number;
+  other_id: number | string;
   other_name: string;
   other_type: string;
 }
 
 export interface EntityDetail {
-  id: number;
+  id: number | string;
   type: string;
   name: string;
   attributes: Record<string, unknown>;

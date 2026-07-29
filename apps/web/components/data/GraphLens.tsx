@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Loader2, Maximize2, Minimize2, X, ArrowRight, ArrowLeft, Search,
+  Loader2, Maximize2, Minimize2, X, ArrowRight, ArrowLeft, Search, Link2,
 } from "lucide-react";
 import {
   ReactFlow, Background, Controls, MiniMap, MarkerType, Position,
@@ -105,6 +105,8 @@ export function GraphLens() {
   const [sel, setSel] = useState<string | null>(null);
   const [detail, setDetail] = useState<EntityDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [materializing, setMaterializing] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
   const [focusId, setFocusId] = useState<string | null>(null);
@@ -121,13 +123,18 @@ export function GraphLens() {
   // Fetch detail for the selected node.
   useEffect(() => {
     if (!sel) { setDetail(null); return; }
+    if (sel.startsWith("hub:")) {
+      setDetailLoading(false);
+      setDetail(syntheticHubDetail(g, sel));
+      return;
+    }
     let live = true;
     setDetailLoading(true); setDetail(null);
     api.dataEntityDetail(workspaceId, Number(sel))
       .then((d) => { if (live && !("error" in d && d.error)) setDetail(d); })
       .finally(() => { if (live) setDetailLoading(false); });
     return () => { live = false; };
-  }, [sel, workspaceId]);
+  }, [sel, workspaceId, g]);
 
   useEffect(() => {
     if (!full) return;
@@ -150,7 +157,33 @@ export function GraphLens() {
   const matches = q
     ? g.nodes.filter((n) => n.name.toLowerCase().includes(q)).slice(0, 8)
     : [];
-  const pick = (id: number) => { setSel(String(id)); setFocusId(String(id)); setQuery(""); };
+  const pick = (id: number | string) => {
+    setSel(String(id)); setFocusId(String(id)); setQuery("");
+  };
+  const refreshGraph = async () => {
+    const d = await api.dataGraphEntity(workspaceId);
+    if ("error" in d && d.error) setErr(d.error);
+    else setG(d);
+  };
+  const materialize = async () => {
+    setMaterializing(true); setNotice(null);
+    try {
+      const result = await api.materializeHierarchy(workspaceId);
+      if (result.error) {
+        setNotice(result.error);
+      } else {
+        setNotice(
+          `Materialized ${result.created_hubs ?? 0} hub entities and ` +
+          `${result.created_edges ?? 0} edges.`,
+        );
+        await refreshGraph();
+      }
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "materialize failed");
+    } finally {
+      setMaterializing(false);
+    }
+  };
   const toggleType = (t: string) => setHiddenTypes((prev) => {
     const s = new Set(prev); s.has(t) ? s.delete(t) : s.add(t); return s;
   });
@@ -160,6 +193,19 @@ export function GraphLens() {
       <div className="mb-2 flex items-center justify-between gap-3 px-2 pt-1 text-[11px] text-subtle">
         <div className="flex items-center gap-3">
           <span className="whitespace-nowrap">{g.entity_count} entities · {g.relationship_count} relationships</span>
+          {hasSyntheticHubs(g) ? (
+            <button
+              onClick={materialize}
+              disabled={materializing}
+              className="flex items-center gap-1 rounded-lg border border-navy-100 px-2 py-1 font-medium text-navy-700 transition-colors hover:bg-navy-50 disabled:opacity-60"
+              title="Store these hub relationships as real graph edges"
+            >
+              {materializing
+                ? <Loader2 size={12} className="animate-spin" />
+                : <Link2 size={12} />}
+              Materialize
+            </button>
+          ) : null}
           <span className="flex items-center gap-1.5">
             {types.map((t, i) => {
               const off = hiddenTypes.has(t);
@@ -209,6 +255,11 @@ export function GraphLens() {
           </button>
         </div>
       </div>
+      {notice ? (
+        <div className="mb-2 rounded-lg border border-navy-100 bg-navy-50 px-3 py-2 text-[11.5px] text-navy-700">
+          {notice}
+        </div>
+      ) : null}
       <Flow g={g} full={full} sel={sel} onSelect={setSel}
             hiddenTypes={hiddenTypes} focusId={focusId} />
       {sel ? (
@@ -365,7 +416,7 @@ function Flow({ g, full, sel, onSelect, hiddenTypes, focusId }: {
 function DetailPanel({ detail, loading, typeIndex, onSelect, onClose }: {
   detail: EntityDetail | null; loading: boolean;
   typeIndex: (t: string) => number;
-  onSelect: (id: number) => void; onClose: () => void;
+  onSelect: (id: number | string) => void; onClose: () => void;
 }) {
   return (
     <div className="absolute right-3 top-14 bottom-3 z-10 flex w-80 flex-col overflow-hidden rounded-xl border border-navy-100 bg-white shadow-lg">
@@ -451,6 +502,39 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       {children}
     </div>
   );
+}
+
+function hasSyntheticHubs(g: EntityGraphView): boolean {
+  return g.nodes.some((n) => String(n.id).startsWith("hub:"));
+}
+
+function syntheticHubDetail(g: EntityGraphView | null, id: string): EntityDetail | null {
+  if (!g) return null;
+  const node = g.nodes.find((n) => String(n.id) === id);
+  if (!node) return null;
+  const nodeById = new Map(g.nodes.map((n) => [String(n.id), n]));
+  const relationships = g.edges
+    .filter((e) => String(e.source) === id || String(e.target) === id)
+    .map((e) => {
+      const outgoing = String(e.source) === id;
+      const otherId = outgoing ? e.target : e.source;
+      const other = nodeById.get(String(otherId));
+      return {
+        direction: outgoing ? "out" as const : "in" as const,
+        name: e.name,
+        other_id: otherId,
+        other_name: other?.name || String(otherId),
+        other_type: other?.type || "Entity",
+      };
+    });
+  return {
+    id,
+    type: node.type,
+    name: node.name,
+    attributes: { value: node.name },
+    sources: [],
+    relationships,
+  };
 }
 
 function Box({ children }: { children: React.ReactNode }) {

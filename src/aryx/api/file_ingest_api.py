@@ -10,6 +10,7 @@ import csv
 import io
 import json
 import logging
+import re
 import uuid
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -18,6 +19,7 @@ from typing import Any
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
 
 from aryx.api.admin_api import _local_broker
+from aryx.brief import merge_with_context
 from aryx.config import get_settings
 from aryx.connectors.csv_source import CsvConnector
 from aryx.connectors.doc_router import DocumentRouterConnector
@@ -27,6 +29,7 @@ from aryx.pipeline.orchestrate import link_entities, run_pipeline
 from aryx.store.chunk_store import ChunkStore
 from aryx.store.job_store import JobStore
 from aryx.store.migrate import apply_migrations
+from aryx.workspaces import WorkspaceStore
 
 logger = logging.getLogger(__name__)
 
@@ -62,12 +65,106 @@ def _colvals(data: bytes, suffix: str) -> dict[str, Any]:
         return {"colvals": {}}
 
 
+def _workspace_context(dsn: str, workspace_id: int) -> str:
+    """Serialize a workspace's onboarding brief + context for type inference.
+
+    Threaded into ``_infer_type`` so an entity the user explicitly named in the
+    onboarding goal is honoured — without it the row type was guessed from the
+    CSV header alone, ignoring the goal entirely.
+    """
+    try:
+        store = WorkspaceStore(dsn)
+        try:
+            ws = next((w for w in store.list_all()
+                       if int(w["id"]) == int(workspace_id)), None)
+        finally:
+            store.close()
+    except Exception:  # noqa: BLE001 — context is best-effort, never block ingest
+        logger.debug("workspace context load failed", exc_info=True)
+        return ""
+    if not ws:
+        return ""
+    return merge_with_context(ws.get("brief"), ws.get("context") or "").strip()
+
+
+def _norm_tokens(text: str) -> list[str]:
+    """Word tokens: lowercased, split on non-alphanumerics, plural-stripped.
+
+    So ``parent_key``, "Parent Keys", and "parent key" all normalise to
+    ``[parent, key]`` — the drafter naturalises the goal's tokens and this maps
+    them back to the column.
+    """
+    out: list[str] = []
+    for t in re.findall(r"[a-z0-9]+", text.lower()):
+        if len(t) > 3 and t.endswith("s"):
+            t = t[:-1]
+        out.append(t)
+    return out
+
+
+def _columns_in_context(context: str, cols: list[str]) -> list[str]:
+    """Return the file columns the user explicitly named in the goal/brief.
+
+    Users sometimes state the identity outright ("a parent is identified by
+    parent_key; every child by parent_key together with child_key"). When the
+    goal names real columns, those ARE the match key the user asked for —
+    honour them instead of trusting the LLM's guess, which may choose an
+    unrelated column.
+
+    A column is "named" when EVERY word of its (normalised) name appears in the
+    context — so ``child_key`` matches "Child Keys" but a ``Child Key Sorter``
+    column (needs "sorter" too) does not. Returned in the order the
+    columns appear in the goal, so a composite key keeps the stated order
+    (parent_key before child_key).
+    """
+    if not context or not cols:
+        return []
+    identity_text = _identity_context(context)
+    if not identity_text:
+        return []
+    return _columns_named_in_text(identity_text, cols)
+
+
+def _identity_context(context: str) -> str:
+    """Extract clauses that explicitly declare record identity/key fields."""
+    clauses = re.split(r"[\n.;]+", context)
+    identity_re = re.compile(
+        r"\b("
+        r"identified\s+by|uniquely\s+identified\s+by|keyed\s+by|"
+        r"matched\s+by|dedupe(?:d)?\s+by|primary\s+key|unique\s+key|"
+        r"match\s+key|identity\s+key|identifier"
+        r")\b",
+        flags=re.IGNORECASE,
+    )
+    return " ".join(clause for clause in clauses if identity_re.search(clause))
+
+
+def _columns_named_in_text(text: str, cols: list[str]) -> list[str]:
+    """Return columns whose normalized names are fully present in text."""
+    if not text or not cols:
+        return []
+    ctx_tokens = _norm_tokens(text)
+    ctx_set = set(ctx_tokens)
+    first_at: dict[str, int] = {}
+    for i, t in enumerate(ctx_tokens):
+        first_at.setdefault(t, i)
+    found: list[tuple[int, str]] = []
+    for col in cols:
+        parts = _norm_tokens(col)
+        if parts and all(p in ctx_set for p in parts):
+            found.append((min(first_at[p] for p in parts), col))
+    found.sort(key=lambda t: t[0])
+    return [c for _, c in found]
+
+
 def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                match_keys: list[str], fk_links: list[dict], job_id: str,
                workspace_id: int = 1) -> None:
     settings = get_settings()
     jobs = JobStore(settings.rdb_dsn)
     broker = _local_broker()
+    # The onboarding goal/brief — so explicitly-named entities are honoured.
+    context = _workspace_context(settings.rdb_dsn, workspace_id)
     try:
         data_files = [(d, n) for d, n in items if Path(n).suffix.lower() in _DATA_EXTS]
         doc_files = [(d, n) for d, n in items if Path(n).suffix.lower() in _DOC_EXTS]
@@ -87,7 +184,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
             # its identifying columns from this file's own header + sample.
             otype, keys = ontology_type, match_keys
             if not otype or otype.lower() == "document":
-                plan = _infer_type(data[:800].decode("utf-8", "ignore"), name, "")
+                plan = _infer_type(data[:800].decode("utf-8", "ignore"), name, context)
                 otype, keys = plan["ontology_type"], plan["match_keys"]
                 logger.info("inferred %s -> type=%s keys=%s", name, otype, keys)
             cv = _colvals(data, suffix)
@@ -98,6 +195,14 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
             # Repair deterministically: use the most-unique column (the natural
             # key) so matching is both fast and correct.
             cols = list(cv["colvals"].keys())
+            # Honour columns the user explicitly named in the goal. If the
+            # brief/context mentions real column names, those ARE the identity
+            # the user asked for — use them directly (in stated order) instead
+            # of the LLM's guess. This is what "use parent_key" means.
+            named = _columns_in_context(context, cols)
+            if named:
+                logger.info("honoring goal-named match keys for %s: %s", name, named)
+                keys = named
             valid = [k for k in keys if k in cols]
             if valid:
                 keys = valid

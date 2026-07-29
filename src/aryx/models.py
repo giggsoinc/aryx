@@ -93,6 +93,9 @@ class ResolutionRecord(BaseModel):
         default=None, description="Originating system (survivorship source rank).")
     cleaned_at: Any = Field(
         default=None, description="Landed-record cleanse time (record-level recency).")
+    match_keys: list[str] = Field(
+        default_factory=list,
+        description="Payload fields explicitly used to build match text.")
 
 
 class ResolvedEntity(BaseModel):
