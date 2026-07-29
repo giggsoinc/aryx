@@ -39,3 +39,10 @@ Current_State_Aryx.html
 # Local Raven ops notes (not product docs)
 docs/raven_html.md
 raven_html.md
+
+# Local archives (do not commit)
+aryx_full.zip
+
+# Raven machine-local session state (do not commit)
+.raven/.model-session.json
+.raven/state/
