@@ -2,7 +2,7 @@ import type {
   AbResult, AskResponse, Axiom, Brief, DataEntitiesPage, DataSummary,
   Datasource, EntityDetail, EntityGraphView, GraphView, IngestQuestion,
   DatasetIngestResult, DatasetProfile, SemanticProfile, GraphIntakeResult, GraphProfile,
-  PlanningContext, PlannerResult, ExecutionPlan, ExecutionRun, DashboardModel,
+  PlanningContext, PlannerResult, ExecutionPlan, ExecutionRun, DashboardModel, RenderTelemetry,
   LlmConfig, LlmConfigUpdate, OntologyDoc, QuizSpec, ReasonerCheck, Rule,
   SurvivorshipPolicy, UserIntent, UserIntentRequest, Workspace,
 } from "./types";
@@ -376,6 +376,16 @@ export const api = {
 
   getWorkspaceDashboardModel: (workspaceId: number) =>
     fetchJSON<DashboardModel | null>(`/dashboard-model/workspace?workspace_id=${workspaceId}`),
+
+  // ── Frontend Dashboard Renderer (C15) — telemetry only, no compute ─────
+  getWorkspacePlannerResult: (workspaceId: number) =>
+    fetchJSON<PlannerResult>(`/andie-planner/workspace?workspace_id=${workspaceId}`),
+
+  logRenderTelemetry: (workspaceId: number, telemetry: RenderTelemetry) =>
+    fetchJSON<{ status: string }>(`/render-telemetry/log?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: JSON.stringify(telemetry),
+    }),
 
   // ── User Intent Capture (C01) ────────────────────────────────────────
   captureIntent: (req: UserIntentRequest, workspaceId: number) =>

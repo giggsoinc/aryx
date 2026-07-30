@@ -28,6 +28,7 @@ from aryx.api.doc_discover_api import doc_discover_router
 from aryx.api.execution_plan_api import execution_plan_router
 from aryx.api.execution_run_api import execution_run_router
 from aryx.api.file_ingest_api import file_ingest_router
+from aryx.api.render_telemetry_api import render_telemetry_router
 from aryx.api.graph_api import graph_router
 from aryx.api.graph_intake_api import graph_intake_router
 from aryx.api.graph_profile_api import graph_profile_router
@@ -136,6 +137,7 @@ def create_app() -> FastAPI:
     app.include_router(execution_plan_router())
     app.include_router(execution_run_router())
     app.include_router(dashboard_model_router())
+    app.include_router(render_telemetry_router())
     app.include_router(relationship_type_router())
     app.include_router(ontology_assist_router())
     app.include_router(observability_router())

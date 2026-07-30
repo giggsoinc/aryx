@@ -684,6 +684,23 @@ export interface DashboardModel {
   created_at: string;
 }
 
+// ── Frontend Dashboard Renderer (C15) — telemetry only, no compute ───────
+export interface AccessibilityChecks {
+  keyboard_navigation: "passed" | "failed";
+  contrast: "passed" | "failed";
+  text_alternatives: "passed" | "failed";
+}
+
+export interface RenderTelemetry {
+  render_id: string;
+  dashboard_model_id: string;
+  render_status: "success" | "partial" | "failed";
+  rendered_component_count: number;
+  warning_count: number;
+  unsupported_component_types: string[];
+  accessibility_checks: AccessibilityChecks;
+}
+
 export interface ExecutionRun {
   execution_run_id: string;
   execution_plan_id: string;

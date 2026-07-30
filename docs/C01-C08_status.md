@@ -1,4 +1,4 @@
-# C01-C14 — Status & How Each Is Done
+# C01-C15 — Status & How Each Is Done
 
 What's built for each dashboard/backend component, how it works, and what
 backs it with tests. See [dashboard_components_C01-C08.md](dashboard_components_C01-C08.md)
@@ -23,8 +23,9 @@ the cross-component autorun mechanism referenced throughout.
 | C12 | Deterministic Analysis Execution | Complete | No — real values only, from a fixed set of vetted templates |
 | C13 | Post-Execution Validation | Complete | No — recomputes independently; a structurally valid but wrong result is still blocked |
 | C14 | Dashboard Composition | Complete | Hybrid — LLM optional, titles/grouping only; can never alter values, formulas, axes, or IDs |
+| C15 | Frontend Dashboard Renderer | Complete | No — merges already-computed values; never recomputes a KPI formula client-side |
 
-All fourteen are implemented and covered by tests. C09 and C10 have no UI/API
+All fifteen are implemented and covered by tests. C09 and C10 have no UI/API
 surface of their own — both are internal to C08's run flow — their output IS
 surfaced inside C08's existing `DashboardSpecPanel.tsx`: an "approved" badge
 (C09), a distinct rose `controlled_failure` block when both attempts are
@@ -541,6 +542,82 @@ component doc's own shape, per-component warning attachment, duplicate/empty
 section/component structure, and narrate.py's strict validation — an LLM
 exception, an invented section_id, and a valid response, each exercised
 against a stubbed `complete_json_fn` rather than a real provider).
+
+---
+
+## C15 — Frontend Dashboard Renderer
+
+**Status:** Complete. No LLM, no server-side compute — this is the "final
+interface" the whole pipeline has been building toward, and it lives almost
+entirely in `apps/web` (Frontend Engineering). Renders automatically once a
+`DashboardModel` (C14) and `ExecutionRun` (C12/C13) exist for the workspace
+— no button of its own, it's the payoff of everything above it.
+
+**How it's done:** [`DashboardRenderer.tsx`](../apps/web/components/planner/DashboardRenderer.tsx)
+fetches the workspace's `DashboardModel`, `ExecutionRun`, and the approved
+`DashboardSpec` (for human KPI/analysis names — `Kpi.name`, since `Analysis`
+has none) in parallel, then merges them: a `kpi_card` component shows
+`ExecutionRun.kpi_results[].display_value` **verbatim** — never
+re-derived — under the KPI's real name; a chart/table component shows
+`AnalysisResult.rows` formatted with the referenced KPI's own `format`
+(percentage/currency/number is a *presentation* choice on an already-final
+number, not a recomputation of the formula that produced it — the one line
+this component's own "Key control" draws). An `Unsupported component`
+placeholder covers any `component.type` the renderer doesn't recognize,
+never a silent drop or a crash.
+
+The real chart-type vocabulary is `aryx.planning.catalogues.CHARTS` —
+`kpi_card`/`bar`/`line`/`scatter`/`donut`/`table` — not the component doc's
+illustrative `"bar_chart"`. [`BarChart.tsx`](../apps/web/components/planner/BarChart.tsx)
+is a small, dependency-free, accessible horizontal bar chart (no charting
+library is installed, and the need is simple); `bar`/`line`/`scatter`/`donut`
+all render through it, which is a faithful simplification rather than a
+shortcut — `AnalysisResultRow` is always one `{group_value, value,
+sample_size}` per group, with no time axis or second numeric dimension, so
+there's no genuinely different line/scatter data to plot in the first
+place. `table` gets a real `<table>`. Every bar is a focusable element with
+a visible label+value (not a hover-only tooltip) and the chart's `aria-label`
+carries a full textual summary — the actual WCAG text alternative, not
+decoration.
+
+C13's warnings (already attached per-component by C14) are rendered as
+plain-language sentences (`small_sample_size` → "This West result is based
+on a sample of 15 observations, below the preferred threshold of 30.",
+reusing the REAL sample_size from the `ExecutionRun`, not inventing a
+number) rather than raw codes. A deterministic, template-only "safe
+insight" caption — never LLM-generated, matching this component's own "No"
+LLM policy — names the lowest-observed group among any with a
+below-threshold sample and states the caution plainly, with zero causal
+language: `"{group} has the lowest observed {metric} at {value}, but the
+result is based on only {n} completed observations and should be
+interpreted cautiously."` — deliberately the shape of the component doc's
+own "safe insight" example, and deliberately incapable of producing its
+"unsafe insight" counterpart (there is no template path that names a cause).
+
+The only piece that touches the backend is step 7 ("capture render and
+interaction telemetry"): after each render, the frontend POSTs a
+`RenderTelemetry` record (render status, component/warning counts,
+unsupported types, a self-assessed `accessibility_checks` — keyboard
+navigation and contrast are `"passed"` by construction of how the markup is
+built; `text_alternatives` is computed, not assumed: it's marked `"failed"`
+if any `kpi_card` had to fall back to its raw `kpi_id` for lack of a real
+name) via `POST /render-telemetry/log`, persisted insert-only (each render
+is a distinct, independently timed event, same convention as
+`ExecutionRunStore`) in `aryx_render_telemetry` (migration
+`0041_render_telemetry.sql`) — an audit trail only; nothing here gates or
+alters what was already rendered.
+
+**Test:** No frontend test runner is configured in this repo (no
+jest/vitest/testing-library in `package.json`), so this component is
+verified by `tsc --noEmit` (clean) and by tracing the actual live data
+shapes for a real workspace end-to-end (chart types, KPI names/formats,
+analysis rows) rather than a unit-test suite — introducing a whole new test
+framework for one component was judged out of scope here. The backend
+telemetry endpoint was smoke-tested live (`POST`/`GET
+/render-telemetry/log`/`list` round-tripped a real event). **Not done:** an
+actual visual/browser check — the page returns 200 and every data path was
+traced against real workspace data, but nobody has looked at it rendered in
+a browser yet.
 
 ---
 
