@@ -1,4 +1,4 @@
-# C01-C10 — Status & How Each Is Done
+# C01-C11 — Status & How Each Is Done
 
 What's built for each dashboard/backend component, how it works, and what
 backs it with tests. See [dashboard_components_C01-C08.md](dashboard_components_C01-C08.md)
@@ -19,13 +19,15 @@ the cross-component autorun mechanism referenced throughout.
 | C08 | Andie Jr Planning Orchestrator | Complete | Yes — the only one that calls an LLM |
 | C09 | Pre-Execution Specification Validation | Complete | No — code-only gate on C08's output |
 | C10 | Preprocessing and Transformation | Complete | No — deterministic, chained onto C09's approval |
+| C11 | Execution Compiler | Complete | No — MVP policy is no LLM; binds approved params to vetted templates only |
 
-All ten are implemented and covered by tests. C09 and C10 have no UI/API
-surface of their own — both are internal to C08's run flow — but their
-output IS surfaced inside C08's existing `DashboardSpecPanel.tsx`: an
+All eleven are implemented and covered by tests. C09, C10, and C11 have no
+UI/API surface of their own — all three are internal to C08's run flow — but
+C09/C10's output IS surfaced inside C08's existing `DashboardSpecPanel.tsx`: an
 "approved" badge (C09), a distinct rose `controlled_failure` block when both
 attempts are rejected (C09), and a compact per-column transformation summary
-(C10) — see their sections below.
+(C10) — see their sections below. C11's compiled plan isn't surfaced in the
+UI yet (see its section for what a follow-up panel would show).
 The intent-gated autorun (C03-C07) is implemented but not yet manually
 smoke-tested end-to-end (see [intent_gated_autorun.md](intent_gated_autorun.md#verification)).
 
@@ -259,6 +261,65 @@ specs) and appends each `AnalysisDataset` to `PlannerResult.analysis_datasets`
 policy derivation from an explicit fake profile, per-type conversion,
 threshold/revert behavior for numeric/date/boolean, and one true
 end-to-end run with `DatasetStore`/`AnalysisDatasetStore` mocked).
+
+---
+
+## C11 — Execution Compiler
+
+**Status:** Complete. No LLM (MVP policy), fully deterministic. Chained onto
+C10 inside the same `_run_c10_for_approved()` loop in `andie_planner/run.py`
+— no button, no API of its own, same as C09/C10.
+
+**How it's done:** [`execution_compiler/templates.py`](../src/aryx/execution_compiler/templates.py)
+is the fixed, vetted catalogue the compiler may ever bind parameters to
+(`filter_equals`, `filter_in`, `count_rows`, `{sum,average,median}_numeric`,
+`safe_ratio`, and their `grouped_*` variants) — an operation with no template
+here has no execution path; the compiler rejects it rather than improvising
+SQL/Python. [`execution_compiler/compile.py`](../src/aryx/execution_compiler/compile.py)'s
+`compile_plan()` walks an approved spec's KPIs and analyses (already scoped
+to one dataset by the caller): a `count`/`sum`/`average`/`median` KPI becomes
+an optional `filter_*` node feeding a `count_rows`/`*_numeric` node; a
+`ratio`/`percentage` KPI compiles its numerator and denominator into their
+own filter+measure nodes before a `safe_ratio` node depends on both
+(`zero_denominator_policy` carried straight through — C09 already guaranteed
+both operands exist); an `Analysis` (`group_by` + a `metric` pointing at a
+KPI) becomes one `grouped_*` node keyed off that KPI's own operation. Node
+IDs are derived deterministically from the KPI/analysis ID (e.g.
+`op_kpi_renewal_rate_ratio`) — same input always compiles to the same node
+graph, only `execution_plan_id` varies per run.
+
+[`execution_compiler/validate.py`](../src/aryx/execution_compiler/validate.py)
+is the compiler's own structural self-check — never a re-litigation of C09's
+business-rule validation (numeric measures, ratio operand presence, operation
+whitelisting are already guaranteed by the time a spec reaches here). It
+checks every node's template is known with exactly its required parameter
+keys, node IDs are unique, dependencies resolve within the plan, the
+dependency graph is acyclic (Kahn's algorithm), and the plan doesn't exceed
+`node_limit` (200, an engineering default — flagged as adjustable, same as
+C10's `THRESHOLD`). Any structural failure marks `compilation_status:
+"rejected"` — auditable, not dropped. `row_limit` is clamped to the
+dataset's actual row count (from C10's `AnalysisDataset.row_count`) when
+smaller than the default cap.
+
+[`execution_compiler/run.py`](../src/aryx/execution_compiler/run.py) →
+actually inlined as `_run_c11_for_dataset()` in `andie_planner/run.py` rather
+than a separate glue module, since it needs the `AnalysisDataset.row_count`
+C10 just produced for that same dataset. Persisted via
+`ExecutionPlanStore` (`aryx_execution_plan` table, migration
+`0038_execution_plan.sql`), one row per `(dataset_id, dataset_version)`,
+appended to `PlannerResult.execution_plans` — best-effort, a C11 failure
+never downgrades the C08/C09/C10 outcome.
+
+**Not yet done:** no UI surface — a follow-up panel would show per-KPI node
+counts and a `compilation_status` badge, mirroring C09/C10's treatment in
+`DashboardSpecPanel.tsx`. No actual execution engine consumes the plan yet
+(that's a distinct, not-yet-built component) — C11 only compiles and
+validates the DAG, it doesn't run it.
+
+**Test:** `tests/test_execution_compiler.py` (18 tests — count/sum/ratio KPI
+compilation, grouped-analysis compilation for ratio/sum/unknown metrics,
+deterministic node IDs across repeated compiles, row-limit clamping,
+node-limit rejection, and each `validate.py` structural check in isolation).
 
 ---
 

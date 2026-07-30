@@ -130,4 +130,9 @@ class PlannerResult(BaseModel):
         description="C10 AnalysisDataset transformation logs, one per dataset "
         "the approved spec references (see preprocess.models). Empty unless "
         "validation.status == 'approved'.")
+    execution_plans: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="C11 ExecutionPlan compilations, one per dataset the "
+        "approved spec references (see execution_compiler.models). Empty "
+        "unless validation.status == 'approved'.")
     created_at: datetime = Field(default_factory=_utcnow)

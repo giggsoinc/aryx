@@ -14,6 +14,7 @@ import uuid
 
 from aryx.andie_planner.generate import assemble_spec, assemble_workspace_spec
 from aryx.andie_planner.models import DashboardSpec, PlannerResult
+from aryx.execution_compiler.compile import compile_plan
 from aryx.llm import complete_json
 from aryx.preprocess.run import run_preprocess
 from aryx.spec_validation.checks import ValidationContext
@@ -22,6 +23,7 @@ from aryx.spec_validation.validate import repair_constraints_text
 from aryx.store.context_store import ContextStore
 from aryx.store.dashboard_spec_store import DashboardSpecStore
 from aryx.store.dataset_store import DatasetStore
+from aryx.store.execution_plan_store import ExecutionPlanStore
 from aryx.store.profile_store import ProfileStore
 
 logger = logging.getLogger(__name__)
@@ -118,9 +120,34 @@ def _run_c09_with_bounded_retry(
     )
 
 
+def _run_c11_for_dataset(dsn: str, workspace_id: int, spec: DashboardSpec, did: str,
+                         row_count: int, result: PlannerResult) -> None:
+    """Compile + persist C11's execution plan for one dataset's KPIs/analyses.
+
+    Best-effort, additive — a compile failure never blocks or downgrades the
+    C08/C09/C10 outcome (same contract as C10 itself)."""
+    kpis = [k for k in spec.kpis if k.dataset_id == did]
+    analyses = [a for a in spec.analyses if a.dataset_id == did]
+    if not kpis and not analyses:
+        return
+    try:
+        plan = compile_plan(spec.spec_id, did, spec.dataset_version, kpis, analyses,
+                            dataset_row_count=row_count)
+        estore = ExecutionPlanStore(dsn, workspace_id)
+        try:
+            estore.save(plan)
+        finally:
+            estore.close()
+    except Exception:  # noqa: BLE001 — C11 is additive, never blocks the spec result
+        logger.warning("C11 compile failed ws=%s dataset=%s", workspace_id, did, exc_info=True)
+        return
+    result.execution_plans.append(plan.model_dump(mode="json"))
+
+
 def _run_c10_for_approved(dsn: str, workspace_id: int, result: PlannerResult) -> None:
-    """Chain C10 onto an approved spec — one AnalysisDataset per dataset the
-    spec's KPIs/analyses actually reference. Mutates `result.analysis_datasets`
+    """Chain C10 (and C11 right after it) onto an approved spec — one
+    AnalysisDataset + one ExecutionPlan per dataset the spec's KPIs/analyses
+    actually reference. Mutates `result.analysis_datasets`/`execution_plans`
     in place; best-effort, never blocks or downgrades the C08/C09 outcome."""
     if result.spec is None or not result.validation or result.validation.get("status") != "approved":
         return
@@ -142,6 +169,7 @@ def _run_c10_for_approved(dsn: str, workspace_id: int, result: PlannerResult) ->
             continue
         if analysis_dataset is not None:
             result.analysis_datasets.append(analysis_dataset.model_dump(mode="json"))
+            _run_c11_for_dataset(dsn, workspace_id, spec, did, analysis_dataset.row_count, result=result)
 
 
 def run_planner(dsn: str, workspace_id: int, dataset_id: str, *,
