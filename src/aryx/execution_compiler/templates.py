@@ -20,7 +20,8 @@ TEMPLATES: dict[str, frozenset[str]] = {
     "grouped_sum_numeric": frozenset({"group_column", "column", "null_policy"}),
     "grouped_average_numeric": frozenset({"group_column", "column", "null_policy"}),
     "grouped_median_numeric": frozenset({"group_column", "column", "null_policy"}),
-    "grouped_safe_ratio": frozenset({"group_column", "status_column"}),
+    "grouped_safe_ratio": frozenset({"group_column", "status_column",
+                                     "numerator_values", "denominator_values", "zero_policy"}),
 }
 
 # KPI/analysis `operation` (C08/C09 vocabulary — see spec_validation.checks

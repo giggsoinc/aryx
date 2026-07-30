@@ -541,6 +541,7 @@ export interface AnalysisDataset {
 export interface ExecutionNode {
   node_id: string;
   template: string;
+  dataset_id: string;
   parameters: Record<string, unknown>;
   depends_on: string[];
 }
@@ -565,6 +566,63 @@ export interface ExecutionPlan {
   node_limit: number;
   compilation_status: "success" | "rejected";
   issues: CompilationIssue[];
+  kpi_final_node: Record<string, string>;
+  kpi_lineage_nodes: Record<string, string[]>;
+  analysis_node: Record<string, string>;
+  created_at: string;
+}
+
+// ── Deterministic Analysis Execution (C12) ──────────────────────────────
+export interface KpiLineage {
+  source_columns: string[];
+  operation_ids: string[];
+  dataset_version: string;
+}
+
+export interface KpiResult {
+  kpi_id: string;
+  value: number | null;
+  display_value: string;
+  numerator: number | null;
+  denominator: number | null;
+  sample_size: number;
+  excluded_null_rows: number;
+  lineage: KpiLineage;
+}
+
+export interface AnalysisResultRow {
+  group_value: string;
+  value: number | null;
+  numerator: number | null;
+  denominator: number | null;
+  sample_size: number;
+}
+
+export interface AnalysisResult {
+  analysis_id: string;
+  group_column: string;
+  rows: AnalysisResultRow[];
+}
+
+export interface ExecutionMetrics {
+  runtime_ms: number;
+  nodes_completed: number;
+  nodes_failed: number;
+}
+
+/** C12 — Deterministic Analysis Execution. On-demand only (like C08) —
+ *  triggered explicitly, never chained onto C08-C11's approval flow. */
+export interface ExecutionRun {
+  execution_run_id: string;
+  execution_plan_id: string;
+  spec_id: string;
+  dataset_id: string;
+  dataset_version: string;
+  status: "completed" | "failed" | "partial";
+  kpi_results: KpiResult[];
+  analysis_results: AnalysisResult[];
+  execution_metrics: ExecutionMetrics;
+  errors: string[];
   created_at: string;
 }
 

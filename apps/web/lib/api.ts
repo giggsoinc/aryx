@@ -2,7 +2,7 @@ import type {
   AbResult, AskResponse, Axiom, Brief, DataEntitiesPage, DataSummary,
   Datasource, EntityDetail, EntityGraphView, GraphView, IngestQuestion,
   DatasetIngestResult, DatasetProfile, SemanticProfile, GraphIntakeResult, GraphProfile,
-  PlanningContext, PlannerResult, ExecutionPlan,
+  PlanningContext, PlannerResult, ExecutionPlan, ExecutionRun,
   LlmConfig, LlmConfigUpdate, OntologyDoc, QuizSpec, ReasonerCheck, Rule,
   SurvivorshipPolicy, UserIntent, UserIntentRequest, Workspace,
 } from "./types";
@@ -354,6 +354,16 @@ export const api = {
     fetchJSON<ExecutionPlan[]>(
       `/execution-plan/versions?workspace_id=${workspaceId}&limit=${limit}`,
     ),
+
+  // ── Deterministic Analysis Execution (C12) — on-demand; no LLM ────────
+  runExecutionForWorkspace: (workspaceId: number) =>
+    fetchJSON<ExecutionRun>(`/execution-run/run?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: JSON.stringify({ dataset_id: `workspace_${workspaceId}` }),
+    }),
+
+  getWorkspaceExecutionRun: (workspaceId: number) =>
+    fetchJSON<ExecutionRun | null>(`/execution-run/workspace?workspace_id=${workspaceId}`),
 
   // ── User Intent Capture (C01) ────────────────────────────────────────
   captureIntent: (req: UserIntentRequest, workspaceId: number) =>

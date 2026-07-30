@@ -1,0 +1,66 @@
+"""Deterministic Analysis Execution API (C12) — on-demand, never auto-run.
+
+POST /execution-run/run       — execute the latest compiled plan for a dataset.
+GET  /execution-run/workspace — latest run for the whole workspace.
+GET  /execution-run/versions  — list recent runs for a dataset.
+
+On-demand only, like C08: this is the first component after C08 to do real
+work on request rather than being chained onto an approval — triggered
+explicitly, never automatically.
+"""
+from __future__ import annotations
+
+import logging
+
+from fastapi import APIRouter, Query
+from pydantic import BaseModel
+
+from aryx.analysis_execution.models import ExecutionRun
+from aryx.analysis_execution.run import run_analysis_execution
+from aryx.config import get_settings
+from aryx.store.execution_run_store import ExecutionRunStore
+
+logger = logging.getLogger(__name__)
+
+
+class ExecutionRunRequest(BaseModel):
+    dataset_id: str
+    maximum_runtime_seconds: float = 30.0
+    maximum_rows: int = 1_000_000
+
+
+def execution_run_router() -> APIRouter:
+    """Build the Deterministic Analysis Execution router."""
+    router = APIRouter(prefix="/execution-run")
+
+    @router.post("/run", response_model=ExecutionRun)
+    def run(req: ExecutionRunRequest, workspace_id: int = Query(1)) -> ExecutionRun:
+        """Execute the latest compiled plan for `dataset_id` and persist the run."""
+        return run_analysis_execution(
+            get_settings().rdb_dsn, workspace_id, req.dataset_id,
+            maximum_runtime_seconds=req.maximum_runtime_seconds,
+            maximum_rows=req.maximum_rows,
+        )
+
+    # Declared before /{dataset_id}-shaped routes aren't needed here since
+    # every read is dataset_id-scoped via query — "workspace" is its own path.
+    @router.get("/workspace", response_model=ExecutionRun | None)
+    def latest_workspace_run(workspace_id: int = Query(1)) -> ExecutionRun | None:
+        """Fetch the latest execution run for the whole workspace, or null."""
+        store = ExecutionRunStore(get_settings().rdb_dsn, workspace_id)
+        try:
+            return store.latest(f"workspace_{workspace_id}")
+        finally:
+            store.close()
+
+    @router.get("/versions", response_model=list[ExecutionRun])
+    def list_runs(dataset_id: str = Query(...), workspace_id: int = Query(1),
+                  limit: int = Query(50, ge=1, le=500)) -> list[ExecutionRun]:
+        """List recent execution runs for one dataset, newest first."""
+        store = ExecutionRunStore(get_settings().rdb_dsn, workspace_id)
+        try:
+            return store.list(dataset_id, limit)
+        finally:
+            store.close()
+
+    return router

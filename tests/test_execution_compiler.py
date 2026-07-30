@@ -21,10 +21,13 @@ def test_count_kpi_with_filter_compiles_filter_then_count() -> None:
     assert plan.plan_acyclic is True
     filt = _by_id(plan.nodes, "op_kpi_completed_filter")
     assert filt.template == "filter_in"
+    assert filt.dataset_id == "ds1"
     assert filt.parameters == {"column": "renewal_status", "values": ["Renewed", "Not Renewed"]}
     count = _by_id(plan.nodes, "op_kpi_completed_count")
     assert count.template == "count_rows"
     assert count.depends_on == ["op_kpi_completed_filter"]
+    assert plan.kpi_final_node["kpi_completed"] == "op_kpi_completed_count"
+    assert plan.kpi_lineage_nodes["kpi_completed"] == ["op_kpi_completed_filter", "op_kpi_completed_count"]
 
 
 def test_sum_kpi_without_filter_compiles_directly() -> None:
@@ -97,7 +100,13 @@ def test_grouped_analysis_referencing_ratio_kpi() -> None:
     plan = compile_plan("spec_1", "ds1", "v1", [kpi], [analysis])
     grouped = _by_id(plan.nodes, "op_analysis_by_region_grouped")
     assert grouped.template == "grouped_safe_ratio"
-    assert grouped.parameters == {"group_column": "region", "status_column": "renewal_status"}
+    assert grouped.parameters == {
+        "group_column": "region", "status_column": "renewal_status",
+        "numerator_values": ["Renewed"], "denominator_values": ["Renewed", "Not Renewed"],
+        "zero_policy": "return_null_with_warning",
+    }
+    assert plan.analysis_node["analysis_by_region"] == "op_analysis_by_region_grouped"
+    assert plan.kpi_final_node["kpi_renewal_rate"] == "op_kpi_renewal_rate_ratio"
 
 
 def test_grouped_analysis_referencing_sum_kpi() -> None:

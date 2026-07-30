@@ -26,6 +26,7 @@ class ExecutionNode(BaseModel):
 
     node_id: str
     template: str
+    dataset_id: str = ""
     parameters: dict[str, Any] = Field(default_factory=dict)
     depends_on: list[str] = Field(default_factory=list)
 
@@ -53,4 +54,17 @@ class ExecutionPlan(BaseModel):
     node_limit: int = 0
     compilation_status: Literal["success", "rejected"] = "success"
     issues: list[CompilationIssue] = Field(default_factory=list)
+    kpi_final_node: dict[str, str] = Field(
+        default_factory=dict,
+        description="kpi_id -> the node_id whose result IS that KPI's value "
+        "(the safe_ratio node for ratio KPIs, the count_rows/*_numeric node "
+        "otherwise) — how C12 finds each KPI's value without guessing from "
+        "node_id naming.")
+    kpi_lineage_nodes: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description="kpi_id -> every node_id compiled for that KPI (filters, "
+        "operands, the final node), in execution order — C12's lineage.operation_ids.")
+    analysis_node: dict[str, str] = Field(
+        default_factory=dict,
+        description="analysis_id -> its single grouped_* node_id.")
     created_at: datetime = Field(default_factory=_utcnow)

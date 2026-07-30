@@ -1,4 +1,4 @@
-# C01-C11 — Status & How Each Is Done
+# C01-C12 — Status & How Each Is Done
 
 What's built for each dashboard/backend component, how it works, and what
 backs it with tests. See [dashboard_components_C01-C08.md](dashboard_components_C01-C08.md)
@@ -20,8 +20,9 @@ the cross-component autorun mechanism referenced throughout.
 | C09 | Pre-Execution Specification Validation | Complete | No — code-only gate on C08's output |
 | C10 | Preprocessing and Transformation | Complete | No — deterministic, chained onto C09's approval |
 | C11 | Execution Compiler | Complete | No — MVP policy is no LLM; binds approved params to vetted templates only |
+| C12 | Deterministic Analysis Execution | Complete | No — real values only, from a fixed set of vetted templates |
 
-All eleven are implemented and covered by tests. C09 and C10 have no UI/API
+All twelve are implemented and covered by tests. C09 and C10 have no UI/API
 surface of their own — both are internal to C08's run flow — their output IS
 surfaced inside C08's existing `DashboardSpecPanel.tsx`: an "approved" badge
 (C09), a distinct rose `controlled_failure` block when both attempts are
@@ -323,14 +324,88 @@ fetches `GET /execution-plan/workspace_{id}` and shows that one plan (node
 list with template/parameters/dependencies, `compilation_status`,
 acyclic/row-limit/node-count summary, and any rejection issues), or a "run
 the workspace-wide spec first" empty state. It does not show single-dataset
-runs' plans (out of scope by design — ask if that's needed later). No actual
-execution engine consumes the plan yet (that's a distinct, not-yet-built
-component) — C11 only compiles and validates the DAG, it doesn't run it.
+runs' plans (out of scope by design — ask if that's needed later).
+
+**Extended for C12:** each `ExecutionNode` now also carries its own
+`dataset_id` (from the originating KPI/Analysis) so a single plan can be
+executed across several datasets, and `ExecutionPlan` carries three lookup
+maps C12 needs to turn raw node results back into business-level ones:
+`kpi_final_node` (kpi_id → the node whose result IS that KPI's value),
+`kpi_lineage_nodes` (kpi_id → every node compiled for it, for
+`lineage.operation_ids`), and `analysis_node` (analysis_id → its grouped
+node). `grouped_safe_ratio`'s template also grew `numerator_values`/
+`denominator_values`/`zero_policy` — the original design only carried
+`status_column` for display, which wasn't enough to actually execute a
+grouped ratio; C12 surfaced the gap.
 
 **Test:** `tests/test_execution_compiler.py` (18 tests — count/sum/ratio KPI
 compilation, grouped-analysis compilation for ratio/sum/unknown metrics,
 deterministic node IDs across repeated compiles, row-limit clamping,
 node-limit rejection, and each `validate.py` structural check in isolation).
+
+---
+
+## C12 — Deterministic Analysis Execution
+
+**Status:** Complete. No LLM, fully deterministic. On-demand only, like
+C08 — triggered explicitly (`POST /execution-run/run`), never chained onto
+C08-C11's approval flow. This is the engine C11's own doc flagged as
+"not-yet-built" — C11 only compiled and validated the DAG; C12 actually
+runs it.
+
+**How it's done:** [`analysis_execution/data.py`](../src/aryx/analysis_execution/data.py)'s
+`load_typed_rows()` re-loads the C02 raw snapshot (C10 never materialized a
+second copy of the row data — only a transformation log) and re-applies the
+EXACT SAME conversion policy C10 already logged (`derive_conversion_policy` +
+`convert_column`, reused directly), so C12 executes against the same typed
+values C10's log describes rather than a second, possibly-divergent
+conversion pass.
+
+[`analysis_execution/execute.py`](../src/aryx/analysis_execution/execute.py)'s
+`run_plan()` walks C11's compiled nodes in dependency order and dispatches
+each to its template: `filter_equals`/`filter_in` produce a row-index list;
+`count_rows` counts it (or all rows, if the node has no filter dependency);
+`{sum,average,median}_numeric` aggregate a column over that index set,
+excluding nulls; `safe_ratio` divides two upstream results, returning
+`value: null` (never a fabricated 0%) when the denominator is zero;
+`grouped_*` re-derive the same breakdown per distinct value of the group
+column, directly against the dataset's rows. A node that fails (unknown
+template, bad column) is recorded in `errors` and skipped — one bad node
+degrades the run to `status: "partial"`, never crashes it. A
+`maximum_runtime_seconds` wall-clock check between nodes stops execution
+gracefully (remaining nodes marked failed) rather than running unbounded;
+`maximum_rows` caps how many rows are loaded per dataset.
+
+[`analysis_execution/run.py`](../src/aryx/analysis_execution/run.py)'s
+`run_analysis_execution()` is the glue: fetches the latest `ExecutionPlan`
+and the approved spec that produced it, loads typed rows for every dataset
+the plan's nodes reference, runs the executor, then uses the plan's
+`kpi_final_node`/`analysis_node` maps to turn raw node results into
+`KpiResult`s (value, `display_value` formatted per the KPI's `format` —
+`percentage`/`currency`/plain number — numerator/denominator for ratios,
+sample size, excluded-null count, and lineage) and `AnalysisResult`s (one
+row per group). Persisted via `ExecutionRunStore` (`aryx_execution_run`
+table, migration `0039_execution_run.sql`) — **insert-only**, unlike
+C08-C11's upsert-in-place versioning: a re-triggered run is a genuinely new,
+independently timed execution, so history is kept rather than overwritten.
+
+**UI:** `ExecutionRunPanel.tsx` — whole-workspace scope only (same
+convention as C11's panel), with its own "Run analysis" button
+(`POST /execution-run/run`) — nothing computes until pressed. Shows the
+latest run's status, per-KPI cards (value, numerator/denominator, sample
+size, excluded nulls, lineage columns), and a per-group table for each
+analysis. Fetches the latest run once on load (no auto-poll — a run is an
+explicit action, not a background computation to watch for).
+
+**Test:** `tests/test_analysis_execution.py` (10 tests — exercises real
+`compile_plan()` output, not mocked: the renewal-rate worked example from
+this component's own spec doc (211/340 = 62.06%), sum-KPI null exclusion and
+currency formatting, count KPIs, grouped ratio/sum breakdowns by region,
+zero-denominator returning `null` instead of crashing, an unloaded dataset
+degrading to empty rows instead of crashing, and `maximum_runtime_seconds`
+stopping gracefully). The DB-backed glue (`run.py`'s `run_analysis_execution`)
+needs a real Postgres connection and is not covered here — same boundary
+`spec_validation/run.py` and `preprocess/run.py` already draw.
 
 ---
 
