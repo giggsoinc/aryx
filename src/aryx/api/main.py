@@ -19,6 +19,7 @@ from aryx.api.brief_api import brief_router
 from aryx.api.axioms_api import axioms_router, shapes_router
 from aryx.api.ask_history_api import ask_history_router
 from aryx.api.connect_api import connect_router
+from aryx.api.dashboard_model_api import dashboard_model_router
 from aryx.api.data_api import data_router
 from aryx.api.dataset_api import dataset_router
 from aryx.api.datasource_api import datasource_router
@@ -134,6 +135,7 @@ def create_app() -> FastAPI:
     app.include_router(andie_planner_router())
     app.include_router(execution_plan_router())
     app.include_router(execution_run_router())
+    app.include_router(dashboard_model_router())
     app.include_router(relationship_type_router())
     app.include_router(ontology_assist_router())
     app.include_router(observability_router())

@@ -645,6 +645,45 @@ export interface PostExecutionReport {
   created_at: string;
 }
 
+// ── Dashboard Composition (C14) ─────────────────────────────────────────
+export interface DashboardComponent {
+  component_id: string;
+  type: string;
+  source_ref: string;
+  position: number;
+  warning_refs: string[];
+}
+
+export interface DashboardSection {
+  section_id: string;
+  title: string;
+  components: DashboardComponent[];
+}
+
+export interface CompositionIssue {
+  code: string;
+  reference: string;
+  detail: string;
+}
+
+/** C14 — Dashboard Composition. On-demand only, like C08/C12 — gated on
+ *  C13's eligible_for_dashboard. Hybrid: an optional LLM step may suggest
+ *  section titles, but can never add/remove/rebind a component. */
+export interface DashboardModel {
+  dashboard_model_id: string;
+  spec_id: string;
+  dataset_id: string;
+  dataset_version: string;
+  title: string;
+  audience: string;
+  sections: DashboardSection[];
+  max_columns: number;
+  composition_status: "valid" | "invalid";
+  issues: CompositionIssue[];
+  composed_by: "deterministic" | "llm_assisted";
+  created_at: string;
+}
+
 export interface ExecutionRun {
   execution_run_id: string;
   execution_plan_id: string;

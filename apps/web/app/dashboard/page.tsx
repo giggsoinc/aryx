@@ -8,6 +8,7 @@ import { WorkspacePlanningContextPanel } from "@/components/planning/WorkspacePl
 import { DashboardSpecPanel } from "@/components/planner/DashboardSpecPanel";
 import { ExecutionPlanPanel } from "@/components/planner/ExecutionPlanPanel";
 import { ExecutionRunPanel } from "@/components/planner/ExecutionRunPanel";
+import { DashboardModelPanel } from "@/components/planner/DashboardModelPanel";
 import { useWorkspace } from "@/lib/workspace";
 
 export default function DashboardPage() {
@@ -30,6 +31,8 @@ export default function DashboardPage() {
         <ExecutionPlanPanel workspaceId={workspaceId} />
         {/* C12 — Deterministic Analysis Execution (on-demand; press Run) */}
         <ExecutionRunPanel workspaceId={workspaceId} />
+        {/* C14 — Dashboard Composition (on-demand; gated on C13) */}
+        <DashboardModelPanel workspaceId={workspaceId} />
       </main>
     </div>
   );

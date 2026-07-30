@@ -2,7 +2,7 @@ import type {
   AbResult, AskResponse, Axiom, Brief, DataEntitiesPage, DataSummary,
   Datasource, EntityDetail, EntityGraphView, GraphView, IngestQuestion,
   DatasetIngestResult, DatasetProfile, SemanticProfile, GraphIntakeResult, GraphProfile,
-  PlanningContext, PlannerResult, ExecutionPlan, ExecutionRun,
+  PlanningContext, PlannerResult, ExecutionPlan, ExecutionRun, DashboardModel,
   LlmConfig, LlmConfigUpdate, OntologyDoc, QuizSpec, ReasonerCheck, Rule,
   SurvivorshipPolicy, UserIntent, UserIntentRequest, Workspace,
 } from "./types";
@@ -364,6 +364,18 @@ export const api = {
 
   getWorkspaceExecutionRun: (workspaceId: number) =>
     fetchJSON<ExecutionRun | null>(`/execution-run/workspace?workspace_id=${workspaceId}`),
+
+  // ── Dashboard Composition (C14) — on-demand; hybrid, LLM optional ──────
+  composeWorkspaceDashboard: (workspaceId: number, audience: string, useLlm: boolean) =>
+    fetchJSON<DashboardModel>(`/dashboard-model/run?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: JSON.stringify({
+        dataset_id: `workspace_${workspaceId}`, audience, use_llm: useLlm,
+      }),
+    }),
+
+  getWorkspaceDashboardModel: (workspaceId: number) =>
+    fetchJSON<DashboardModel | null>(`/dashboard-model/workspace?workspace_id=${workspaceId}`),
 
   // ── User Intent Capture (C01) ────────────────────────────────────────
   captureIntent: (req: UserIntentRequest, workspaceId: number) =>

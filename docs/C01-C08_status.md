@@ -1,4 +1,4 @@
-# C01-C13 — Status & How Each Is Done
+# C01-C14 — Status & How Each Is Done
 
 What's built for each dashboard/backend component, how it works, and what
 backs it with tests. See [dashboard_components_C01-C08.md](dashboard_components_C01-C08.md)
@@ -22,8 +22,9 @@ the cross-component autorun mechanism referenced throughout.
 | C11 | Execution Compiler | Complete | No — MVP policy is no LLM; binds approved params to vetted templates only |
 | C12 | Deterministic Analysis Execution | Complete | No — real values only, from a fixed set of vetted templates |
 | C13 | Post-Execution Validation | Complete | No — recomputes independently; a structurally valid but wrong result is still blocked |
+| C14 | Dashboard Composition | Complete | Hybrid — LLM optional, titles/grouping only; can never alter values, formulas, axes, or IDs |
 
-All thirteen are implemented and covered by tests. C09 and C10 have no UI/API
+All fourteen are implemented and covered by tests. C09 and C10 have no UI/API
 surface of their own — both are internal to C08's run flow — their output IS
 surfaced inside C08's existing `DashboardSpecPanel.tsx`: an "approved" badge
 (C09), a distinct rose `controlled_failure` block when both attempts are
@@ -470,6 +471,76 @@ compiled plan, an invented column, broken lineage operation IDs, a
 string-typed value, an impossible numerator/denominator, and the
 small-sample warning firing at the exact threshold boundary — 30 rows: no
 warning, 29 rows: warning).
+
+---
+
+## C14 — Dashboard Composition
+
+**Status:** Complete. Hybrid (LLM optional) — the only component after C08
+that may call an LLM, and even then only for section/dashboard TITLES, never
+structure. On-demand only (`POST /dashboard-model/run`), gated on C13's
+`eligible_for_dashboard` — composing against unvalidated results is exactly
+the invented-content risk this whole pipeline exists to prevent, so
+composition refuses outright (`composition_status: "invalid"`, a
+`results_not_eligible` issue) rather than arranging them anyway.
+
+**How it's done:** [`dashboard_composition/compose.py`](../src/aryx/dashboard_composition/compose.py)
+is the deterministic core (steps 1-5 + 7) and always runs, even when the
+optional LLM step is also requested — it's the fallback structure, never a
+first draft to be discarded. One `DashboardComponent` per approved
+`Visualization` (`component_{source_ref}`, e.g. `component_kpi_renewal_rate`
+— matching the component doc's own example), dropped (with a
+`missing_computed_result` issue, never silently) if its `source_ref` has no
+matching result in the `ExecutionRun`, or (`chart_type_mismatch`) if a
+`kpi_card` is bound to an analysis instead of a KPI. `maximum_primary_charts`
+caps non-card components only — KPI cards are the mandatory summary and are
+never capped; anything dropped is reported, not discarded quietly.
+KPI cards are always prioritized first, then charts grouped into
+sections — one shared summary section for all cards, one section per
+distinct `group_by` column among the remaining charts (titled mechanically,
+`"By {Column}"`), a catch-all for any chart bound directly to a KPI. C13's
+warnings are pulled forward onto the exact component that owns them (a
+per-region `small_sample_size` warning attaches to that one chart, not the
+whole section) via `component.warning_refs`.
+
+[`dashboard_composition/narrate.py`](../src/aryx/dashboard_composition/narrate.py)
+is step 6, opt-in (`use_llm=true`): the model is asked ONLY for an overall
+title and one title per `section_id` it's given — it has no visibility into
+what a section contains and cannot add, rename, or remove a `section_id`.
+Any mismatch between the section_ids it returned and the ones it was asked
+for discards the ENTIRE suggestion (never a partial apply); any exception,
+malformed JSON, or empty title does the same. `compose.py`'s `revalidate()`
+(step 7) runs a SECOND time after a narration is applied — the one point in
+the pipeline where an LLM's output could otherwise corrupt structure — and
+if it fails, the LLM's titles are discarded and the deterministic ones win.
+This is the "NO → LLM unavailable → deterministic layout fallback" path in
+the component's own control-flow diagram: the fallback is a fully valid
+dashboard, not a degraded one.
+
+[`dashboard_composition/run.py`](../src/aryx/dashboard_composition/run.py)'s
+`compose_dashboard()` is the glue — fetches the approved spec (C08/C09) and
+the latest `ExecutionRun` (C12/C13) for a dataset (a real dataset_id in
+single-dataset mode, `"workspace_{id}"` in workspace mode), runs the checks
+above, and persists via `DashboardModelStore` (`aryx_dashboard_model` table,
+migration `0040_dashboard_model.sql`) — one row per `(dataset_id,
+dataset_version)`, upsert-in-place like C08-C11.
+
+**UI:** `DashboardModelPanel.tsx` — on-demand, whole-workspace scope, with
+its own "Compose dashboard" button, an audience text field, and an opt-in
+"Narrate with LLM" checkbox. Renders each section's components as cards;
+`kpi_card` components are enriched with the real `display_value` from the
+workspace's `ExecutionRun` (cross-referenced client-side by `source_ref`,
+not embedded in the model itself — the model stays a pure arrangement, the
+panel does the join for display).
+
+**Test:** `tests/test_dashboard_composition.py` (13 tests — component
+binding that drops unresolvable/mismatched refs, layout capping that never
+touches KPI cards, prioritization, group-by-column sectioning matching the
+component doc's own shape, per-component warning attachment, duplicate/empty
+-title revalidation, a full `compose()` run reproducing the doc's exact
+section/component structure, and narrate.py's strict validation — an LLM
+exception, an invented section_id, and a valid response, each exercised
+against a stubbed `complete_json_fn` rather than a real provider).
 
 ---
 
