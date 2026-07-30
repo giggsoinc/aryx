@@ -45,17 +45,25 @@ export function DashboardRenderer({ workspaceId }: Props) {
 
   useEffect(() => {
     let alive = true;
-    Promise.all([
-      api.getWorkspaceDashboardModel(workspaceId).catch(() => null),
-      api.getWorkspaceExecutionRun(workspaceId).catch(() => null),
-      api.getWorkspacePlannerResult(workspaceId).catch(() => null),
-    ]).then(([m, r, p]) => {
-      if (!alive) return;
-      setModel(m);
-      setRun(r);
-      setPlanner(p);
-    }).finally(() => { if (alive) setLoading(false); });
-    return () => { alive = false; };
+    // This panel has no trigger of its own — its data (DashboardModel) is
+    // composed by the sibling panel above. Poll instead of fetching once on
+    // mount, so a fresh composition shows up here without a page reload
+    // (same convention as GraphIntakePanel/ExecutionPlanPanel).
+    const load = () => {
+      Promise.all([
+        api.getWorkspaceDashboardModel(workspaceId).catch(() => null),
+        api.getWorkspaceExecutionRun(workspaceId).catch(() => null),
+        api.getWorkspacePlannerResult(workspaceId).catch(() => null),
+      ]).then(([m, r, p]) => {
+        if (!alive) return;
+        setModel(m);
+        setRun(r);
+        setPlanner(p);
+      }).finally(() => { if (alive) setLoading(false); });
+    };
+    load();
+    const timer = setInterval(load, 4000);
+    return () => { alive = false; clearInterval(timer); };
   }, [workspaceId]);
 
   useEffect(() => {
@@ -88,9 +96,19 @@ export function DashboardRenderer({ workspaceId }: Props) {
           here; a value is wrong upstream, or it's right.
         </p>
 
-        {!loading && (!model || model.sections.length === 0) && (
+        {!loading && !model && (
           <div className="mt-6 rounded-lg border border-dashed border-navy-200 px-4 py-10 text-center text-sm text-navy-400">
             Nothing to render yet — compose a dashboard above first.
+          </div>
+        )}
+
+        {!loading && model && model.sections.length === 0 && (
+          <div className="mt-6 rounded-lg border border-dashed border-amber-200 bg-amber-50/30 px-4 py-10 text-center text-sm text-amber-700">
+            The composed dashboard ({model.dashboard_model_id}) has no
+            visualizations to show — the approved spec didn't define any
+            charts or KPI cards this run, even though it may have real
+            computed results (check Analysis Execution above). Try
+            regenerating the dashboard spec.
           </div>
         )}
 

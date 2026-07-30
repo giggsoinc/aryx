@@ -179,6 +179,17 @@ def test_compose_end_to_end_matches_doc_shape() -> None:
     assert region.components[0].warning_refs == ["small_sample_size:West"]
 
 
+def test_compose_flags_empty_visualizations_instead_of_silently_valid() -> None:
+    # A real scenario hit in practice: the LLM drafted KPIs/analyses with
+    # real computed results but no visualizations at all this run — not a
+    # structural defect, but a silently "clean" empty model is misleading.
+    spec = _spec()
+    spec.visualizations = []
+    sections, issues = compose(spec, _run())
+    assert sections == []
+    assert any(i.code == "no_visualizations" for i in issues)
+
+
 # ── narrate.py: strict LLM-suggestion validation ──────────────────────────
 
 def _sections_for_narration():

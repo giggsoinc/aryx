@@ -163,4 +163,12 @@ def compose(
     sections = _group_into_sections(components, spec)
     _attach_warnings(sections, run)
     issues.extend(revalidate(sections))
+    if not components and not spec.visualizations:
+        # Not a structural defect (nothing here is corrupted), but silently
+        # returning a "valid" model with zero sections reads as broken to
+        # anyone downstream — surface WHY it's empty instead.
+        issues.append(CompositionIssue(
+            code="no_visualizations",
+            detail="the approved spec declared no visualizations to compose "
+                   "(KPIs/analyses may still have real computed results — see the execution run)"))
     return sections, issues
