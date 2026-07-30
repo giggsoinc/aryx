@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   Loader2, PlayCircle, CheckCircle2, XCircle, AlertTriangle, Gauge,
+  ChevronDown, ChevronRight, History,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import type { ExecutionRun, KpiResult, AnalysisResult, PostExecutionReport } from "@/lib/types";
@@ -16,8 +17,14 @@ interface Props {
  *  KPI values — nothing computes until you press Run. No LLM. */
 export function ExecutionRunPanel({ workspaceId }: Props) {
   const [run, setRun] = useState<ExecutionRun | null>(null);
+  const [history, setHistory] = useState<ExecutionRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const loadHistory = () => {
+    api.listWorkspaceExecutionRuns(workspaceId).then(setHistory).catch(() => setHistory([]));
+  };
 
   useEffect(() => {
     let alive = true;
@@ -25,6 +32,7 @@ export function ExecutionRunPanel({ workspaceId }: Props) {
       .then((r) => { if (alive) setRun(r); })
       .catch(() => { if (alive) setRun(null); })
       .finally(() => { if (alive) setLoading(false); });
+    loadHistory();
     return () => { alive = false; };
   }, [workspaceId]);
 
@@ -33,6 +41,7 @@ export function ExecutionRunPanel({ workspaceId }: Props) {
     try {
       const r = await api.runExecutionForWorkspace(workspaceId);
       setRun(r);
+      loadHistory();
     } catch (e) {
       setRun({
         execution_run_id: "", execution_plan_id: "", spec_id: "",
@@ -76,9 +85,54 @@ export function ExecutionRunPanel({ workspaceId }: Props) {
         )}
 
         {run && <RunView run={run} />}
+
+        {history.length > 0 && (
+          <div className="mt-6">
+            <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase text-navy-400">
+              <History size={12} /> Validation log ({history.length})
+            </div>
+            <div className="divide-y divide-navy-50 rounded-lg border border-navy-100">
+              {history.map((r) => (
+                <LogRow key={r.execution_run_id} run={r}
+                       open={expanded === r.execution_run_id}
+                       onToggle={() => setExpanded((id) => id === r.execution_run_id ? null : r.execution_run_id)} />
+              ))}
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );
+}
+
+function LogRow({ run, open, onToggle }: { run: ExecutionRun; open: boolean; onToggle: () => void }) {
+  const v = run.validation;
+  return (
+    <div>
+      <button onClick={onToggle}
+              className="flex w-full items-center gap-3 px-3 py-2 text-left text-xs hover:bg-navy-50/50">
+        {open ? <ChevronDown size={13} className="text-navy-400" /> : <ChevronRight size={13} className="text-navy-400" />}
+        <span className="text-navy-400">{new Date(run.created_at).toLocaleString()}</span>
+        <StatusPill status={run.status} />
+        {v && <ValidationPill status={v.status} />}
+        <span className="ml-auto text-navy-400">{run.kpi_results.length} KPIs · {run.analysis_results.length} analyses</span>
+      </button>
+      {open && (
+        <div className="border-t border-navy-50 p-3">
+          {v ? <ValidationView validation={v} /> : (
+            <p className="text-xs text-navy-400">No post-execution validation recorded for this run.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ValidationPill({ status }: { status: PostExecutionReport["status"] }) {
+  const cls = status === "rejected" ? "bg-red-100 text-red-700"
+    : status === "approved_with_warnings" ? "bg-amber-100 text-amber-700"
+    : "bg-emerald-100 text-emerald-700";
+  return <span className={`rounded-full px-2 py-0.5 font-medium ${cls}`}>C13: {status}</span>;
 }
 
 function RunView({ run }: { run: ExecutionRun }) {

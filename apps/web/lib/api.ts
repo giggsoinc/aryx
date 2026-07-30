@@ -365,6 +365,13 @@ export const api = {
   getWorkspaceExecutionRun: (workspaceId: number) =>
     fetchJSON<ExecutionRun | null>(`/execution-run/workspace?workspace_id=${workspaceId}`),
 
+  // C13's post-execution validation report rides along on ExecutionRun
+  // (.validation) — this is the log of past runs/validations, newest first.
+  listWorkspaceExecutionRuns: (workspaceId: number, limit = 50) =>
+    fetchJSON<ExecutionRun[]>(
+      `/execution-run/versions?dataset_id=workspace_${workspaceId}&workspace_id=${workspaceId}&limit=${limit}`,
+    ),
+
   // ── Dashboard Composition (C14) — on-demand; hybrid, LLM optional ──────
   composeWorkspaceDashboard: (workspaceId: number, audience: string, useLlm: boolean) =>
     fetchJSON<DashboardModel>(`/dashboard-model/run?workspace_id=${workspaceId}`, {
