@@ -612,6 +612,39 @@ export interface ExecutionMetrics {
 
 /** C12 — Deterministic Analysis Execution. On-demand only (like C08) —
  *  triggered explicitly, never chained onto C08-C11's approval flow. */
+// ── Post-Execution Validation (C13) ─────────────────────────────────────
+export interface PostExecCheckResult {
+  check: string;
+  status: "passed" | "failed";
+  details: Record<string, unknown>;
+}
+
+export interface PostExecWarning {
+  code: string;
+  reference: string;
+  details: Record<string, unknown>;
+}
+
+export interface PostExecError {
+  code: string;
+  reference: string;
+  details: Record<string, unknown>;
+}
+
+/** C13 — Post-Execution Validation. Chained onto C12, no trigger of its
+ *  own. A structurally valid but numerically incorrect result is still
+ *  blocked (aggregation_correctness recomputes independently). */
+export interface PostExecutionReport {
+  validation_id: string;
+  stage: "post_execution";
+  status: "approved" | "approved_with_warnings" | "rejected";
+  checks: PostExecCheckResult[];
+  warnings: PostExecWarning[];
+  errors: PostExecError[];
+  eligible_for_dashboard: boolean;
+  created_at: string;
+}
+
 export interface ExecutionRun {
   execution_run_id: string;
   execution_plan_id: string;
@@ -623,6 +656,7 @@ export interface ExecutionRun {
   analysis_results: AnalysisResult[];
   execution_metrics: ExecutionMetrics;
   errors: string[];
+  validation: PostExecutionReport | null;
   created_at: string;
 }
 

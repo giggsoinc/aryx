@@ -11,11 +11,12 @@ import time
 import uuid
 
 from aryx.analysis_execution.data import load_typed_rows
-from aryx.analysis_execution.execute import run_plan
+from aryx.analysis_execution.execute import _kpi_result_from_node, run_plan
 from aryx.analysis_execution.models import (
     AnalysisResult, AnalysisResultRow, ExecutionMetrics, ExecutionRun, KpiLineage, KpiResult,
 )
 from aryx.andie_planner.models import DashboardSpec, Kpi
+from aryx.post_execution_validation.run import run_post_execution_validation
 from aryx.store.dashboard_spec_store import DashboardSpecStore
 from aryx.store.execution_plan_store import ExecutionPlanStore
 from aryx.store.execution_run_store import ExecutionRunStore
@@ -50,17 +51,6 @@ def _kpi_source_columns(kpi: Kpi) -> list[str]:
         if operand and operand.filter and operand.filter.column not in cols:
             cols.append(operand.filter.column)
     return cols
-
-
-def _kpi_result_from_node(kpi: Kpi, result: object) -> tuple[float | None, float | None, float | None, int, int]:
-    """(value, numerator, denominator, sample_size, excluded_null_rows) from
-    one node's raw execution result — shape depends on which template ran."""
-    if isinstance(result, dict) and "numerator" in result:  # safe_ratio
-        denominator = result["denominator"]
-        return result["value"], result["numerator"], denominator, int(denominator or 0), 0
-    if isinstance(result, dict):  # *_numeric aggregate
-        return result["value"], None, None, result["sample_size"], result.get("excluded_null_rows", 0)
-    return float(result), None, None, int(result), 0  # count_rows
 
 
 def run_analysis_execution(
@@ -126,7 +116,7 @@ def run_analysis_execution(
         result = node_results.get(final_node)
         if kpi is None or result is None:
             continue
-        value, numerator, denominator, sample_size, excluded = _kpi_result_from_node(kpi, result)
+        value, numerator, denominator, sample_size, excluded = _kpi_result_from_node(result)
         kpi_results.append(KpiResult(
             kpi_id=kpi_id, value=value, display_value=_display_value(value, kpi.format),
             numerator=numerator, denominator=denominator, sample_size=sample_size,
@@ -166,11 +156,20 @@ def run_analysis_execution(
             nodes_completed=completed, nodes_failed=failed),
         errors=exec_errors,
     )
+
+    try:
+        report = run_post_execution_validation(dsn, workspace_id, plan, spec, run, row_cap=row_cap)
+        run.validation = report.model_dump(mode="json")
+    except Exception:  # noqa: BLE001 — C13 is additive, never blocks the C12 result
+        logger.warning("C13 post-execution validation failed ws=%s run=%s",
+                       workspace_id, execution_run_id, exc_info=True)
+
     store = ExecutionRunStore(dsn, workspace_id)
     try:
         store.save(run)
     finally:
         store.close()
-    logger.info("analysis_execution ws=%s dataset=%s status=%s kpis=%d analyses=%d",
-               workspace_id, dataset_id, status, len(kpi_results), len(analysis_results))
+    logger.info("analysis_execution ws=%s dataset=%s status=%s kpis=%d analyses=%d validation=%s",
+               workspace_id, dataset_id, status, len(kpi_results), len(analysis_results),
+               (run.validation or {}).get("status"))
     return run

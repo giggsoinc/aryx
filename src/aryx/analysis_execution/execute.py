@@ -63,6 +63,19 @@ def _scalar(result: Any) -> float:
     return float(result["value"]) if isinstance(result, dict) else float(result)
 
 
+def _kpi_result_from_node(result: Any) -> tuple[float | None, float | None, float | None, int, int]:
+    """(value, numerator, denominator, sample_size, excluded_null_rows) from
+    one node's raw execution result — shape depends on which template ran.
+    Shared by analysis_execution.run (C12) and post_execution_validation
+    (C13), which both need to turn a raw node result into KPI-level fields."""
+    if isinstance(result, dict) and "numerator" in result:  # safe_ratio
+        denominator = result["denominator"]
+        return result["value"], result["numerator"], denominator, int(denominator or 0), 0
+    if isinstance(result, dict):  # *_numeric aggregate
+        return result["value"], None, None, result["sample_size"], result.get("excluded_null_rows", 0)
+    return float(result), None, None, int(result), 0  # count_rows
+
+
 def _topo_order(nodes: list[ExecutionNode]) -> list[ExecutionNode]:
     by_id = {n.node_id: n for n in nodes}
     order: list[ExecutionNode] = []

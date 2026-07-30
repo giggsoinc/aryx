@@ -80,4 +80,9 @@ class ExecutionRun(BaseModel):
     analysis_results: list[AnalysisResult] = Field(default_factory=list)
     execution_metrics: ExecutionMetrics = Field(default_factory=ExecutionMetrics)
     errors: list[str] = Field(default_factory=list)
+    validation: dict[str, object] | None = Field(
+        default=None,
+        description="C13 PostExecutionReport, as a dict (see "
+        "post_execution_validation.models) — attached right after this run "
+        "completes, gating eligible_for_dashboard independently of `status`.")
     created_at: datetime = Field(default_factory=_utcnow)

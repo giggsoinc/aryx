@@ -1,4 +1,4 @@
-# C01-C12 — Status & How Each Is Done
+# C01-C13 — Status & How Each Is Done
 
 What's built for each dashboard/backend component, how it works, and what
 backs it with tests. See [dashboard_components_C01-C08.md](dashboard_components_C01-C08.md)
@@ -21,8 +21,9 @@ the cross-component autorun mechanism referenced throughout.
 | C10 | Preprocessing and Transformation | Complete | No — deterministic, chained onto C09's approval |
 | C11 | Execution Compiler | Complete | No — MVP policy is no LLM; binds approved params to vetted templates only |
 | C12 | Deterministic Analysis Execution | Complete | No — real values only, from a fixed set of vetted templates |
+| C13 | Post-Execution Validation | Complete | No — recomputes independently; a structurally valid but wrong result is still blocked |
 
-All twelve are implemented and covered by tests. C09 and C10 have no UI/API
+All thirteen are implemented and covered by tests. C09 and C10 have no UI/API
 surface of their own — both are internal to C08's run flow — their output IS
 surfaced inside C08's existing `DashboardSpecPanel.tsx`: an "approved" badge
 (C09), a distinct rose `controlled_failure` block when both attempts are
@@ -406,6 +407,69 @@ degrading to empty rows instead of crashing, and `maximum_runtime_seconds`
 stopping gracefully). The DB-backed glue (`run.py`'s `run_analysis_execution`)
 needs a real Postgres connection and is not covered here — same boundary
 `spec_validation/run.py` and `preprocess/run.py` already draw.
+
+---
+
+## C13 — Post-Execution Validation
+
+**Status:** Complete. No LLM, fully deterministic. Chained onto C12 — no
+trigger, no API, no store of its own — inside `analysis_execution/run.py`'s
+`run_analysis_execution()`, right after an `ExecutionRun` is built and before
+it's persisted. Mirrors C09's role one stage later: C09 grades a candidate
+spec before execution; C13 grades the RESULTS after execution.
+
+**How it's done:** [`post_execution_validation/recompute.py`](../src/aryx/post_execution_validation/recompute.py)
+re-executes the SAME compiled plan fresh — reusing C12's own
+`load_typed_rows`/`run_plan` primitives, not re-implementing them — so
+[`checks.py`](../src/aryx/post_execution_validation/checks.py)'s
+`check_aggregation_correctness` (check B) can compare the stored run's
+reported value against an independently recomputed one, not just re-read
+what C12 already claimed. This is the component's own "Key control": a
+structurally valid but numerically incorrect result is still blocked.
+
+The other 6 named checks are purely structural, no recomputation needed:
+`result_ids_match_spec` (A) — every reported kpi_id/analysis_id must be one
+the approved spec actually declared; an extra one is a hard error
+(`unexpected_result_id`), a missing one is only a warning
+(`missing_result_id`), since C12 already degrades gracefully rather than
+inventing. `sample_size_reconciliation` (C) catches internal
+inconsistencies (a numerator exceeding its own denominator, negative
+counts). `evidence_lineage` (D) requires each KPI's `lineage.operation_ids`
+to be EXACTLY the node IDs C11 compiled for it (`plan.kpi_lineage_nodes`) —
+not a superset, not a subset. `no_invented_columns`/`no_invented_kpis` (E)
+check every lineage source column against the dataset's own C03 profile,
+and every result ID against `plan.kpi_final_node`/`plan.analysis_node` —
+never trusting a result that didn't come from a compiled node.
+`result_shape` (F) type-checks every field (a `renewal_rate` that somehow
+became a string fails here even though it'd parse as valid JSON). Small
+sample size (G, fixed threshold of 30 — not an authoring surface, same
+convention as C10's `THRESHOLD` and C11's `node_limit`) and excluded nulls
+are warnings, never rejections: a valid result on a thin sample is still a
+valid result.
+
+[`validate.py`](../src/aryx/post_execution_validation/validate.py) runs all
+7 checks and grades: `"rejected"` if any check produced an error,
+`"approved_with_warnings"` if only warnings fired, else `"approved"`.
+`eligible_for_dashboard` is `false` whenever there's any error — the actual
+gate a future dashboard-rendering stage would honor. The report is attached
+to `ExecutionRun.validation` (a dict, same pattern `PlannerResult.validation`
+uses for C09) and persisted in the SAME `aryx_execution_run` row — no
+separate table, matching C09's precedent of having no dedicated store either.
+
+**UI:** surfaced inside the existing `ExecutionRunPanel.tsx` (no new panel)
+— a status badge, check count, and any errors/warnings, directly under the
+run's own status line.
+
+**Test:** `tests/test_post_execution_validation.py` (11 tests — a correct
+run with a small sample approved-with-warnings, a large clean sample
+cleanly approved, the Key Control itself (a tampered reported value
+rejected via independent recomputation, matching the component doc's exact
+0.67-vs-0.6205882353 example), and each of the 6 structural checks exercised
+in isolation: unexpected/missing result IDs, a result ID absent from the
+compiled plan, an invented column, broken lineage operation IDs, a
+string-typed value, an impossible numerator/denominator, and the
+small-sample warning firing at the exact threshold boundary — 30 rows: no
+warning, 29 rows: warning).
 
 ---
 

@@ -6,8 +6,8 @@ regression that breaks node shapes would also break these tests.
 """
 from __future__ import annotations
 
-from aryx.analysis_execution.execute import run_plan
-from aryx.analysis_execution.run import _display_value, _kpi_result_from_node, _kpi_source_columns
+from aryx.analysis_execution.execute import _kpi_result_from_node, run_plan
+from aryx.analysis_execution.run import _display_value, _kpi_source_columns
 from aryx.andie_planner.models import Analysis, Kpi, KpiFilter, KpiOperand
 from aryx.execution_compiler.compile import compile_plan
 
@@ -49,7 +49,7 @@ def test_renewal_rate_matches_spec_doc_worked_example() -> None:
     assert ratio_result["denominator"] == 340
     assert round(ratio_result["value"], 10) == round(211 / 340, 10)
 
-    value, num, den, sample_size, excluded = _kpi_result_from_node(kpi, ratio_result)
+    value, num, den, sample_size, excluded = _kpi_result_from_node(ratio_result)
     assert (num, den, sample_size, excluded) == (211, 340, 340, 0)
     assert _display_value(value, "percentage") == "62.06%"
 
@@ -63,7 +63,7 @@ def test_sum_kpi_excludes_nulls_and_formats_currency() -> None:
     results, errors, _completed, _failed = run_plan(plan, {DATASET: rows})
     assert errors == []
     sum_result = results[plan.kpi_final_node["kpi_renewed_value"]]
-    value, num, den, sample_size, excluded = _kpi_result_from_node(kpi, sum_result)
+    value, num, den, sample_size, excluded = _kpi_result_from_node(sum_result)
     assert value == 300.0  # 3 renewed rows * 100.0
     assert sample_size == 3 and excluded == 0
     assert num is None and den is None
@@ -77,7 +77,7 @@ def test_count_kpi_has_no_ratio_fields() -> None:
     results, errors, _completed, _failed = run_plan(plan, {DATASET: rows})
     assert errors == []
     count_result = results[plan.kpi_final_node["kpi_all"]]
-    value, num, den, sample_size, excluded = _kpi_result_from_node(kpi, count_result)
+    value, num, den, sample_size, excluded = _kpi_result_from_node(count_result)
     assert value == 7.0 and sample_size == 7 and num is None and den is None
 
 
@@ -121,7 +121,7 @@ def test_zero_denominator_returns_none_value_not_a_crash() -> None:
     assert errors == [] and failed == 0
     ratio_result = results[plan.kpi_final_node["kpi_renewal_rate"]]
     assert ratio_result == {"numerator": 0, "denominator": 0, "value": None}
-    value, *_ = _kpi_result_from_node(kpi, ratio_result)
+    value, *_ = _kpi_result_from_node(ratio_result)
     assert _display_value(value, "percentage") == "—"
 
 

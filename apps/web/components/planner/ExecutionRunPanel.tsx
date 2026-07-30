@@ -5,7 +5,7 @@ import {
   Loader2, PlayCircle, CheckCircle2, XCircle, AlertTriangle, Gauge,
 } from "lucide-react";
 import { api } from "@/lib/api";
-import type { ExecutionRun, KpiResult, AnalysisResult } from "@/lib/types";
+import type { ExecutionRun, KpiResult, AnalysisResult, PostExecutionReport } from "@/lib/types";
 
 interface Props {
   workspaceId: number;
@@ -39,7 +39,7 @@ export function ExecutionRunPanel({ workspaceId }: Props) {
         dataset_id: `workspace_${workspaceId}`, dataset_version: "",
         status: "failed", kpi_results: [], analysis_results: [],
         execution_metrics: { runtime_ms: 0, nodes_completed: 0, nodes_failed: 0 },
-        errors: [e instanceof Error ? e.message : String(e)],
+        errors: [e instanceof Error ? e.message : String(e)], validation: null,
         created_at: new Date().toISOString(),
       });
     } finally {
@@ -104,6 +104,8 @@ function RunView({ run }: { run: ExecutionRun }) {
         </div>
       )}
 
+      {run.validation && <ValidationView validation={run.validation} />}
+
       {run.kpi_results.length > 0 && (
         <div>
           <div className="mb-1 text-xs font-semibold uppercase text-navy-400">
@@ -116,6 +118,51 @@ function RunView({ run }: { run: ExecutionRun }) {
       )}
 
       {run.analysis_results.map((a) => <AnalysisTable key={a.analysis_id} analysis={a} />)}
+    </div>
+  );
+}
+
+function ValidationView({ validation }: { validation: PostExecutionReport }) {
+  const cls = validation.status === "rejected" ? "border-red-200 bg-red-50/50"
+    : validation.status === "approved_with_warnings" ? "border-amber-200 bg-amber-50/40"
+    : "border-emerald-200 bg-emerald-50/30";
+  const pillCls = validation.status === "rejected" ? "bg-red-100 text-red-700"
+    : validation.status === "approved_with_warnings" ? "bg-amber-100 text-amber-700"
+    : "bg-emerald-100 text-emerald-700";
+  const Icon = validation.status === "rejected" ? XCircle
+    : validation.status === "approved_with_warnings" ? AlertTriangle : CheckCircle2;
+  return (
+    <div className={`rounded-lg border p-3 ${cls}`}>
+      <div className="flex items-center gap-2 text-xs font-semibold text-navy-800">
+        Post-execution validation (C13)
+        <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 font-medium ${pillCls}`}>
+          <Icon size={12} /> {validation.status}
+        </span>
+        <span className="text-navy-400">{validation.checks.length} checks</span>
+        {!validation.eligible_for_dashboard && (
+          <span className="text-red-700">not eligible for dashboard</span>
+        )}
+      </div>
+      {validation.errors.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {validation.errors.map((e, i) => (
+            <span key={i} title={JSON.stringify(e.details)}
+                  className="rounded bg-red-100 px-2 py-0.5 text-xs text-red-800">
+              {e.code}{e.reference ? ` · ${e.reference}` : ""}
+            </span>
+          ))}
+        </div>
+      )}
+      {validation.warnings.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {validation.warnings.map((w, i) => (
+            <span key={i} title={JSON.stringify(w.details)}
+                  className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
+              {w.code}{w.reference ? ` · ${w.reference}` : ""}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
