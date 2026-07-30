@@ -6,6 +6,7 @@ import { DatasetsPanel } from "@/components/dataset/DatasetsPanel";
 import { GraphIntakePanel } from "@/components/graph/GraphIntakePanel";
 import { WorkspacePlanningContextPanel } from "@/components/planning/WorkspacePlanningContextPanel";
 import { DashboardSpecPanel } from "@/components/planner/DashboardSpecPanel";
+import { ExecutionPlanPanel } from "@/components/planner/ExecutionPlanPanel";
 import { useWorkspace } from "@/lib/workspace";
 
 export default function DashboardPage() {
@@ -24,6 +25,8 @@ export default function DashboardPage() {
         <WorkspacePlanningContextPanel workspaceId={workspaceId} />
         {/* C08 — Andie Jr Planning Orchestrator (on-demand; calls a real LLM) */}
         <DashboardSpecPanel workspaceId={workspaceId} />
+        {/* C11 — Execution Compiler (read-only; compiled automatically after C08/C09/C10) */}
+        <ExecutionPlanPanel workspaceId={workspaceId} />
       </main>
     </div>
   );

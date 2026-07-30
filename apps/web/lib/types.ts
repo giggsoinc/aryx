@@ -538,6 +538,36 @@ export interface AnalysisDataset {
   created_at: string;
 }
 
+export interface ExecutionNode {
+  node_id: string;
+  template: string;
+  parameters: Record<string, unknown>;
+  depends_on: string[];
+}
+
+export interface CompilationIssue {
+  code: string;
+  node_id: string;
+  detail: string;
+}
+
+/** C11 — Execution Compiler. Chained onto C10's approval, no trigger of its
+ *  own. Binds an approved spec's KPIs/analyses to a fixed set of vetted
+ *  operation templates — no LLM, no arbitrary code generation. */
+export interface ExecutionPlan {
+  execution_plan_id: string;
+  spec_id: string;
+  dataset_id: string;
+  dataset_version: string;
+  nodes: ExecutionNode[];
+  plan_acyclic: boolean;
+  row_limit: number;
+  node_limit: number;
+  compilation_status: "success" | "rejected";
+  issues: CompilationIssue[];
+  created_at: string;
+}
+
 export interface PlannerResult {
   status: "valid" | "invalid" | "controlled_error" | "controlled_failure";
   spec: DashboardSpec | null;
@@ -546,6 +576,7 @@ export interface PlannerResult {
   attempts: number;
   validation: SpecValidationReport | null;
   analysis_datasets: AnalysisDataset[];
+  execution_plans: ExecutionPlan[];
   created_at: string;
 }
 

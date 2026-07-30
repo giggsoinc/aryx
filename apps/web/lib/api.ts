@@ -2,7 +2,7 @@ import type {
   AbResult, AskResponse, Axiom, Brief, DataEntitiesPage, DataSummary,
   Datasource, EntityDetail, EntityGraphView, GraphView, IngestQuestion,
   DatasetIngestResult, DatasetProfile, SemanticProfile, GraphIntakeResult, GraphProfile,
-  PlanningContext, PlannerResult,
+  PlanningContext, PlannerResult, ExecutionPlan,
   LlmConfig, LlmConfigUpdate, OntologyDoc, QuizSpec, ReasonerCheck, Rule,
   SurvivorshipPolicy, UserIntent, UserIntentRequest, Workspace,
 } from "./types";
@@ -342,6 +342,17 @@ export const api = {
   getGraphProfile: (workspaceId: number) =>
     fetchJSON<GraphProfile>(
       `/graph-profile/graph_workspace_${workspaceId}?workspace_id=${workspaceId}`,
+    ),
+
+  // ── Execution Compiler (C11) — read-only; no LLM ─────────────────────
+  getExecutionPlan: (datasetId: string, workspaceId: number) =>
+    fetchJSON<ExecutionPlan>(
+      `/execution-plan/${encodeURIComponent(datasetId)}?workspace_id=${workspaceId}`,
+    ),
+
+  listExecutionPlans: (workspaceId: number, limit = 50) =>
+    fetchJSON<ExecutionPlan[]>(
+      `/execution-plan/versions?workspace_id=${workspaceId}&limit=${limit}`,
     ),
 
   // ── User Intent Capture (C01) ────────────────────────────────────────

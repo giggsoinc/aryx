@@ -60,7 +60,7 @@ export function DashboardSpecPanel({ workspaceId }: Props) {
         status: "controlled_error", spec: null,
         error_code: "request_failed",
         error_message: e instanceof Error ? e.message : String(e),
-        attempts: 0, validation: null, analysis_datasets: [],
+        attempts: 0, validation: null, analysis_datasets: [], execution_plans: [],
         created_at: new Date().toISOString(),
       });
     } finally {

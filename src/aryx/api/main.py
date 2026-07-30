@@ -24,6 +24,7 @@ from aryx.api.dataset_api import dataset_router
 from aryx.api.datasource_api import datasource_router
 from aryx.api.demo_ingest_api import demo_ingest_router
 from aryx.api.doc_discover_api import doc_discover_router
+from aryx.api.execution_plan_api import execution_plan_router
 from aryx.api.file_ingest_api import file_ingest_router
 from aryx.api.graph_api import graph_router
 from aryx.api.graph_intake_api import graph_intake_router
@@ -130,6 +131,7 @@ def create_app() -> FastAPI:
     app.include_router(graph_profile_router())
     app.include_router(planning_context_router())
     app.include_router(andie_planner_router())
+    app.include_router(execution_plan_router())
     app.include_router(relationship_type_router())
     app.include_router(ontology_assist_router())
     app.include_router(observability_router())
