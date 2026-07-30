@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
 import { BarChart, type BarDatum } from "@/components/planner/BarChart";
 import type {
   DashboardModel, DashboardComponent, ExecutionRun, PlannerResult, Kpi, Analysis,
-  AccessibilityChecks,
+  AccessibilityChecks, KpiResult,
 } from "@/lib/types";
 
 interface Props {
@@ -225,7 +225,11 @@ function ComponentView({ component, run, kpi, analysis, kpiById }: {
 
   if (component.type === "table") {
     const result = run.analysis_results.find((a) => a.analysis_id === component.source_ref);
-    if (!result) return <UnsupportedPlaceholder type="table (no computed result)" />;
+    if (!result) {
+      const kpiResult = run.kpi_results.find((k) => k.kpi_id === component.source_ref);
+      if (kpiResult) return <SingleValueFallback component={component} kpi={kpi} result={kpiResult} run={run} />;
+      return <UnsupportedPlaceholder type="table (no computed result)" />;
+    }
     const metricKpi = kpiById.get(analysis?.metric ?? "");
     const fmt = kpiFormat(metricKpi);
     return (
@@ -258,7 +262,11 @@ function ComponentView({ component, run, kpi, analysis, kpiById }: {
 
   if (BAR_LIKE_TYPES.has(component.type)) {
     const result = run.analysis_results.find((a) => a.analysis_id === component.source_ref);
-    if (!result) return <UnsupportedPlaceholder type={`${component.type} (no computed result)`} />;
+    if (!result) {
+      const kpiResult = run.kpi_results.find((k) => k.kpi_id === component.source_ref);
+      if (kpiResult) return <SingleValueFallback component={component} kpi={kpi} result={kpiResult} run={run} />;
+      return <UnsupportedPlaceholder type={`${component.type} (no computed result)`} />;
+    }
     const metricKpi = kpiById.get(analysis?.metric ?? "");
     const fmt = kpiFormat(metricKpi);
     const warningsByGroup = new Map(
@@ -306,6 +314,29 @@ function WarningBanners({ refs, run }: { refs: string[]; run: ExecutionRun }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// A chart-type component (bar/line/scatter/donut/table) whose source_ref
+// turns out to be a KPI, not an analysis (C14 groups these into "Additional
+// Charts" — a chart requested for a single value has no series to plot).
+// One number has nothing to chart, so this renders the real value plainly
+// rather than dropping it as "unsupported" — the requested type is noted,
+// not hidden, so it's clear this isn't the chart that was asked for.
+function SingleValueFallback({ component, kpi, result, run }: {
+  component: DashboardComponent; kpi?: Kpi; result: KpiResult; run: ExecutionRun;
+}) {
+  return (
+    <div className="rounded-lg border border-navy-100 bg-navy-50/30 p-4">
+      <div className="flex items-center justify-between text-xs font-medium uppercase text-navy-500">
+        <span>{kpi?.name || component.source_ref}</span>
+        <span className="rounded bg-navy-100 px-1.5 py-0.5 normal-case text-navy-500">
+          {component.type} requested — single value, nothing to chart
+        </span>
+      </div>
+      <div className="mt-1 text-3xl font-bold text-navy-900">{result.display_value}</div>
+      <WarningBanners refs={component.warning_refs} run={run} />
     </div>
   );
 }
