@@ -34,8 +34,15 @@ def post_json(url: str, body: dict[str, Any], headers: dict[str, str],
     if timeout is None:
         timeout = _DEFAULT_TIMEOUT
     data = json.dumps(body).encode("utf-8")
-    req = urllib.request.Request(url, data=data, headers={**headers,
-                                 "Content-Type": "application/json"})
+    # Explicit User-Agent: urllib's default ("Python-urllib/x.y") is a common
+    # bot fingerprint that Cloudflare-fronted APIs (e.g. Groq) reject outright
+    # (WAF error 1010) before the request ever reaches the provider's own
+    # auth/rate-limit logic — independent of whether the API key is valid.
+    req = urllib.request.Request(url, data=data, headers={
+        **headers,
+        "Content-Type": "application/json",
+        "User-Agent": "aryx-llm-client/1.0",
+    })
     delay = 2.0
     for attempt in range(5):
         try:
