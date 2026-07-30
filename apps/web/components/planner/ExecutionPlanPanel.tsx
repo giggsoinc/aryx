@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Loader2, Workflow, ChevronRight, ChevronDown, CheckCircle2, XCircle, ArrowRight,
+  Loader2, Workflow, CheckCircle2, XCircle, ArrowRight,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import type { ExecutionPlan, ExecutionNode } from "@/lib/types";
@@ -11,63 +11,27 @@ interface Props {
   workspaceId: number;
 }
 
-type PlanState = ExecutionPlan | "loading" | "none";
-
-/** C11 — Execution Compiler. Read-only: compiled automatically once C08's
- *  spec clears C09/C10 (see andie_planner.run._run_c11_for_dataset), no
- *  button here. Shows the typed, acyclic node DAG bound to vetted operation
- *  templates only — never generated SQL/Python. */
+/** C11 — Execution Compiler. Read-only, whole-workspace scope: a spec's
+ *  KPIs/analyses (even when they span several datasets) form ONE coherent
+ *  DAG, so there is exactly one compiled plan per workspace — not one per
+ *  dataset (see andie_planner.run._run_c11_for_spec). Compiled automatically
+ *  once C08's spec clears C09/C10; no button here. */
 export function ExecutionPlanPanel({ workspaceId }: Props) {
-  const [datasetIds, setDatasetIds] = useState<string[]>([]);
+  const [plan, setPlan] = useState<ExecutionPlan | null>(null);
   const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState<string | null>(null);
-  const [plans, setPlans] = useState<Record<string, PlanState>>({});
-  const openRef = useRef<string | null>(null);
-  const plansRef = useRef(plans);
-  useEffect(() => { openRef.current = open; }, [open]);
-  useEffect(() => { plansRef.current = plans; }, [plans]);
-
-  const loadPlan = (datasetId: string) => {
-    setPlans((p) => ({ ...p, [datasetId]: "loading" }));
-    api.getExecutionPlan(datasetId, workspaceId)
-      .then((plan) => setPlans((p) => ({ ...p, [datasetId]: plan })))
-      .catch(() => setPlans((p) => ({ ...p, [datasetId]: "none" })));
-  };
 
   useEffect(() => {
     let alive = true;
-    const load = async () => {
-      try {
-        const rows = await api.listDatasetVersions(workspaceId);
-        const ids = Array.from(new Set(rows.map((r) => r.dataset_id)));
-        if (alive) setDatasetIds(ids);
-      } catch {
-        if (alive) setDatasetIds([]);
-      } finally {
-        if (alive) setLoading(false);
-      }
-      // A plan compiles asynchronously after C08 approval — if the open
-      // row hasn't resolved yet, keep polling instead of requiring a
-      // manual re-expand.
-      const openId = openRef.current;
-      if (alive && openId && !plansRef.current[openId]) {
-        loadPlan(openId);
-      } else if (alive && openId && plansRef.current[openId] === "none") {
-        loadPlan(openId);
-      }
+    const load = () => {
+      api.getExecutionPlan(`workspace_${workspaceId}`, workspaceId)
+        .then((p) => { if (alive) setPlan(p); })
+        .catch(() => { if (alive) setPlan(null); })
+        .finally(() => { if (alive) setLoading(false); });
     };
     load();
     const timer = setInterval(load, 5000);
     return () => { alive = false; clearInterval(timer); };
   }, [workspaceId]);
-
-  const toggle = (datasetId: string) => {
-    if (open === datasetId) { setOpen(null); return; }
-    setOpen(datasetId);
-    if (!plans[datasetId]) {
-      loadPlan(datasetId);
-    }
-  };
 
   return (
     <div className="mx-auto max-w-6xl px-6 pb-8">
@@ -78,57 +42,20 @@ export function ExecutionPlanPanel({ workspaceId }: Props) {
           {loading && <Loader2 size={14} className="animate-spin text-navy-400" />}
         </div>
         <p className="mt-1 text-sm text-navy-500">
-          C11 compiles an approved dashboard spec into a typed, acyclic node
-          graph bound to a fixed set of vetted operation templates — no LLM,
-          no generated SQL/Python. Compiles automatically once a spec clears
-          validation; nothing to run here.
+          C11 compiles the whole-workspace dashboard spec into one typed,
+          acyclic node graph bound to a fixed set of vetted operation
+          templates — no LLM, no generated SQL/Python. Compiles automatically
+          once a workspace-scope spec clears validation; nothing to run here.
         </p>
 
-        {datasetIds.length === 0 && !loading && (
+        {!loading && !plan && (
           <div className="mt-6 rounded-lg border border-dashed border-navy-200 px-4 py-10 text-center text-sm text-navy-400">
-            No datasets yet.
+            No execution plan yet — generate a "🌐 Whole workspace" dashboard
+            spec above first.
           </div>
         )}
 
-        {datasetIds.length > 0 && (
-          <div className="mt-4 divide-y divide-navy-50">
-            {datasetIds.map((id) => {
-              const isOpen = open === id;
-              const plan = plans[id];
-              return (
-                <div key={id}>
-                  <button onClick={() => toggle(id)}
-                          className="flex w-full items-center gap-3 py-2.5 text-left text-sm hover:bg-navy-50/50">
-                    {isOpen ? <ChevronDown size={15} className="text-navy-400" />
-                            : <ChevronRight size={15} className="text-navy-400" />}
-                    <span className="flex-1 font-medium text-navy-900">{id}</span>
-                    {plan && plan !== "loading" && plan !== "none" && (
-                      <>
-                        <span className="text-navy-500">{plan.nodes.length} nodes</span>
-                        <StatusPill status={plan.compilation_status} />
-                      </>
-                    )}
-                  </button>
-                  {isOpen && (
-                    <div className="pb-4 pl-8">
-                      {plan === "loading" && (
-                        <div className="flex items-center gap-2 py-3 text-sm text-navy-400">
-                          <Loader2 size={13} className="animate-spin" /> Loading plan…
-                        </div>
-                      )}
-                      {plan === "none" && (
-                        <p className="py-3 text-sm text-navy-400">
-                          No execution plan yet — approve a dashboard spec (C08) for this dataset first.
-                        </p>
-                      )}
-                      {plan && plan !== "loading" && plan !== "none" && <PlanView plan={plan} />}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+        {plan && <PlanView plan={plan} />}
       </section>
     </div>
   );
@@ -136,11 +63,10 @@ export function ExecutionPlanPanel({ workspaceId }: Props) {
 
 function PlanView({ plan }: { plan: ExecutionPlan }) {
   return (
-    <div className={`mt-2 rounded-lg border p-4 ${plan.compilation_status === "rejected" ? "border-red-200 bg-red-50/30" : "border-navy-100 bg-navy-50/30"}`}>
+    <div className={`mt-4 rounded-lg border p-4 ${plan.compilation_status === "rejected" ? "border-red-200 bg-red-50/30" : "border-navy-100 bg-navy-50/30"}`}>
       <div className="mb-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-navy-500">
-        <span>
-          <b className="text-navy-800">{plan.plan_acyclic ? "acyclic" : "cyclic"}</b>
-        </span>
+        <StatusPill status={plan.compilation_status} />
+        <span><b className="text-navy-800">{plan.plan_acyclic ? "acyclic" : "cyclic"}</b></span>
         <span><b className="text-navy-800">{plan.row_limit.toLocaleString()}</b> row limit</span>
         <span><b className="text-navy-800">{plan.nodes.length}</b>/{plan.node_limit} nodes</span>
         <code className="text-navy-400">{plan.execution_plan_id}</code>

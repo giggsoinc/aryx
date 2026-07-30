@@ -21,13 +21,14 @@ the cross-component autorun mechanism referenced throughout.
 | C10 | Preprocessing and Transformation | Complete | No — deterministic, chained onto C09's approval |
 | C11 | Execution Compiler | Complete | No — MVP policy is no LLM; binds approved params to vetted templates only |
 
-All eleven are implemented and covered by tests. C09, C10, and C11 have no
-UI/API surface of their own — all three are internal to C08's run flow — but
-C09/C10's output IS surfaced inside C08's existing `DashboardSpecPanel.tsx`: an
-"approved" badge (C09), a distinct rose `controlled_failure` block when both
-attempts are rejected (C09), and a compact per-column transformation summary
-(C10) — see their sections below. C11's compiled plan isn't surfaced in the
-UI yet (see its section for what a follow-up panel would show).
+All eleven are implemented and covered by tests. C09 and C10 have no UI/API
+surface of their own — both are internal to C08's run flow — their output IS
+surfaced inside C08's existing `DashboardSpecPanel.tsx`: an "approved" badge
+(C09), a distinct rose `controlled_failure` block when both attempts are
+rejected (C09), and a compact per-column transformation summary (C10) — see
+their sections below. C11 has its own read-only API (`GET /execution-plan/*`)
+and its own panel (`ExecutionPlanPanel.tsx`), scoped to the whole workspace
+only — see its section.
 The intent-gated autorun (C03-C07) is implemented but not yet manually
 smoke-tested end-to-end (see [intent_gated_autorun.md](intent_gated_autorun.md#verification)).
 
@@ -266,9 +267,10 @@ end-to-end run with `DatasetStore`/`AnalysisDatasetStore` mocked).
 
 ## C11 — Execution Compiler
 
-**Status:** Complete. No LLM (MVP policy), fully deterministic. Chained onto
-C10 inside the same `_run_c10_for_approved()` loop in `andie_planner/run.py`
-— no button, no API of its own, same as C09/C10.
+**Status:** Complete. No LLM (MVP policy), fully deterministic. Compilation
+itself is chained onto C10 (no button — it's `_run_c11_for_spec()`, called
+from `andie_planner/run.py` right after C10's per-dataset loop), but unlike
+C09/C10 it has its own read-only API and UI panel (see below).
 
 **How it's done:** [`execution_compiler/templates.py`](../src/aryx/execution_compiler/templates.py)
 is the fixed, vetted catalogue the compiler may ever bind parameters to
@@ -276,9 +278,10 @@ is the fixed, vetted catalogue the compiler may ever bind parameters to
 `safe_ratio`, and their `grouped_*` variants) — an operation with no template
 here has no execution path; the compiler rejects it rather than improvising
 SQL/Python. [`execution_compiler/compile.py`](../src/aryx/execution_compiler/compile.py)'s
-`compile_plan()` walks an approved spec's KPIs and analyses (already scoped
-to one dataset by the caller): a `count`/`sum`/`average`/`median` KPI becomes
-an optional `filter_*` node feeding a `count_rows`/`*_numeric` node; a
+`compile_plan_for_spec()` walks the WHOLE approved spec's KPIs and analyses —
+one plan per spec, never fragmented per dataset, even when a workspace-scope
+spec's KPIs span several datasets: a `count`/`sum`/`average`/`median` KPI
+becomes an optional `filter_*` node feeding a `count_rows`/`*_numeric` node; a
 `ratio`/`percentage` KPI compiles its numerator and denominator into their
 own filter+measure nodes before a `safe_ratio` node depends on both
 (`zero_denominator_policy` carried straight through — C09 already guaranteed
@@ -286,7 +289,9 @@ both operands exist); an `Analysis` (`group_by` + a `metric` pointing at a
 KPI) becomes one `grouped_*` node keyed off that KPI's own operation. Node
 IDs are derived deterministically from the KPI/analysis ID (e.g.
 `op_kpi_renewal_rate_ratio`) — same input always compiles to the same node
-graph, only `execution_plan_id` varies per run.
+graph, only `execution_plan_id` varies per run. (`compile_plan()` is the
+lower-level, dataset-scoped primitive it wraps — still directly unit-tested,
+just no longer called per-dataset from the glue.)
 
 [`execution_compiler/validate.py`](../src/aryx/execution_compiler/validate.py)
 is the compiler's own structural self-check — never a re-litigation of C09's
@@ -297,24 +302,30 @@ keys, node IDs are unique, dependencies resolve within the plan, the
 dependency graph is acyclic (Kahn's algorithm), and the plan doesn't exceed
 `node_limit` (200, an engineering default — flagged as adjustable, same as
 C10's `THRESHOLD`). Any structural failure marks `compilation_status:
-"rejected"` — auditable, not dropped. `row_limit` is clamped to the
-dataset's actual row count (from C10's `AnalysisDataset.row_count`) when
-smaller than the default cap.
+"rejected"` — auditable, not dropped. `row_limit` is clamped to the sum of
+every referenced dataset's row count (from C10's `AnalysisDataset.row_count`,
+accumulated across C10's per-dataset loop) when smaller than the default cap.
 
 [`execution_compiler/run.py`](../src/aryx/execution_compiler/run.py) →
-actually inlined as `_run_c11_for_dataset()` in `andie_planner/run.py` rather
-than a separate glue module, since it needs the `AnalysisDataset.row_count`
-C10 just produced for that same dataset. Persisted via
-`ExecutionPlanStore` (`aryx_execution_plan` table, migration
-`0038_execution_plan.sql`), one row per `(dataset_id, dataset_version)`,
-appended to `PlannerResult.execution_plans` — best-effort, a C11 failure
-never downgrades the C08/C09/C10 outcome.
+actually inlined as `_run_c11_for_spec()` in `andie_planner/run.py` rather
+than a separate glue module, since it needs the total row count C10's loop
+just accumulated. Called once per spec (after C10's per-dataset loop
+finishes), keyed by `spec.dataset_id` — the real dataset_id in single-dataset
+mode, or `"workspace_{id}"` in workspace mode (same convention
+`DashboardSpecStore` already uses). Persisted via `ExecutionPlanStore`
+(`aryx_execution_plan` table, migration `0038_execution_plan.sql`), one row
+per `(dataset_id, dataset_version)`, appended to
+`PlannerResult.execution_plans` — best-effort, a C11 failure never
+downgrades the C08/C09/C10 outcome.
 
-**Not yet done:** no UI surface — a follow-up panel would show per-KPI node
-counts and a `compilation_status` badge, mirroring C09/C10's treatment in
-`DashboardSpecPanel.tsx`. No actual execution engine consumes the plan yet
-(that's a distinct, not-yet-built component) — C11 only compiles and
-validates the DAG, it doesn't run it.
+**UI:** `ExecutionPlanPanel.tsx` — read-only, whole-workspace scope only:
+fetches `GET /execution-plan/workspace_{id}` and shows that one plan (node
+list with template/parameters/dependencies, `compilation_status`,
+acyclic/row-limit/node-count summary, and any rejection issues), or a "run
+the workspace-wide spec first" empty state. It does not show single-dataset
+runs' plans (out of scope by design — ask if that's needed later). No actual
+execution engine consumes the plan yet (that's a distinct, not-yet-built
+component) — C11 only compiles and validates the DAG, it doesn't run it.
 
 **Test:** `tests/test_execution_compiler.py` (18 tests — count/sum/ratio KPI
 compilation, grouped-analysis compilation for ratio/sum/unknown metrics,
