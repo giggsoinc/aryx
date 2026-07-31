@@ -36,11 +36,17 @@ def execution_run_router() -> APIRouter:
     @router.post("/run", response_model=ExecutionRun)
     def run(req: ExecutionRunRequest, workspace_id: int = Query(1)) -> ExecutionRun:
         """Execute the latest compiled plan for `dataset_id` and persist the run."""
-        return run_analysis_execution(
+        logger.info("execution-run requested ws=%s dataset=%s max_runtime=%.1fs max_rows=%d",
+                   workspace_id, req.dataset_id, req.maximum_runtime_seconds, req.maximum_rows)
+        result = run_analysis_execution(
             get_settings().rdb_dsn, workspace_id, req.dataset_id,
             maximum_runtime_seconds=req.maximum_runtime_seconds,
             maximum_rows=req.maximum_rows,
         )
+        if result.status != "completed":
+            logger.warning("execution-run finished ws=%s dataset=%s status=%s errors=%s",
+                          workspace_id, req.dataset_id, result.status, result.errors)
+        return result
 
     # Declared before /{dataset_id}-shaped routes aren't needed here since
     # every read is dataset_id-scoped via query — "workspace" is its own path.
@@ -49,9 +55,12 @@ def execution_run_router() -> APIRouter:
         """Fetch the latest execution run for the whole workspace, or null."""
         store = ExecutionRunStore(get_settings().rdb_dsn, workspace_id)
         try:
-            return store.latest(f"workspace_{workspace_id}")
+            latest = store.latest(f"workspace_{workspace_id}")
         finally:
             store.close()
+        if latest is None:
+            logger.info("no execution run found ws=%s", workspace_id)
+        return latest
 
     @router.get("/versions", response_model=list[ExecutionRun])
     def list_runs(dataset_id: str = Query(...), workspace_id: int = Query(1),

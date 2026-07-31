@@ -218,7 +218,7 @@ function ComponentView({ component, run, kpi, analysis, kpiById }: {
           {kpi?.name || component.source_ref}
         </div>
         <div className="mt-1 text-3xl font-bold text-navy-900">{result.display_value}</div>
-        <WarningBanners refs={component.warning_refs} run={run} />
+        <WarningBanners refs={component.warning_refs} run={run} sourceRef={component.source_ref} />
       </div>
     );
   }
@@ -255,7 +255,7 @@ function ComponentView({ component, run, kpi, analysis, kpiById }: {
             ))}
           </tbody>
         </table>
-        <WarningBanners refs={component.warning_refs} run={run} />
+        <WarningBanners refs={component.warning_refs} run={run} sourceRef={component.source_ref} />
       </div>
     );
   }
@@ -301,16 +301,19 @@ function ComponentView({ component, run, kpi, analysis, kpiById }: {
   return <UnsupportedPlaceholder type={component.type} />;
 }
 
-function WarningBanners({ refs, run }: { refs: string[]; run: ExecutionRun }) {
+function WarningBanners({ refs, run, sourceRef }: { refs: string[]; run: ExecutionRun; sourceRef: string }) {
   if (refs.length === 0) return null;
   return (
     <div className="mt-2 space-y-1">
       {refs.map((w, i) => {
+        // A KPI-level warning's reference is the bare kpi_id with no ":"
+        // suffix (see compose.py._attach_warnings), so scope falls back to
+        // the component's own source_ref rather than going unmatched.
         const [code, scope] = w.split(":");
         return (
           <div key={i} className="flex items-start gap-1.5 text-xs text-amber-700">
             <AlertTriangle size={11} className="mt-0.5 shrink-0" />
-            {warningSentence(code, scope ?? "", run)}
+            {warningSentence(code, scope ?? sourceRef, run)}
           </div>
         );
       })}
@@ -336,7 +339,7 @@ function SingleValueFallback({ component, kpi, result, run }: {
         </span>
       </div>
       <div className="mt-1 text-3xl font-bold text-navy-900">{result.display_value}</div>
-      <WarningBanners refs={component.warning_refs} run={run} />
+      <WarningBanners refs={component.warning_refs} run={run} sourceRef={component.source_ref} />
     </div>
   );
 }

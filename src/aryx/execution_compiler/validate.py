@@ -7,8 +7,9 @@ already guaranteed by the time compile.py runs).
 """
 from __future__ import annotations
 
+from aryx.andie_planner.models import Kpi
 from aryx.execution_compiler.models import CompilationIssue, ExecutionNode
-from aryx.execution_compiler.templates import TEMPLATES
+from aryx.execution_compiler.templates import NUMERIC_TEMPLATES, RATIO_OPERATIONS, TEMPLATES
 
 
 def validate_bindings(nodes: list[ExecutionNode]) -> list[CompilationIssue]:
@@ -65,6 +66,26 @@ def is_acyclic(nodes: list[ExecutionNode]) -> bool:
             if indegree[child] == 0:
                 queue.append(child)
     return visited == len(nodes)
+
+
+def check_ratio_operand_operations(kpis: list[Kpi]) -> list[CompilationIssue]:
+    """A ratio/percentage KPI's numerator/denominator (`KpiOperand`) carries
+    no measure/column field — only `operation` + an optional filter. "count"
+    binds to count_rows with no column needed, but sum/average/median would
+    silently bind to an empty column name (see _compile_operand) and yield a
+    fabricated 0.0 instead of a real value or a loud failure. Reject here
+    instead."""
+    issues: list[CompilationIssue] = []
+    for kpi in kpis:
+        if kpi.operation not in RATIO_OPERATIONS:
+            continue
+        for role, operand in (("numerator", kpi.numerator), ("denominator", kpi.denominator)):
+            if operand is not None and operand.operation in NUMERIC_TEMPLATES:
+                issues.append(CompilationIssue(
+                    code="unsupported_ratio_operand_operation", node_id=f"kpi:{kpi.kpi_id}",
+                    detail=f"{role} operation {operand.operation!r} has no column to bind — "
+                          "only 'count' is supported for ratio operands"))
+    return issues
 
 
 def check_resource_limits(nodes: list[ExecutionNode], node_limit: int) -> list[CompilationIssue]:

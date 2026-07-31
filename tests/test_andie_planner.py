@@ -74,7 +74,7 @@ def _ground(raw):
 # ── prompt.py — discipline adapted from andie-jr (not its bug-triage content) ──
 
 def test_prompt_version_bumped_for_discipline_change() -> None:
-    assert PROMPT_VERSION == "1.1"
+    assert PROMPT_VERSION == "1.2"
 
 
 def test_system_prompt_carries_andie_jr_adapted_discipline() -> None:

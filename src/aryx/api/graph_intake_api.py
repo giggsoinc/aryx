@@ -29,8 +29,10 @@ def graph_intake_router() -> APIRouter:
     @router.post("/run", response_model=GraphIntakeResult)
     def run(workspace_id: int = Query(1)) -> GraphIntakeResult:
         """Derive the workspace graph, validate it, and persist a version."""
+        logger.info("graph-intake requested ws=%s", workspace_id)
         result = run_intake(get_settings().rdb_dsn, workspace_id)
         if result is None:
+            logger.info("graph-intake found no entities ws=%s", workspace_id)
             raise HTTPException(404, "no entities in this workspace to build a graph")
         return result
 
@@ -54,6 +56,7 @@ def graph_intake_router() -> APIRouter:
         finally:
             store.close()
         if latest is None:
+            logger.info("no graph intake found ws=%s graph=%s", workspace_id, graph_id)
             raise HTTPException(404, f"no graph {graph_id!r}")
         return latest
 

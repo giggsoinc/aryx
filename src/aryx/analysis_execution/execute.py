@@ -152,10 +152,17 @@ def _exec_node(node: ExecutionNode, rows: list[dict[str, Any]],
                 den_counts[g] = den_counts.get(g, 0) + 1
             if status in num_values:
                 num_counts[g] = num_counts.get(g, 0) + 1
+        # Iterate the UNION of groups seen by either filter, not just
+        # den_counts — numerator_values isn't guaranteed to be a subset of
+        # denominator_values, so a group with numerator hits but zero
+        # denominator hits must still appear (denominator=0, not silently
+        # dropped from the chart).
+        all_groups = set(num_counts) | set(den_counts)
         return {
-            g: {"numerator": num_counts.get(g, 0), "denominator": d,
-               "value": (num_counts.get(g, 0) / d) if d else None, "sample_size": d}
-            for g, d in den_counts.items()
+            g: {"numerator": num_counts.get(g, 0), "denominator": den_counts.get(g, 0),
+               "value": (num_counts.get(g, 0) / den_counts[g]) if den_counts.get(g) else None,
+               "sample_size": den_counts.get(g, 0)}
+            for g in all_groups
         }
 
     raise ValueError(f"unknown template {t!r}")

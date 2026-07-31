@@ -26,6 +26,11 @@ def render_telemetry_router() -> APIRouter:
     @router.post("/log")
     def log(telemetry: RenderTelemetry, workspace_id: int = Query(1)) -> dict[str, str]:
         """Record one render event."""
+        if telemetry.render_status != "success" or telemetry.unsupported_component_types:
+            logger.warning(
+                "render reported ws=%s dashboard=%s status=%s unsupported=%s accessibility=%s",
+                workspace_id, telemetry.dashboard_model_id, telemetry.render_status,
+                telemetry.unsupported_component_types, telemetry.accessibility_checks)
         store = RenderTelemetryStore(get_settings().rdb_dsn, workspace_id)
         try:
             store.save(telemetry)

@@ -173,10 +173,24 @@ def test_compose_end_to_end_matches_doc_shape() -> None:
     assert [s.section_id for s in sections] == ["section_summary", "section_region"]
     summary = sections[0]
     assert [c.component_id for c in summary.components] == \
-        ["component_kpi_renewal_rate", "component_kpi_renewed_value"]
+        ["component_chart_1", "component_chart_2"]
     region = sections[1]
-    assert region.components[0].component_id == "component_analysis_renewal_by_region"
+    assert region.components[0].component_id == "component_chart_3"
     assert region.components[0].warning_refs == ["small_sample_size:West"]
+
+
+def test_compose_allows_two_visualizations_of_the_same_source_ref() -> None:
+    # Regression: the same analysis rendered by both a chart AND a table is
+    # a normal, valid spec pattern — component_id used to be derived from
+    # source_ref alone, so this collided as a false "duplicate_component_id"
+    # and made the whole composition invalid.
+    spec = _spec()
+    spec.visualizations.append(Visualization(
+        chart_id="chart_4", chart_type="table", source_ref="analysis_renewal_by_region"))
+    sections, issues = compose(spec, _run())
+    assert issues == []
+    region = sections[1]
+    assert [c.component_id for c in region.components] == ["component_chart_3", "component_chart_4"]
 
 
 def test_compose_flags_empty_visualizations_instead_of_silently_valid() -> None:

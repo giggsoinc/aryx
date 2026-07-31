@@ -139,13 +139,27 @@ def ollama_json(spec: ModelSpec, system: str,
 def openai_json(
     spec: ModelSpec, system: str, user: str, key: str | None,
 ) -> tuple[dict[str, Any], int, int]:
-    """Call any OpenAI-compatible endpoint via /chat/completions (JSON mode)."""
+    """Call any OpenAI-compatible endpoint via /chat/completions (JSON mode).
+
+    max_tokens is set explicitly (mirrors anthropic_json) — without it, a
+    hidden-reasoning model (e.g. Groq's gpt-oss family) can spend its whole
+    completion budget on reasoning tokens and emit empty content, which then
+    fails the provider's json_object validation with no useful error body.
+    reasoning_effort is capped too, but only for models actually in that
+    family — many OpenAI-compatible providers reject unknown fields.
+    """
     headers = {"Authorization": f"Bearer {key}"} if key else {}
+    body: dict[str, Any] = {
+        "model": spec.name, "response_format": {"type": "json_object"},
+        "max_tokens": 4096,
+        "messages": [{"role": "system", "content": system},
+                     {"role": "user", "content": user}],
+    }
+    if "gpt-oss" in spec.name:
+        body["reasoning_effort"] = "low"
     out = post_json(
         (spec.endpoint or "").rstrip("/") + "/chat/completions",
-        {"model": spec.name, "response_format": {"type": "json_object"},
-         "messages": [{"role": "system", "content": system},
-                      {"role": "user", "content": user}]},
+        body,
         headers,
     )
     data = json.loads(out["choices"][0]["message"]["content"])

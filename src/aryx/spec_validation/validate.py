@@ -78,8 +78,11 @@ def _build_repair_request(spec: DashboardSpec, errors: list[ValidationError],
             constraint.allowed_operations = approved_ops
         elif err.code == "incompatible_chart_axes":
             constraint.allowed_replacements = safe_chart_replacements
-        elif err.code in ("missing_zero_denominator_policy", "formula_incoherent"):
-            constraint.allowed_operations = sorted(ctx.approved_operations & {"ratio", "percentage"})
+        # formula_incoherent / missing_zero_denominator_policy /
+        # unsupported_zero_denominator_policy get no allowed_* list — they're
+        # rendered with a dedicated, structure-specific instruction below
+        # instead of a bare "pick one of these operations" hint that doesn't
+        # actually explain what's missing.
         constraints.append(constraint)
     return RepairRequest(spec_id=spec.spec_id, errors=constraints)
 
@@ -89,6 +92,18 @@ def _render_repair_line(err: RepairErrorConstraint) -> str:
     invented value inline (not just a bare allowed-list) so a small/weak
     model can find-and-replace it instead of re-guessing from scratch."""
     wrote = f" You wrote {err.invalid_value!r}." if err.invalid_value else ""
+    if err.code == "formula_incoherent":
+        return (f"- [{err.code}] at {err.path}. KPI {err.invalid_value!r} is a ratio/percentage "
+               "KPI missing its numerator and/or denominator. Add BOTH fields, each shaped like "
+               '{"operation": "count", "filter": {"column": "<real column>", "value": "<value>"}}.')
+    if err.code in ("missing_zero_denominator_policy", "unsupported_zero_denominator_policy"):
+        return (f"- [{err.code}] at {err.path}. KPI {err.invalid_value!r} must set "
+               'zero_denominator_policy to EXACTLY "return_null_with_warning" — the only '
+               "supported value (copy verbatim, do not invent another policy string).")
+    if err.code == "missing_measure":
+        return (f"- [{err.code}] at {err.path}. KPI {err.invalid_value!r} has a sum/average/median "
+               "operation but no measure field. Add a measure field naming the ONE real numeric "
+               "column to aggregate — source_columns alone is not enough, measure is required.")
     if err.allowed_columns is not None:
         hint = ""
         if err.invalid_value:

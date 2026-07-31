@@ -42,12 +42,23 @@ def check_result_identity(
     return CheckResult(check="result_ids_match_spec", status=status), errors, warnings
 
 
+def _mismatch(reported: float | None, recomputed: float | None) -> bool:
+    if (reported is None) != (recomputed is None):
+        return True
+    if reported is None:
+        return False
+    return abs(reported - recomputed) > _TOLERANCE
+
+
 def check_aggregation_correctness(
     run: ExecutionRun, recomputed_nodes: dict[str, Any], plan: ExecutionPlan,
 ) -> tuple[CheckResult, list[ValidationError]]:
-    """B. Recompute every KPI's value fresh and compare — a structurally
-    valid but numerically incorrect result is still blocked, regardless of
-    how confident-looking the stored result is."""
+    """B. Recompute every KPI's value AND every analysis row's value fresh
+    and compare — a structurally valid but numerically incorrect result is
+    still blocked, regardless of how confident-looking the stored result is.
+    Analysis rows get the identical treatment as KPIs here: recompute.py
+    already reruns every grouped_* node too, so skipping run.analysis_results
+    would leave tampered group breakdowns completely unchecked."""
     errors: list[ValidationError] = []
     for kpi in run.kpi_results:
         node_id = plan.kpi_final_node.get(kpi.kpi_id)
@@ -59,16 +70,33 @@ def check_aggregation_correctness(
                         "explanation_code": "no_recomputed_node"}))
             continue
         recomputed_value, *_ = _kpi_result_from_node(recomputed_raw)
-        mismatch = (
-            (kpi.value is None) != (recomputed_value is None)
-            or (kpi.value is not None and recomputed_value is not None
-                and abs(kpi.value - recomputed_value) > _TOLERANCE)
-        )
-        if mismatch:
+        if _mismatch(kpi.value, recomputed_value):
             errors.append(ValidationError(
                 code="result_formula_mismatch", reference=kpi.kpi_id,
                 details={"reported_value": kpi.value, "recomputed_value": recomputed_value,
                         "explanation_code": "computed_value_does_not_match_lineage"}))
+
+    for analysis in run.analysis_results:
+        node_id = plan.analysis_node.get(analysis.analysis_id)
+        recomputed_groups = recomputed_nodes.get(node_id) if node_id else None
+        for row in analysis.rows:
+            reference = f"{analysis.analysis_id}:{row.group_value}"
+            recomputed_raw = (
+                recomputed_groups.get(row.group_value)
+                if isinstance(recomputed_groups, dict) else None
+            )
+            if recomputed_raw is None:
+                errors.append(ValidationError(
+                    code="result_formula_mismatch", reference=reference,
+                    details={"reported_value": row.value, "recomputed_value": None,
+                            "explanation_code": "no_recomputed_group"}))
+                continue
+            recomputed_value, *_ = _kpi_result_from_node(recomputed_raw)
+            if _mismatch(row.value, recomputed_value):
+                errors.append(ValidationError(
+                    code="result_formula_mismatch", reference=reference,
+                    details={"reported_value": row.value, "recomputed_value": recomputed_value,
+                            "explanation_code": "computed_value_does_not_match_lineage"}))
     status = "failed" if errors else "passed"
     return CheckResult(check="aggregation_correctness", status=status), errors
 
@@ -77,7 +105,9 @@ def check_sample_size_reconciliation(
     run: ExecutionRun,
 ) -> tuple[CheckResult, list[ValidationError]]:
     """C. Internal arithmetic consistency: a ratio's numerator can never
-    exceed its denominator, and every count must be non-negative."""
+    exceed its denominator, and every count must be non-negative. Applies to
+    analysis rows too — AnalysisResultRow carries the identical
+    numerator/denominator/sample_size fields KPIs do."""
     errors: list[ValidationError] = []
     for kpi in run.kpi_results:
         if kpi.numerator is not None and kpi.denominator is not None and kpi.numerator > kpi.denominator:
@@ -88,6 +118,17 @@ def check_sample_size_reconciliation(
             errors.append(ValidationError(
                 code="sample_size_inconsistent", reference=kpi.kpi_id,
                 details={"sample_size": kpi.sample_size, "excluded_null_rows": kpi.excluded_null_rows}))
+    for analysis in run.analysis_results:
+        for row in analysis.rows:
+            reference = f"{analysis.analysis_id}:{row.group_value}"
+            if row.numerator is not None and row.denominator is not None and row.numerator > row.denominator:
+                errors.append(ValidationError(
+                    code="sample_size_inconsistent", reference=reference,
+                    details={"numerator": row.numerator, "denominator": row.denominator}))
+            if row.sample_size < 0:
+                errors.append(ValidationError(
+                    code="sample_size_inconsistent", reference=reference,
+                    details={"sample_size": row.sample_size}))
     status = "failed" if errors else "passed"
     return CheckResult(check="sample_size_reconciliation", status=status), errors
 
@@ -142,11 +183,12 @@ def check_no_invented_columns(
 def check_no_invented_kpis(
     plan: ExecutionPlan, run: ExecutionRun,
 ) -> tuple[CheckResult, list[ValidationError]]:
-    """E (groups/values). Every analysis row's group must be traceable to
-    a group the recomputation actually produced (checked by the caller,
-    which passes in the recomputed groups) — and every analysis_id/kpi_id
-    the run reports must have a corresponding compiled node, i.e. it came
-    from C11's own DAG, never fabricated post-hoc."""
+    """E (IDs). Every analysis_id/kpi_id the run reports must have a
+    corresponding compiled node, i.e. it came from C11's own DAG, never
+    fabricated post-hoc. (A row's *group* being traceable to a real
+    recomputed group is checked separately, in check_aggregation_correctness
+    — a group missing from the recomputation surfaces there as
+    "no_recomputed_group".)"""
     errors: list[ValidationError] = []
     for kpi in run.kpi_results:
         if kpi.kpi_id not in plan.kpi_final_node:
@@ -212,3 +254,21 @@ def null_exclusion_warnings(run: ExecutionRun) -> list[ValidationWarning]:
                           details={"excluded_rows": kpi.excluded_null_rows})
         for kpi in run.kpi_results if kpi.excluded_null_rows > 0
     ]
+
+
+def null_result_warnings(run: ExecutionRun) -> list[ValidationWarning]:
+    """A ratio KPI's `zero_denominator_policy` is only ever authored as
+    "return_null_with_warning" in practice — but C12's safe_ratio/
+    grouped_safe_ratio only ever did the "return_null" half; nothing
+    actually emitted the promised warning. This closes that gap: a `None`
+    value (only possible from a zero denominator — sum/average/count always
+    produce a real number) always surfaces here, valid but flagged."""
+    warnings = [
+        ValidationWarning(code="null_result", reference=kpi.kpi_id)
+        for kpi in run.kpi_results if kpi.value is None
+    ]
+    warnings.extend(
+        ValidationWarning(code="null_result", reference=f"{analysis.analysis_id}:{row.group_value}")
+        for analysis in run.analysis_results for row in analysis.rows if row.value is None
+    )
+    return warnings

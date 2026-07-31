@@ -38,9 +38,12 @@ def planning_context_router() -> APIRouter:
     @router.post("/run", response_model=PlanningContext)
     def run(req: ContextRunRequest, workspace_id: int = Query(1)) -> PlanningContext:
         """Assemble and persist a dataset's planning context."""
+        logger.info("planning-context run request ws=%s dataset=%s version=%s",
+                   workspace_id, req.dataset_id, req.dataset_version)
         ctx = run_context(get_settings().rdb_dsn, workspace_id,
                           req.dataset_id, req.dataset_version)
         if ctx is None:
+            logger.info("no profile found for dataset=%s ws=%s", req.dataset_id, workspace_id)
             raise HTTPException(404, f"no profile for dataset {req.dataset_id!r}")
         return ctx
 
@@ -59,8 +62,10 @@ def planning_context_router() -> APIRouter:
     @router.post("/workspace/run", response_model=PlanningContext)
     def run_workspace(workspace_id: int = Query(1)) -> PlanningContext:
         """Assemble and persist the whole workspace's merged planning context."""
+        logger.info("planning-context workspace run request ws=%s", workspace_id)
         ctx = run_workspace_context(get_settings().rdb_dsn, workspace_id)
         if ctx is None:
+            logger.info("no profiled datasets found in workspace ws=%s", workspace_id)
             raise HTTPException(404, "no profiled datasets in this workspace yet")
         return ctx
 
@@ -73,6 +78,7 @@ def planning_context_router() -> APIRouter:
         finally:
             store.close()
         if latest is None:
+            logger.info("no workspace-wide planning context yet ws=%s", workspace_id)
             raise HTTPException(404, "no workspace-wide planning context yet")
         return latest
 
@@ -86,6 +92,7 @@ def planning_context_router() -> APIRouter:
         finally:
             store.close()
         if latest is None:
+            logger.info("no planning context found for dataset=%s ws=%s", dataset_id, workspace_id)
             raise HTTPException(404, f"no planning context for dataset {dataset_id!r}")
         return latest
 

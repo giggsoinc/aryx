@@ -30,7 +30,6 @@ _PROMOTED_CODES = {
     "unapproved_column": "column_not_found",
     "unsupported_operation": "unsupported_operation",
     "unsupported_chart_type": "unsupported_chart_type",
-    "dangling_reference": "dangling_reference",
     "unknown_dataset": "unknown_dataset",
 }
 
@@ -68,6 +67,17 @@ def _promote(spec: DashboardSpec, code: str) -> list[ValidationError]:
     ]
 
 
+def _dangling_reference_warnings(spec: DashboardSpec) -> list[ValidationWarning]:
+    """A dangling chart/analysis reference is already self-healed by C08:
+    `ground_spec` drops the offending visualization before it ever reaches
+    the spec, so the rest of the spec (every other chart, KPI, analysis) is
+    still fully valid. Rejecting the whole spec over one already-removed
+    chart wastes a full LLM regeneration for something that never rendered
+    anyway — surface it as a warning instead, not a blocking error."""
+    return [ValidationWarning(code="dangling_reference", scope=w.detail)
+           for w in spec.warnings if w.code == "dangling_reference"]
+
+
 def check_json_schema(spec: DashboardSpec, ctx: ValidationContext) -> tuple[CheckResult, list[ValidationError], list[ValidationWarning]]:
     """1. Required fields present: at least one business question and one KPI."""
     if spec.spec_status == "invalid" or not spec.business_questions or not spec.kpis:
@@ -102,14 +112,26 @@ def _kpi_measure_type(kpi: Kpi, ctx: ValidationContext) -> str | None:
 
 
 def check_type_compatibility(spec: DashboardSpec, ctx: ValidationContext) -> tuple[CheckResult, list[ValidationError], list[ValidationWarning]]:
-    """4. Numeric operations (sum/average/median) use a numeric measure."""
+    """4. Numeric operations (sum/average/median) use a numeric measure.
+
+    A KPI with `measure` unset entirely used to pass this check silently
+    (the old condition only fired when `measure` was present but wrong) —
+    C11 then compiles it against a literal empty column name (see
+    execution_compiler.compile._compile_kpi), and C12 returns a fabricated
+    value=0.0/sample_size=0 instead of a real result or a loud failure.
+    `source_columns` (lineage-only) is not a substitute for `measure`."""
     errors: list[ValidationError] = []
     for kpi in spec.kpis:
-        if kpi.operation in _NUMERIC_OPS and kpi.measure:
-            col_type = _kpi_measure_type(kpi, ctx)
-            if col_type is not None and col_type != "numeric":
-                errors.append(ValidationError(code="type_mismatch", path=f"kpi:{kpi.kpi_id}.measure",
-                                              reference=kpi.measure))
+        if kpi.operation not in _NUMERIC_OPS:
+            continue
+        if not kpi.measure:
+            errors.append(ValidationError(code="missing_measure", path=f"kpi:{kpi.kpi_id}.measure",
+                                          reference=kpi.kpi_id))
+            continue
+        col_type = _kpi_measure_type(kpi, ctx)
+        if col_type is not None and col_type != "numeric":
+            errors.append(ValidationError(code="type_mismatch", path=f"kpi:{kpi.kpi_id}.measure",
+                                          reference=kpi.measure))
     status = "failed" if errors else "passed"
     return CheckResult(check="type_compatibility", status=status), errors, []
 
@@ -132,14 +154,26 @@ def check_formula_validity(spec: DashboardSpec, ctx: ValidationContext) -> tuple
     return CheckResult(check="formula_validation", status=status), errors, []
 
 
+_IMPLEMENTED_ZERO_DENOMINATOR_POLICIES = {"return_null_with_warning"}
+
+
 def check_division_by_zero_policy(spec: DashboardSpec, ctx: ValidationContext) -> tuple[CheckResult, list[ValidationError], list[ValidationWarning]]:
-    """7. Every ratio/percentage KPI declares a zero-denominator policy."""
+    """7. Every ratio/percentage KPI declares a zero-denominator policy that
+    C12/C13 actually implement — execute.py only ever returns null + warns,
+    so any other declared policy would silently diverge from what runs."""
     errors: list[ValidationError] = []
     for kpi in spec.kpis:
-        if kpi.operation in _RATIO_OPS and not kpi.zero_denominator_policy:
+        if kpi.operation not in _RATIO_OPS:
+            continue
+        if not kpi.zero_denominator_policy:
             errors.append(ValidationError(code="missing_zero_denominator_policy",
                                           path=f"kpi:{kpi.kpi_id}.zero_denominator_policy",
                                           reference=kpi.kpi_id))
+        elif kpi.zero_denominator_policy not in _IMPLEMENTED_ZERO_DENOMINATOR_POLICIES:
+            errors.append(ValidationError(
+                code="unsupported_zero_denominator_policy",
+                path=f"kpi:{kpi.kpi_id}.zero_denominator_policy={kpi.zero_denominator_policy!r}",
+                reference=kpi.kpi_id))
     status = "failed" if errors else "passed"
     return CheckResult(check="division_by_zero_policy", status=status), errors, []
 
@@ -155,8 +189,9 @@ def _viz_dataset_id(spec: DashboardSpec, source_ref: str) -> str:
 
 
 def check_chart_axis_compatibility(spec: DashboardSpec, ctx: ValidationContext) -> tuple[CheckResult, list[ValidationError], list[ValidationWarning]]:
-    """8. Chart type and axes are compatible (plus promoted chart/ref warnings)."""
-    errors = _promote(spec, "unsupported_chart_type") + _promote(spec, "dangling_reference")
+    """8. Chart type and axes are compatible (plus promoted chart-type errors
+    and non-blocking dangling-reference warnings)."""
+    errors = _promote(spec, "unsupported_chart_type")
     for viz in spec.visualizations:
         if viz.chart_type != "scatter" or not viz.x_axis or not viz.y_axis:
             continue
@@ -168,7 +203,8 @@ def check_chart_axis_compatibility(spec: DashboardSpec, ctx: ValidationContext) 
                                           path=f"visualization:{viz.chart_id}",
                                           reference=viz.chart_id))
     status = "failed" if errors else "passed"
-    return CheckResult(check="chart_axis_compatibility", status=status), errors, []
+    return (CheckResult(check="chart_axis_compatibility", status=status), errors,
+           _dangling_reference_warnings(spec))
 
 
 def check_lineage_declaration(spec: DashboardSpec, ctx: ValidationContext) -> tuple[CheckResult, list[ValidationError], list[ValidationWarning]]:

@@ -39,25 +39,34 @@ def dashboard_model_router() -> APIRouter:
     @router.post("/run", response_model=DashboardModel)
     def run(req: DashboardComposeRequest, workspace_id: int = Query(1)) -> DashboardModel:
         """Compose the dashboard model for `dataset_id` and persist it."""
+        logger.info("dashboard-model compose requested ws=%s dataset=%s use_llm=%s",
+                   workspace_id, req.dataset_id, req.use_llm)
         broker = None
         if req.use_llm:
             from aryx.api.admin_api import _local_broker
             broker = _local_broker()
-        return compose_dashboard(
+        model = compose_dashboard(
             get_settings().rdb_dsn, workspace_id, req.dataset_id,
             audience=req.audience, maximum_columns=req.maximum_columns,
             maximum_primary_charts=req.maximum_primary_charts,
             use_llm=req.use_llm, tier=req.tier, broker=broker, complete_json_fn=complete_json,
         )
+        if model.composition_status != "valid":
+            logger.warning("dashboard-model composed invalid ws=%s dataset=%s issues=%s",
+                          workspace_id, req.dataset_id, [i.code for i in model.issues])
+        return model
 
     @router.get("/workspace", response_model=DashboardModel | None)
     def latest_workspace_model(workspace_id: int = Query(1)) -> DashboardModel | None:
         """Fetch the latest composed dashboard for the whole workspace, or null."""
         store = DashboardModelStore(get_settings().rdb_dsn, workspace_id)
         try:
-            return store.latest(f"workspace_{workspace_id}")
+            latest = store.latest(f"workspace_{workspace_id}")
         finally:
             store.close()
+        if latest is None:
+            logger.info("no dashboard model found ws=%s", workspace_id)
+        return latest
 
     @router.get("/versions", response_model=list[DashboardModel])
     def list_models(dataset_id: str = Query(...), workspace_id: int = Query(1),

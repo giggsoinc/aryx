@@ -37,11 +37,14 @@ def semantic_router() -> APIRouter:
     @router.post("/run", response_model=SemanticProfile)
     def run(req: SemanticRunRequest, workspace_id: int = Query(1)) -> SemanticProfile:
         """Interpret a dataset version (defaults to latest) and persist it."""
+        logger.info("semantic run request ws=%s dataset=%s version=%s domain=%s",
+                   workspace_id, req.dataset_id, req.dataset_version, req.domain)
         profile = run_interpret(
             get_settings().rdb_dsn, workspace_id, req.dataset_id,
             req.dataset_version, domain=req.domain, broker=_local_broker(),
         )
         if profile is None:
+            logger.info("no profile found for dataset=%s ws=%s", req.dataset_id, workspace_id)
             raise HTTPException(404, f"no profile for dataset {req.dataset_id!r}")
         return profile
 
@@ -66,6 +69,7 @@ def semantic_router() -> APIRouter:
         finally:
             store.close()
         if latest is None:
+            logger.info("no semantic profile found for dataset=%s ws=%s", dataset_id, workspace_id)
             raise HTTPException(404, f"no semantic profile for dataset {dataset_id!r}")
         return latest
 

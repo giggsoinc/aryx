@@ -16,7 +16,8 @@ from aryx.execution_compiler.models import ExecutionPlan
 from aryx.post_execution_validation.checks import (
     check_aggregation_correctness, check_evidence_lineage, check_no_invented_columns,
     check_no_invented_kpis, check_result_identity, check_result_shape,
-    check_sample_size_reconciliation, null_exclusion_warnings, small_sample_warnings,
+    check_sample_size_reconciliation, null_exclusion_warnings, null_result_warnings,
+    small_sample_warnings,
 )
 from aryx.post_execution_validation.models import PostExecutionReport
 from aryx.profiler.models import DatasetProfile
@@ -67,6 +68,7 @@ def validate_execution(
 
     warnings.extend(small_sample_warnings(run))
     warnings.extend(null_exclusion_warnings(run))
+    warnings.extend(null_result_warnings(run))
 
     status = "rejected" if errors else ("approved_with_warnings" if warnings else "approved")
     return PostExecutionReport(

@@ -42,11 +42,17 @@ def andie_planner_router() -> APIRouter:
     @router.post("/run", response_model=PlannerResult)
     def run(req: PlannerRunRequest, workspace_id: int = Query(1)) -> PlannerResult:
         """Draft, ground, and persist a candidate dashboard spec."""
-        return run_planner(
+        logger.info("andie-planner run request ws=%s dataset=%s tier=%s",
+                   workspace_id, req.dataset_id, req.tier)
+        result = run_planner(
             get_settings().rdb_dsn, workspace_id, req.dataset_id,
             objective=req.objective, target_audience=req.target_audience,
             tier=req.tier,
         )
+        if result.status != "valid":
+            logger.warning("andie-planner run ws=%s dataset=%s ended status=%s error_code=%s",
+                          workspace_id, req.dataset_id, result.status, result.error_code)
+        return result
 
     # Declared before /{dataset_id} so "versions"/"workspace" are not
     # swallowed as a dataset_id path param.
@@ -64,10 +70,15 @@ def andie_planner_router() -> APIRouter:
     def run_workspace(req: WorkspacePlannerRunRequest,
                       workspace_id: int = Query(1)) -> PlannerResult:
         """Draft, ground, and persist a dashboard spec spanning the WHOLE workspace."""
-        return run_planner_workspace(
+        logger.info("andie-planner workspace run request ws=%s tier=%s", workspace_id, req.tier)
+        result = run_planner_workspace(
             get_settings().rdb_dsn, workspace_id,
             objective=req.objective, target_audience=req.target_audience, tier=req.tier,
         )
+        if result.status != "valid":
+            logger.warning("andie-planner workspace run ws=%s ended status=%s error_code=%s",
+                          workspace_id, result.status, result.error_code)
+        return result
 
     @router.get("/workspace", response_model=PlannerResult)
     def get_workspace_result(workspace_id: int = Query(1)) -> PlannerResult:
@@ -78,6 +89,7 @@ def andie_planner_router() -> APIRouter:
         finally:
             store.close()
         if latest is None:
+            logger.info("no workspace-wide planning result yet ws=%s", workspace_id)
             raise HTTPException(404, "no workspace-wide planning result yet")
         return latest
 
@@ -90,6 +102,7 @@ def andie_planner_router() -> APIRouter:
         finally:
             store.close()
         if latest is None:
+            logger.info("no planning result found for dataset=%s ws=%s", dataset_id, workspace_id)
             raise HTTPException(404, f"no planning result for dataset {dataset_id!r}")
         return latest
 

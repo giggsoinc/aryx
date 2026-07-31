@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 
-PROMPT_VERSION = "1.1"
+PROMPT_VERSION = "1.2"
 
 # Discipline adapted from Raven's andie-jr skill (.claude/skills/andie-jr/SKILL.md).
 # andie-jr is a brownfield BUG-triage skill — its roles, verdict shape, audit
@@ -80,6 +80,12 @@ def build_planner_prompt(
         f"Output schema version: {output_schema_version}\n\n"
         "Approved resources (the ONLY vocabulary you may use):\n"
         f"{json.dumps(resources, indent=2)}\n\n"
+        "Cover a real SPREAD of the objective: propose at least 4 and no more "
+        "than 6 visualizations total — a single KPI card is not a dashboard. "
+        "If any approved_columns entry looks like a date/time column, include "
+        "at least one analysis grouped by it (e.g. by month or period) so a "
+        "trend over time is visible, rendered with whichever supported_charts "
+        "type fits.\n\n"
         "Return a JSON object with exactly these keys:\n"
         "business_questions: [{question_id, text}] — propose 3 to 5.\n"
         "kpis: [{kpi_id, name, source_columns, operation, measure?, filter?, "
@@ -137,6 +143,12 @@ def build_workspace_planner_prompt(
         "in different datasets, so every KPI and analysis you propose MUST "
         "declare exactly which dataset its columns come from:\n"
         f"{json.dumps(resources, indent=2)}\n\n"
+        "Cover a real SPREAD of the objective: propose at least 4 and no more "
+        "than 6 visualizations total across the whole workspace — a single "
+        "KPI card is not a dashboard. If any dataset's approved_columns has a "
+        "date/time column, include at least one analysis grouped by it (e.g. "
+        "by month or period) so a trend over time is visible, rendered with "
+        "whichever supported_charts type fits.\n\n"
         "Return a JSON object with exactly these keys:\n"
         "business_questions: [{question_id, text}] — propose 3 to 5, "
         "spanning multiple datasets where useful.\n"

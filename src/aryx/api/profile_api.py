@@ -35,9 +35,12 @@ def profile_router() -> APIRouter:
     @router.post("/run", response_model=DatasetProfile)
     def run(req: ProfileRunRequest, workspace_id: int = Query(1)) -> DatasetProfile:
         """Profile a dataset version (defaults to latest) and persist it."""
+        logger.info("profile run request ws=%s dataset=%s version=%s",
+                   workspace_id, req.dataset_id, req.dataset_version)
         profile = run_profile(get_settings().rdb_dsn, workspace_id,
                               req.dataset_id, req.dataset_version)
         if profile is None:
+            logger.info("no snapshot found for dataset=%s ws=%s", req.dataset_id, workspace_id)
             raise HTTPException(404, f"no snapshot for dataset {req.dataset_id!r}")
         return profile
 
@@ -62,6 +65,7 @@ def profile_router() -> APIRouter:
         finally:
             store.close()
         if latest is None:
+            logger.info("no profile found for dataset=%s ws=%s", dataset_id, workspace_id)
             raise HTTPException(404, f"no profile for dataset {dataset_id!r}")
         return latest
 

@@ -4,7 +4,7 @@ GET /execution-plan/{dataset_id}  — latest compiled plan for a dataset.
 GET /execution-plan/versions      — list recent plans across the workspace.
 
 Plans are produced automatically once C08's spec is approved (C09) — see
-andie_planner.run._run_c11_for_dataset. No LLM, no run/POST endpoint here.
+andie_planner.run._run_c11_for_spec. No LLM, no run/POST endpoint here.
 """
 from __future__ import annotations
 
@@ -43,6 +43,7 @@ def execution_plan_router() -> APIRouter:
         finally:
             store.close()
         if latest is None:
+            logger.info("no execution plan found ws=%s dataset=%s", workspace_id, dataset_id)
             raise HTTPException(404, f"no execution plan for {dataset_id!r}")
         return latest
 

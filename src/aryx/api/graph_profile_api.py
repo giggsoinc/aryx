@@ -35,11 +35,15 @@ def graph_profile_router() -> APIRouter:
     @router.post("/run", response_model=GraphProfile)
     def run(req: GraphProfileRunRequest, workspace_id: int = Query(1)) -> GraphProfile:
         """Profile the latest validated graph and persist the profile."""
+        logger.info("graph-profile requested ws=%s graph=%s depth=%d",
+                   workspace_id, req.graph_id, req.maximum_path_depth)
         prof = run_graph_profile(
             get_settings().rdb_dsn, workspace_id, req.graph_id,
             user_objective=req.user_objective, max_depth=req.maximum_path_depth,
         )
         if prof is None:
+            logger.info("graph-profile found no validated graph ws=%s graph=%s",
+                       workspace_id, req.graph_id)
             raise HTTPException(404, "no validated graph to profile; run graph intake first")
         return prof
 
@@ -63,6 +67,7 @@ def graph_profile_router() -> APIRouter:
         finally:
             store.close()
         if latest is None:
+            logger.info("no graph profile found ws=%s graph=%s", workspace_id, graph_id)
             raise HTTPException(404, f"no graph profile for {graph_id!r}")
         return latest
 

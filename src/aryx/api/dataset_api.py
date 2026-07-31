@@ -45,6 +45,7 @@ def dataset_router() -> APIRouter:
         finally:
             store.close()
         if latest is None:
+            logger.info("no dataset found ws=%s dataset=%s", workspace_id, dataset_id)
             raise HTTPException(404, f"no dataset {dataset_id!r}")
         return latest
 

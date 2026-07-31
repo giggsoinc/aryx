@@ -19,7 +19,9 @@ from aryx.execution_compiler.models import CompilationIssue, ExecutionNode, Exec
 from aryx.execution_compiler.templates import (
     GROUPED_NUMERIC_TEMPLATES, NUMERIC_TEMPLATES, RATIO_OPERATIONS,
 )
-from aryx.execution_compiler.validate import check_resource_limits, is_acyclic, validate_bindings
+from aryx.execution_compiler.validate import (
+    check_ratio_operand_operations, check_resource_limits, is_acyclic, validate_bindings,
+)
 
 DEFAULT_ROW_LIMIT = 1_000_000
 DEFAULT_NODE_LIMIT = 200
@@ -28,6 +30,7 @@ DEFAULT_NODE_LIMIT = 200
 _HARD_FAILURE_CODES = frozenset({
     "unknown_template", "parameter_mismatch", "dangling_dependency",
     "duplicate_node_id", "cyclic_dependency", "node_limit_exceeded",
+    "unsupported_ratio_operand_operation",
 })
 
 
@@ -188,6 +191,7 @@ def compile_plan(
 
     # Steps 5-7: resource/row limits, template-binding + acyclic self-check.
     issues: list[CompilationIssue] = []
+    issues.extend(check_ratio_operand_operations(kpis))
     issues.extend(check_resource_limits(nodes, node_limit))
     issues.extend(validate_bindings(nodes))
     acyclic = is_acyclic(nodes)

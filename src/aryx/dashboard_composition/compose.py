@@ -43,7 +43,13 @@ def _build_components(
             issues.append(CompositionIssue(code="missing_computed_result", reference=viz.source_ref))
             continue
         components.append(DashboardComponent(
-            component_id=f"component_{viz.source_ref}", type=viz.chart_type,
+            # Keyed on chart_id, not source_ref: a spec legitimately renders
+            # the same kpi_id/analysis_id through more than one
+            # visualization (e.g. a chart AND a table for the same
+            # analysis) — chart_id is the field C09/the planner author as
+            # the per-visualization identifier, so it's the correct
+            # uniqueness key here, not the thing being visualized.
+            component_id=f"component_{viz.chart_id}", type=viz.chart_type,
             source_ref=viz.source_ref, position=0))
     return components, issues
 

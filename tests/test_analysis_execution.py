@@ -98,6 +98,31 @@ def test_grouped_safe_ratio_breaks_down_by_region() -> None:
     assert round(south["value"], 4) == round(45 / 80, 4)
 
 
+def test_grouped_safe_ratio_keeps_a_group_with_only_numerator_hits() -> None:
+    # Regression: a group whose rows only ever matched numerator_values (and
+    # never denominator_values — disjoint filter sets are structurally
+    # valid) used to vanish from the output entirely instead of appearing
+    # with denominator=0.
+    rows = [
+        {"deal_id": "d1", "outcome": "Won", "region": "West"},
+        {"deal_id": "d2", "outcome": "Won", "region": "West"},
+        {"deal_id": "d3", "outcome": "Lost", "region": "East"},
+    ]
+    kpi = Kpi(
+        kpi_id="kpi_win_loss", dataset_id=DATASET, operation="ratio",
+        numerator=KpiOperand(operation="count", filter=KpiFilter(column="outcome", value="Won")),
+        denominator=KpiOperand(operation="count", filter=KpiFilter(column="outcome", value="Lost")),
+    )
+    analysis = Analysis(analysis_id="an_win_loss", operation="group_by",
+                        dataset_id=DATASET, group_by=["region"], metric="kpi_win_loss")
+    plan = compile_plan("spec_1", DATASET, "v1", [kpi], [analysis])
+    results, errors, _completed, _failed = run_plan(plan, {DATASET: rows})
+    assert errors == []
+    grouped = results[plan.analysis_node["an_win_loss"]]
+    assert grouped["West"] == {"numerator": 2, "denominator": 0, "value": None, "sample_size": 0}
+    assert grouped["East"] == {"numerator": 0, "denominator": 1, "value": 0.0, "sample_size": 1}
+
+
 def test_grouped_sum_numeric_by_region() -> None:
     rows = _rows(renewed=2, not_renewed=0, region="East") + _rows(renewed=3, not_renewed=0, region="West")
     kpi = Kpi(kpi_id="kpi_value", dataset_id=DATASET, operation="sum", measure="contract_value")

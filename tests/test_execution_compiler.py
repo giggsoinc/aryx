@@ -84,6 +84,18 @@ def test_ratio_kpi_defaults_zero_policy_when_unset() -> None:
     assert ratio.parameters["zero_policy"] == "return_null_with_warning"
 
 
+def test_ratio_kpi_with_numeric_operand_operation_is_rejected() -> None:
+    # KpiOperand has no measure/column field — "sum"/"average"/"median" as a
+    # numerator/denominator op has no column to bind and used to silently
+    # compile against an empty column name (fabricating 0.0) instead of
+    # being rejected.
+    kpi = Kpi(kpi_id="kpi_bad", dataset_id="ds1", operation="ratio",
+             numerator=KpiOperand(operation="sum"), denominator=KpiOperand(operation="count"))
+    plan = compile_plan("spec_1", "ds1", "v1", [kpi], [])
+    assert plan.compilation_status == "rejected"
+    assert any(i.code == "unsupported_ratio_operand_operation" for i in plan.issues)
+
+
 # ── analysis (grouped) compilation ────────────────────────────────────────
 
 def test_grouped_analysis_referencing_ratio_kpi() -> None:

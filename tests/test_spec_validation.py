@@ -149,6 +149,20 @@ def test_numeric_operation_on_categorical_measure_fails_type_check() -> None:
     assert any(e.code == "type_mismatch" and e.reference == "region" for e in report.errors)
 
 
+def test_sum_kpi_with_no_measure_at_all_is_rejected() -> None:
+    # Regression: a sum/average/median KPI that never sets `measure` (only
+    # `source_columns`, which is lineage-only) used to pass this check
+    # silently, then compile against a literal empty column name in C11 and
+    # return a fabricated value=0.0/sample_size=0 in C12 — indistinguishable
+    # from a real "no data" result.
+    raw = dict(GOOD_RAW, kpis=[{
+        "kpi_id": "kpi_bad", "operation": "sum", "source_columns": ["contract_value"],
+    }])
+    spec = _ground(raw)
+    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert any(e.code == "missing_measure" and e.reference == "kpi_bad" for e in report.errors)
+
+
 # ── 5. operation whitelist (promoted from ground.py) ─────────────────────
 
 def test_unsupported_operation_fails_whitelist_check() -> None:
@@ -185,6 +199,19 @@ def test_ratio_without_zero_denominator_policy_fails() -> None:
     assert any(e.code == "missing_zero_denominator_policy" for e in report.errors)
 
 
+def test_ratio_with_unimplemented_zero_denominator_policy_fails() -> None:
+    # C12/C13 only ever implement "return_null_with_warning" — any other
+    # declared policy would silently diverge from what actually executes.
+    raw = dict(GOOD_RAW, kpis=[{
+        "kpi_id": "kpi_bad", "operation": "ratio", "source_columns": ["contract_value"],
+        "numerator": {"operation": "count"}, "denominator": {"operation": "count"},
+        "zero_denominator_policy": "return_zero",
+    }])
+    spec = _ground(raw)
+    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert any(e.code == "unsupported_zero_denominator_policy" for e in report.errors)
+
+
 # ── 8. chart/axis compatibility ──────────────────────────────────────────
 
 def test_scatter_with_two_categorical_axes_fails() -> None:
@@ -195,6 +222,26 @@ def test_scatter_with_two_categorical_axes_fails() -> None:
     spec = _ground(raw)
     report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
     assert any(e.code == "incompatible_chart_axes" and e.reference == "c1" for e in report.errors)
+
+
+def test_dangling_reference_is_a_warning_not_a_rejection() -> None:
+    # C08 (ground_spec) already drops a chart pointing at a nonexistent
+    # kpi_id/analysis_id before it ever reaches the spec — the rest of the
+    # spec (every other valid chart/KPI/analysis) is unaffected, so this
+    # must not doom the whole candidate the way a real invented column does.
+    raw = dict(GOOD_RAW, visualizations=[
+        *GOOD_RAW["visualizations"],
+        {"chart_id": "c_ghost", "chart_type": "bar", "source_ref": "kpi_does_not_exist"},
+    ])
+    spec = _ground(raw)
+    assert len(spec.visualizations) == len(GOOD_RAW["visualizations"])  # ghost chart dropped
+    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert not any(e.code == "dangling_reference" for e in report.errors)
+    assert report.status == "approved"
+    assert any(w.code == "dangling_reference" for w in report.warnings)
+
+
+# ── 8. chart/axis compatibility (cont.) ──────────────────────────────────
 
 
 def test_scatter_with_numeric_axis_passes_axis_check() -> None:
@@ -259,6 +306,35 @@ def test_repair_constraints_text_renders_readable_instructions() -> None:
     text = repair_constraints_text(repair)
     assert "REJECTED" in text
     assert "unsupported_operation" in text
+
+
+def test_repair_text_explains_ratio_kpi_defects_instead_of_a_bare_operation_list() -> None:
+    # Regression: these two codes used to render "Use EXACTLY one of these
+    # real operations: ['ratio', 'percentage']" — useless, since the KPI
+    # already had operation='ratio' set correctly; the actual defect (a
+    # missing numerator/denominator, or an unsupported policy string) was
+    # never mentioned, so the one allowed repair retry couldn't fix it.
+    raw = dict(GOOD_RAW, kpis=[{
+        "kpi_id": "kpi_bad", "operation": "ratio", "source_columns": ["contract_value"],
+    }])
+    spec = _ground(raw)
+    report, repair = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert repair is not None
+    text = repair_constraints_text(repair)
+    assert "numerator and/or denominator" in text
+    assert "kpi_bad" in text
+    assert "['ratio', 'percentage']" not in text
+
+
+def test_repair_text_explains_missing_measure() -> None:
+    raw = dict(GOOD_RAW, kpis=[{
+        "kpi_id": "kpi_bad", "operation": "sum", "source_columns": ["contract_value"],
+    }])
+    spec = _ground(raw)
+    report, repair = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert repair is not None
+    text = repair_constraints_text(repair)
+    assert "measure" in text and "kpi_bad" in text
 
 
 # ── workspace (multi-dataset) mode ───────────────────────────────────────

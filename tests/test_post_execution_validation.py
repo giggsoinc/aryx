@@ -16,7 +16,8 @@ from aryx.execution_compiler.compile import compile_plan
 from aryx.post_execution_validation.checks import (
     check_evidence_lineage, check_no_invented_columns,
     check_no_invented_kpis, check_result_identity, check_result_shape,
-    check_sample_size_reconciliation, null_exclusion_warnings, small_sample_warnings,
+    check_sample_size_reconciliation, null_exclusion_warnings, null_result_warnings,
+    small_sample_warnings,
 )
 from aryx.post_execution_validation.models import SMALL_SAMPLE_THRESHOLD
 from aryx.post_execution_validation.validate import validate_execution
@@ -156,6 +157,43 @@ def test_wrong_reported_value_is_rejected_even_though_well_formed() -> None:
     assert round(mismatch.details["recomputed_value"], 10) == round(211 / 340, 10)
 
 
+def test_wrong_analysis_row_value_is_rejected_not_just_kpis() -> None:
+    # Regression: check_aggregation_correctness originally only recomputed
+    # run.kpi_results — a tampered analysis (grouped) row sailed through
+    # completely unchecked even though recompute.py already reruns the
+    # grouped_* nodes too.
+    kpi = _renewal_rate_kpi()
+    analysis = Analysis(analysis_id="an_region", operation="group_by", dataset_id=DATASET,
+                       group_by=["region"], metric="kpi_renewal_rate")
+    spec, plan = _spec_and_plan([kpi], [analysis])
+    rows = _rows(renewed=6, not_renewed=9, region="West")
+    run = _run_for(spec, plan, rows)
+    node_results, _errors, _c, _f = run_plan(plan, {DATASET: rows})
+    profile_by_dataset = {DATASET: _profile()}
+
+    run.analysis_results[0].rows[0].value = 0.99  # tamper the grouped value, not the KPI
+    report = validate_execution(spec, plan, run, node_results, profile_by_dataset)
+    assert report.status == "rejected"
+    mismatch = next(e for e in report.errors if e.code == "result_formula_mismatch"
+                    and e.reference == "an_region:West")
+    assert mismatch.details["reported_value"] == 0.99
+    assert round(mismatch.details["recomputed_value"], 4) == round(6 / 15, 4)
+
+
+def test_impossible_analysis_row_numerator_is_rejected() -> None:
+    kpi = _renewal_rate_kpi()
+    analysis = Analysis(analysis_id="an_region", operation="group_by", dataset_id=DATASET,
+                       group_by=["region"], metric="kpi_renewal_rate")
+    spec, plan = _spec_and_plan([kpi], [analysis])
+    rows = _rows(renewed=6, not_renewed=9, region="West")
+    run = _run_for(spec, plan, rows)
+    run.analysis_results[0].rows[0].numerator = 999  # exceeds its own denominator
+    result, errors = check_sample_size_reconciliation(run)
+    assert result.status == "failed"
+    assert any(e.code == "sample_size_inconsistent" and e.reference == "an_region:West"
+              for e in errors)
+
+
 # ── individual checks ─────────────────────────────────────────────────────
 
 def test_check_result_identity_flags_unexpected_and_missing() -> None:
@@ -259,3 +297,15 @@ def test_null_exclusion_warning_fires_for_excluded_rows() -> None:
     warnings = null_exclusion_warnings(run)
     assert any(w.code == "null_values_excluded" and w.reference == "kpi_value"
               and w.details["excluded_rows"] == 1 for w in warnings)
+
+
+def test_null_result_warning_fires_for_zero_denominator() -> None:
+    # zero_denominator_policy is only ever authored as
+    # "return_null_with_warning" — this closes the "with warning" half,
+    # which C12 alone never fulfilled (it only ever did the "return_null" part).
+    kpi = _renewal_rate_kpi()
+    spec, plan = _spec_and_plan([kpi])
+    run = _run_for(spec, plan, [])  # no rows at all -> denominator is 0
+    assert run.kpi_results[0].value is None
+    warnings = null_result_warnings(run)
+    assert any(w.code == "null_result" and w.reference == "kpi_renewal_rate" for w in warnings)
