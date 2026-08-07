@@ -11,6 +11,8 @@ manifest.secrets.json
 .raven/.cache/
 .raven/audit/
 .raven/guard/digest.log
+**/.raven/.model-session.json
+**/.raven/state/
 
 # Raven framework — never commit (lives outside project)
 raven-claude/
@@ -39,3 +41,8 @@ Current_State_Aryx.html
 # Local Raven ops notes (not product docs)
 docs/raven_html.md
 raven_html.md
+
+# Local marketing / packaging scratch — not part of the product
+aryx-website.html
+linkedin-promo.md
+aryx_full.zip
