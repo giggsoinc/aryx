@@ -11,6 +11,8 @@ manifest.secrets.json
 .raven/.cache/
 .raven/audit/
 .raven/guard/digest.log
+**/.raven/.model-session.json
+**/.raven/state/
 
 # Raven framework — never commit (lives outside project)
 raven-claude/
@@ -49,3 +51,8 @@ raven_html.md
 
 # Not open source — never commit
 .claude/skills/andie-insights/
+
+# Local marketing / packaging scratch — not part of the product
+aryx-website.html
+linkedin-promo.md
+aryx_full.zip
