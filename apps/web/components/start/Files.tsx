@@ -22,6 +22,7 @@ const MAX_FILES = 50;
  *  which kicks the doc pipeline (chunk → PII → embed → extract). */
 export function Files({ workspaceId, onUploaded, onBack, onSkip }: Props) {
   const [files, setFiles] = useState<File[]>([]);
+  const [context, setContext] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -43,10 +44,11 @@ export function Files({ workspaceId, onUploaded, onBack, onSkip }: Props) {
   const upload = async () => {
     if (!files.length) return;
     if (tooBig) { setError("Some files exceed the size limits."); return; }
+    if (!context.trim()) { setError("Describe what these files contain first."); return; }
     setBusy(true);
     setError(null);
     try {
-      const r = await api.uploadFiles(workspaceId, files);
+      const r = await api.uploadFiles(workspaceId, files, context.trim());
       onUploaded(r.job_id || null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
@@ -64,6 +66,20 @@ export function Files({ workspaceId, onUploaded, onBack, onSkip }: Props) {
         PDFs, Word docs, slides, CSVs, JSON, images. Up to 50 files, 20&nbsp;MB
         each, 50&nbsp;MB total — for now.
       </p>
+
+      <label className="mt-6 w-full max-w-2xl text-left text-[12px] font-medium text-navy-700">
+        What do these files contain? <span className="text-rose-500">*</span>
+        <textarea
+          rows={2}
+          value={context}
+          onChange={(e) => setContext(e.target.value)}
+          placeholder="e.g. Customer support tickets: names, product names, issue descriptions"
+          className="focus-ring mt-1.5 w-full resize-y rounded-xl border-[1.5px] border-navy-100 bg-white px-4 py-3 text-[14px] leading-relaxed text-ink shadow-soft placeholder:text-subtle/70 focus:border-steel-500"
+        />
+        <span className="mt-1 block text-[11px] font-normal text-subtle">
+          Required — drives how Aryx maps fields and extracts entities.
+        </span>
+      </label>
 
       <div
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -149,7 +165,7 @@ export function Files({ workspaceId, onUploaded, onBack, onSkip }: Props) {
         <button
           type="button"
           onClick={upload}
-          disabled={busy || files.length === 0 || tooBig}
+          disabled={busy || files.length === 0 || tooBig || !context.trim()}
           className="focus-ring inline-flex items-center gap-2 rounded-xl bg-navy-800 px-5 py-2.5 text-[14px] font-semibold text-white hover:bg-navy-700 disabled:opacity-50"
         >
           {busy ? <Loader2 size={15} className="animate-spin" />

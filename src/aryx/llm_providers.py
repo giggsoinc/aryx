@@ -142,21 +142,46 @@ def openai_json(
     """Call any OpenAI-compatible endpoint via /chat/completions (JSON mode).
 
     max_tokens is set explicitly (mirrors anthropic_json) — without it, a
-    hidden-reasoning model (e.g. Groq's gpt-oss family) can spend its whole
-    completion budget on reasoning tokens and emit empty content, which then
-    fails the provider's json_object validation with no useful error body.
-    reasoning_effort is capped too, but only for models actually in that
-    family — many OpenAI-compatible providers reject unknown fields.
+    hidden-reasoning model (e.g. Groq's gpt-oss family, Google's Gemini 2.5+
+    family) can spend its whole completion budget on reasoning tokens and
+    emit empty/truncated content, which then either fails the provider's
+    json_object validation outright or comes back as invalid/truncated JSON
+    for the caller to choke on. reasoning_effort is capped too, but only for
+    models actually in a hidden-reasoning family — many OpenAI-compatible
+    providers reject unknown fields, and each family's sweet spot differs
+    (confirmed live: gpt-oss wants "low"; Gemini's "low" barely helps —
+    completion_tokens stayed near 1 out of a 100-token budget — "minimal" is
+    what actually leaves the completion budget mostly for visible content).
+
+    8192 (not 4096): a full dashboard spec now targets 10-12 visualizations
+    (up from 6-10) plus their KPIs/analyses/assumptions/warnings — 4096
+    wasn't enough headroom once hidden reasoning tokens ate into the same
+    budget, and truncated mid-JSON output a hard json_validate_failed from
+    the provider (confirmed live: cut off inside the third business
+    question, before any KPI/analysis/visualization was even emitted).
+
+    temperature=0.1: this path had never set one at all (unlike the Ollama
+    path in complete_text, which already pins 0.2), so every call rode
+    whatever default the provider picks — typically 0.7-1.0, tuned for
+    creative variety, not for reliably filling every nested optional field
+    (the exact shape of the recurring missing_filter_value failure: a model
+    that "confidently" leaves a filter/numerator/denominator null even when
+    the real value was sitting right there in approved_columns). Standard
+    OpenAI-compatible parameter — confirmed live it's accepted alongside
+    reasoning_effort by both Groq and Gemini, unlike reasoning_effort itself
+    which needed a per-family value.
     """
     headers = {"Authorization": f"Bearer {key}"} if key else {}
     body: dict[str, Any] = {
         "model": spec.name, "response_format": {"type": "json_object"},
-        "max_tokens": 4096,
+        "max_tokens": 8192, "temperature": 0.1,
         "messages": [{"role": "system", "content": system},
                      {"role": "user", "content": user}],
     }
     if "gpt-oss" in spec.name:
         body["reasoning_effort"] = "low"
+    elif "gemini" in spec.name:
+        body["reasoning_effort"] = "minimal"
     out = post_json(
         (spec.endpoint or "").rstrip("/") + "/chat/completions",
         body,

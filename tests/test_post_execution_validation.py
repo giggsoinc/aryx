@@ -11,10 +11,11 @@ from aryx.analysis_execution.execute import _kpi_result_from_node, run_plan
 from aryx.analysis_execution.models import (
     AnalysisResult, AnalysisResultRow, ExecutionMetrics, ExecutionRun, KpiLineage, KpiResult,
 )
+from aryx.analysis_execution.run import _analysis_rows
 from aryx.andie_planner.models import Analysis, DashboardSpec, Kpi, KpiFilter, KpiOperand
 from aryx.execution_compiler.compile import compile_plan
 from aryx.post_execution_validation.checks import (
-    check_evidence_lineage, check_no_invented_columns,
+    check_aggregation_correctness, check_evidence_lineage, check_no_invented_columns,
     check_no_invented_kpis, check_result_identity, check_result_shape,
     check_sample_size_reconciliation, null_exclusion_warnings, null_result_warnings,
     small_sample_warnings,
@@ -91,10 +92,15 @@ def _run_for(spec: DashboardSpec, plan, rows: list[dict]) -> ExecutionRun:
         grouped = node_results[node_id]
         rows_out = [
             AnalysisResultRow(group_value=g,
-                             value=(v.get("value") if isinstance(v, dict) else float(v)),
+                             value=(v.get("median") if isinstance(v, dict) and "q1" in v
+                                   else v.get("value") if isinstance(v, dict) else float(v)),
                              numerator=(v.get("numerator") if isinstance(v, dict) else None),
                              denominator=(v.get("denominator") if isinstance(v, dict) else None),
-                             sample_size=(v.get("sample_size") if isinstance(v, dict) else int(v)))
+                             sample_size=(v.get("sample_size") if isinstance(v, dict) else int(v)),
+                             min=(v.get("min") if isinstance(v, dict) else None),
+                             q1=(v.get("q1") if isinstance(v, dict) else None),
+                             q3=(v.get("q3") if isinstance(v, dict) else None),
+                             max=(v.get("max") if isinstance(v, dict) else None))
             for g, v in sorted(grouped.items())
         ]
         analysis_results.append(AnalysisResult(analysis_id=analysis_id, group_column="region",
@@ -178,6 +184,190 @@ def test_wrong_analysis_row_value_is_rejected_not_just_kpis() -> None:
                     and e.reference == "an_region:West")
     assert mismatch.details["reported_value"] == 0.99
     assert round(mismatch.details["recomputed_value"], 4) == round(6 / 15, 4)
+
+
+def test_wrong_analysis_row_q1_is_rejected_not_just_the_median() -> None:
+    # Regression: a box-plot row's min/q1/q3/max live outside the single
+    # "value"/median slot check_aggregation_correctness already recomputes —
+    # a tampered q1 must not sail through just because the median matches.
+    kpi = Kpi(kpi_id="kpi_deal_size", dataset_id=DATASET, operation="quartiles",
+             source_columns=["deal_value"], measure="deal_value")
+    analysis = Analysis(analysis_id="an_deal_size", operation="group_by", dataset_id=DATASET,
+                       group_by=["region"], metric="kpi_deal_size")
+    spec, plan = _spec_and_plan([kpi], [analysis])
+    rows = [{"contract_id": f"w{i}", "region": "West", "deal_value": v}
+           for i, v in enumerate([100.0, 200.0, 300.0])]
+    run = _run_for(spec, plan, rows)
+    node_results, _errors, _c, _f = run_plan(plan, {DATASET: rows})
+    profile_by_dataset = {DATASET: _profile()}
+
+    run.analysis_results[0].rows[0].q1 = 999.0  # tamper q1 only, leave median (value) correct
+    report = validate_execution(spec, plan, run, node_results, profile_by_dataset)
+    assert report.status == "rejected"
+    mismatch = next(e for e in report.errors if e.code == "result_formula_mismatch"
+                    and e.reference == "an_deal_size:West:q1")
+    assert mismatch.details["reported_value"] == 999.0
+    assert mismatch.details["recomputed_value"] == 150.0
+
+
+# ── new chart-type shapes (crosstab/row_points/date_span/survival/histogram) ──
+# Regression: check_aggregation_correctness's recompute-and-compare lookup
+# originally assumed every analysis result is a flat group_value-keyed dict
+# — crosstab (tuple-keyed), row_points/date_span (lists), and survival
+# (dict of lists) all failed with a spurious "no_recomputed_group" even when
+# the reported values were exactly correct, blocking every new chart type
+# from ever reaching composition.
+
+def _analysis_run(spec: DashboardSpec, plan, rows: list[dict], analysis: Analysis) -> ExecutionRun:
+    node_results, errors, completed, failed = run_plan(plan, {DATASET: rows})
+    assert errors == []
+    node_id = plan.analysis_node[analysis.analysis_id]
+    result = AnalysisResult(analysis_id=analysis.analysis_id,
+                            group_column=analysis.group_by[0] if analysis.group_by else "",
+                            rows=_analysis_rows(analysis, node_results[node_id]))
+    return ExecutionRun(
+        execution_run_id="execution_1", execution_plan_id=plan.execution_plan_id,
+        spec_id=spec.spec_id, dataset_id=DATASET, dataset_version="v1", status="completed",
+        analysis_results=[result],
+        execution_metrics=ExecutionMetrics(runtime_ms=1, nodes_completed=completed, nodes_failed=failed),
+    )
+
+
+def test_crosstab_row_matches_recompute_not_falsely_rejected() -> None:
+    kpi = Kpi(kpi_id="kpi_value", dataset_id=DATASET, operation="sum", measure="contract_value")
+    analysis = Analysis(analysis_id="an_flow", operation="crosstab", dataset_id=DATASET,
+                       group_by=["region", "renewal_status"], metric="kpi_value")
+    spec, plan = _spec_and_plan([kpi], [analysis])
+    rows = _rows(renewed=3, not_renewed=2, region="West")
+    run = _analysis_run(spec, plan, rows, analysis)
+    node_results, _errors, _c, _f = run_plan(plan, {DATASET: rows})
+    result, errors = check_aggregation_correctness(spec, run, node_results, plan)
+    assert result.status == "passed", errors
+
+
+def test_crosstab_row_tampered_is_still_caught() -> None:
+    kpi = Kpi(kpi_id="kpi_value", dataset_id=DATASET, operation="sum", measure="contract_value")
+    analysis = Analysis(analysis_id="an_flow", operation="crosstab", dataset_id=DATASET,
+                       group_by=["region", "renewal_status"], metric="kpi_value")
+    spec, plan = _spec_and_plan([kpi], [analysis])
+    rows = _rows(renewed=3, not_renewed=2, region="West")
+    run = _analysis_run(spec, plan, rows, analysis)
+    node_results, _errors, _c, _f = run_plan(plan, {DATASET: rows})
+    run.analysis_results[0].rows[0].value = 99999.0  # tamper
+    result, errors = check_aggregation_correctness(spec, run, node_results, plan)
+    assert result.status == "failed"
+    assert any(e.code == "result_formula_mismatch"
+              and e.details["explanation_code"] == "computed_value_does_not_match_lineage"
+              for e in errors)
+
+
+def test_row_points_matches_recompute_not_falsely_rejected() -> None:
+    analysis = Analysis(analysis_id="an_scatter", operation="row_points", dataset_id=DATASET,
+                       group_by=["contract_id"], x_column="contract_value", y_column="contract_value")
+    spec, plan = _spec_and_plan([], [analysis])
+    rows = _rows(renewed=3, not_renewed=0, region="West")
+    run = _analysis_run(spec, plan, rows, analysis)
+    node_results, _errors, _c, _f = run_plan(plan, {DATASET: rows})
+    result, errors = check_aggregation_correctness(spec, run, node_results, plan)
+    assert result.status == "passed", errors
+
+
+def test_date_span_matches_recompute_not_falsely_rejected() -> None:
+    analysis = Analysis(analysis_id="an_gantt", operation="date_span", dataset_id=DATASET,
+                       group_by=["contract_id"], start_column="region", end_column="renewal_status")
+    spec, plan = _spec_and_plan([], [analysis])
+    rows = _rows(renewed=2, not_renewed=0, region="West")
+    run = _analysis_run(spec, plan, rows, analysis)
+    node_results, _errors, _c, _f = run_plan(plan, {DATASET: rows})
+    result, errors = check_aggregation_correctness(spec, run, node_results, plan)
+    assert result.status == "passed", errors
+
+
+def test_survival_matches_recompute_not_falsely_rejected() -> None:
+    rows = [
+        {"contract_id": "c1", "signup": "2024-01-01", "churn": "2024-01-11"},
+        {"contract_id": "c2", "signup": "2024-01-01", "churn": None},
+        {"contract_id": "c3", "signup": "2024-01-01", "churn": "2024-01-06"},
+    ]
+    analysis = Analysis(analysis_id="an_survival", operation="survival", dataset_id=DATASET,
+                       start_column="signup", end_column="churn")
+    spec, plan = _spec_and_plan([], [analysis])
+    node_results, errors, _c, _f = run_plan(plan, {DATASET: rows})
+    assert errors == []
+    node_id = plan.analysis_node["an_survival"]
+    result_rows = _analysis_rows(analysis, node_results[node_id])
+    run = ExecutionRun(
+        execution_run_id="execution_1", execution_plan_id=plan.execution_plan_id,
+        spec_id=spec.spec_id, dataset_id=DATASET, dataset_version="v1", status="completed",
+        analysis_results=[AnalysisResult(analysis_id="an_survival", group_column="", rows=result_rows)],
+        execution_metrics=ExecutionMetrics(runtime_ms=1, nodes_completed=_c, nodes_failed=_f),
+    )
+    result, check_errors = check_aggregation_correctness(spec, run, node_results, plan)
+    assert result.status == "passed", check_errors
+
+
+def test_ungrouped_histogram_matches_recompute_not_falsely_rejected() -> None:
+    kpi = Kpi(kpi_id="kpi_deal_size", dataset_id=DATASET, operation="histogram", measure="deal_value")
+    analysis = Analysis(analysis_id="an_hist", operation="histogram", dataset_id=DATASET, metric="kpi_deal_size")
+    spec, plan = _spec_and_plan([kpi], [analysis])
+    rows = [{"contract_id": f"d{i}", "deal_value": v} for i, v in enumerate([100.0, 200.0, 300.0])]
+    run = _analysis_run(spec, plan, rows, analysis)
+    node_results, _errors, _c, _f = run_plan(plan, {DATASET: rows})
+    result, errors = check_aggregation_correctness(spec, run, node_results, plan)
+    assert result.status == "passed", errors
+
+
+class _FakeGraphReader:
+    """Minimal double for GraphReaderPort — only count_by_relationship is used."""
+
+    def __init__(self, counts: dict[str, int]) -> None:
+        self._counts = counts
+
+    def count_by_relationship(self, source_type, relationship, target_type, direction="out"):
+        return dict(self._counts)
+
+
+def _graph_relation_run(counts: dict[str, int]):
+    analysis = Analysis(analysis_id="an_by_manager", operation="graph_relation",
+                       dataset_id="", graph_path_id="path_contract_manager")
+    spec, plan = _spec_and_plan([], [analysis])
+    for node in plan.nodes:  # resolve_graph_relation_nodes's job, done by hand here
+        if node.template == "graph_relation_count":
+            node.parameters = {**node.parameters, "source_type": "Contract",
+                               "relationship": "MANAGED_BY", "target_type": "Manager",
+                               "direction": "out"}
+    reader = _FakeGraphReader(counts)
+    node_results, errors, _c, _f = run_plan(plan, {}, graph_reader=reader)
+    assert errors == []
+    node_id = plan.analysis_node["an_by_manager"]
+    result_rows = _analysis_rows(analysis, node_results[node_id])
+    run = ExecutionRun(
+        execution_run_id="execution_1", execution_plan_id=plan.execution_plan_id,
+        spec_id=spec.spec_id, dataset_id="workspace_1", dataset_version="v1", status="completed",
+        analysis_results=[AnalysisResult(analysis_id="an_by_manager", group_column="", rows=result_rows)],
+        execution_metrics=ExecutionMetrics(runtime_ms=1, nodes_completed=_c, nodes_failed=_f),
+    )
+    return spec, plan, run, node_results
+
+
+def test_graph_relation_matches_recompute_not_falsely_rejected() -> None:
+    # graph_relation's dict[str, int] result reuses the same default 1D
+    # grouped-row check every ungrouped/1D operation already gets — no
+    # dedicated branch needed, proven here the same way crosstab/histogram
+    # proved theirs above.
+    spec, plan, run, node_results = _graph_relation_run({"Jane Doe": 3, "Sam Lee": 1})
+    result, errors = check_aggregation_correctness(spec, run, node_results, plan)
+    assert result.status == "passed", errors
+
+
+def test_graph_relation_tampered_is_still_caught() -> None:
+    spec, plan, run, node_results = _graph_relation_run({"Jane Doe": 3, "Sam Lee": 1})
+    run.analysis_results[0].rows[0].value = 99999.0  # tamper
+    result, errors = check_aggregation_correctness(spec, run, node_results, plan)
+    assert result.status == "failed"
+    assert any(e.code == "result_formula_mismatch"
+              and e.details["explanation_code"] == "computed_value_does_not_match_lineage"
+              for e in errors)
 
 
 def test_impossible_analysis_row_numerator_is_rejected() -> None:

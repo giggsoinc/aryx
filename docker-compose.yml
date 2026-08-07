@@ -107,11 +107,14 @@ services:
     environment:
       # DEBUG-level app logging (overrides ARYX_LOG_LEVEL from .env)
       - ARYX_LOG_LEVEL=DEBUG
+      - ARYX_API_URL=http://api:8000
     ports:
       - "8765:8765"
     depends_on:
       falkordb:
         condition: service_started
+      api:
+        condition: service_healthy
     restart: unless-stopped
 
   # Next.js web UI — primary product surface (Streamlit UI removed).

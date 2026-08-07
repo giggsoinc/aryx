@@ -121,6 +121,25 @@ def test_grouped_analysis_referencing_ratio_kpi() -> None:
     assert plan.kpi_final_node["kpi_renewal_rate"] == "op_kpi_renewal_rate_ratio"
 
 
+def test_quartiles_kpi_compiles_to_quartiles_numeric() -> None:
+    kpi = Kpi(kpi_id="kpi_deal_size", dataset_id="ds1", operation="quartiles", measure="deal_value")
+    plan = compile_plan("spec_1", "ds1", "v1", [kpi], [])
+    node = _by_id(plan.nodes, "op_kpi_deal_size_quartiles")
+    assert node.template == "quartiles_numeric"
+    assert node.parameters == {"column": "deal_value", "null_policy": "exclude"}
+
+
+def test_grouped_analysis_referencing_quartiles_kpi() -> None:
+    kpi = Kpi(kpi_id="kpi_deal_size", dataset_id="ds1", operation="quartiles", measure="deal_value")
+    analysis = Analysis(analysis_id="analysis_deal_size_by_region", operation="group_by",
+                        dataset_id="ds1", group_by=["region"], metric="kpi_deal_size")
+    plan = compile_plan("spec_1", "ds1", "v1", [kpi], [analysis])
+    grouped = _by_id(plan.nodes, "op_analysis_deal_size_by_region_grouped")
+    assert grouped.template == "grouped_quartiles_numeric"
+    assert grouped.parameters == {"group_column": "region", "column": "deal_value",
+                                  "null_policy": "exclude"}
+
+
 def test_grouped_analysis_referencing_sum_kpi() -> None:
     kpi = Kpi(kpi_id="kpi_value", dataset_id="ds1", operation="sum", measure="contract_value")
     analysis = Analysis(analysis_id="analysis_value_by_region", operation="group_by",
@@ -139,6 +158,98 @@ def test_grouped_analysis_with_unknown_metric_falls_back_to_count() -> None:
     grouped = _by_id(plan.nodes, "op_analysis_ghost_grouped")
     assert grouped.template == "grouped_count_rows"
     assert grouped.parameters == {"group_column": "region"}
+
+
+# ── new chart-type shapes (crosstab/row_points/date_span/survival/histogram) ──
+
+def test_crosstab_analysis_referencing_sum_kpi() -> None:
+    kpi = Kpi(kpi_id="kpi_value", dataset_id="ds1", operation="sum", measure="contract_value")
+    analysis = Analysis(analysis_id="analysis_flow", operation="crosstab", dataset_id="ds1",
+                        group_by=["region", "product"], metric="kpi_value")
+    plan = compile_plan("spec_1", "ds1", "v1", [kpi], [analysis])
+    node = _by_id(plan.nodes, "op_analysis_flow_grouped")
+    assert node.template == "grouped2d_sum_numeric"
+    assert node.parameters == {"group_column": "region", "group_column_2": "product",
+                               "column": "contract_value", "null_policy": "exclude"}
+
+
+def test_crosstab_analysis_without_metric_falls_back_to_count() -> None:
+    analysis = Analysis(analysis_id="analysis_flow", operation="crosstab", dataset_id="ds1",
+                        group_by=["region", "product"])
+    plan = compile_plan("spec_1", "ds1", "v1", [], [analysis])
+    node = _by_id(plan.nodes, "op_analysis_flow_grouped")
+    assert node.template == "grouped2d_count_rows"
+    assert node.parameters == {"group_column": "region", "group_column_2": "product"}
+
+
+def test_row_points_analysis_compiles_directly_with_no_metric() -> None:
+    analysis = Analysis(analysis_id="analysis_scatter", operation="row_points", dataset_id="ds1",
+                        group_by=["account_name"], x_column="deal_value", y_column="tenure_months")
+    plan = compile_plan("spec_1", "ds1", "v1", [], [analysis])
+    node = _by_id(plan.nodes, "op_analysis_scatter_grouped")
+    assert node.template == "row_points"
+    assert node.parameters == {"label_column": "account_name", "x_column": "deal_value",
+                               "y_column": "tenure_months", "size_column": ""}
+
+
+def test_date_span_analysis_compiles_directly() -> None:
+    analysis = Analysis(analysis_id="analysis_gantt", operation="date_span", dataset_id="ds1",
+                        group_by=["contract_id"], start_column="start_date", end_column="end_date")
+    plan = compile_plan("spec_1", "ds1", "v1", [], [analysis])
+    node = _by_id(plan.nodes, "op_analysis_gantt_grouped")
+    assert node.template == "row_date_spans"
+    assert node.parameters == {"label_column": "contract_id", "start_column": "start_date",
+                               "end_column": "end_date"}
+
+
+def test_survival_analysis_compiles_directly() -> None:
+    analysis = Analysis(analysis_id="analysis_survival", operation="survival", dataset_id="ds1",
+                        start_column="signup_date", end_column="churn_date")
+    plan = compile_plan("spec_1", "ds1", "v1", [], [analysis])
+    node = _by_id(plan.nodes, "op_analysis_survival_grouped")
+    assert node.template == "survival_curve"
+    assert node.parameters == {"group_column": "", "start_column": "signup_date",
+                               "end_column": "churn_date"}
+
+
+def test_graph_relation_analysis_compiles_with_no_dataset_id() -> None:
+    analysis = Analysis(analysis_id="analysis_by_manager", operation="graph_relation",
+                        dataset_id="ds1", graph_path_id="path_contract_manager")
+    plan = compile_plan("spec_1", "ds1", "v1", [], [analysis])
+    node = _by_id(plan.nodes, "op_analysis_by_manager_grouped")
+    assert node.template == "graph_relation_count"
+    assert node.dataset_id == ""  # never fetches dataset rows for this node
+    assert node.parameters == {"path_id": "path_contract_manager"}
+    assert plan.compilation_status == "success"  # registered template, valid bindings
+
+
+def test_histogram_kpi_compiles_to_histogram_buckets_numeric() -> None:
+    kpi = Kpi(kpi_id="kpi_deal_size", dataset_id="ds1", operation="histogram", measure="deal_value")
+    plan = compile_plan("spec_1", "ds1", "v1", [kpi], [])
+    node = _by_id(plan.nodes, "op_kpi_deal_size_histogram")
+    assert node.template == "histogram_buckets_numeric"
+    assert node.parameters == {"column": "deal_value", "null_policy": "exclude"}
+
+
+def test_grouped_analysis_referencing_histogram_kpi() -> None:
+    kpi = Kpi(kpi_id="kpi_deal_size", dataset_id="ds1", operation="histogram", measure="deal_value")
+    analysis = Analysis(analysis_id="analysis_hist_by_region", operation="histogram",
+                        dataset_id="ds1", group_by=["region"], metric="kpi_deal_size")
+    plan = compile_plan("spec_1", "ds1", "v1", [kpi], [analysis])
+    node = _by_id(plan.nodes, "op_analysis_hist_by_region_grouped")
+    assert node.template == "grouped_histogram_buckets_numeric"
+    assert node.parameters == {"group_column": "region", "column": "deal_value",
+                               "null_policy": "exclude"}
+
+
+def test_ungrouped_histogram_analysis_compiles_to_ungrouped_template() -> None:
+    kpi = Kpi(kpi_id="kpi_deal_size", dataset_id="ds1", operation="histogram", measure="deal_value")
+    analysis = Analysis(analysis_id="analysis_hist_all", operation="histogram",
+                        dataset_id="ds1", metric="kpi_deal_size")
+    plan = compile_plan("spec_1", "ds1", "v1", [kpi], [analysis])
+    node = _by_id(plan.nodes, "op_analysis_hist_all_grouped")
+    assert node.template == "histogram_buckets_numeric"
+    assert node.parameters == {"column": "deal_value", "null_policy": "exclude"}
 
 
 # ── determinism + limits ─────────────────────────────────────────────────

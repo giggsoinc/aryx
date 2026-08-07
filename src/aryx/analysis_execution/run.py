@@ -11,11 +11,16 @@ import time
 import uuid
 
 from aryx.analysis_execution.data import load_typed_rows
-from aryx.analysis_execution.execute import _kpi_result_from_node, run_plan
+from aryx.analysis_execution.execute import (
+    _kpi_result_from_node,
+    resolve_graph_relation_nodes,
+    run_plan,
+)
 from aryx.analysis_execution.models import (
     AnalysisResult, AnalysisResultRow, ExecutionMetrics, ExecutionRun, KpiLineage, KpiResult,
 )
-from aryx.andie_planner.models import DashboardSpec, Kpi
+from aryx.andie_planner.models import Analysis, DashboardSpec, Kpi
+from aryx.ports import ports
 from aryx.post_execution_validation.run import run_post_execution_validation
 from aryx.store.dashboard_spec_store import DashboardSpecStore
 from aryx.store.execution_plan_store import ExecutionPlanStore
@@ -37,6 +42,97 @@ def _display_value(value: float | None, fmt: str) -> str:
     if float(value).is_integer():
         return f"{int(value):,}"
     return f"{value:,.2f}"
+
+
+def _1d_grouped_rows(grouped: dict[str, Any]) -> list[AnalysisResultRow]:
+    """The original C12 shape: one flat row per group, value shape depending
+    on which grouped_* template produced it (count/sum/average/median/ratio/
+    quartiles) — unchanged from before C15's new chart-type shapes."""
+    return [
+        AnalysisResultRow(
+            group_value=g,
+            value=(v.get("median") if isinstance(v, dict) and "q1" in v
+                  else v.get("value") if isinstance(v, dict) else float(v)),
+            numerator=(v.get("numerator") if isinstance(v, dict) else None),
+            denominator=(v.get("denominator") if isinstance(v, dict) else None),
+            sample_size=(v.get("sample_size") if isinstance(v, dict) else int(v)),
+            min=(v.get("min") if isinstance(v, dict) else None),
+            q1=(v.get("q1") if isinstance(v, dict) else None),
+            q3=(v.get("q3") if isinstance(v, dict) else None),
+            max=(v.get("max") if isinstance(v, dict) else None))
+        for g, v in sorted(grouped.items())
+    ]
+
+
+def _crosstab_rows(grouped: dict[tuple[str, str], Any]) -> list[AnalysisResultRow]:
+    """crosstab (grouped2d_*) — same per-cell value shapes as the 1D case,
+    keyed by (group_value, group_value_secondary) instead of a bare group."""
+    return [
+        AnalysisResultRow(
+            group_value=g1, group_value_secondary=g2,
+            value=(v.get("value") if isinstance(v, dict) else float(v)),
+            numerator=(v.get("numerator") if isinstance(v, dict) else None),
+            denominator=(v.get("denominator") if isinstance(v, dict) else None),
+            sample_size=(v.get("sample_size") if isinstance(v, dict) else int(v)))
+        for (g1, g2), v in sorted(grouped.items())
+    ]
+
+
+def _row_points_rows(points: list[dict[str, Any]]) -> list[AnalysisResultRow]:
+    """row_points — one AnalysisResultRow per already-computed point, never
+    re-aggregated (scatter/bubble)."""
+    return [AnalysisResultRow(group_value=pt["label"], x=pt["x"], y=pt["y"], size=pt.get("size"),
+                              sample_size=1)
+           for pt in points]
+
+
+def _date_span_rows(spans: list[dict[str, Any]]) -> list[AnalysisResultRow]:
+    """date_span — one AnalysisResultRow per span (gantt)."""
+    return [AnalysisResultRow(group_value=span["label"], start=span["start"], end=span.get("end"),
+                              sample_size=1)
+           for span in spans]
+
+
+def _survival_rows(curves: dict[str, list[dict[str, float]]]) -> list[AnalysisResultRow]:
+    """survival — one AnalysisResultRow per (group, duration) point; `value`
+    carries survived_fraction and `sample_size` carries at_risk, the same
+    "value stands in for the real payload" convention quartiles already
+    uses for its median."""
+    return [
+        AnalysisResultRow(group_value=g, duration_days=pt["duration_days"],
+                          value=pt["survived_fraction"], sample_size=int(pt["at_risk"]))
+        for g, points in sorted(curves.items()) for pt in points
+    ]
+
+
+def _histogram_rows(result: dict[str, Any]) -> list[AnalysisResultRow]:
+    """histogram — one AnalysisResultRow per group (or a single "_all_" row
+    when the Analysis has no group_by), `buckets` carrying the payload."""
+    if "buckets" in result:  # ungrouped: {"buckets": [...], "sample_size": ..., ...}
+        return [AnalysisResultRow(group_value="_all_", buckets=result["buckets"],
+                                  sample_size=result["sample_size"])]
+    return [
+        AnalysisResultRow(group_value=g, buckets=v["buckets"], sample_size=v["sample_size"])
+        for g, v in sorted(result.items())
+    ]
+
+
+def _analysis_rows(analysis: Analysis, result: Any) -> list[AnalysisResultRow]:
+    """Dispatch on the Analysis's own `operation` (never shape-sniffed) to
+    the right unpacking of its compiled node's raw result — see
+    execution_compiler.compile._compile_analysis for what each operation
+    compiles to."""
+    if analysis.operation == "crosstab":
+        return _crosstab_rows(result)
+    if analysis.operation == "row_points":
+        return _row_points_rows(result)
+    if analysis.operation == "date_span":
+        return _date_span_rows(result)
+    if analysis.operation == "survival":
+        return _survival_rows(result)
+    if analysis.operation == "histogram":
+        return _histogram_rows(result)
+    return _1d_grouped_rows(result)
 
 
 def _kpi_source_columns(kpi: Kpi) -> list[str]:
@@ -106,8 +202,12 @@ def run_analysis_execution(
         rows_by_dataset[did] = rows
         dataset_version_by_id[did] = version
 
+    resolve_graph_relation_nodes(dsn, workspace_id, plan)
+    graph_reader = (ports().graph_reader(workspace_id)
+                    if any(n.template == "graph_relation_count" for n in plan.nodes) else None)
     node_results, exec_errors, completed, failed = run_plan(
-        plan, rows_by_dataset, maximum_runtime_seconds=maximum_runtime_seconds)
+        plan, rows_by_dataset, maximum_runtime_seconds=maximum_runtime_seconds,
+        graph_reader=graph_reader)
 
     kpis_by_id = {k.kpi_id: k for k in spec.kpis}
     kpi_results: list[KpiResult] = []
@@ -129,22 +229,13 @@ def run_analysis_execution(
     analysis_results: list[AnalysisResult] = []
     for analysis_id, node_id in plan.analysis_node.items():
         analysis = analyses_by_id.get(analysis_id)
-        grouped = node_results.get(node_id)
-        if analysis is None or grouped is None:
+        result = node_results.get(node_id)
+        if analysis is None or result is None:
             continue
-        rows_out = [
-            AnalysisResultRow(
-                group_value=g,
-                value=(v.get("value") if isinstance(v, dict) else float(v)),
-                numerator=(v.get("numerator") if isinstance(v, dict) else None),
-                denominator=(v.get("denominator") if isinstance(v, dict) else None),
-                sample_size=(v.get("sample_size") if isinstance(v, dict) else int(v)))
-            for g, v in sorted(grouped.items())
-        ]
         analysis_results.append(AnalysisResult(
             analysis_id=analysis_id,
             group_column=analysis.group_by[0] if analysis.group_by else "",
-            rows=rows_out))
+            rows=_analysis_rows(analysis, result)))
 
     status = "completed" if not exec_errors else ("partial" if node_results else "failed")
     run = ExecutionRun(

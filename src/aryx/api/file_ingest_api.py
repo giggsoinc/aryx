@@ -106,7 +106,8 @@ def _snapshot_dataset(dsn: str, workspace_id: int, data: bytes, name: str,
 
 def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                match_keys: list[str], fk_links: list[dict], job_id: str,
-               workspace_id: int = 1, request_id: str = "") -> None:
+               workspace_id: int = 1, request_id: str = "",
+               context: str = "") -> None:
     settings = get_settings()
     jobs = JobStore(settings.rdb_dsn)
     broker = _local_broker()
@@ -138,7 +139,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
             # its identifying columns from this file's own header + sample.
             otype, keys = ontology_type, match_keys
             if not otype or otype.lower() == "document":
-                plan = _infer_type(data[:800].decode("utf-8", "ignore"), name, "")
+                plan = _infer_type(data[:800].decode("utf-8", "ignore"), name, context)
                 otype, keys = plan["ontology_type"], plan["match_keys"]
                 logger.info("inferred %s -> type=%s keys=%s", name, otype, keys)
             cv = _colvals(data, suffix)
@@ -197,6 +198,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 paths=paths, system="document", broker=broker,
                 chunk_store=chunk_store, chunk_size=settings.chunk_size,
                 chunk_overlap=settings.chunk_overlap, expected_embed_dim=settings.embed_dim,
+                context=context,
             )
             run_pipeline(
                 connector=connector, dsn=settings.rdb_dsn,
@@ -223,10 +225,15 @@ def file_ingest_router() -> APIRouter:
         files: list[UploadFile] = File(...),
         ontology_type: str = Form(...),
         match_keys: str = Form(...),
+        context: str = Form(...),
         fk_links: str = Form("[]"),
         workspace_id: int = Form(1),
         request_id: str = Form(""),
     ) -> dict[str, Any]:
+        if not context.strip():
+            raise HTTPException(
+                400, "context is required — describe what these files "
+                     "contain so mapping and extraction can use it")
         if len(files) > _MAX_FILES:
             raise HTTPException(400, f"Max {_MAX_FILES} files per upload")
         items: list[tuple[bytes, str]] = []
@@ -253,7 +260,7 @@ def file_ingest_router() -> APIRouter:
         keys = [k.strip() for k in match_keys.split(",") if k.strip()]
         links = json.loads(fk_links) if fk_links else []
         background_tasks.add_task(_run_files, items, ontology_type, keys, links,
-                                  job_id, workspace_id, request_id)
+                                  job_id, workspace_id, request_id, context)
         names = [n for _, n in items]
         return {"status": "queued", "job_id": job_id, "files": names, "count": len(items)}
 

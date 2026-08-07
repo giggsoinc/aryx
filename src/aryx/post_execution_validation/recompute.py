@@ -9,9 +9,10 @@ correctness): recomputing, not re-reading, the answer.
 from __future__ import annotations
 
 from aryx.analysis_execution.data import load_typed_rows
-from aryx.analysis_execution.execute import run_plan
+from aryx.analysis_execution.execute import resolve_graph_relation_nodes, run_plan
 from aryx.andie_planner.models import DashboardSpec
 from aryx.execution_compiler.models import ExecutionPlan
+from aryx.ports import ports
 
 
 def recompute(
@@ -26,5 +27,9 @@ def recompute(
     for did in dataset_ids:
         rows, _version = load_typed_rows(dsn, workspace_id, did, spec, row_cap)
         rows_by_dataset[did] = rows
-    node_results, errors, _completed, _failed = run_plan(plan, rows_by_dataset)
+    resolve_graph_relation_nodes(dsn, workspace_id, plan)
+    graph_reader = (ports().graph_reader(workspace_id)
+                    if any(n.template == "graph_relation_count" for n in plan.nodes) else None)
+    node_results, errors, _completed, _failed = run_plan(
+        plan, rows_by_dataset, graph_reader=graph_reader)
     return node_results, errors

@@ -5,10 +5,17 @@ import {
   Loader2, MonitorPlay, AlertTriangle, Info, Ban,
 } from "lucide-react";
 import { api } from "@/lib/api";
-import { BarChart, type BarDatum } from "@/components/planner/BarChart";
+import { PlotlyChart } from "@/components/planner/PlotlyChart";
+import {
+  buildAreaSpec, buildBarSpec, buildBoxPlotSpec, buildBubbleSpec, buildCalendarHeatmapSpec,
+  buildDonutSpec, buildGanttSpec, buildGroupedBarSpec, buildHeatmapMatrixSpec, buildHistogramSpec,
+  buildLineSpec, buildParetoSpec, buildRadarSpec, buildSankeySpec, buildScatterSpec,
+  buildSlopegraphSpec, buildStepSpec, buildSunburstSpec, buildSurvivalSpec, buildTreemapSpec,
+  buildWaterfallSpec, type ChartSpec, type Fmt, type RadarEntry,
+} from "@/lib/plotlySpecs";
 import type {
   DashboardModel, DashboardComponent, ExecutionRun, PlannerResult, Kpi, Analysis,
-  AccessibilityChecks, KpiResult,
+  AccessibilityChecks, KpiResult, AnalysisResultRow,
 } from "@/lib/types";
 
 interface Props {
@@ -20,15 +27,40 @@ interface Props {
 // decide whether a warning exists (that's C13's call, already made).
 const SMALL_SAMPLE_THRESHOLD = 30;
 
-// Real chart-type vocabulary (aryx.planning.catalogues.CHARTS) — the
-// component doc's own "bar_chart" example is illustrative, not literal.
-// "table" gets a real table; "bar"/"line"/"scatter"/"donut" all render as a
-// bar chart, which is a faithful (not decorative) simplification: C12's
-// AnalysisResultRow is always {group_value, value, sample_size} — one value
-// per group, no time axis, no second numeric dimension — so there's no
-// genuine line/scatter data to plot differently in the first place.
-const BAR_LIKE_TYPES = new Set(["bar", "line", "scatter", "donut"]);
-const KNOWN_TYPES = new Set(["kpi_card", "table", ...BAR_LIKE_TYPES]);
+// Real chart-type vocabulary (aryx.planning.catalogues.CHARTS), rendered
+// through Plotly (plotlySpecs.ts) — every type gets its own accurate trace
+// shape now (scatter/line used to be rendered as a bar; not anymore).
+// "kpi_card"/"table" are the only non-chart, bespoke-rendered types.
+
+// Chart types whose data is a single AnalysisResultRow[] (one analysis'
+// rows, nothing merged) — bar-like types additionally support a
+// SingleValueFallback when source_ref resolves to a bare KPI instead of an
+// Analysis (one number has nothing to chart, but is still worth showing).
+const BAR_LIKE_TYPES = new Set(["bar", "line", "area", "step", "donut"]);
+const ROWS_ONLY_TYPES = new Set([
+  ...BAR_LIKE_TYPES, "box_plot", "histogram", "heatmap_matrix", "calendar_heatmap",
+  "sankey", "treemap", "sunburst", "waterfall", "pareto", "scatter", "bubble",
+  "gantt", "survival_curve",
+]);
+// grouped_bar/slopegraph need TWO analyses (source_ref + compare_ref); radar
+// needs 3+ refs (axis_refs) — each gets its own branch below.
+const TWO_SERIES_TYPES = new Set(["grouped_bar", "slopegraph"]);
+const KNOWN_TYPES = new Set([
+  "kpi_card", "table", ...ROWS_ONLY_TYPES, ...TWO_SERIES_TYPES, "radar",
+]);
+
+type RowsSpecBuilder = (rows: AnalysisResultRow[], fmt: Fmt, title: string) => ChartSpec;
+const ROWS_SPEC_BUILDERS: Record<string, RowsSpecBuilder> = {
+  bar: buildBarSpec, line: buildLineSpec, area: buildAreaSpec, step: buildStepSpec,
+  donut: buildDonutSpec, box_plot: buildBoxPlotSpec, heatmap_matrix: buildHeatmapMatrixSpec,
+  calendar_heatmap: buildCalendarHeatmapSpec, sankey: buildSankeySpec, treemap: buildTreemapSpec,
+  sunburst: buildSunburstSpec, waterfall: buildWaterfallSpec, pareto: buildParetoSpec,
+  histogram: (rows, _fmt, title) => buildHistogramSpec(rows, title),
+  scatter: (rows, _fmt, title) => buildScatterSpec(rows, title),
+  bubble: (rows, _fmt, title) => buildBubbleSpec(rows, title),
+  gantt: (rows, _fmt, title) => buildGanttSpec(rows, title),
+  survival_curve: (rows, _fmt, title) => buildSurvivalSpec(rows, title),
+};
 
 /** C15 — Frontend Dashboard Renderer, the actual final interface. No LLM,
  *  no server-side compute: merges the persisted DashboardModel (C14) with
@@ -187,27 +219,36 @@ function RenderedDashboard({ model, run, planner }: {
   const analysisById = new Map((planner?.spec?.analyses ?? []).map((a) => [a.analysis_id, a]));
 
   return (
-    <div className="mt-4 space-y-4">
-      {model.title && <h3 className="text-xl font-semibold text-navy-900">{model.title}</h3>}
-      {model.sections.map((section) => (
-        <div key={section.section_id}>
-          <div className="mb-2 text-xs font-semibold uppercase text-navy-400">{section.title}</div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {section.components.map((c) => (
-              <ComponentView key={c.component_id} component={c} run={run}
-                            kpi={kpiById.get(c.source_ref)} analysis={analysisById.get(c.source_ref)}
-                            kpiById={kpiById} />
-            ))}
-          </div>
-        </div>
-      ))}
+    <div className="mt-4">
+      {model.title && <h3 className="mb-3 text-xl font-semibold text-navy-900">{model.title}</h3>}
+      <div className="grid gap-3 md:grid-cols-2">
+        {model.sections.flatMap((section) => [
+          // C14 gives every non-summary chart its own section (compose.py's
+          // _group_into_sections), and a lone chart's own title already
+          // repeats "by X" (see the title line below) — so only label
+          // sections with 2+ components; single-chart sections flow into
+          // this shared grid instead of each claiming a full row.
+          section.components.length > 1 && (
+            <div key={`${section.section_id}_title`}
+                className="text-xs font-semibold uppercase text-navy-400 md:col-span-2">
+              {section.title}
+            </div>
+          ),
+          ...section.components.map((c) => (
+            <ComponentView key={c.component_id} component={c} run={run}
+                          kpi={kpiById.get(c.source_ref)} analysis={analysisById.get(c.source_ref)}
+                          compareAnalysis={c.compare_ref ? analysisById.get(c.compare_ref) : undefined}
+                          kpiById={kpiById} />
+          )),
+        ])}
+      </div>
     </div>
   );
 }
 
-function ComponentView({ component, run, kpi, analysis, kpiById }: {
+function ComponentView({ component, run, kpi, analysis, compareAnalysis, kpiById }: {
   component: DashboardComponent; run: ExecutionRun; kpi?: Kpi; analysis?: Analysis;
-  kpiById: Map<string, Kpi>;
+  compareAnalysis?: Analysis; kpiById: Map<string, Kpi>;
 }) {
   if (component.type === "kpi_card") {
     const result = run.kpi_results.find((k) => k.kpi_id === component.source_ref);
@@ -260,40 +301,85 @@ function ComponentView({ component, run, kpi, analysis, kpiById }: {
     );
   }
 
-  if (BAR_LIKE_TYPES.has(component.type)) {
+  if (ROWS_ONLY_TYPES.has(component.type)) {
     const result = run.analysis_results.find((a) => a.analysis_id === component.source_ref);
     if (!result) {
-      const kpiResult = run.kpi_results.find((k) => k.kpi_id === component.source_ref);
-      if (kpiResult) return <SingleValueFallback component={component} kpi={kpi} result={kpiResult} run={run} />;
+      if (BAR_LIKE_TYPES.has(component.type)) {
+        const kpiResult = run.kpi_results.find((k) => k.kpi_id === component.source_ref);
+        if (kpiResult) return <SingleValueFallback component={component} kpi={kpi} result={kpiResult} run={run} />;
+      }
       return <UnsupportedPlaceholder type={`${component.type} (no computed result)`} />;
     }
     const metricKpi = kpiById.get(analysis?.metric ?? "");
-    const fmt = kpiFormat(metricKpi);
-    const warningsByGroup = new Map(
-      component.warning_refs.map((w) => {
-        const [code, scope] = w.split(":");
-        return [scope ?? "", warningSentence(code, scope ?? "", run)];
-      }),
-    );
-    const data: BarDatum[] = result.rows.map((r) => ({
-      label: r.group_value, value: r.value ?? 0, displayValue: formatValue(r.value, fmt),
-      warning: warningsByGroup.get(r.group_value),
-    }));
-    const insight = safeInsight(analysis, metricKpi, result.rows);
+    const fmt: Fmt = (v) => formatValue(v, kpiFormat(metricKpi));
+    const title = metricKpi?.name || analysis?.analysis_id || component.source_ref;
+    const spec = ROWS_SPEC_BUILDERS[component.type](result.rows, fmt, title);
+    const insight = BAR_LIKE_TYPES.has(component.type) ? safeInsight(analysis, metricKpi, result.rows) : null;
     return (
       <div className="rounded-lg border border-navy-100 bg-white p-4">
         <div className="text-xs font-medium uppercase text-navy-500">
-          {metricKpi?.name || analysis?.analysis_id || component.source_ref}
+          {title}
           {analysis?.group_by?.[0] && ` by ${analysis.group_by[0]}`}
         </div>
         <div className="mt-2">
-          <BarChart title={metricKpi?.name || component.source_ref} data={data} />
+          <PlotlyChart spec={spec} />
         </div>
         {insight && (
           <div className="mt-2 flex items-start gap-1.5 rounded bg-sky-50 px-2 py-1.5 text-xs text-sky-800">
             <Info size={12} className="mt-0.5 shrink-0" /> {insight}
           </div>
         )}
+        <WarningBanners refs={component.warning_refs} run={run} sourceRef={component.source_ref} />
+      </div>
+    );
+  }
+
+  if (TWO_SERIES_TYPES.has(component.type)) {
+    const primary = run.analysis_results.find((a) => a.analysis_id === component.source_ref);
+    const compare = component.compare_ref
+      ? run.analysis_results.find((a) => a.analysis_id === component.compare_ref) : undefined;
+    if (!primary || !compare) return <UnsupportedPlaceholder type={`${component.type} (no computed result)`} />;
+    const primaryKpi = kpiById.get(analysis?.metric ?? "");
+    const compareKpi = kpiById.get(compareAnalysis?.metric ?? "");
+    const primaryLabel = primaryKpi?.name || component.source_ref;
+    const compareLabel = compareKpi?.name || component.compare_ref || "compare";
+    const fmt: Fmt = (v) => formatValue(v, kpiFormat(primaryKpi));
+    const title = primaryLabel;
+    const spec = component.type === "slopegraph"
+      ? buildSlopegraphSpec(primary.rows, compare.rows, primaryLabel, compareLabel, fmt, title)
+      : buildGroupedBarSpec(primary.rows, compare.rows, primaryLabel, compareLabel, fmt, title);
+    return (
+      <div className="rounded-lg border border-navy-100 bg-white p-4">
+        <div className="text-xs font-medium uppercase text-navy-500">
+          {title}
+          {analysis?.group_by?.[0] && ` by ${analysis.group_by[0]}`}
+        </div>
+        <div className="mt-2">
+          <PlotlyChart spec={spec} />
+        </div>
+      </div>
+    );
+  }
+
+  if (component.type === "radar") {
+    const entries: RadarEntry[] = (component.axis_refs ?? []).map((ref) => {
+      const kpiResult = run.kpi_results.find((k) => k.kpi_id === ref);
+      if (kpiResult) {
+        const refKpi = kpiById.get(ref);
+        return { axis: refKpi?.name || ref, value: kpiResult.value ?? 0, displayValue: kpiResult.display_value };
+      }
+      const analysisResult = run.analysis_results.find((a) => a.analysis_id === ref);
+      const total = analysisResult?.rows.reduce((n, r) => n + (r.value ?? 0), 0) ?? 0;
+      return { axis: ref, value: total, displayValue: formatValue(total, "number") };
+    }).filter((e) => Number.isFinite(e.value));
+    if (entries.length < 3) return <UnsupportedPlaceholder type="radar (fewer than 3 computed axes)" />;
+    const spec = buildRadarSpec(entries, component.source_ref);
+    return (
+      <div className="rounded-lg border border-navy-100 bg-white p-4">
+        <div className="text-xs font-medium uppercase text-navy-500">{component.source_ref}</div>
+        <div className="mt-2">
+          <PlotlyChart spec={spec} />
+        </div>
       </div>
     );
   }

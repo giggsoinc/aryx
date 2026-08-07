@@ -357,6 +357,9 @@ export interface GraphIntakeResult {
 export interface ApprovedColumn {
   name: string;
   type: string;
+  /** Real example values observed in this column (from C03) — empty for
+   *  non-categorical/high-cardinality columns. */
+  sample_values: string[];
 }
 
 export interface ResourceCitation {
@@ -436,6 +439,13 @@ export interface Analysis {
   group_by: string[];
   metric: string | null;
   sort: string | null;
+  /** row_points only (scatter/bubble): numeric columns per row. */
+  x_column: string | null;
+  y_column: string | null;
+  size_column: string | null;
+  /** date_span (gantt) / survival only. */
+  start_column: string | null;
+  end_column: string | null;
 }
 
 export interface Visualization {
@@ -444,6 +454,10 @@ export interface Visualization {
   source_ref: string;
   x_axis: string | null;
   y_axis: string | null;
+  /** grouped_bar/slopegraph only: a second analysis_id to compare against source_ref. */
+  compare_ref?: string | null;
+  /** radar only: 3+ kpi_id/analysis_id refs, one per axis. */
+  axis_refs?: string[] | null;
 }
 
 export interface Assumption {
@@ -596,6 +610,25 @@ export interface AnalysisResultRow {
   numerator: number | null;
   denominator: number | null;
   sample_size: number;
+  // Populated only for a box-plot (quartiles) row — value carries the median.
+  min: number | null;
+  q1: number | null;
+  q3: number | null;
+  max: number | null;
+  // Populated only for a crosstab (sankey/treemap/sunburst/heatmap_matrix) cell.
+  group_value_secondary: string | null;
+  // Populated only for a row_points (scatter/bubble) point.
+  x: number | null;
+  y: number | null;
+  size: number | null;
+  // Populated only for a date_span (gantt) row — raw date strings.
+  start: string | null;
+  end: string | null;
+  // Populated only for a survival_curve point — value carries survived_fraction,
+  // sample_size carries at_risk.
+  duration_days: number | null;
+  // Populated only for a histogram row.
+  buckets: { bucket_start: number; bucket_end: number; count: number }[] | null;
 }
 
 export interface AnalysisResult {
@@ -652,6 +685,10 @@ export interface DashboardComponent {
   source_ref: string;
   position: number;
   warning_refs: string[];
+  // grouped_bar only: the second analysis_id to compare against source_ref.
+  compare_ref: string | null;
+  // radar only: carried over from Visualization.axis_refs.
+  axis_refs: string[] | null;
 }
 
 export interface DashboardSection {
@@ -725,6 +762,26 @@ export interface PlannerResult {
   validation: SpecValidationReport | null;
   analysis_datasets: AnalysisDataset[];
   execution_plans: ExecutionPlan[];
+  created_at: string;
+}
+
+// ── Ask-to-visualize (C08 extension) ────────────────────────────────────
+export interface DeltaSpecItems {
+  new_kpi: Kpi | null;
+  new_analysis: Analysis | null;
+  new_visualization: Visualization | null;
+  warnings: SpecWarning[];
+}
+
+export interface DeltaDraftResult {
+  status: "valid" | "invalid" | "controlled_error";
+  items: DeltaSpecItems | null;
+  preview_text: string;
+  would_validate: boolean;
+  validation_errors: string[];
+  error_code: string | null;
+  error_message: string;
+  attempts: number;
   created_at: string;
 }
 
@@ -866,4 +923,51 @@ export interface DatasetIngestResult {
   file_name: string;
   file_size_bytes: number;
   created_at: string;
+}
+
+// ── Observability — token consumption ──────────────────────────────────
+export interface LlmStatsBySource {
+  source: string;
+  total_calls: number;
+  total_tokens: number;
+  avg_latency_ms: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+}
+
+export interface LlmStats {
+  total_calls?: number;
+  total_tokens?: number;
+  avg_latency_ms?: number;
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  by_source: LlmStatsBySource[];
+}
+
+export interface LlmCall {
+  role: string;
+  model: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  latency_ms: number;
+  source: string;
+  error: string | null;
+  ts: string;
+}
+
+export interface ModelConfig {
+  provider: string;
+  menial_model: string;
+  answer_model: string;
+  endpoint: string;
+  api_key_set: boolean;
+}
+
+export interface Observability {
+  jobs: Record<string, number>;
+  llm: LlmStats;
+  llm_recent: LlmCall[];
+  graph: { entities: number; relationships: number };
+  model_config: ModelConfig;
+  platform: Record<string, unknown>;
 }

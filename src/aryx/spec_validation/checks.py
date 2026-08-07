@@ -13,10 +13,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from aryx.andie_planner.models import DashboardSpec, Kpi
+from aryx.andie_planner.models import Analysis, DashboardSpec, Kpi
 from aryx.spec_validation.models import CheckResult, ValidationError, ValidationWarning
 
-_NUMERIC_OPS = {"sum", "average", "median"}
+_NUMERIC_OPS = {"sum", "average", "median", "quartiles", "histogram"}
 _RATIO_OPS = {"ratio", "percentage"}
 _CLAIM_BLOCKLIST = (
     "forecast", "predict", "prediction", "will cause", "causes", "causing",
@@ -31,6 +31,7 @@ _PROMOTED_CODES = {
     "unsupported_operation": "unsupported_operation",
     "unsupported_chart_type": "unsupported_chart_type",
     "unknown_dataset": "unknown_dataset",
+    "missing_filter_value": "missing_filter_value",
 }
 
 
@@ -76,6 +77,8 @@ def _dangling_reference_warnings(spec: DashboardSpec) -> list[ValidationWarning]
     anyway — surface it as a warning instead, not a blocking error."""
     return [ValidationWarning(code="dangling_reference", scope=w.detail)
            for w in spec.warnings if w.code == "dangling_reference"]
+
+
 
 
 def check_json_schema(spec: DashboardSpec, ctx: ValidationContext) -> tuple[CheckResult, list[ValidationError], list[ValidationWarning]]:
@@ -144,8 +147,21 @@ def check_operation_whitelist(spec: DashboardSpec, ctx: ValidationContext) -> tu
 
 
 def check_formula_validity(spec: DashboardSpec, ctx: ValidationContext) -> tuple[CheckResult, list[ValidationError], list[ValidationWarning]]:
-    """6. Ratio/percentage KPIs declare both a numerator and a denominator."""
-    errors: list[ValidationError] = []
+    """6. Ratio/percentage KPIs declare both a numerator and a denominator
+    (plus promoted missing-filter-value errors: a filter with a column but no
+    value/values would compile to filter_equals(column, None), matching
+    nothing real — C08 already drops it, C09 treats the same evidence as
+    disqualifying rather than letting the KPI/operand silently go unfiltered).
+
+    Kept as a hard error, NOT loosened to a warning, despite being the most
+    common rejection reason live this session: grounding drops only the
+    invalid FILTER, not the whole operand — an operand with `filter=None`
+    still computes an unfiltered count. For a ratio KPI that means a
+    numerator/denominator meant to be "count where X" silently becomes
+    "count of everything", producing a wrong, non-null percentage that would
+    ship to the dashboard looking legitimate. That is a worse failure mode
+    than the spec failing to generate, so this stays spec-fatal."""
+    errors = _promote(spec, "missing_filter_value")
     for kpi in spec.kpis:
         if kpi.operation in _RATIO_OPS and (kpi.numerator is None or kpi.denominator is None):
             errors.append(ValidationError(code="formula_incoherent", path=f"kpi:{kpi.kpi_id}",
@@ -178,30 +194,97 @@ def check_division_by_zero_policy(spec: DashboardSpec, ctx: ValidationContext) -
     return CheckResult(check="division_by_zero_policy", status=status), errors, []
 
 
-def _viz_dataset_id(spec: DashboardSpec, source_ref: str) -> str:
-    for kpi in spec.kpis:
-        if kpi.kpi_id == source_ref:
-            return kpi.dataset_id
+def _analysis_group_column(spec: DashboardSpec, analysis_id: str) -> str | None:
     for a in spec.analyses:
-        if a.analysis_id == source_ref:
-            return a.dataset_id
-    return ""
+        if a.analysis_id == analysis_id:
+            return a.group_by[0] if a.group_by else ""
+    return None
+
+
+def _find_analysis(spec: DashboardSpec, analysis_id: str) -> Analysis | None:
+    return next((a for a in spec.analyses if a.analysis_id == analysis_id), None)
+
+
+# chart_type -> the Analysis.operation its source_ref's Analysis must have.
+_CROSSTAB_CHART_TYPES = frozenset(
+    {"sankey", "treemap", "sunburst", "heatmap_matrix", "calendar_heatmap"})
+
+
+def _chart_shape_error(viz_chart_id: str) -> ValidationError:
+    return ValidationError(code="incompatible_chart_axes", path=f"visualization:{viz_chart_id}",
+                           reference=viz_chart_id)
 
 
 def check_chart_axis_compatibility(spec: DashboardSpec, ctx: ValidationContext) -> tuple[CheckResult, list[ValidationError], list[ValidationWarning]]:
-    """8. Chart type and axes are compatible (plus promoted chart-type errors
-    and non-blocking dangling-reference warnings)."""
+    """8. Chart type and axes/shape are compatible (plus promoted chart-type
+    errors and non-blocking dangling-reference warnings). Beyond the
+    original grouped_bar/scatter rules, every new chart family that needs a
+    specific Analysis shape (crosstab/row_points/date_span/survival/
+    histogram) or a specific Visualization field (radar's axis_refs) gets
+    its own structural rule here — same "promote a shape mismatch to a hard
+    error" pattern as the original two."""
     errors = _promote(spec, "unsupported_chart_type")
     for viz in spec.visualizations:
-        if viz.chart_type != "scatter" or not viz.x_axis or not viz.y_axis:
+        if viz.chart_type == "grouped_bar" and viz.compare_ref:
+            # A grouped bar merges two analyses' rows by group_value on the
+            # frontend — merging across mismatched group_by dimensions would
+            # silently produce a meaningless chart, so both sides must share
+            # the exact same group-by column.
+            source_col = _analysis_group_column(spec, viz.source_ref)
+            compare_col = _analysis_group_column(spec, viz.compare_ref)
+            if source_col is None or compare_col is None or source_col != compare_col:
+                errors.append(_chart_shape_error(viz.chart_id))
             continue
-        ds_id = _viz_dataset_id(spec, viz.source_ref)
-        x_type = ctx.col_type(ds_id, viz.x_axis)
-        y_type = ctx.col_type(ds_id, viz.y_axis)
-        if x_type == "categorical" and y_type == "categorical":
-            errors.append(ValidationError(code="incompatible_chart_axes",
-                                          path=f"visualization:{viz.chart_id}",
-                                          reference=viz.chart_id))
+
+        if viz.chart_type in _CROSSTAB_CHART_TYPES:
+            a = _find_analysis(spec, viz.source_ref)
+            if a is None or a.operation != "crosstab" or len(a.group_by) != 2:
+                errors.append(_chart_shape_error(viz.chart_id))
+            continue
+
+        if viz.chart_type == "gantt":
+            a = _find_analysis(spec, viz.source_ref)
+            if a is None or a.operation != "date_span" or not a.start_column or not a.end_column:
+                errors.append(_chart_shape_error(viz.chart_id))
+            continue
+
+        if viz.chart_type == "survival_curve":
+            a = _find_analysis(spec, viz.source_ref)
+            if a is None or a.operation != "survival" or not a.start_column:
+                errors.append(_chart_shape_error(viz.chart_id))
+            continue
+
+        if viz.chart_type in ("scatter", "bubble"):
+            a = _find_analysis(spec, viz.source_ref)
+            if a is None or a.operation != "row_points" or not a.x_column or not a.y_column:
+                errors.append(_chart_shape_error(viz.chart_id))
+                continue
+            if viz.chart_type == "bubble" and not a.size_column:
+                errors.append(_chart_shape_error(viz.chart_id))
+            continue
+
+        if viz.chart_type == "histogram":
+            a = _find_analysis(spec, viz.source_ref)
+            if a is None or a.operation != "histogram":
+                errors.append(_chart_shape_error(viz.chart_id))
+            continue
+
+        if viz.chart_type == "radar":
+            refs = viz.axis_refs or []
+            valid_refs = {k.kpi_id for k in spec.kpis} | {a.analysis_id for a in spec.analyses}
+            if len(refs) < 3 or any(r not in valid_refs for r in refs):
+                errors.append(_chart_shape_error(viz.chart_id))
+            continue
+
+        a = _find_analysis(spec, viz.source_ref)
+        if a is not None and a.operation == "graph_relation" \
+                and viz.chart_type not in ("bar", "donut", "kpi_card"):
+            # graph_relation produces one count per related entity — a 1D
+            # grouped shape, not the 2D crosstab shape sankey/treemap/
+            # heatmap_matrix need.
+            errors.append(_chart_shape_error(viz.chart_id))
+            continue
+
     status = "failed" if errors else "passed"
     return (CheckResult(check="chart_axis_compatibility", status=status), errors,
            _dangling_reference_warnings(spec))
@@ -216,6 +299,14 @@ def check_lineage_declaration(spec: DashboardSpec, ctx: ValidationContext) -> tu
             errors.append(ValidationError(code="missing_lineage", path=f"kpi:{kpi.kpi_id}",
                                           reference=kpi.kpi_id))
     for a in spec.analyses:
+        if a.operation == "graph_relation":
+            # A graph_relation analysis's lineage IS its graph_path_id (a
+            # verified C06 path), not group_by/metric — it has neither.
+            if not a.graph_path_id:
+                errors.append(ValidationError(code="missing_lineage",
+                                              path=f"analysis:{a.analysis_id}",
+                                              reference=a.analysis_id))
+            continue
         if not (a.group_by or a.metric):
             errors.append(ValidationError(code="missing_lineage", path=f"analysis:{a.analysis_id}",
                                           reference=a.analysis_id))

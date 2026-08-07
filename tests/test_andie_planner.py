@@ -20,8 +20,8 @@ APPROVED_COLUMNS = [
     {"name": "contract_value", "type": "numeric"},
     {"name": "renewal_status", "type": "categorical"},
 ]
-APPROVED_OPS = ["count", "sum", "ratio", "group_by"]
-APPROVED_CHARTS = ["kpi_card", "bar"]
+APPROVED_OPS = ["count", "sum", "ratio", "group_by", "row_points", "date_span"]
+APPROVED_CHARTS = ["kpi_card", "bar", "grouped_bar"]
 
 GOOD_RAW = {
     "business_questions": [
@@ -74,7 +74,7 @@ def _ground(raw):
 # ── prompt.py — discipline adapted from andie-jr (not its bug-triage content) ──
 
 def test_prompt_version_bumped_for_discipline_change() -> None:
-    assert PROMPT_VERSION == "1.2"
+    assert PROMPT_VERSION == "1.11"
 
 
 def test_system_prompt_carries_andie_jr_adapted_discipline() -> None:
@@ -96,6 +96,142 @@ def test_system_prompt_carries_andie_jr_adapted_discipline() -> None:
     # The bug-triage-specific machinery must NOT leak into a generation prompt.
     for leftover in ("Debug Lead", "Affected Dev", "commit suggestion", "root cause"):
         assert leftover not in system
+
+
+def test_system_prompt_requires_real_filter_values_from_sample_values() -> None:
+    # Regression: a filter with a column but no value passes grounding as
+    # structurally droppable, but C09 then rejects the whole spec
+    # (missing_filter_value) — the actual fix is telling the model up front
+    # to copy a real value from sample_values instead of guessing or omitting it.
+    system, _ = build_planner_prompt(
+        approved_columns=APPROVED_COLUMNS, approved_graph_paths=[],
+        supported_operations=APPROVED_OPS, supported_charts=APPROVED_CHARTS,
+        objective="x", target_audience="y", output_schema_version="dashboard_spec_v1",
+    )
+    assert "sample_values" in system
+    assert "copied verbatim from that list" in system
+    # Regression: three rounds of abstract rule restatement didn't stop
+    # models from leaving filter/numerator/denominator null even when real
+    # sample_values were sitting right there (confirmed live on workspace 27:
+    # kpi_active_contracts.filter and kpi_renewal_rate.numerator.filter both
+    # null despite "status" having real sample_values) — a worked example is
+    # the next escalation.
+    assert '"column": "status", "operator": "equals", "value": "ACTIVE"' in system
+    assert "value is NEVER left out when sample_values are available" in system
+
+
+def test_user_prompt_embeds_sample_values_when_present() -> None:
+    columns_with_samples = [
+        {"name": "renewal_status", "type": "categorical",
+         "sample_values": ["Renewed", "Not Renewed"]},
+    ]
+    _, user = build_planner_prompt(
+        approved_columns=columns_with_samples, approved_graph_paths=[],
+        supported_operations=APPROVED_OPS, supported_charts=APPROVED_CHARTS,
+        objective="x", target_audience="y", output_schema_version="dashboard_spec_v1",
+    )
+    assert "Renewed" in user and "Not Renewed" in user
+
+
+def test_user_prompt_embeds_graph_path_hints_and_quality_notes_when_present() -> None:
+    _, user = build_planner_prompt(
+        approved_columns=APPROVED_COLUMNS, approved_graph_paths=["path_contract_manager"],
+        supported_operations=APPROVED_OPS, supported_charts=APPROVED_CHARTS,
+        objective="x", target_audience="y", output_schema_version="dashboard_spec_v1",
+        graph_path_hints=[{"path_id": "path_contract_manager",
+                          "label": "Contract -> MANAGED_BY -> Manager", "depth": 1}],
+        graph_quality_notes=["sparse_region: Region X has few entities"],
+    )
+    assert "Contract -> MANAGED_BY -> Manager" in user
+    assert "sparse_region: Region X has few entities" in user
+
+
+def test_single_dataset_prompt_states_the_only_implemented_zero_denominator_policy() -> None:
+    # Regression: zero_denominator_policy was listed as a KPI field but the
+    # prompt never said what values are valid — only "return_null_with_
+    # warning" is actually implemented (checks.py's
+    # _IMPLEMENTED_ZERO_DENOMINATOR_POLICIES), so the model had to guess and
+    # sometimes guessed wrong (unsupported_zero_denominator_policy).
+    _, user = build_planner_prompt(
+        approved_columns=APPROVED_COLUMNS, approved_graph_paths=[],
+        supported_operations=APPROVED_OPS, supported_charts=APPROVED_CHARTS,
+        objective="x", target_audience="y", output_schema_version="dashboard_spec_v1",
+    )
+    assert "MUST be exactly the string 'return_null_with_warning'" in user
+
+
+def test_single_dataset_prompt_ends_with_sample_values_self_check() -> None:
+    # Regression: models kept violating rule 2a (drop a filter on a column
+    # with no sample_values, never invent a value) even though it's already
+    # stated up front — a final, last-word reminder is the mitigation.
+    _, user = build_planner_prompt(
+        approved_columns=APPROVED_COLUMNS, approved_graph_paths=[],
+        supported_operations=APPROVED_OPS, supported_charts=APPROVED_CHARTS,
+        objective="x", target_audience="y", output_schema_version="dashboard_spec_v1",
+    )
+    assert "Before replying, re-check every filter you wrote" in user
+    assert user.rstrip().endswith("most common reason a draft gets rejected.")
+
+
+def test_workspace_prompt_self_check_covers_both_dataset_pairing_and_sample_values() -> None:
+    from aryx.andie_planner.prompt import build_workspace_planner_prompt
+    _, user = build_workspace_planner_prompt(
+        datasets=[{"dataset_id": "ds_a", "approved_columns": APPROVED_COLUMNS}],
+        approved_graph_paths=[], supported_operations=APPROVED_OPS,
+        supported_charts=APPROVED_CHARTS, objective="x", target_audience="y",
+        output_schema_version="dashboard_spec_v1",
+    )
+    assert "does its dataset_id EXACTLY match" in user
+    assert "re-check every filter" in user
+
+
+def test_workspace_prompt_states_the_only_implemented_zero_denominator_policy() -> None:
+    from aryx.andie_planner.prompt import build_workspace_planner_prompt
+    _, user = build_workspace_planner_prompt(
+        datasets=[{"dataset_id": "ds_a", "approved_columns": APPROVED_COLUMNS}],
+        approved_graph_paths=[], supported_operations=APPROVED_OPS,
+        supported_charts=APPROVED_CHARTS, objective="x", target_audience="y",
+        output_schema_version="dashboard_spec_v1",
+    )
+    assert "MUST be exactly the string 'return_null_with_warning'" in user
+    assert user.rstrip().endswith("most common reason a draft gets rejected.")
+
+
+def test_user_prompt_omits_graph_path_hints_and_quality_notes_when_absent() -> None:
+    # Never show up as empty/None noise — same truthy-check convention as
+    # user_preferences.
+    _, user = build_planner_prompt(
+        approved_columns=APPROVED_COLUMNS, approved_graph_paths=[],
+        supported_operations=APPROVED_OPS, supported_charts=APPROVED_CHARTS,
+        objective="x", target_audience="y", output_schema_version="dashboard_spec_v1",
+    )
+    assert "graph_path_hints" not in user
+    assert "graph_quality_notes" not in user
+
+
+def test_system_prompt_carries_deep_mode_layered_drafting() -> None:
+    # Deep mode's shape (core concept -> mental model -> edge cases -> next
+    # level down) adapted into the FIRST-attempt drafting discipline.
+    system, _ = build_planner_prompt(
+        approved_columns=APPROVED_COLUMNS, approved_graph_paths=[],
+        supported_operations=APPROVED_OPS, supported_charts=APPROVED_CHARTS,
+        objective="x", target_audience="y", output_schema_version="dashboard_spec_v1",
+    )
+    assert "Draft in layers, not a single flat guess" in system
+    assert "one layer deeper" in system
+
+
+def test_repair_constraints_framed_as_a_kaizen_cycle() -> None:
+    # The retry ("boot prompt" for the second attempt) is framed as one
+    # Kaizen Cycle (Andie's modes/kaizen.md default method) around the real,
+    # unchanged C09 error text — not a re-guess from scratch.
+    from aryx.andie_planner.prompt import append_repair_constraints
+
+    result = append_repair_constraints("base user prompt", "- [missing_measure] real error text")
+    assert "base user prompt" in result
+    assert "Problem pattern" in result and "Root cause" in result and "Fix" in result
+    assert "not a re-guess from scratch" in result
+    assert "- [missing_measure] real error text" in result
 
 
 # ── ground.py — pure, deterministic ─────────────────────────────────────
@@ -169,6 +305,163 @@ def test_dangling_source_ref_dropped() -> None:
     spec = _ground(raw)
     assert spec.visualizations == []
     assert any(w.code == "dangling_reference" for w in spec.warnings)
+
+
+def test_filter_with_no_value_is_dropped() -> None:
+    # Regression: a filter with a column but no value/values used to pass
+    # through unchanged (KpiFilter.value/values are both optional), then
+    # compile to filter_equals(column, None) -- matching real rows only where
+    # the column happens to be null (typically zero) instead of failing
+    # loudly. Ground drops it and warns; C09 (see test_spec_validation.py)
+    # promotes that warning to a hard rejection.
+    raw = dict(GOOD_RAW, kpis=[{
+        "kpi_id": "kpi_bad", "operation": "ratio",
+        "numerator": {"operation": "count",
+                     "filter": {"column": "renewal_status", "operator": "equals"}},
+        "denominator": {"operation": "count",
+                        "filter": {"column": "renewal_status", "values": ["Renewed", "Not Renewed"]}},
+        "zero_denominator_policy": "return_null_with_warning",
+    }])
+    spec = _ground(raw)
+    kpi = spec.kpis[0]
+    assert kpi.numerator.filter is None
+    assert kpi.denominator.filter is not None  # this one HAD real values, untouched
+    assert any(w.code == "missing_filter_value" and w.column == "renewal_status"
+              for w in spec.warnings)
+
+
+def test_compare_ref_kept_when_valid() -> None:
+    raw = dict(GOOD_RAW, visualizations=[
+        *GOOD_RAW["visualizations"],
+        {"chart_id": "c_grouped", "chart_type": "grouped_bar",
+         "source_ref": "analysis_renewal_by_region", "compare_ref": "analysis_renewal_by_region"},
+    ])
+    spec = _ground(raw)
+    grouped = next(v for v in spec.visualizations if v.chart_id == "c_grouped")
+    assert grouped.compare_ref == "analysis_renewal_by_region"
+
+
+def test_dangling_compare_ref_dropped() -> None:
+    raw = dict(GOOD_RAW, visualizations=[
+        *GOOD_RAW["visualizations"],
+        {"chart_id": "c_grouped", "chart_type": "grouped_bar",
+         "source_ref": "analysis_renewal_by_region", "compare_ref": "analysis_does_not_exist"},
+    ])
+    spec = _ground(raw)
+    grouped = next(v for v in spec.visualizations if v.chart_id == "c_grouped")
+    assert grouped.compare_ref is None
+    assert any(w.code == "dangling_reference" and "compare_ref" in w.detail for w in spec.warnings)
+
+
+# ── new Analysis fields (row_points/date_span/survival) ───────────────────
+
+def test_analysis_new_columns_kept_when_approved() -> None:
+    raw = dict(GOOD_RAW, analyses=[
+        *GOOD_RAW["analyses"],
+        {"analysis_id": "analysis_scatter", "operation": "row_points",
+         "group_by": ["contract_id"], "x_column": "contract_value", "y_column": "contract_value"},
+    ])
+    spec = _ground(raw)
+    scatter = next(a for a in spec.analyses if a.analysis_id == "analysis_scatter")
+    assert scatter.x_column == "contract_value" and scatter.y_column == "contract_value"
+
+
+def test_analysis_invented_column_dropped_and_warned() -> None:
+    raw = dict(GOOD_RAW, analyses=[
+        *GOOD_RAW["analyses"],
+        {"analysis_id": "analysis_gantt", "operation": "date_span", "group_by": ["contract_id"],
+         "start_column": "start_date_invented", "end_column": "contract_value"},
+    ])
+    spec = _ground(raw)
+    gantt = next(a for a in spec.analyses if a.analysis_id == "analysis_gantt")
+    assert gantt.start_column is None  # not an approved column — dropped, never invented
+    assert gantt.end_column == "contract_value"
+    assert any(w.code == "unapproved_column" and w.column == "start_date_invented"
+              for w in spec.warnings)
+
+
+# ── graph_relation (C06 verified paths) ─────────────────────────────────────
+
+def test_graph_relation_analysis_grounds_with_approved_path() -> None:
+    raw = dict(GOOD_RAW, analyses=[
+        *GOOD_RAW["analyses"],
+        {"analysis_id": "analysis_by_manager", "operation": "graph_relation",
+         "graph_path_id": "path_contract_manager"},
+    ])
+    spec = ground_spec(
+        raw, dataset_id="dataset_contracts", dataset_version="v1",
+        approved_columns=APPROVED_COLUMNS, approved_operations=[*APPROVED_OPS, "graph_relation"],
+        approved_charts=APPROVED_CHARTS, approved_graph_paths=["path_contract_manager"],
+    )
+    a = next(a for a in spec.analyses if a.analysis_id == "analysis_by_manager")
+    assert a.graph_path_id == "path_contract_manager"
+    assert a.group_by == [] and a.metric is None
+
+
+def test_graph_relation_analysis_rejects_invented_path_id() -> None:
+    raw = dict(GOOD_RAW, analyses=[
+        *GOOD_RAW["analyses"],
+        {"analysis_id": "analysis_by_manager", "operation": "graph_relation",
+         "graph_path_id": "path_invented"},
+    ])
+    spec = ground_spec(
+        raw, dataset_id="dataset_contracts", dataset_version="v1",
+        approved_columns=APPROVED_COLUMNS, approved_operations=[*APPROVED_OPS, "graph_relation"],
+        approved_charts=APPROVED_CHARTS, approved_graph_paths=["path_contract_manager"],
+    )
+    assert not any(a.analysis_id == "analysis_by_manager" for a in spec.analyses)
+    assert any(w.code == "invalid_graph_path" for w in spec.warnings)
+
+
+def test_workspace_graph_relation_analysis_not_gated_on_dataset_id() -> None:
+    # graph_relation spans the whole workspace graph, so it must NOT be
+    # dropped by the workspace-mode dataset_id gate the way every other
+    # operation is (confirmed via the same "unknown_dataset" gate other
+    # workspace tests exercise below).
+    datasets = [{"dataset_id": "ds_a", "approved_columns": [{"name": "region"}]}]
+    raw = {
+        "business_questions": GOOD_RAW["business_questions"],
+        "kpis": [],
+        "analyses": [
+            {"analysis_id": "analysis_by_manager", "operation": "graph_relation",
+             "graph_path_id": "path_contract_manager"},
+        ],
+        "visualizations": [], "assumptions": [], "warnings": [],
+    }
+    spec = ground_spec(
+        raw, dataset_id="workspace_1", dataset_version="v1",
+        approved_columns=[], approved_operations=[*APPROVED_OPS, "graph_relation"],
+        approved_charts=APPROVED_CHARTS, approved_graph_paths=["path_contract_manager"],
+        datasets=datasets,
+    )
+    a = next(a for a in spec.analyses if a.analysis_id == "analysis_by_manager")
+    assert a.graph_path_id == "path_contract_manager" and a.dataset_id == ""
+
+
+# ── axis_refs (radar) ───────────────────────────────────────────────────────
+
+def test_axis_refs_kept_when_all_valid() -> None:
+    raw = dict(GOOD_RAW, visualizations=[
+        *GOOD_RAW["visualizations"],
+        {"chart_id": "c_radar", "chart_type": "bar",  # chart_type irrelevant to grounding itself
+         "source_ref": "kpi_renewal_rate",
+         "axis_refs": ["kpi_renewal_rate", "kpi_renewed_value", "analysis_renewal_by_region"]},
+    ])
+    spec = _ground(raw)
+    radar = next(v for v in spec.visualizations if v.chart_id == "c_radar")
+    assert radar.axis_refs == ["kpi_renewal_rate", "kpi_renewed_value", "analysis_renewal_by_region"]
+
+
+def test_axis_refs_drops_dangling_entries_keeps_valid_remainder() -> None:
+    raw = dict(GOOD_RAW, visualizations=[
+        *GOOD_RAW["visualizations"],
+        {"chart_id": "c_radar", "chart_type": "bar", "source_ref": "kpi_renewal_rate",
+         "axis_refs": ["kpi_renewal_rate", "kpi_does_not_exist"]},
+    ])
+    spec = _ground(raw)
+    radar = next(v for v in spec.visualizations if v.chart_id == "c_radar")
+    assert radar.axis_refs == ["kpi_renewal_rate"]
+    assert any(w.code == "dangling_reference" and "axis_refs" in w.detail for w in spec.warnings)
 
 
 def test_dangling_metric_reference_on_analysis() -> None:
@@ -370,7 +663,8 @@ class _FakeBroker:
 def _ctx():
     return SimpleNamespace(
         dataset_id="dataset_contracts", dataset_version="v1", domain="contract_management",
-        approved_columns=[SimpleNamespace(name=c["name"], type=c["type"]) for c in APPROVED_COLUMNS],
+        approved_columns=[SimpleNamespace(name=c["name"], type=c["type"], sample_values=[])
+                         for c in APPROVED_COLUMNS],
         approved_graph_paths=["path_contract_manager_region"],
         supported_operations=APPROVED_OPS, supported_charts=APPROVED_CHARTS,
     )
@@ -400,6 +694,49 @@ def test_first_attempt_success() -> None:
     assert result.status == "valid"
     assert result.attempts == 1
     assert len(calls) == 1
+
+
+def test_assemble_spec_invokes_the_filter_micro_repair_end_to_end() -> None:
+    # Regression: the draft itself leaves a KPI filter empty (the recurring
+    # live failure this session) — assemble_spec must fire the narrow
+    # micro-repair call (a SECOND complete_json_fn call, distinct from the
+    # full-spec repair retry) and end up with a clean spec, not a warning.
+    ctx = SimpleNamespace(
+        dataset_id="dataset_contracts", dataset_version="v1", domain="contract_management",
+        approved_columns=[
+            SimpleNamespace(name="contract_id", type="identifier", sample_values=[]),
+            SimpleNamespace(name="renewal_status", type="categorical",
+                           sample_values=["Renewed", "Not Renewed"]),
+        ],
+        approved_graph_paths=[], supported_operations=APPROVED_OPS, supported_charts=APPROVED_CHARTS,
+    )
+    broken_raw = {
+        "business_questions": [
+            {"question_id": "bq_1", "text": "How many contracts renewed?"},
+            {"question_id": "bq_2", "text": "What is the renewal rate?"},
+            {"question_id": "bq_3", "text": "How many total contracts are there?"},
+        ],
+        "kpis": [
+            {"kpi_id": "kpi_renewed_count", "name": "Renewed Contracts Count",
+             "source_columns": ["renewal_status"], "operation": "count",
+             "filter": {"column": "renewal_status", "operator": "equals"}},  # value missing
+        ],
+        "analyses": [], "visualizations": [], "assumptions": [], "warnings": [],
+    }
+    repair_fill = {"fills": [{"kpi_id": "kpi_renewed_count", "field": "filter", "value": "Renewed"}]}
+    calls = []
+
+    def fake_complete_json(broker, tier, system, user, schema):
+        calls.append(schema)
+        return repair_fill if len(calls) == 2 else broken_raw
+
+    result = assemble_spec(ctx, objective="renewal performance", broker=_FakeBroker(),
+                           complete_json_fn=fake_complete_json)
+    assert len(calls) == 2  # draft + micro-repair, not the full-spec repair path
+    assert result.spec is not None
+    kpi = result.spec.kpis[0]
+    assert kpi.filter is not None and kpi.filter.value == "Renewed"
+    assert not any(w.code == "missing_filter_value" for w in result.spec.warnings)
 
 
 def test_malformed_first_attempt_retries_then_succeeds() -> None:
@@ -459,9 +796,11 @@ def _workspace_ctx():
         dataset_id="workspace_1", dataset_version="v1", domain="mixed",
         datasets=[
             SimpleNamespace(dataset_id="dataset_item", dataset_version="v1",
-                            approved_columns=[SimpleNamespace(name="fields.cost", type="numeric")]),
+                            approved_columns=[SimpleNamespace(
+                                name="fields.cost", type="numeric", sample_values=[])]),
             SimpleNamespace(dataset_id="dataset_demand", dataset_version="v1",
-                            approved_columns=[SimpleNamespace(name="fields.quantity", type="numeric")]),
+                            approved_columns=[SimpleNamespace(
+                                name="fields.quantity", type="numeric", sample_values=[])]),
         ],
         approved_graph_paths=["path_item_demand"],
         supported_operations=APPROVED_OPS, supported_charts=APPROVED_CHARTS,

@@ -17,7 +17,7 @@ from aryx.andie_planner.models import DashboardSpec
 from aryx.dashboard_composition.models import CompositionIssue, DashboardComponent, DashboardSection
 
 DEFAULT_MAX_COLUMNS = 3
-DEFAULT_MAX_PRIMARY_CHARTS = 6
+DEFAULT_MAX_PRIMARY_CHARTS = 12
 _KPI_CARD_TYPE = "kpi_card"
 
 
@@ -50,7 +50,8 @@ def _build_components(
             # the per-visualization identifier, so it's the correct
             # uniqueness key here, not the thing being visualized.
             component_id=f"component_{viz.chart_id}", type=viz.chart_type,
-            source_ref=viz.source_ref, position=0))
+            source_ref=viz.source_ref, position=0, compare_ref=viz.compare_ref,
+            axis_refs=viz.axis_refs))
     return components, issues
 
 

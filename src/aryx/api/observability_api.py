@@ -33,11 +33,26 @@ def _llm_stats(conn: psycopg.Connection) -> dict[str, Any]:
     with conn.cursor() as cur:
         cur.execute(load("select_llm_stats"))
         row = cur.fetchone()
-    if not row:
-        return {}
-    return {"total_calls": row[0], "total_tokens": row[1],
-            "avg_latency_ms": row[2], "prompt_tokens": row[3],
-            "completion_tokens": row[4]}
+    stats: dict[str, Any] = {}
+    if row:
+        stats = {"total_calls": row[0], "total_tokens": row[1],
+                "avg_latency_ms": row[2], "prompt_tokens": row[3],
+                "completion_tokens": row[4]}
+    stats["by_source"] = _llm_stats_by_source(conn)
+    return stats
+
+
+def _llm_stats_by_source(conn: psycopg.Connection) -> list[dict[str, Any]]:
+    """Split ask (interactive) from pipeline (planner, ontology mapping,
+    resolution, tagging — everything routed through aryx.llm.complete_json/
+    complete_text) — the whole reason this table now logs pipeline calls at
+    all, not just Ask's."""
+    with conn.cursor() as cur:
+        cur.execute(load("select_llm_stats_by_source"))
+        rows = cur.fetchall()
+    cols = ["source", "total_calls", "total_tokens", "avg_latency_ms",
+           "prompt_tokens", "completion_tokens"]
+    return [dict(zip(cols, r)) for r in rows]
 
 
 def _recent_llm(conn: psycopg.Connection) -> list[dict[str, Any]]:

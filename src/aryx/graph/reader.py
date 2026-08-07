@@ -101,6 +101,30 @@ class GraphReader:
         ).result_set
         return [{"system": r[0], "dataset": r[1], "record_id": r[2]} for r in rows]
 
+    def count_by_relationship(self, source_type: str, relationship: str,
+                              target_type: str, direction: str = "out") -> dict[str, int]:
+        """Count source_type entities grouped by the target_type entity they
+        relate to via one named relationship (one hop only).
+
+        Args:
+            source_type: ontology type of the entities being counted.
+            relationship: the relationship's `name` property (not the Cypher
+                edge type, which is always REL — see neighbors()).
+            target_type: ontology type of the entity each count is grouped by.
+            direction: 'out' for (source)-[rel]->(target), 'in' to reverse it.
+
+        Returns:
+            {target_entity_name: count} — never raises on an empty match.
+        """
+        arrow = ("-[r:REL {name: $rel}]->" if direction != "in"
+                 else "<-[r:REL {name: $rel}]-")
+        rows = self._graph.query(
+            f"MATCH (s:Entity {{type: $source_type}}){arrow}(t:Entity {{type: $target_type}}) "
+            "RETURN t.name AS name, count(s) AS n",
+            {"source_type": source_type, "target_type": target_type, "rel": relationship},
+        ).result_set
+        return {str(r[0]): r[1] for r in rows}
+
     def shortest_path(self, src: int, dst: int, max_hops: int = 6) -> list[dict[str, Any]]:
         """Return the shortest path between two entities (either direction), or []."""
         hops = max(1, min(int(max_hops), 10))

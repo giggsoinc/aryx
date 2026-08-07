@@ -237,5 +237,4 @@ Intentional deletions: `git commit -m "feat: remove X [GUARD:ALLOW-DELETE]"`
 
 ---
 
-*Raven Enterprise v4.4.0 — github.com/Giggso-Inc/raven-enterprise*
-*Discipline layer origin: Raven v3.0 — MIT — github.com/giggsoinc/raven*
+*Raven v4.3.0 — MIT — github.com/giggsoinc/raven*

@@ -50,12 +50,29 @@ def datasource_router() -> APIRouter:
 
     @router.get("")
     def list_datasources(workspace_id: int = 1) -> list[dict[str, Any]]:
-        """List datasources for a workspace (mask only, no ciphertext)."""
-        return DatasourceStore(get_settings().rdb_dsn).list(workspace_id)
+        """List datasources for a workspace (mask only, no ciphertext).
+
+        Each row carries ``context_missing`` — True for datasources
+        registered before business context became required, so old rows
+        are surfaced for backfill rather than blocked.
+        """
+        rows = DatasourceStore(get_settings().rdb_dsn).list(workspace_id)
+        for row in rows:
+            row["context_missing"] = not bool(
+                (row.get("config") or {}).get("extra_context", "").strip())
+        return rows
 
     @router.post("")
     def add_datasource(req: DatasourceAddRequest) -> dict[str, Any]:
-        """Encrypt secret + store. Returns row WITHOUT ciphertext."""
+        """Encrypt secret + store. Returns row WITHOUT ciphertext.
+
+        Business context (``config.extra_context``) is required for every
+        kind — it drives entity/field mapping quality downstream.
+        """
+        if not req.config.get("extra_context", "").strip():
+            raise HTTPException(
+                400, "extra_context is required — describe what this "
+                     "datasource contains so mapping can use it")
         store = DatasourceStore(get_settings().rdb_dsn)
         try:
             return store.add(req.workspace_id, req.name, req.kind,

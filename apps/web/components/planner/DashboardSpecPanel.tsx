@@ -5,7 +5,7 @@ import {
   Sparkles, Loader2, CheckCircle2, XCircle, AlertTriangle, ChevronDown, Database,
 } from "lucide-react";
 import { api } from "@/lib/api";
-import type { PlannerResult } from "@/lib/types";
+import type { DashboardSpec, PlannerResult } from "@/lib/types";
 
 interface Props {
   workspaceId: number;
@@ -30,7 +30,16 @@ export function DashboardSpecPanel({ workspaceId }: Props) {
   const [recent, setRecent] = useState<PlannerResult[]>([]);
 
   useEffect(() => {
-    setResult(null);          // a prior workspace's result must not linger
+    // Show the last valid spec for THIS workspace until a new one is
+    // composed — never a prior workspace's result lingering, and never
+    // blank just because of a navigation/refresh (mirrors
+    // DashboardModelPanel's persisted-on-mount fetch). `alive` guards
+    // against a slow fetch for a workspace the user has since switched
+    // away from overwriting the newer workspace's state.
+    let alive = true;
+    api.getWorkspacePlannerResult(workspaceId)
+      .then((r) => { if (alive) setResult(r); })
+      .catch(() => { if (alive) setResult(null); });
     api.listDatasetVersions(workspaceId).then((rows) => {
       const ids = Array.from(new Set(rows.map((r) => r.dataset_id)));
       setDatasetIds(ids);
@@ -43,6 +52,7 @@ export function DashboardSpecPanel({ workspaceId }: Props) {
       ));
     }).catch(() => { setDatasetIds([]); setSelected(""); });
     api.listAndiePlans(workspaceId).then(setRecent).catch(() => setRecent([]));
+    return () => { alive = false; };
   }, [workspaceId]);
 
   const generate = async () => {
@@ -186,6 +196,8 @@ function ResultView({ result }: { result: PlannerResult }) {
         </span>
       </div>
 
+      <RichnessIndicator spec={spec} />
+
       <div className="mt-3">
         <div className="mb-1 text-xs font-semibold uppercase text-navy-400">
           Business questions ({spec.business_questions.length})
@@ -303,4 +315,34 @@ function StatusPill({ status }: { status: PlannerResult["status"] }) {
     : status === "invalid" ? "bg-amber-100 text-amber-700"
     : "bg-emerald-100 text-emerald-700";
   return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>{status}</span>;
+}
+
+// Observability only — never blocks or rejects a spec (C09 already owns
+// correctness). A "thin" spec still renders exactly as generated; this just
+// makes the gap visible instead of only being caught by a human reading it,
+// closing the Kaizen "measurement gap" found while investigating why
+// generated specs tend to come out primitive.
+const MIN_RICH_KPIS = 3;
+const MIN_RICH_VISUALIZATIONS = 4;
+const SUBSTANTIVE_ASSUMPTION_MIN_LENGTH = 40;
+
+function RichnessIndicator({ spec }: { spec: DashboardSpec }) {
+  const kpiCount = spec.kpis.length;
+  const analysisCount = spec.analyses.length;
+  const vizCount = spec.visualizations.length;
+  const substantiveAssumptions = spec.assumptions.filter(
+    (a) => a.meaning.length >= SUBSTANTIVE_ASSUMPTION_MIN_LENGTH).length;
+  const isThin = kpiCount < MIN_RICH_KPIS || vizCount < MIN_RICH_VISUALIZATIONS
+    || substantiveAssumptions === 0;
+
+  return (
+    <div className={`mt-2 flex items-center gap-1.5 text-xs ${isThin ? "text-amber-700" : "text-navy-500"}`}
+        title={isThin
+          ? "Fewer KPIs/visualizations or shallower reasoning than usual — still a valid spec, just worth a second look."
+          : "Within the usual range for KPI/visualization count and assumption depth."}>
+      {isThin && <AlertTriangle size={12} className="shrink-0 text-amber-500" />}
+      Richness: {kpiCount} KPIs &middot; {analysisCount} analyses &middot; {vizCount} visualizations &middot;{" "}
+      {substantiveAssumptions}/{spec.assumptions.length} substantive assumptions
+    </div>
+  );
 }

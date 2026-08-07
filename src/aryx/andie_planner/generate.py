@@ -22,6 +22,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable, Protocol
 
+from aryx.andie_planner.filter_repair import repair_missing_filters
 from aryx.andie_planner.ground import ground_spec
 from aryx.andie_planner.models import PlannerResult
 from aryx.andie_planner.prompt import (
@@ -48,6 +49,8 @@ class PlanningContextLike(Protocol):
     domain: str
     approved_columns: list[Any]
     approved_graph_paths: list[str]
+    graph_path_hints: list[Any]
+    graph_quality_notes: list[str]
     supported_operations: list[str]
     supported_charts: list[str]
 
@@ -114,6 +117,7 @@ def assemble_spec(
     prompt_version: str = PROMPT_VERSION,
     complete_json_fn: CompleteJsonFn,
     repair_constraints: str = "",
+    user_preferences: dict | None = None,
 ) -> PlannerResult:
     """Draft, ground, and return a candidate dashboard spec — never raises.
 
@@ -124,9 +128,12 @@ def assemble_spec(
             constraints from a prior attempt, appended to the prompt for the
             one allowed correction retry. Empty by default — a no-op, so
             existing callers see identical behavior.
+        user_preferences: C01 IntentPreferences hints (see prompt.py) — empty
+            by default, a no-op.
     """
     approved_columns = [
-        {"name": c.name, "type": c.type} for c in planning_context.approved_columns
+        {"name": c.name, "type": c.type, "sample_values": c.sample_values}
+        for c in planning_context.approved_columns
     ]
     system, user = build_planner_prompt(
         approved_columns=approved_columns,
@@ -136,6 +143,10 @@ def assemble_spec(
         objective=objective, target_audience=target_audience,
         output_schema_version=output_schema_version,
         domain=getattr(planning_context, "domain", ""),
+        user_preferences=user_preferences,
+        graph_path_hints=[{"path_id": h.path_id, "label": h.label, "depth": h.depth}
+                          for h in getattr(planning_context, "graph_path_hints", []) or []],
+        graph_quality_notes=list(getattr(planning_context, "graph_quality_notes", []) or []),
     )
     if repair_constraints:
         user = append_repair_constraints(user, repair_constraints)
@@ -157,6 +168,7 @@ def assemble_spec(
             approved_columns=approved_columns,
             approved_operations=list(planning_context.supported_operations),
             approved_charts=list(planning_context.supported_charts),
+            approved_graph_paths=list(planning_context.approved_graph_paths),
             objective=objective, target_audience=target_audience,
             output_schema_version=output_schema_version,
             model_name=_model_name(broker, tier), model_tier=tier,
@@ -166,6 +178,17 @@ def assemble_spec(
         logger.warning("andie_planner grounding failed: %s", exc, exc_info=True)
         return PlannerResult(status="controlled_error", error_code="grounding_failed",
                              error_message=str(exc), attempts=attempt)
+
+    # Step 8a — targeted micro-repair: fix KPI filters the model left empty
+    # with one narrow follow-up call, before C09 ever sees them. Best-effort
+    # and purely additive — never invents, never raises, never changes
+    # spec_status by itself (C09 still re-validates everything downstream).
+    try:
+        spec = repair_missing_filters(
+            spec, objective=objective, approved_columns=approved_columns,
+            broker=broker, tier=tier, complete_json_fn=complete_json_fn)
+    except Exception:  # noqa: BLE001 — best-effort, never blocks the caller
+        logger.warning("andie_planner filter micro-repair failed", exc_info=True)
     return PlannerResult(status=spec.spec_status, spec=spec, attempts=attempt)
 
 
@@ -177,6 +200,8 @@ class WorkspaceContextLike(Protocol):
     domain: str
     datasets: list[Any]
     approved_graph_paths: list[str]
+    graph_path_hints: list[Any]
+    graph_quality_notes: list[str]
     supported_operations: list[str]
     supported_charts: list[str]
 
@@ -192,6 +217,7 @@ def assemble_workspace_spec(
     prompt_version: str = PROMPT_VERSION,
     complete_json_fn: CompleteJsonFn,
     repair_constraints: str = "",
+    user_preferences: dict | None = None,
 ) -> PlannerResult:
     """Same as `assemble_spec`, but spans every dataset in the workspace.
 
@@ -202,10 +228,14 @@ def assemble_workspace_spec(
 
     Args:
         repair_constraints: see `assemble_spec` — empty by default, a no-op.
+        user_preferences: see `assemble_spec` — empty by default, a no-op.
     """
     dataset_groups = [
         {"dataset_id": d.dataset_id,
-         "approved_columns": [{"name": c.name, "type": c.type} for c in d.approved_columns]}
+         "approved_columns": [
+             {"name": c.name, "type": c.type, "sample_values": c.sample_values}
+             for c in d.approved_columns
+         ]}
         for d in workspace_context.datasets
     ]
     system, user = build_workspace_planner_prompt(
@@ -216,6 +246,10 @@ def assemble_workspace_spec(
         objective=objective, target_audience=target_audience,
         output_schema_version=output_schema_version,
         domain=getattr(workspace_context, "domain", ""),
+        user_preferences=user_preferences,
+        graph_path_hints=[{"path_id": h.path_id, "label": h.label, "depth": h.depth}
+                          for h in getattr(workspace_context, "graph_path_hints", []) or []],
+        graph_quality_notes=list(getattr(workspace_context, "graph_quality_notes", []) or []),
     )
     if repair_constraints:
         user = append_repair_constraints(user, repair_constraints)
@@ -231,6 +265,7 @@ def assemble_workspace_spec(
             approved_columns=[],
             approved_operations=list(workspace_context.supported_operations),
             approved_charts=list(workspace_context.supported_charts),
+            approved_graph_paths=list(workspace_context.approved_graph_paths),
             datasets=dataset_groups,
             objective=objective, target_audience=target_audience,
             output_schema_version=output_schema_version,
@@ -241,4 +276,12 @@ def assemble_workspace_spec(
         logger.warning("andie_planner workspace grounding failed: %s", exc, exc_info=True)
         return PlannerResult(status="controlled_error", error_code="grounding_failed",
                              error_message=str(exc), attempts=attempt)
+
+    try:
+        spec = repair_missing_filters(
+            spec, objective=objective,
+            columns_by_dataset={d["dataset_id"]: d["approved_columns"] for d in dataset_groups},
+            broker=broker, tier=tier, complete_json_fn=complete_json_fn)
+    except Exception:  # noqa: BLE001 — best-effort, never blocks the caller
+        logger.warning("andie_planner workspace filter micro-repair failed", exc_info=True)
     return PlannerResult(status=spec.spec_status, spec=spec, attempts=attempt)

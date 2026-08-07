@@ -41,13 +41,41 @@ class KpiResult(BaseModel):
 
 
 class AnalysisResultRow(BaseModel):
-    """One group's breakdown from a grouped_* node."""
+    """One group's breakdown from a grouped_* node.
+
+    min/q1/q3/max are populated only for a grouped_quartiles_numeric result
+    (box plot) — `value` still carries the median for KPI-card/table
+    fallback display, same convention as ratio's numerator/denominator."""
 
     group_value: str
     value: float | None = None
     numerator: float | None = None
     denominator: float | None = None
     sample_size: int = 0
+    min: float | None = None
+    q1: float | None = None
+    q3: float | None = None
+    max: float | None = None
+    # Populated only for a crosstab (grouped2d_*) result — the second
+    # group_by column's value for this cell (e.g. sankey/treemap/heatmap_matrix).
+    group_value_secondary: str | None = None
+    # Populated only for a row_points result (scatter/bubble) — one point per
+    # row, never aggregated.
+    x: float | None = None
+    y: float | None = None
+    size: float | None = None
+    # Populated only for a row_date_spans result (gantt) — raw date strings,
+    # never parsed/computed here (C12 never invents a date format).
+    start: str | None = None
+    end: str | None = None
+    # Populated only for a survival_curve result — one row per
+    # (group_value, duration_days) point; `value` carries survived_fraction,
+    # `sample_size` carries at_risk, same "value stands in" convention as
+    # quartiles' median.
+    duration_days: float | None = None
+    # Populated only for a histogram_buckets result — group_value is the
+    # group key ("_all_" when ungrouped).
+    buckets: list[dict[str, float]] | None = None
 
 
 class AnalysisResult(BaseModel):

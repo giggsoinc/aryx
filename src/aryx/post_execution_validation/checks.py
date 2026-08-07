@@ -50,8 +50,141 @@ def _mismatch(reported: float | None, recomputed: float | None) -> bool:
     return abs(reported - recomputed) > _TOLERANCE
 
 
+def _no_recomputed_group(reference: str, reported: Any) -> ValidationError:
+    return ValidationError(code="result_formula_mismatch", reference=reference,
+                           details={"reported_value": reported, "recomputed_value": None,
+                                   "explanation_code": "no_recomputed_group"})
+
+
+def _mismatch_error(reference: str, reported: Any, recomputed: Any) -> ValidationError:
+    return ValidationError(code="result_formula_mismatch", reference=reference,
+                           details={"reported_value": reported, "recomputed_value": recomputed,
+                                   "explanation_code": "computed_value_does_not_match_lineage"})
+
+
+def _check_1d_grouped_rows(analysis_id: str, rows: list, recomputed_groups: Any) -> list[ValidationError]:
+    """The original C12 shape: recomputed_groups is a flat dict keyed by
+    group_value (count/sum/average/median/ratio/quartiles)."""
+    errors: list[ValidationError] = []
+    for row in rows:
+        reference = f"{analysis_id}:{row.group_value}"
+        recomputed_raw = recomputed_groups.get(row.group_value) if isinstance(recomputed_groups, dict) else None
+        if recomputed_raw is None:
+            errors.append(_no_recomputed_group(reference, row.value))
+            continue
+        recomputed_value, *_ = _kpi_result_from_node(recomputed_raw)
+        if _mismatch(row.value, recomputed_value):
+            errors.append(_mismatch_error(reference, row.value, recomputed_value))
+        # A box-plot row's full statistics (min/q1/q3/max) live outside the
+        # single "value"/median slot _kpi_result_from_node returns — each one
+        # needs its own independent recompute-and-compare, same as the
+        # median already gets above, or a tampered q1/q3 would sail through
+        # unnoticed.
+        if row.q1 is not None and isinstance(recomputed_raw, dict):
+            for stat in ("min", "q1", "q3", "max"):
+                if _mismatch(getattr(row, stat), recomputed_raw.get(stat)):
+                    errors.append(_mismatch_error(f"{reference}:{stat}", getattr(row, stat),
+                                                  recomputed_raw.get(stat)))
+    return errors
+
+
+def _check_crosstab_rows(analysis_id: str, rows: list, recomputed_groups: Any) -> list[ValidationError]:
+    """crosstab (grouped2d_*): recomputed_groups is keyed by (group_value,
+    group_value_secondary) tuples, not a bare group_value."""
+    errors: list[ValidationError] = []
+    for row in rows:
+        reference = f"{analysis_id}:{row.group_value}:{row.group_value_secondary}"
+        key = (row.group_value, row.group_value_secondary)
+        recomputed_raw = recomputed_groups.get(key) if isinstance(recomputed_groups, dict) else None
+        if recomputed_raw is None:
+            errors.append(_no_recomputed_group(reference, row.value))
+            continue
+        recomputed_value, *_ = _kpi_result_from_node(recomputed_raw)
+        if _mismatch(row.value, recomputed_value):
+            errors.append(_mismatch_error(reference, row.value, recomputed_value))
+    return errors
+
+
+def _check_row_points_rows(analysis_id: str, rows: list, recomputed_points: Any) -> list[ValidationError]:
+    """row_points (scatter/bubble): recomputed_points is a LIST of
+    {"label","x","y","size"} dicts, not a group_value-keyed dict."""
+    errors: list[ValidationError] = []
+    points = recomputed_points if isinstance(recomputed_points, list) else []
+    for row in rows:
+        reference = f"{analysis_id}:{row.group_value}"
+        match = next((p for p in points if p.get("label") == row.group_value
+                     and p.get("x") == row.x and p.get("y") == row.y), None)
+        if match is None:
+            errors.append(_no_recomputed_group(reference, {"x": row.x, "y": row.y}))
+    return errors
+
+
+def _check_date_span_rows(analysis_id: str, rows: list, recomputed_spans: Any) -> list[ValidationError]:
+    """date_span (gantt): recomputed_spans is a LIST of
+    {"label","start","end"} dicts."""
+    errors: list[ValidationError] = []
+    spans = recomputed_spans if isinstance(recomputed_spans, list) else []
+    for row in rows:
+        reference = f"{analysis_id}:{row.group_value}"
+        match = next((s for s in spans if s.get("label") == row.group_value
+                     and s.get("start") == row.start and s.get("end") == row.end), None)
+        if match is None:
+            errors.append(_no_recomputed_group(reference, {"start": row.start, "end": row.end}))
+    return errors
+
+
+def _check_survival_rows(analysis_id: str, rows: list, recomputed_curves: Any) -> list[ValidationError]:
+    """survival: recomputed_curves is a dict[group] -> list of
+    {"duration_days","survived_fraction","at_risk"} points, one per
+    (group_value, duration_days) pair — not one row per group_value."""
+    errors: list[ValidationError] = []
+    for row in rows:
+        reference = f"{analysis_id}:{row.group_value}:{row.duration_days}"
+        points = recomputed_curves.get(row.group_value) if isinstance(recomputed_curves, dict) else None
+        match = next((p for p in (points or []) if p.get("duration_days") == row.duration_days), None)
+        if match is None:
+            errors.append(_no_recomputed_group(reference, row.value))
+            continue
+        if _mismatch(row.value, match.get("survived_fraction")):
+            errors.append(_mismatch_error(reference, row.value, match.get("survived_fraction")))
+    return errors
+
+
+def _check_histogram_rows(analysis_id: str, rows: list, recomputed: Any) -> list[ValidationError]:
+    """histogram: recomputed is either the single ungrouped
+    {"buckets": [...], ...} dict (row.group_value == "_all_"), or a
+    dict[group] -> {"buckets": [...], ...} for the grouped case."""
+    errors: list[ValidationError] = []
+    for row in rows:
+        reference = f"{analysis_id}:{row.group_value}"
+        if row.group_value == "_all_" and isinstance(recomputed, dict) and "buckets" in recomputed:
+            recomputed_raw = recomputed
+        elif isinstance(recomputed, dict):
+            recomputed_raw = recomputed.get(row.group_value)
+        else:
+            recomputed_raw = None
+        if recomputed_raw is None:
+            errors.append(_no_recomputed_group(reference, row.buckets))
+            continue
+        if row.buckets != recomputed_raw.get("buckets"):
+            errors.append(_mismatch_error(reference, row.buckets, recomputed_raw.get("buckets")))
+    return errors
+
+
+# analysis.operation -> the row-comparison shape recompute.py's run_plan
+# actually produces for it (mirrors analysis_execution.run._analysis_rows'
+# own dispatch on the exact same operations).
+_ANALYSIS_ROW_CHECKS = {
+    "crosstab": _check_crosstab_rows,
+    "row_points": _check_row_points_rows,
+    "date_span": _check_date_span_rows,
+    "survival": _check_survival_rows,
+    "histogram": _check_histogram_rows,
+}
+
+
 def check_aggregation_correctness(
-    run: ExecutionRun, recomputed_nodes: dict[str, Any], plan: ExecutionPlan,
+    spec: DashboardSpec, run: ExecutionRun, recomputed_nodes: dict[str, Any], plan: ExecutionPlan,
 ) -> tuple[CheckResult, list[ValidationError]]:
     """B. Recompute every KPI's value AND every analysis row's value fresh
     and compare — a structurally valid but numerically incorrect result is
@@ -76,27 +209,14 @@ def check_aggregation_correctness(
                 details={"reported_value": kpi.value, "recomputed_value": recomputed_value,
                         "explanation_code": "computed_value_does_not_match_lineage"}))
 
+    analyses_by_id = {a.analysis_id: a for a in spec.analyses}
     for analysis in run.analysis_results:
         node_id = plan.analysis_node.get(analysis.analysis_id)
         recomputed_groups = recomputed_nodes.get(node_id) if node_id else None
-        for row in analysis.rows:
-            reference = f"{analysis.analysis_id}:{row.group_value}"
-            recomputed_raw = (
-                recomputed_groups.get(row.group_value)
-                if isinstance(recomputed_groups, dict) else None
-            )
-            if recomputed_raw is None:
-                errors.append(ValidationError(
-                    code="result_formula_mismatch", reference=reference,
-                    details={"reported_value": row.value, "recomputed_value": None,
-                            "explanation_code": "no_recomputed_group"}))
-                continue
-            recomputed_value, *_ = _kpi_result_from_node(recomputed_raw)
-            if _mismatch(row.value, recomputed_value):
-                errors.append(ValidationError(
-                    code="result_formula_mismatch", reference=reference,
-                    details={"reported_value": row.value, "recomputed_value": recomputed_value,
-                            "explanation_code": "computed_value_does_not_match_lineage"}))
+        spec_analysis = analyses_by_id.get(analysis.analysis_id)
+        op = spec_analysis.operation if spec_analysis else ""
+        row_check = _ANALYSIS_ROW_CHECKS.get(op, _check_1d_grouped_rows)
+        errors.extend(row_check(analysis.analysis_id, analysis.rows, recomputed_groups))
     status = "failed" if errors else "passed"
     return CheckResult(check="aggregation_correctness", status=status), errors
 

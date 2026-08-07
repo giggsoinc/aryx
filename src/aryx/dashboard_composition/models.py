@@ -32,6 +32,11 @@ class DashboardComponent(BaseModel):
     source_ref: str = Field(description="The kpi_id or analysis_id this component renders.")
     position: int
     warning_refs: list[str] = Field(default_factory=list)
+    compare_ref: str | None = Field(
+        default=None, description="grouped_bar only: the second analysis_id "
+        "to compare against source_ref, carried over from Visualization.")
+    axis_refs: list[str] | None = Field(
+        default=None, description="radar only: carried over from Visualization.axis_refs.")
 
 
 class DashboardSection(BaseModel):

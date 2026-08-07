@@ -61,8 +61,8 @@
       "rdflib~"
     ]
   },
-  "raven_version": "4.4.0",
-  "standards": "raven-v3.0",
+  "raven_version": "4.3.0",
+  "standards": "raven-v4.3.0",
   "approval_mode": "auto",
   "guard": {
     "enabled": true,

@@ -19,8 +19,10 @@ APPROVED_COLUMNS = [
     {"name": "renewal_status", "type": "categorical"},
     {"name": "renewal_date", "type": "datetime"},
 ]
-APPROVED_OPS = ["count", "sum", "ratio", "group_by"]
-APPROVED_CHARTS = ["kpi_card", "bar", "scatter", "table"]
+APPROVED_OPS = ["count", "sum", "ratio", "group_by", "quartiles",
+               "crosstab", "row_points", "date_span", "survival", "histogram"]
+APPROVED_CHARTS = ["kpi_card", "bar", "scatter", "table", "grouped_bar",
+                  "bubble", "gantt", "survival_curve", "histogram", "sankey", "treemap", "radar"]
 APPROVED_PATHS = ["path_contract_manager_region"]
 
 GOOD_RAW = {
@@ -163,6 +165,18 @@ def test_sum_kpi_with_no_measure_at_all_is_rejected() -> None:
     assert any(e.code == "missing_measure" and e.reference == "kpi_bad" for e in report.errors)
 
 
+def test_quartiles_kpi_with_no_measure_is_rejected() -> None:
+    # "quartiles" (box plot) is a numeric op just like sum/average/median —
+    # adding it to _NUMERIC_OPS means the existing missing_measure check
+    # applies with no new validation code needed.
+    raw = dict(GOOD_RAW, kpis=[{
+        "kpi_id": "kpi_deal_size", "operation": "quartiles", "source_columns": ["contract_value"],
+    }])
+    spec = _ground(raw)
+    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert any(e.code == "missing_measure" and e.reference == "kpi_deal_size" for e in report.errors)
+
+
 # ── 5. operation whitelist (promoted from ground.py) ─────────────────────
 
 def test_unsupported_operation_fails_whitelist_check() -> None:
@@ -185,6 +199,43 @@ def test_ratio_without_denominator_fails_formula_validity() -> None:
     spec = _ground(raw)
     report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
     assert any(e.code == "formula_incoherent" for e in report.errors)
+
+
+def test_ratio_operand_filter_with_no_value_is_rejected() -> None:
+    # Regression: found live in workspace testing — a ratio KPI whose
+    # numerator/denominator filter has a column but no value/values compiled
+    # to filter_equals(column, None), matching zero real rows and silently
+    # returning a null ratio (or, if the filter were merely dropped without
+    # this check, an unfiltered 100%/nonsense ratio instead).
+    raw = dict(GOOD_RAW, kpis=[{
+        "kpi_id": "kpi_bad", "operation": "ratio",
+        "numerator": {"operation": "count",
+                     "filter": {"column": "renewal_status", "operator": "equals"}},
+        "denominator": {"operation": "count",
+                        "filter": {"column": "renewal_status", "values": ["Renewed", "Not Renewed"]}},
+        "zero_denominator_policy": "return_null_with_warning",
+    }])
+    spec = _ground(raw)
+    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert any(e.code == "missing_filter_value" and e.reference == "renewal_status"
+              for e in report.errors)
+
+
+def test_repair_text_explains_missing_filter_value() -> None:
+    raw = dict(GOOD_RAW, kpis=[{
+        "kpi_id": "kpi_bad", "operation": "ratio",
+        "numerator": {"operation": "count",
+                     "filter": {"column": "renewal_status", "operator": "equals"}},
+        "denominator": {"operation": "count",
+                        "filter": {"column": "renewal_status", "values": ["Renewed", "Not Renewed"]}},
+        "zero_denominator_policy": "return_null_with_warning",
+    }])
+    spec = _ground(raw)
+    report, repair = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert repair is not None
+    text = repair_constraints_text(repair)
+    assert "no \"value\"" in text or 'no "value"' in text
+    assert "renewal_status" in text
 
 
 # ── 7. division-by-zero policy ───────────────────────────────────────────
@@ -214,14 +265,189 @@ def test_ratio_with_unimplemented_zero_denominator_policy_fails() -> None:
 
 # ── 8. chart/axis compatibility ──────────────────────────────────────────
 
-def test_scatter_with_two_categorical_axes_fails() -> None:
+def test_scatter_without_row_points_operation_fails() -> None:
+    # scatter/bubble now need a real row_points Analysis (raw per-row x/y),
+    # not the old cosmetic x_axis/y_axis fields — a scatter pointed at a
+    # plain grouped analysis has no per-row point data to plot.
     raw = dict(GOOD_RAW, visualizations=[
-        {"chart_id": "c1", "chart_type": "scatter", "source_ref": "kpi_renewal_rate",
-         "x_axis": "region", "y_axis": "renewal_status"},
+        {"chart_id": "c1", "chart_type": "scatter", "source_ref": "analysis_renewal_by_region"},
     ])
     spec = _ground(raw)
     report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
     assert any(e.code == "incompatible_chart_axes" and e.reference == "c1" for e in report.errors)
+
+
+def test_scatter_with_row_points_operation_passes() -> None:
+    raw = dict(GOOD_RAW,
+              analyses=[*GOOD_RAW["analyses"],
+                       {"analysis_id": "analysis_scatter", "operation": "row_points",
+                        "group_by": ["contract_id"], "x_column": "contract_value",
+                        "y_column": "contract_value"}],
+              visualizations=[
+                  {"chart_id": "c1", "chart_type": "scatter", "source_ref": "analysis_scatter"},
+              ])
+    spec = _ground(raw)
+    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert not any(e.code == "incompatible_chart_axes" for e in report.errors)
+
+
+def test_bubble_without_size_column_fails() -> None:
+    raw = dict(GOOD_RAW,
+              analyses=[*GOOD_RAW["analyses"],
+                       {"analysis_id": "analysis_bubble", "operation": "row_points",
+                        "group_by": ["contract_id"], "x_column": "contract_value",
+                        "y_column": "contract_value"}],  # no size_column
+              visualizations=[
+                  {"chart_id": "c1", "chart_type": "bubble", "source_ref": "analysis_bubble"},
+              ])
+    spec = _ground(raw)
+    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert any(e.code == "incompatible_chart_axes" and e.reference == "c1" for e in report.errors)
+
+
+def test_gantt_requires_date_span_operation_with_both_dates() -> None:
+    raw = dict(GOOD_RAW,
+              analyses=[*GOOD_RAW["analyses"],
+                       {"analysis_id": "analysis_gantt", "operation": "date_span",
+                        "group_by": ["contract_id"], "start_column": "renewal_date"}],  # no end_column
+              visualizations=[
+                  {"chart_id": "c1", "chart_type": "gantt", "source_ref": "analysis_gantt"},
+              ])
+    spec = _ground(raw)
+    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert any(e.code == "incompatible_chart_axes" and e.reference == "c1" for e in report.errors)
+
+
+def test_survival_curve_requires_survival_operation() -> None:
+    raw = dict(GOOD_RAW,
+              analyses=[*GOOD_RAW["analyses"],
+                       {"analysis_id": "analysis_survival", "operation": "group_by",
+                        "group_by": ["region"], "metric": "kpi_renewal_rate"}],
+              visualizations=[
+                  {"chart_id": "c1", "chart_type": "survival_curve", "source_ref": "analysis_survival"},
+              ])
+    spec = _ground(raw)
+    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert any(e.code == "incompatible_chart_axes" and e.reference == "c1" for e in report.errors)
+
+
+def test_histogram_requires_histogram_operation() -> None:
+    raw = dict(GOOD_RAW, visualizations=[
+        {"chart_id": "c1", "chart_type": "histogram", "source_ref": "analysis_renewal_by_region"},
+    ])
+    spec = _ground(raw)
+    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert any(e.code == "incompatible_chart_axes" and e.reference == "c1" for e in report.errors)
+
+
+def test_sankey_requires_crosstab_with_two_group_by_columns() -> None:
+    raw = dict(GOOD_RAW, visualizations=[
+        {"chart_id": "c1", "chart_type": "sankey", "source_ref": "analysis_renewal_by_region"},
+    ])
+    spec = _ground(raw)
+    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert any(e.code == "incompatible_chart_axes" and e.reference == "c1" for e in report.errors)
+
+
+def test_treemap_with_crosstab_operation_and_two_columns_passes() -> None:
+    raw = dict(GOOD_RAW,
+              analyses=[*GOOD_RAW["analyses"],
+                       {"analysis_id": "analysis_flow", "operation": "crosstab",
+                        "group_by": ["region", "renewal_status"], "metric": "kpi_renewed_value"}],
+              visualizations=[
+                  {"chart_id": "c1", "chart_type": "treemap", "source_ref": "analysis_flow"},
+              ])
+    spec = _ground(raw)
+    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert not any(e.code == "incompatible_chart_axes" for e in report.errors)
+
+
+def _ground_with_graph_relation(raw):
+    return ground_spec(
+        raw, dataset_id="dataset_contracts", dataset_version="v1",
+        approved_columns=APPROVED_COLUMNS, approved_operations=[*APPROVED_OPS, "graph_relation"],
+        approved_charts=APPROVED_CHARTS, approved_graph_paths=APPROVED_PATHS,
+    )
+
+
+def test_graph_relation_sourced_sankey_fails_chart_shape() -> None:
+    raw = dict(GOOD_RAW,
+              analyses=[*GOOD_RAW["analyses"],
+                       {"analysis_id": "analysis_by_manager", "operation": "graph_relation",
+                        "graph_path_id": "path_contract_manager_region"}],
+              visualizations=[
+                  {"chart_id": "c1", "chart_type": "sankey", "source_ref": "analysis_by_manager"},
+              ])
+    spec = _ground_with_graph_relation(raw)
+    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert any(e.code == "incompatible_chart_axes" and e.reference == "c1" for e in report.errors)
+
+
+def test_graph_relation_sourced_bar_passes_chart_shape() -> None:
+    raw = dict(GOOD_RAW,
+              analyses=[*GOOD_RAW["analyses"],
+                       {"analysis_id": "analysis_by_manager", "operation": "graph_relation",
+                        "graph_path_id": "path_contract_manager_region"}],
+              visualizations=[
+                  {"chart_id": "c1", "chart_type": "bar", "source_ref": "analysis_by_manager"},
+              ])
+    spec = _ground_with_graph_relation(raw)
+    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert not any(e.code == "incompatible_chart_axes" for e in report.errors)
+
+
+def test_radar_requires_at_least_three_axis_refs() -> None:
+    raw = dict(GOOD_RAW, visualizations=[
+        {"chart_id": "c1", "chart_type": "radar", "source_ref": "kpi_renewal_rate",
+         "axis_refs": ["kpi_renewal_rate", "kpi_renewed_value"]},  # only 2
+    ])
+    spec = _ground(raw)
+    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert any(e.code == "incompatible_chart_axes" and e.reference == "c1" for e in report.errors)
+
+
+def test_radar_with_three_axis_refs_passes() -> None:
+    raw = dict(GOOD_RAW, visualizations=[
+        {"chart_id": "c1", "chart_type": "radar", "source_ref": "kpi_renewal_rate",
+         "axis_refs": ["kpi_renewal_rate", "kpi_renewed_value", "analysis_renewal_by_region"]},
+    ])
+    spec = _ground(raw)
+    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert not any(e.code == "incompatible_chart_axes" for e in report.errors)
+
+
+def test_grouped_bar_with_mismatched_group_by_columns_fails() -> None:
+    # Merging two analyses by group_value only makes sense if both group by
+    # the SAME column — region vs renewal_status would silently produce a
+    # meaningless chart on the frontend if this weren't caught here.
+    raw = dict(GOOD_RAW,
+              analyses=[*GOOD_RAW["analyses"],
+                       {"analysis_id": "analysis_by_status", "operation": "group_by",
+                        "group_by": ["renewal_status"], "metric": "kpi_renewal_rate"}],
+              visualizations=[
+                  {"chart_id": "c_grouped", "chart_type": "grouped_bar",
+                   "source_ref": "analysis_renewal_by_region",
+                   "compare_ref": "analysis_by_status"},
+              ])
+    spec = _ground(raw)
+    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert any(e.code == "incompatible_chart_axes" and e.reference == "c_grouped"
+              for e in report.errors)
+
+
+def test_grouped_bar_with_matching_group_by_columns_passes() -> None:
+    raw = dict(GOOD_RAW,
+              analyses=[*GOOD_RAW["analyses"],
+                       {"analysis_id": "analysis_by_region_2", "operation": "group_by",
+                        "group_by": ["region"], "metric": "kpi_renewal_rate"}],
+              visualizations=[
+                  {"chart_id": "c_grouped", "chart_type": "grouped_bar",
+                   "source_ref": "analysis_renewal_by_region",
+                   "compare_ref": "analysis_by_region_2"},
+              ])
+    spec = _ground(raw)
+    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert not any(e.code == "incompatible_chart_axes" for e in report.errors)
 
 
 def test_dangling_reference_is_a_warning_not_a_rejection() -> None:
@@ -240,20 +466,6 @@ def test_dangling_reference_is_a_warning_not_a_rejection() -> None:
     assert report.status == "approved"
     assert any(w.code == "dangling_reference" for w in report.warnings)
 
-
-# ── 8. chart/axis compatibility (cont.) ──────────────────────────────────
-
-
-def test_scatter_with_numeric_axis_passes_axis_check() -> None:
-    raw = dict(GOOD_RAW, visualizations=[
-        {"chart_id": "c1", "chart_type": "scatter", "source_ref": "kpi_renewal_rate",
-         "x_axis": "region", "y_axis": "contract_value"},
-    ])
-    spec = _ground(raw)
-    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
-    assert not any(e.code == "incompatible_chart_axes" for e in report.errors)
-
-
 # ── 9. lineage declaration ───────────────────────────────────────────────
 
 def test_kpi_with_no_lineage_fails() -> None:
@@ -261,6 +473,22 @@ def test_kpi_with_no_lineage_fails() -> None:
     spec = _ground(raw)
     report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
     assert any(e.code == "missing_lineage" and e.reference == "kpi_bad" for e in report.errors)
+
+
+def test_graph_relation_analysis_with_path_id_satisfies_lineage() -> None:
+    # graph_relation has neither group_by nor metric — its graph_path_id IS
+    # its lineage, so it must not be wrongly flagged missing_lineage.
+    raw = dict(GOOD_RAW,
+              analyses=[*GOOD_RAW["analyses"],
+                       {"analysis_id": "analysis_by_manager", "operation": "graph_relation",
+                        "graph_path_id": "path_contract_manager_region"}],
+              visualizations=[
+                  {"chart_id": "c1", "chart_type": "bar", "source_ref": "analysis_by_manager"},
+              ])
+    spec = _ground_with_graph_relation(raw)
+    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert not any(e.code == "missing_lineage" and e.reference == "analysis_by_manager"
+                  for e in report.errors)
 
 
 # ── 10. claim safety ─────────────────────────────────────────────────────

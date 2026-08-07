@@ -39,7 +39,16 @@ export function IntentForm({ workspaceId }: Props) {
   const [recent, setRecent] = useState<UserIntent[]>([]);
 
   const refreshRecent = () => {
-    api.listIntents(workspaceId).then(setRecent).catch(() => setRecent([]));
+    api.listIntents(workspaceId).then((list) => {
+      setRecent(list);
+      // Re-display the latest captured intent after a reload — `result` only
+      // ever came from this session's own submit() before, so a refresh lost
+      // it even though the capture itself was already persisted. `list` is
+      // newest-first (IntentStore.list), and `prev ??` keeps a fresher
+      // same-session submit() result instead of clobbering it with this
+      // (slightly stale) refetch.
+      setResult((prev) => prev ?? list[0] ?? null);
+    }).catch(() => setRecent([]));
   };
 
   useEffect(refreshRecent, [workspaceId]);

@@ -3,8 +3,9 @@ from __future__ import annotations
 
 from aryx.planning.assemble import assemble_context, assemble_workspace_context
 from aryx.planning.catalogues import CHARTS, OPERATIONS
+from aryx.planning.models import GraphPathHint
 from aryx.profiler.models import ColumnProfile, DatasetProfile
-from aryx.graph_profiler.models import GraphProfile, VerifiedPath
+from aryx.graph_profiler.models import GraphProfile, GraphQualityFlag, VerifiedPath
 
 
 def _profile() -> DatasetProfile:
@@ -65,6 +66,27 @@ def test_approved_columns_exclude_noise() -> None:
                      "renewal_status", "contract_end_date"}
 
 
+def test_sample_values_carried_through_and_capped() -> None:
+    # Without real example values, the planner LLM has no way to know what
+    # literal string a categorical filter should compare against — this is
+    # what feeds KpiFilter.value/values, not decoration.
+    cols = [
+        ColumnProfile(name="renewal_status", original_type="string",
+                     canonical_type="categorical", candidate_role="status",
+                     sample_values=["Renewed", "Not Renewed", "Pending", "Renewed", "Not Renewed", "X"]),
+        ColumnProfile(name="contract_value", original_type="string",
+                     canonical_type="numeric", candidate_role="measure",
+                     sample_values=["100.0", "200.0"]),
+    ]
+    profile = DatasetProfile(dataset_profile_id="p", dataset_id="dataset_contracts",
+                             dataset_version="v1", row_count=10, column_count=2, columns=cols)
+    ctx = _assemble(dataset_profile=profile)
+    status = next(c for c in ctx.approved_columns if c.name == "renewal_status")
+    assert status.sample_values == ["Renewed", "Not Renewed", "Pending", "Renewed", "Not Renewed"]  # capped at 5
+    value = next(c for c in ctx.approved_columns if c.name == "contract_value")
+    assert value.sample_values == ["100.0", "200.0"]
+
+
 def test_datetime_type_relabeled_as_date() -> None:
     ctx = _assemble()
     end = next(c for c in ctx.approved_columns if c.name == "contract_end_date")
@@ -74,6 +96,38 @@ def test_datetime_type_relabeled_as_date() -> None:
 def test_approved_graph_paths() -> None:
     ctx = _assemble()
     assert ctx.approved_graph_paths == ["path_contract_manager_region"]
+
+
+def test_graph_path_hints_carry_readable_label_and_depth() -> None:
+    # approved_graph_paths only ever kept the bare id — the LLM had no way
+    # to judge relevance without this readable, same-order companion.
+    ctx = _assemble()
+    assert len(ctx.graph_path_hints) == 1
+    hint = ctx.graph_path_hints[0]
+    assert hint.path_id == "path_contract_manager_region"
+    assert hint.label == "Contract -> MANAGED_BY -> AccountManager"
+    assert hint.depth == 1
+
+
+def test_graph_quality_notes_from_flags_and_limitations() -> None:
+    graph = GraphProfile(
+        graph_profile_id="graph_profile_graph_contracts_v1",
+        graph_id="graph_contracts", graph_version="v1",
+        quality_flags=[GraphQualityFlag(code="sparse_region", detail="Region X has 2 entities",
+                                        type="AccountManager", count=2)],
+        limitations=["Only 1 verified path — graph coverage is shallow."],
+    )
+    ctx = _assemble(graph_profile=graph)
+    assert ctx.graph_quality_notes == [
+        "sparse_region: Region X has 2 entities",
+        "Only 1 verified path — graph coverage is shallow.",
+    ]
+
+
+def test_graph_quality_notes_empty_without_graph_profile() -> None:
+    ctx = _assemble(graph_profile=None)
+    assert ctx.graph_quality_notes == []
+    assert ctx.graph_path_hints == []
 
 
 def test_citations_recorded() -> None:
@@ -199,6 +253,30 @@ def test_workspace_context_citations_include_every_dataset() -> None:
     profile_citations = [c for c in ctx.resource_citations if c.resource_type == "dataset_profile"]
     assert {c.resource_id for c in profile_citations} == {
         "profile_dataset_item_v1", "profile_dataset_demand_v1"}
+
+
+def test_workspace_context_graph_path_hints_and_quality_notes() -> None:
+    graph = GraphProfile(
+        graph_profile_id="graph_profile_graph_ws_v1",
+        graph_id="graph_workspace_1", graph_version="v1",
+        verified_paths=[VerifiedPath(path_id="path_item_demand",
+                                     path=["Item", "HAS_DEMAND", "DemandRecord"], depth=1)],
+        quality_flags=[GraphQualityFlag(code="disconnected_region", detail="12 orphan items")],
+        limitations=["Graph projection last refreshed before latest ingest."],
+    )
+    ctx = assemble_workspace_context(
+        workspace_id=1, version="v1",
+        dataset_profiles=[_item_profile(), _demand_profile()],
+        semantic_profiles={}, graph_profile=graph,
+        operations=OPERATIONS, charts=CHARTS,
+    )
+    assert ctx.graph_path_hints == [
+        GraphPathHint(path_id="path_item_demand", label="Item -> HAS_DEMAND -> DemandRecord", depth=1)
+    ]
+    assert ctx.graph_quality_notes == [
+        "disconnected_region: 12 orphan items",
+        "Graph projection last refreshed before latest ingest.",
+    ]
 
 
 def test_workspace_context_empty_datasets_is_none_upstream() -> None:

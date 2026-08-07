@@ -9,6 +9,7 @@ import { DashboardSpecPanel } from "@/components/planner/DashboardSpecPanel";
 import { ExecutionPlanPanel } from "@/components/planner/ExecutionPlanPanel";
 import { ExecutionRunPanel } from "@/components/planner/ExecutionRunPanel";
 import { DashboardModelPanel } from "@/components/planner/DashboardModelPanel";
+import { AskToVisualizePanel } from "@/components/planner/AskToVisualizePanel";
 import { DashboardRenderer } from "@/components/planner/DashboardRenderer";
 import { useWorkspace } from "@/lib/workspace";
 
@@ -26,7 +27,7 @@ export default function DashboardPage() {
         <GraphIntakePanel workspaceId={workspaceId} />
         {/* C07 (workspace scope) — merged planning context across all datasets */}
         <WorkspacePlanningContextPanel workspaceId={workspaceId} />
-        {/* C08 — Andie Jr Planning Orchestrator (on-demand; calls a real LLM) */}
+        {/* C08 — Aryx Insight Orchestrator (on-demand; calls a real LLM) */}
         <DashboardSpecPanel workspaceId={workspaceId} />
         {/* C11 — Execution Compiler (read-only; compiled automatically after C08/C09/C10) */}
         <ExecutionPlanPanel workspaceId={workspaceId} />
@@ -34,6 +35,8 @@ export default function DashboardPage() {
         <ExecutionRunPanel workspaceId={workspaceId} />
         {/* C14 — Dashboard Composition (on-demand; gated on C13) */}
         <DashboardModelPanel workspaceId={workspaceId} />
+        {/* Ask-to-visualize (C08 extension) — one chart at a time, appended */}
+        <AskToVisualizePanel workspaceId={workspaceId} />
         {/* C15 — Frontend Dashboard Renderer: the actual final interface */}
         <DashboardRenderer workspaceId={workspaceId} />
       </main>

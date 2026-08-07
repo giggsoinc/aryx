@@ -17,7 +17,9 @@ import uuid
 from aryx.andie_planner.models import Analysis, DashboardSpec, Kpi, KpiFilter, KpiOperand
 from aryx.execution_compiler.models import CompilationIssue, ExecutionNode, ExecutionPlan
 from aryx.execution_compiler.templates import (
-    GROUPED_NUMERIC_TEMPLATES, NUMERIC_TEMPLATES, RATIO_OPERATIONS,
+    GROUPED_2D_NUMERIC_TEMPLATES, GROUPED_HISTOGRAM_TEMPLATES, GROUPED_NUMERIC_TEMPLATES,
+    GROUPED_QUARTILE_TEMPLATES, HISTOGRAM_TEMPLATES, NUMERIC_TEMPLATES, QUARTILE_TEMPLATES,
+    RATIO_OPERATIONS,
 )
 from aryx.execution_compiler.validate import (
     check_ratio_operand_operations, check_resource_limits, is_acyclic, validate_bindings,
@@ -107,6 +109,16 @@ def _compile_kpi(kpi: Kpi) -> tuple[list[ExecutionNode], str]:
         nodes.append(ExecutionNode(
             node_id=final_id, template=NUMERIC_TEMPLATES[kpi.operation], dataset_id=did,
             parameters={"column": kpi.measure or "", "null_policy": "exclude"}, depends_on=depends_on))
+    elif kpi.operation in QUARTILE_TEMPLATES:
+        final_id = f"op_{kpi.kpi_id}_{kpi.operation}"
+        nodes.append(ExecutionNode(
+            node_id=final_id, template=QUARTILE_TEMPLATES[kpi.operation], dataset_id=did,
+            parameters={"column": kpi.measure or "", "null_policy": "exclude"}, depends_on=depends_on))
+    elif kpi.operation in HISTOGRAM_TEMPLATES:
+        final_id = f"op_{kpi.kpi_id}_{kpi.operation}"
+        nodes.append(ExecutionNode(
+            node_id=final_id, template=HISTOGRAM_TEMPLATES[kpi.operation], dataset_id=did,
+            parameters={"column": kpi.measure or "", "null_policy": "exclude"}, depends_on=depends_on))
     else:
         # "count" and any other whitelisted-but-non-numeric op reduce to a
         # row count over the (optionally filtered) rows.
@@ -138,7 +150,82 @@ def _compile_analysis(analysis: Analysis, kpis_by_id: dict[str, Kpi]) -> tuple[l
     did = analysis.dataset_id
     group_column = analysis.group_by[0] if analysis.group_by else ""
     node_id = f"op_{analysis.analysis_id}_grouped"
+
+    # row_points/date_span/survival need no metric_kpi at all — they read
+    # their own columns directly off the Analysis, never aggregated through
+    # a KPI (there is no single scalar to report; the whole point is the
+    # per-row/per-duration shape itself).
+    if analysis.operation == "row_points":
+        return [ExecutionNode(
+            node_id=node_id, template="row_points", dataset_id=did,
+            parameters={"label_column": group_column, "x_column": analysis.x_column or "",
+                       "y_column": analysis.y_column or "", "size_column": analysis.size_column or ""},
+        )], node_id
+    if analysis.operation == "date_span":
+        return [ExecutionNode(
+            node_id=node_id, template="row_date_spans", dataset_id=did,
+            parameters={"label_column": group_column, "start_column": analysis.start_column or "",
+                       "end_column": analysis.end_column or ""},
+        )], node_id
+    if analysis.operation == "survival":
+        return [ExecutionNode(
+            node_id=node_id, template="survival_curve", dataset_id=did,
+            parameters={"group_column": group_column, "start_column": analysis.start_column or "",
+                       "end_column": analysis.end_column or ""},
+        )], node_id
+
+    # graph_relation: no dataset rows involved at all — dataset_id="" so the
+    # execution loader never tries to fetch rows for this node; the actual
+    # source/relationship/target triple is resolved from graph_path_id at
+    # execution time (compile has no DB/graph access), see
+    # analysis_execution.execute.resolve_graph_relation_nodes.
+    if analysis.operation == "graph_relation":
+        return [ExecutionNode(
+            node_id=node_id, template="graph_relation_count", dataset_id="",
+            parameters={"path_id": analysis.graph_path_id or ""},
+        )], node_id
+
     metric_kpi = kpis_by_id.get(analysis.metric or "")
+
+    # crosstab: group_by has 2 columns — dispatch on the referenced KPI's own
+    # operation, same convention as the 1D grouped branches below.
+    if analysis.operation == "crosstab" and len(analysis.group_by) >= 2:
+        group_column_2 = analysis.group_by[1]
+        base_params = {"group_column": group_column, "group_column_2": group_column_2}
+        if metric_kpi is not None and metric_kpi.operation in RATIO_OPERATIONS:
+            return [ExecutionNode(
+                node_id=node_id, template="grouped2d_safe_ratio", dataset_id=did,
+                parameters={
+                    **base_params, "status_column": _operand_status_column(metric_kpi),
+                    "numerator_values": _filter_values(
+                        metric_kpi.numerator.filter if metric_kpi.numerator else None),
+                    "denominator_values": _filter_values(
+                        metric_kpi.denominator.filter if metric_kpi.denominator else None),
+                    "zero_policy": metric_kpi.zero_denominator_policy or "return_null_with_warning",
+                })], node_id
+        if metric_kpi is not None and metric_kpi.operation in GROUPED_2D_NUMERIC_TEMPLATES:
+            return [ExecutionNode(
+                node_id=node_id, template=GROUPED_2D_NUMERIC_TEMPLATES[metric_kpi.operation],
+                dataset_id=did,
+                parameters={**base_params, "column": metric_kpi.measure or "", "null_policy": "exclude"},
+            )], node_id
+        return [ExecutionNode(node_id=node_id, template="grouped2d_count_rows", dataset_id=did,
+                              parameters=base_params)], node_id
+
+    # histogram: mirrors quartiles — the KPI carries the measure column, the
+    # Analysis carries the (optional) grouping.
+    if analysis.operation == "histogram" and metric_kpi is not None \
+            and metric_kpi.operation in HISTOGRAM_TEMPLATES:
+        if group_column:
+            return [ExecutionNode(
+                node_id=node_id, template=GROUPED_HISTOGRAM_TEMPLATES[metric_kpi.operation],
+                dataset_id=did,
+                parameters={"group_column": group_column, "column": metric_kpi.measure or "",
+                           "null_policy": "exclude"})], node_id
+        return [ExecutionNode(
+            node_id=node_id, template="histogram_buckets_numeric", dataset_id=did,
+            parameters={"column": metric_kpi.measure or "", "null_policy": "exclude"})], node_id
+
     if metric_kpi is None:
         return [ExecutionNode(node_id=node_id, template="grouped_count_rows", dataset_id=did,
                               parameters={"group_column": group_column})], node_id
@@ -157,6 +244,11 @@ def _compile_analysis(analysis: Analysis, kpis_by_id: dict[str, Kpi]) -> tuple[l
     if metric_kpi.operation in NUMERIC_TEMPLATES:
         return [ExecutionNode(
             node_id=node_id, template=GROUPED_NUMERIC_TEMPLATES[metric_kpi.operation], dataset_id=did,
+            parameters={"group_column": group_column, "column": metric_kpi.measure or "",
+                       "null_policy": "exclude"})], node_id
+    if metric_kpi.operation in GROUPED_QUARTILE_TEMPLATES:
+        return [ExecutionNode(
+            node_id=node_id, template=GROUPED_QUARTILE_TEMPLATES[metric_kpi.operation], dataset_id=did,
             parameters={"group_column": group_column, "column": metric_kpi.measure or "",
                        "null_policy": "exclude"})], node_id
     return [ExecutionNode(node_id=node_id, template="grouped_count_rows", dataset_id=did,

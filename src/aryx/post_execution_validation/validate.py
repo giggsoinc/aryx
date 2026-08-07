@@ -42,7 +42,7 @@ def validate_execution(
     errors.extend(errs)
     warnings.extend(warns)
 
-    result, errs = check_aggregation_correctness(run, recomputed_nodes, plan)
+    result, errs = check_aggregation_correctness(spec, run, recomputed_nodes, plan)
     checks.append(result)
     errors.extend(errs)
 

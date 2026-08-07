@@ -17,6 +17,7 @@ from aryx.andie_planner.models import (
     Assumption,
     BusinessQuestion,
     DashboardSpec,
+    DeltaSpecItems,
     Kpi,
     KpiFilter,
     KpiOperand,
@@ -50,8 +51,18 @@ def _as_filter(raw: Any, approved_cols: set[str], warnings: list[SpecWarning],
         warnings.append(SpecWarning(code="unapproved_column", column=col,
                                     detail=f"{where}.filter"))
         return None
+    value, values = raw.get("value"), raw.get("values")
+    if value is None and not values:
+        # A filter with a column but no value/values is structurally valid
+        # (KpiFilter.value/values are both optional) but semantically empty:
+        # compiled as filter_equals(column, None), it matches rows where the
+        # column is actually null — typically zero — silently zeroing out
+        # whatever KPI/analysis depends on it instead of failing loudly.
+        warnings.append(SpecWarning(code="missing_filter_value", column=col,
+                                    detail=f"{where}.filter"))
+        return None
     return KpiFilter(column=col, operator=_as_str(raw.get("operator")) or "equals",
-                     value=raw.get("value"), values=raw.get("values"))
+                     value=value, values=values)
 
 
 def _as_operand(raw: Any, approved_cols: set[str], approved_ops: set[str],
@@ -115,7 +126,8 @@ def _ground_kpi(raw: dict, approved_cols: set[str], approved_ops: set[str],
 
 def _ground_analysis(raw: dict, approved_cols: set[str], approved_ops: set[str],
                      valid_kpi_ids: set[str], warnings: list[SpecWarning],
-                     dataset_id: str = "") -> Analysis | None:
+                     dataset_id: str = "",
+                     approved_graph_paths: frozenset[str] = frozenset()) -> Analysis | None:
     aid = _as_str(raw.get("analysis_id"))
     op = _as_str(raw.get("operation"))
     if aid is None:
@@ -124,6 +136,17 @@ def _ground_analysis(raw: dict, approved_cols: set[str], approved_ops: set[str],
         warnings.append(SpecWarning(code="unsupported_operation",
                                     detail=f"analysis {aid}: {op!r}"))
         return None
+    graph_path_id = _as_str(raw.get("graph_path_id"))
+    if op == "graph_relation":
+        # No dataset columns involved — the graph query IS the lineage, so
+        # this is the one operation grounded against approved_graph_paths
+        # instead of approved_cols.
+        if graph_path_id is None or graph_path_id not in approved_graph_paths:
+            warnings.append(SpecWarning(code="invalid_graph_path",
+                                        detail=f"analysis {aid}: {graph_path_id!r}"))
+            return None
+        return Analysis(analysis_id=aid, operation=op, dataset_id=dataset_id,
+                        graph_path_id=graph_path_id)
     requested = [c for c in (raw.get("group_by") or []) if isinstance(c, str)]
     bad = [c for c in requested if c not in approved_cols]
     for c in bad:
@@ -138,8 +161,22 @@ def _ground_analysis(raw: dict, approved_cols: set[str], approved_ops: set[str],
                                     detail=f"analysis {aid}.metric -> {metric!r}"))
         metric = None
 
-    return Analysis(analysis_id=aid, operation=op, dataset_id=dataset_id,
-                    group_by=group_by, metric=metric, sort=_as_str(raw.get("sort")))
+    def _ground_col(field: str) -> str | None:
+        col = _as_str(raw.get(field))
+        if col is None:
+            return None
+        if col not in approved_cols:
+            warnings.append(SpecWarning(code="unapproved_column", column=col,
+                                        detail=f"analysis {aid}.{field}"))
+            return None
+        return col
+
+    return Analysis(
+        analysis_id=aid, operation=op, dataset_id=dataset_id,
+        group_by=group_by, metric=metric, sort=_as_str(raw.get("sort")),
+        x_column=_ground_col("x_column"), y_column=_ground_col("y_column"),
+        size_column=_ground_col("size_column"),
+        start_column=_ground_col("start_column"), end_column=_ground_col("end_column"))
 
 
 def _ground_visualization(raw: dict, approved_cols: set[str], approved_charts: set[str],
@@ -163,8 +200,28 @@ def _ground_visualization(raw: dict, approved_cols: set[str], approved_charts: s
         warnings.append(SpecWarning(code="unapproved_column", column=x_axis,
                                     detail=f"{cid}.x_axis"))
         x_axis = None
+    compare_ref = _as_str(raw.get("compare_ref"))
+    if compare_ref is not None and compare_ref not in valid_refs:
+        warnings.append(SpecWarning(code="dangling_reference",
+                                    detail=f"{cid}.compare_ref -> {compare_ref!r}"))
+        compare_ref = None
+    axis_refs: list[str] | None = None
+    raw_axis_refs = raw.get("axis_refs")
+    if isinstance(raw_axis_refs, list):
+        kept = []
+        for a in raw_axis_refs:
+            a = _as_str(a)
+            if a is None:
+                continue
+            if a not in valid_refs:
+                warnings.append(SpecWarning(code="dangling_reference",
+                                            detail=f"{cid}.axis_refs -> {a!r}"))
+                continue
+            kept.append(a)
+        axis_refs = kept or None
     return Visualization(chart_id=cid, chart_type=ctype, source_ref=ref,
-                         x_axis=x_axis, y_axis=_as_str(raw.get("y_axis")))
+                         x_axis=x_axis, y_axis=_as_str(raw.get("y_axis")),
+                         compare_ref=compare_ref, axis_refs=axis_refs)
 
 
 def ground_spec(
@@ -175,6 +232,7 @@ def ground_spec(
     approved_columns: list[dict[str, str]],
     approved_operations: list[str],
     approved_charts: list[str],
+    approved_graph_paths: list[str] | None = None,
     datasets: list[dict[str, Any]] | None = None,
     objective: str = "",
     target_audience: str = "",
@@ -203,6 +261,7 @@ def ground_spec(
     approved_cols = {c["name"] for c in approved_columns if c.get("name")}
     approved_ops = set(approved_operations)
     approved_charts_set = set(approved_charts)
+    approved_graph_paths_set = frozenset(approved_graph_paths or [])
     warnings: list[SpecWarning] = []
 
     cols_by_dataset: dict[str, set[str]] | None = None
@@ -252,18 +311,24 @@ def ground_spec(
     for a in raw.get("analyses") or []:
         if not isinstance(a, dict):
             continue
+        is_graph_relation = _as_str(a.get("operation")) == "graph_relation"
         if cols_by_dataset is not None:
-            ad = _as_str(a.get("dataset_id"))
-            if ad is None or ad not in cols_by_dataset:
-                warnings.append(SpecWarning(
-                    code="unknown_dataset",
-                    detail=f"analysis {a.get('analysis_id')!r}: dataset_id={ad!r}"))
-                continue
-            item_cols = cols_by_dataset[ad]
+            if is_graph_relation:
+                # Spans the whole workspace graph, not one dataset — never
+                # gated on dataset_id the way every other operation is.
+                ad, item_cols = "", set()
+            else:
+                ad = _as_str(a.get("dataset_id"))
+                if ad is None or ad not in cols_by_dataset:
+                    warnings.append(SpecWarning(
+                        code="unknown_dataset",
+                        detail=f"analysis {a.get('analysis_id')!r}: dataset_id={ad!r}"))
+                    continue
+                item_cols = cols_by_dataset[ad]
         else:
             ad, item_cols = dataset_id, approved_cols
         analysis = _ground_analysis(a, item_cols, approved_ops, valid_kpi_ids, warnings,
-                                    dataset_id=ad)
+                                    dataset_id=ad, approved_graph_paths=approved_graph_paths_set)
         if analysis is not None:
             analyses.append(analysis)
     valid_refs = valid_kpi_ids | {a.analysis_id for a in analyses}
@@ -303,3 +368,158 @@ def ground_spec(
         spec_status=status, model_name=model_name, model_tier=model_tier,
         prompt_version=prompt_version,
     )
+
+
+def _dedupe_id(candidate: str, existing: set[str]) -> str:
+    """Deterministically disambiguate an id the model reused from the spec
+    it's extending — e.g. the model drafts "chart1" again, colliding with an
+    ALREADY-PERSISTED "chart1" from the batch plan. This is id bookkeeping,
+    not content invention: the same rename any two humans would make by hand
+    to avoid a collision, never a change to what the id refers to."""
+    if candidate not in existing:
+        return candidate
+    n = 2
+    while f"{candidate}_{n}" in existing:
+        n += 1
+    return f"{candidate}_{n}"
+
+
+def ground_delta(
+    raw: dict,
+    *,
+    existing_kpi_ids: set[str],
+    existing_analysis_ids: set[str],
+    existing_chart_ids: set[str],
+    approved_columns: list[dict[str, str]],
+    approved_operations: list[str],
+    approved_charts: list[str],
+    approved_graph_paths: list[str] | None = None,
+    datasets: list[dict[str, Any]] | None = None,
+    dataset_id: str = "",
+) -> DeltaSpecItems:
+    """Rebuild a grounded DeltaSpecItems from raw LLM JSON — the exact same
+    "no invention" gate as `ground_spec`, scoped to one ask-to-visualize
+    request instead of a whole spec. Reuses `_ground_kpi`/`_ground_analysis`/
+    `_ground_visualization` unchanged.
+
+    `existing_kpi_ids`/`existing_analysis_ids` are the spec-being-extended's
+    own ids — a new analysis's `metric` may cite any existing OR newly
+    drafted kpi_id; a new visualization's `source_ref`/`compare_ref`/
+    `axis_refs` may cite any existing OR newly drafted kpi_id/analysis_id.
+    Any newly drafted kpi_id/analysis_id/chart_id that collides with one of
+    these (the model re-using e.g. "chart1") is deterministically
+    disambiguated via `_dedupe_id`, never silently merged into/overwriting
+    the existing item of the same id.
+
+    `datasets` mirrors `ground_spec`'s workspace-scope mode: when given, a
+    drafted new_kpi/new_analysis must declare its own `dataset_id` and is
+    checked against THAT dataset's columns only, never a flattened union.
+    """
+    approved_ops = set(approved_operations)
+    approved_charts_set = set(approved_charts)
+    approved_graph_paths_set = frozenset(approved_graph_paths or [])
+    warnings: list[SpecWarning] = []
+
+    cols_by_dataset: dict[str, set[str]] | None = None
+    approved_cols = {c["name"] for c in approved_columns if c.get("name")}
+    if datasets is not None:
+        cols_by_dataset = {
+            d["dataset_id"]: {c["name"] for c in d.get("approved_columns", []) if c.get("name")}
+            for d in datasets if d.get("dataset_id")
+        }
+        approved_cols = set().union(*cols_by_dataset.values()) if cols_by_dataset else set()
+
+    raw_kpi = raw.get("new_kpi")
+    raw_analysis = raw.get("new_analysis")
+    raw_viz = raw.get("new_visualization")
+
+    # Disambiguate id collisions with the spec being extended BEFORE
+    # grounding, on the raw dict — renaming AFTER grounding would break the
+    # very cross-references (analysis.metric, visualization.source_ref) the
+    # rename is trying to preserve. Same "id bookkeeping, not invention"
+    # rationale as `_dedupe_id` itself.
+    def _retarget_viz_refs(viz: dict | None, old_id: str, new_id: str) -> dict | None:
+        if not isinstance(viz, dict):
+            return viz
+        updated = dict(viz)
+        if updated.get("source_ref") == old_id:
+            updated["source_ref"] = new_id
+        if updated.get("compare_ref") == old_id:
+            updated["compare_ref"] = new_id
+        axis_refs = updated.get("axis_refs")
+        if isinstance(axis_refs, list) and old_id in axis_refs:
+            updated["axis_refs"] = [new_id if a == old_id else a for a in axis_refs]
+        return updated
+
+    id_namespace = set(existing_kpi_ids) | set(existing_analysis_ids)
+    if isinstance(raw_kpi, dict) and isinstance(raw_kpi.get("kpi_id"), str):
+        old_id = raw_kpi["kpi_id"]
+        new_id = _dedupe_id(old_id, id_namespace)
+        if new_id != old_id:
+            raw_kpi = {**raw_kpi, "kpi_id": new_id}
+            id_namespace = id_namespace | {new_id}
+            if isinstance(raw_analysis, dict) and raw_analysis.get("metric") == old_id:
+                raw_analysis = {**raw_analysis, "metric": new_id}
+            raw_viz = _retarget_viz_refs(raw_viz, old_id, new_id)
+    if isinstance(raw_analysis, dict) and isinstance(raw_analysis.get("analysis_id"), str):
+        old_id = raw_analysis["analysis_id"]
+        new_id = _dedupe_id(old_id, id_namespace)
+        if new_id != old_id:
+            raw_analysis = {**raw_analysis, "analysis_id": new_id}
+            id_namespace = id_namespace | {new_id}
+            raw_viz = _retarget_viz_refs(raw_viz, old_id, new_id)
+    if isinstance(raw_viz, dict) and isinstance(raw_viz.get("chart_id"), str):
+        raw_viz = {**raw_viz, "chart_id": _dedupe_id(raw_viz["chart_id"], set(existing_chart_ids))}
+
+    new_kpi: Kpi | None = None
+    if isinstance(raw_kpi, dict) and raw_kpi:
+        if cols_by_dataset is not None:
+            kd = _as_str(raw_kpi.get("dataset_id"))
+            if kd is not None and kd in cols_by_dataset:
+                new_kpi = _ground_kpi(raw_kpi, cols_by_dataset[kd], approved_ops, warnings, dataset_id=kd)
+            else:
+                warnings.append(SpecWarning(code="unknown_dataset", detail=f"new_kpi: dataset_id={kd!r}"))
+        else:
+            new_kpi = _ground_kpi(raw_kpi, approved_cols, approved_ops, warnings, dataset_id=dataset_id)
+
+    valid_kpi_ids = set(existing_kpi_ids)
+    if new_kpi is not None:
+        valid_kpi_ids.add(new_kpi.kpi_id)
+
+    new_analysis: Analysis | None = None
+    if isinstance(raw_analysis, dict) and raw_analysis:
+        is_graph_relation = _as_str(raw_analysis.get("operation")) == "graph_relation"
+        if cols_by_dataset is not None and not is_graph_relation:
+            ad = _as_str(raw_analysis.get("dataset_id"))
+            if ad is not None and ad in cols_by_dataset:
+                new_analysis = _ground_analysis(raw_analysis, cols_by_dataset[ad], approved_ops,
+                                                valid_kpi_ids, warnings, dataset_id=ad,
+                                                approved_graph_paths=approved_graph_paths_set)
+            else:
+                warnings.append(SpecWarning(code="unknown_dataset",
+                                            detail=f"new_analysis: dataset_id={ad!r}"))
+        else:
+            new_analysis = _ground_analysis(
+                raw_analysis, approved_cols, approved_ops, valid_kpi_ids, warnings,
+                dataset_id="" if is_graph_relation else dataset_id,
+                approved_graph_paths=approved_graph_paths_set)
+
+    valid_refs = valid_kpi_ids | set(existing_analysis_ids)
+    if new_analysis is not None:
+        valid_refs.add(new_analysis.analysis_id)
+
+    new_visualization: Visualization | None = None
+    if isinstance(raw_viz, dict) and raw_viz:
+        new_visualization = _ground_visualization(raw_viz, approved_cols, approved_charts_set,
+                                                   valid_refs, warnings)
+
+    for w in raw.get("warnings") or []:
+        if not isinstance(w, dict):
+            continue
+        code = _as_str(w.get("code"))
+        if code:
+            warnings.append(SpecWarning(code=code, column=_as_str(w.get("column")) or "",
+                                        detail=_as_str(w.get("detail")) or ""))
+
+    return DeltaSpecItems(new_kpi=new_kpi, new_analysis=new_analysis,
+                          new_visualization=new_visualization, warnings=warnings)

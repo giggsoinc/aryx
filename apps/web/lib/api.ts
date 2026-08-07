@@ -2,7 +2,8 @@ import type {
   AbResult, AskResponse, Axiom, Brief, DataEntitiesPage, DataSummary,
   Datasource, EntityDetail, EntityGraphView, GraphView, IngestQuestion,
   DatasetIngestResult, DatasetProfile, SemanticProfile, GraphIntakeResult, GraphProfile,
-  PlanningContext, PlannerResult, ExecutionPlan, ExecutionRun, DashboardModel, RenderTelemetry,
+  PlanningContext, PlannerResult, DeltaDraftResult, DeltaSpecItems, ExecutionPlan, ExecutionRun,
+  DashboardModel, RenderTelemetry, Observability,
   LlmConfig, LlmConfigUpdate, OntologyDoc, QuizSpec, ReasonerCheck, Rule,
   SurvivorshipPolicy, UserIntent, UserIntentRequest, Workspace,
 } from "./types";
@@ -53,6 +54,10 @@ export const api = {
     fetchJSON<ReasonerCheck & { error?: string }>(
       `/lab/reasoner?workspace_id=${workspaceId}`,
     ),
+
+  // ── Observability — token consumption ────────────────────────────────
+  getObservability: (workspaceId: number) =>
+    fetchJSON<Observability>(`/admin/observability?workspace_id=${workspaceId}`),
 
   // ── Data Explorer (v2) ───────────────────────────────────────────────
   dataSummary: (workspaceId: number) =>
@@ -241,13 +246,14 @@ export const api = {
     ),
 
   /** Multipart file upload → kicks the file ingest pipeline server-side. */
-  uploadFiles: async (workspaceId: number, files: File[],
+  uploadFiles: async (workspaceId: number, files: File[], context: string,
                        ontologyType = "Document",
                        matchKeys = "name") => {
     const form = new FormData();
     for (const f of files) form.append("files", f);
     form.append("ontology_type", ontologyType);
     form.append("match_keys", matchKeys);
+    form.append("context", context);
     form.append("workspace_id", String(workspaceId));
     const res = await fetch(`${BASE}/admin/ingest/file`,
                             { method: "POST", body: form });
@@ -325,6 +331,22 @@ export const api = {
     fetchJSON<PlannerResult[]>(
       `/andie-planner/versions?workspace_id=${workspaceId}&limit=${limit}`,
     ),
+
+  // ── Ask-to-visualize (C08 extension) — draft, preview, confirm ───────
+  draftDelta: (workspaceId: number, datasetId: string, requestText: string) =>
+    fetchJSON<DeltaDraftResult>(`/andie-planner/delta/draft?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: JSON.stringify({ dataset_id: datasetId, request_text: requestText }),
+    }),
+
+  confirmDelta: (workspaceId: number, datasetId: string, items: DeltaSpecItems) =>
+    fetchJSON<PlannerResult>(`/andie-planner/delta/confirm?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: JSON.stringify({
+        dataset_id: datasetId, new_kpi: items.new_kpi, new_analysis: items.new_analysis,
+        new_visualization: items.new_visualization,
+      }),
+    }),
 
   // ── Knowledge Graph Intake & Validation (C05) ────────────────────────
   runGraphIntake: (workspaceId: number) =>

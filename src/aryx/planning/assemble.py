@@ -21,6 +21,7 @@ from typing import Any
 from aryx.planning.models import (
     ApprovedColumn,
     DatasetColumns,
+    GraphPathHint,
     PlanningContext,
     ResourceCitation,
 )
@@ -30,6 +31,7 @@ _APPROVED_ROLES = {"identifier", "measure", "dimension", "time", "status"}
 _ROLE_RANK = {"identifier": 0, "time": 1, "measure": 2, "dimension": 3, "status": 4}
 _MAX_COLUMNS = 40          # budget: keep the package small
 _MAX_PATHS = 10
+_MAX_SAMPLE_VALUES = 5     # budget: a handful of real example values per column
 # Canonical (C03) type -> planning type label.
 _TYPE_LABEL = {"datetime": "date"}
 
@@ -53,7 +55,9 @@ def _extract_approved_columns(dataset_profile: Any) -> tuple[list[ApprovedColumn
         if role not in _APPROVED_ROLES:
             continue
         ctype = getattr(col, "canonical_type", "")
-        approved.append(ApprovedColumn(name=col.name, type=_TYPE_LABEL.get(ctype, ctype)))
+        samples = list(getattr(col, "sample_values", []) or [])[:_MAX_SAMPLE_VALUES]
+        approved.append(ApprovedColumn(
+            name=col.name, type=_TYPE_LABEL.get(ctype, ctype), sample_values=samples))
 
     warnings: list[str] = []
     if len(approved) > _MAX_COLUMNS:
@@ -91,6 +95,8 @@ def assemble_context(
     # Step 3 — approved graph paths (already objective-ranked by C06).
     verified = list(getattr(graph_profile, "verified_paths", []) or [])
     approved_paths = [vp.path_id for vp in verified][:_MAX_PATHS]
+    path_hints = _graph_path_hints(verified, _MAX_PATHS)
+    quality_notes = _graph_quality_notes(graph_profile)
 
     # Steps 4/5 — catalogues + schema. Missing catalogue = hard stop.
     if not operations or not charts:
@@ -151,6 +157,7 @@ def assemble_context(
         dataset_id=dataset_id, dataset_version=dataset_version,
         domain=domain, objective=objective,
         approved_columns=approved, approved_graph_paths=approved_paths,
+        graph_path_hints=path_hints, graph_quality_notes=quality_notes,
         supported_operations=list(operations), supported_charts=list(charts),
         resource_citations=citations, completeness=completeness, relevance=relevance,
         warnings=warnings, context_status=status,
@@ -220,6 +227,8 @@ def assemble_workspace_context(
             version=graph_profile.graph_version, rank=rank))
     verified = list(getattr(graph_profile, "verified_paths", []) or [])
     approved_paths = [vp.path_id for vp in verified][:_MAX_PATHS]
+    path_hints = _graph_path_hints(verified, _MAX_PATHS)
+    quality_notes = _graph_quality_notes(graph_profile)
 
     if not operations or not charts:
         warnings.append("missing approved operation/visualization catalogue")
@@ -260,10 +269,30 @@ def assemble_workspace_context(
         domain=domain, objective=objective,
         approved_columns=list(union_by_name.values()), datasets=datasets,
         approved_graph_paths=approved_paths,
+        graph_path_hints=path_hints, graph_quality_notes=quality_notes,
         supported_operations=list(operations), supported_charts=list(charts),
         resource_citations=citations, completeness=completeness, relevance=relevance,
         warnings=warnings, context_status=status,
     )
+
+
+def _graph_path_hints(verified: list[Any], max_paths: int) -> list[GraphPathHint]:
+    """Readable label per verified path — same cap/order as approved_graph_paths
+    so every id in that allow-list has a matching hint (never the reverse)."""
+    return [GraphPathHint(path_id=vp.path_id, label=" -> ".join(vp.path), depth=vp.depth)
+           for vp in verified[:max_paths]]
+
+
+def _graph_quality_notes(graph_profile: Any) -> list[str]:
+    """Flatten C06's quality_flags + limitations into plain strings the
+    prompt can embed directly — grounds the LLM's own 'assumptions' instead
+    of it guessing at data-quality caveats."""
+    if graph_profile is None:
+        return []
+    notes = [f"{f.code}: {f.detail}" if f.detail else f.code
+            for f in (getattr(graph_profile, "quality_flags", []) or [])]
+    notes.extend(getattr(graph_profile, "limitations", []) or [])
+    return notes
 
 
 def _role_of(columns: list[Any], name: str) -> str:
