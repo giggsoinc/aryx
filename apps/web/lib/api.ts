@@ -165,6 +165,13 @@ export const api = {
       `/admin/jobs/${jobId}/cancel`, { method: "POST", body: "{}" },
     ),
 
+  workspaceOverview: () =>
+    fetchJSON<Array<{
+      id: number; name: string;
+      entities: number; relationships: number;
+      landed_records: number; running_jobs: number;
+    }>>("/admin/workspace-overview"),
+
   getIngestQuestions: (workspaceId: number, status = "pending") =>
     fetchJSON<IngestQuestion[]>(
       `/admin/ingest-questions?workspace_id=${workspaceId}&status=${status}&limit=50`,

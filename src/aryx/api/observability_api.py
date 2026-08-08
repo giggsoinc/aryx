@@ -57,6 +57,31 @@ def _graph_stats(workspace_id: int) -> dict[str, int]:
         return {"entities": 0, "relationships": 0}
 
 
+def _count(conn: psycopg.Connection, query_name: str, workspace_id: int) -> int:
+    with conn.cursor() as cur:
+        cur.execute(load(query_name), (workspace_id,))
+        row = cur.fetchone()
+    return int(row[0]) if row else 0
+
+
+def _workspace_overview(conn: psycopg.Connection) -> list[dict[str, Any]]:
+    with conn.cursor() as cur:
+        cur.execute(load("select_workspaces"))
+        workspaces = [{"id": r[0], "name": r[1]} for r in cur.fetchall()]
+    result = []
+    for ws in workspaces:
+        wid = ws["id"]
+        result.append({
+            "id": wid,
+            "name": ws["name"],
+            "entities": _count(conn, "count_entities", wid),
+            "relationships": _count(conn, "count_relationships", wid),
+            "landed_records": _count(conn, "count_landed", wid),
+            "running_jobs": _count(conn, "count_running_jobs", wid),
+        })
+    return result
+
+
 def observability_router() -> APIRouter:
     router = APIRouter(prefix="/admin")
 
@@ -72,6 +97,15 @@ def observability_router() -> APIRouter:
                 "model_config": llm_runtime.status(),
                 "platform": ports().describe(),
             }
+        finally:
+            conn.close()
+
+    @router.get("/workspace-overview")
+    def workspace_overview() -> list[dict[str, Any]]:
+        """Per-workspace counts: entities, relationships, landed records, running jobs."""
+        conn = _db()
+        try:
+            return _workspace_overview(conn)
         finally:
             conn.close()
 

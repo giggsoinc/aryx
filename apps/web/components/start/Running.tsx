@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import type { IngestQuestion } from "@/lib/types";
 import { StepShell, ExampleBox } from "./StepShell";
 import { Pipeline, PIPELINE_STEPS } from "./Pipeline";
+import { IngestResult } from "./IngestResult";
 
 interface Props {
   workspaceId: number;
@@ -174,6 +175,10 @@ export function Running({ workspaceId, jobId, onDone, onSkip }: Props) {
           </button>
         )}
       </div>
+
+      {finished && jobId && (
+        <IngestResult jobId={jobId} workspaceId={workspaceId} />
+      )}
     </StepShell>
   );
 }

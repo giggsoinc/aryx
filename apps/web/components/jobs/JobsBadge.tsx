@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
 import { useWorkspace } from "@/lib/workspace";
 import { cn } from "@/lib/cn";
+import { WorkspaceOverview } from "./WorkspaceOverview";
 
 const POLL_MS = 5_000;
 
@@ -134,6 +135,7 @@ function JobsPanel({ open, jobs, onClose, onRefresh }: PanelProps) {
                 <JobCard key={j.job_id} job={j} onChanged={onRefresh} />
               ))}
             </ul>
+            <WorkspaceOverview />
           </div>
         </motion.aside>
       )}
