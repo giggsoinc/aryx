@@ -155,6 +155,9 @@ Capability seam (`aryx.ports`) — the Oracle-readiness foundation. Adapter sele
 | Provider-agnostic LLM broker | Done | `llm/broker.py` |
 | Token budget + rate limiting | Done | `llm/governor.py` |
 | Job observability (status, tokens, latency) | Done | `api/observability_api.py` |
+| Per-workspace output overview (entities, relationships, records, running jobs) | Done | `api/observability_api.py`, `GET /admin/workspace-overview` |
+| Post-ingest result card (records processed, discovered types, connections mapped) | Done | `apps/web/components/start/IngestResult.tsx` |
+| Workspace overview panel in Jobs side panel | Done | `apps/web/components/jobs/WorkspaceOverview.tsx` |
 | Demo data loader (synthetic support tickets) | Done | `demo/loader.py` |
 
 ## MCP Integration

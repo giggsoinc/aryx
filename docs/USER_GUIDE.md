@@ -36,7 +36,7 @@ Everything lives in **workspaces** — isolated projects (partitions + graph). U
 | **Lab** | Accuracy Lab (ontology ON vs OFF) |
 | **Onboard** | Guided setup wizard (`/start`) |
 | **Settings** | LLM provider, models, API key |
-| **Jobs** chip | Live ingest/job progress |
+| **Jobs** chip | Live ingest/job progress + per-workspace output panel |
 | **Questions** bell | Human-in-the-loop queue |
 | **Workspace** picker | Switch or create workspaces |
 
@@ -105,6 +105,16 @@ Drag-and-drop or browse. Multi-file CSV/JSON batches get **per-file type and mat
 ### Step 5 — Pipeline
 
 Live progress here and in the **Jobs** chip. If a decision needs a human, Aryx **pauses** and queues a **Question** (bell).
+
+When the job completes, a **result card** appears inline with three sections — each has its own **Refresh** button:
+
+| Block | What it shows | Source |
+|-------|--------------|--------|
+| Records processed | How many source rows were read | Job event log |
+| What we discovered | Entity types found + deduplication count | `/data/summary` |
+| Connections mapped | Total relationships in the graph | `/admin/workspace-overview` |
+
+A collapsed **"Diagnose this run"** section shows the full event log (stage, time, detail) on demand — useful for spotting slow stages or warnings.
 
 ### Step 6 — Done
 

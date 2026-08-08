@@ -3,6 +3,22 @@
 All notable changes to **Aryx Lite** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased] — 2026-08-08
+
+### Fixed
+
+- **Resolution O(n²) stall (production incident 2026-08-08).** `cluster_edges` and `survivors` each scanned the full `pair_scores` dict on every call — at 3,902 records × 1,295,202 pairs that was ~5 billion iterations, so stage 4/4 never completed. Fixed by inverting `pair_scores` once per run into an edge index `{record_id: [(other_id, score)]}` and threading it through `_materialize()`. Wall-clock for stage 4/4: hours → 459 ms. (`resolution/confidence.py`, `resolution/survivor.py`, `resolution/cluster.py`, `resolution/run.py`)
+- **`KeyError: 'name'` in `infer_relationship` on tabular sources.** LLM returning `related=true` without a `name` field raised unconditionally. Now falls back gracefully to `(None, 0.0)` with a warning log instead of crashing the enrich stage. (`relationships.py`)
+- **`adjudication budget exhausted` warning noise.** `ARYX_ER_MAX_ADJUDICATIONS` defaults to 0, so the WARNING fired on every run even when the budget was never configured. Now downgrades to INFO when the budget was never set; WARNING only fires when a configured budget is actually depleted. (`resolution/run.py`)
+
+### Added
+
+- **Per-workspace output panel in the Jobs side panel.** A new `WorkspaceOverview` section below the job cards shows each workspace's entity count, relationship count, landed records, and running-job indicator. Each workspace card has its own refresh button. (`apps/web/components/jobs/WorkspaceOverview.tsx`, `apps/web/components/jobs/JobsBadge.tsx`)
+- **Post-ingest result card on the pipeline step.** When a job completes, `IngestResult` renders inline showing three independently refreshable blocks: records processed (from job events), what was discovered (entity types and counts), and connections mapped (relationship count). A collapsed "Diagnose this run" section expands the full event log on demand. (`apps/web/components/start/IngestResult.tsx`, `apps/web/components/start/Running.tsx`)
+- **`GET /admin/workspace-overview` endpoint.** Returns per-workspace entity, relationship, landed-record, and running-job counts in a single call. (`src/aryx/api/observability_api.py`, `src/aryx/queries/count_landed.sql`, `src/aryx/queries/count_relationships.sql`, `src/aryx/queries/count_running_jobs.sql`)
+
+---
+
 ## [Unreleased] — 2026-07-15
 
 ### Fixed
