@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Served under /aryx behind the aryx-r3 nginx reverse proxy. Without this
+  // the app serves at / and every proxied /aryx/* request 404s.
+  basePath: "/aryx",
+  env: { NEXT_PUBLIC_BASE_PATH: "/aryx" },
   // Server-side proxy: the browser hits /api/... on the Next.js host; the
   // Next server rewrites that to the FastAPI URL (api:8000 inside docker,
   // localhost:8088 in dev). The browser never needs to know the API host —
@@ -14,5 +18,4 @@ const nextConfig = {
     optimizePackageImports: ["lucide-react"],
   },
 };
-
 export default nextConfig;
