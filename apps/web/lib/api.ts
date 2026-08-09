@@ -8,7 +8,7 @@ import type {
 // Same-origin relative path. Next.js rewrites /api/* → FastAPI internally
 // (see next.config.mjs). Works in dev (proxies to localhost:8088) and in
 // production (proxies to api:8000) without any client-side knowledge.
-const BASE = "/api";
+const BASE = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api`;
 
 /** Throw on non-2xx; return parsed JSON otherwise. */
 async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {

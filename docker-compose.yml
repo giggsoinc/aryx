@@ -85,6 +85,14 @@ services:
       - ARYX_LOG_LEVEL=DEBUG
     ports:
       - "8088:8000"
+    # Also on aryx-shared so the reverse proxy in the separate aryx-r3 compose
+    # project can reach it by name. Containers in different compose projects
+    # sit on different bridge networks and cannot resolve each other without
+    # a shared network — the symptom is nginx logging
+    # "could not be resolved (2: Server failure)".
+    networks:
+      - default
+      - aryx-shared
     depends_on:
       postgres:
         condition: service_healthy
@@ -127,12 +135,32 @@ services:
       # Browser only talks to the same origin; no CORS, no host coupling.
       - ARYX_API_URL_INTERNAL=${ARYX_API_URL_INTERNAL:-http://api:8000}
       - NODE_ENV=production
+      # Bind every interface. Next.js standalone binds to $HOSTNAME, which in a
+      # container defaults to the container id — so it listens on ONE network
+      # only. Attaching a second network later then gives "connection refused"
+      # from anything on that network, even though DNS resolves fine.
+      - HOSTNAME=0.0.0.0
     ports:
       - "3000:3000"
+    # Reachable by name from the aryx-r3 project's nginx. See the note on api.
+    networks:
+      - default
+      - aryx-shared
     depends_on:
       api:
         condition: service_healthy
     restart: unless-stopped
+
+networks:
+  # Project-internal network. Named explicitly so it is stable across renames
+  # of the project directory.
+  default:
+    name: aryx-lite_default
+  # Created and owned by the aryx-r3 stack. Declared external here: this
+  # project attaches to it but never creates or removes it. If it is missing,
+  # `docker network create aryx-shared` before bringing this stack up.
+  aryx-shared:
+    external: true
 
 volumes:
   pgdata:
