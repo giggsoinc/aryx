@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
@@ -239,12 +240,12 @@ function JobCard({ job, onChanged }: { job: JobRow; onChanged: () => void }) {
             </button>
           )}
           {isFailed && (
-            <a
+            <Link
               href="/start"
               className="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-navy-800 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-navy-700"
             >
               <RotateCcw size={11} /> Retry — re-onboard
-            </a>
+            </Link>
           )}
           <span className="text-[10px] text-subtle">
             {isRunning

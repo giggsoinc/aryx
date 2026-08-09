@@ -1,6 +1,6 @@
 [project]
 name = "aryx"
-version = "1.2.0"
+version = "1.2.1"
 description = "Aryx Lite — ontology layer for multi-source entity resolution and knowledge graphs"
 readme = "README.md"
 requires-python = ">=3.11"

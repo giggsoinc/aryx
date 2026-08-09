@@ -3,6 +3,24 @@
 All notable changes to **Aryx Lite** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.1] — 2026-08-09
+
+### Fixed
+
+- **Subpath deployments leaked into the neighbouring app.** Two raw
+  `<a href="/start">` anchors (Model empty state, failed-job retry) bypassed
+  Next.js's basePath prefixing — behind the /aryx reverse proxy they
+  navigated to the server root, landing users in whatever app owns `/`.
+  Converted to `<Link>`. (`components/model/Canvas.tsx`,
+  `components/jobs/JobsBadge.tsx`)
+- **Hardcoded `/aryx` basePath broke stock installs.** The web image only
+  answered under /aryx — plain `localhost:3000` returned 404 everywhere.
+  Base path is now a build arg (`ARYX_BASE_PATH`, default empty). The
+  standard image serves at `/`; a new `<version>-subpath` web image is
+  published for reverse-proxy deployments
+  (`ARYX_WEB_IMAGE=giggsodocker/aryx-lite-web:<version>-subpath`).
+  (`next.config.mjs`, `apps/web/Dockerfile`, `scripts/docker-hub-publish.sh`)
+
 ## [1.2.0] — 2026-08-09
 
 ### Added
