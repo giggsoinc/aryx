@@ -32,7 +32,7 @@ function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
-export default function HomePage() {
+export default function AskPage() {
   const router = useRouter();
   const { workspaceId } = useWorkspace();
   const [turns, setTurns] = useState<ChatTurn[]>([]);

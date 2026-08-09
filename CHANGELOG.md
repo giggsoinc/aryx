@@ -3,6 +3,32 @@
 All notable changes to **Aryx Lite** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.0] — 2026-08-09
+
+### Added
+
+- **Landing home at `/`.** Root now lists every workspace with entity/link
+  counts, brief status, and running jobs; blank slate drops straight into the
+  wizard. Ask moved to `/ask`. (`apps/web/app/page.tsx`, `app/ask/page.tsx`,
+  `components/brand/Header.tsx`)
+- **Cruise-control Brief.** Wizard step 1 (replacing the single-box Goals +
+  Confirm steps) and `/brief` now share one builder: drop PDF/DOC/DOCX/PPT
+  documents (read for briefing only — never ingested as data) and/or one
+  sentence; the configured LLM pre-answers all questions; the user confirms
+  tap-chips and edits. Shows which model is drafting; warns with a Settings
+  link when no LLM is reachable. (`components/brief/BriefBuilder.tsx`,
+  `components/start/BriefStep.tsx`)
+- **Sixth brief question — proof questions.** "What must this graph be able
+  to answer?" drafted alongside the original five; stored on the workspace
+  brief as `questions`. (`brief_draft.py`, `workspace_api.py`, `lib/types.ts`)
+- **`POST /admin/workspaces/{id}/brief-doc-text`.** Extracts plain text from
+  an uploaded briefing document via the existing PDF/DOCX/PPTX connectors;
+  20 MB cap, 12k-char excerpt. (`api/brief_api.py`)
+
+### Removed
+
+- Wizard `Goals`/`Confirm` steps — superseded by the Brief step.
+
 ## [1.1.1] — 2026-08-09
 
 ### Fixed
