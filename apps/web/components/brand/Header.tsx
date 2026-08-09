@@ -4,8 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import {
-  ChevronDown, Database, FlaskConical, MessageCircle, Network, Plus,
-  Settings, Sparkles, Loader2,
+  ChevronDown, Database, FileText, FlaskConical, MessageCircle, Network,
+  Plus, Settings, Sparkles, Loader2,
 } from "lucide-react";
 import { Logo } from "./Logo";
 import { api } from "@/lib/api";
@@ -55,6 +55,8 @@ export function Header(props: HeaderProps) {
                       active={pathname?.startsWith("/data") || false} />
             <NavLink href="/lab" icon={<FlaskConical size={14} />} label="Lab"
                       active={pathname?.startsWith("/lab") || false} />
+            <NavLink href="/brief" icon={<FileText size={14} />} label="Brief"
+                      active={pathname?.startsWith("/brief") || false} />
             <NavLink href="/start" icon={<Sparkles size={14} />} label="Onboard"
                       active={pathname?.startsWith("/start") || false} />
             <NavLink href="/settings" icon={<Settings size={14} />} label="Settings"
