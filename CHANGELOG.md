@@ -3,6 +3,15 @@
 All notable changes to **Aryx Lite** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.1] — 2026-08-09
+
+### Fixed
+
+- **Resolve stage crash on every run:** `'Settings' object has no attribute
+  'max_block_size'`. The multi-key blocker read the block-size cap from
+  Settings, but the field was never defined there. Added
+  `max_block_size` (default 5000, env `ARYX_MAX_BLOCK_SIZE`). (`config.py`)
+
 ## [1.1.0] — 2026-08-09
 
 ### Added
