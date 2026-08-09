@@ -3,6 +3,26 @@
 All notable changes to **Aryx Lite** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.0] — 2026-08-09
+
+### Added
+
+- **Brief page restored** (`/brief`). The five-question grounding flow (domain,
+  aim, objectives, scope, participant roles) is back as a Next.js page — lost
+  when the Streamlit UI was removed in `926b51a`. Drafts all five fields from a
+  one-line seed via the existing `draft-brief` API, persists via the workspace
+  brief PATCH; Brief nav link precedes Onboard. No backend changes.
+  (`apps/web/app/brief/page.tsx`, `apps/web/components/brand/Header.tsx`)
+
+### Changed
+
+- **Docker images are version-tagged only** — `1.1.0` · `v1.1.0` · git SHA;
+  `latest` is no longer pushed or referenced. Compose defaults, docs, and
+  `scripts/docker-hub-publish.sh` pin the semver tag (builds pinned to
+  linux/amd64). Commercial contact is now support@giggso.com; invalid
+  `mailto:` entry dropped from `pyproject.toml` `[project.urls]` (it broke
+  `pip install -e .` on modern setuptools).
+
 ## [Unreleased] — 2026-08-08
 
 ### Fixed

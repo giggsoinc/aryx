@@ -39,21 +39,18 @@ Tags are kept in sync when maintainers run `./scripts/docker-hub-publish.sh`.
 
 | Tag | Meaning |
 |-----|---------|
-| `latest` | Current release build |
-| `1.0.0` | Semver (matches `aryx.__version__` / `pyproject.toml`) |
-| `v1.0.0` | Same release, `v`-prefixed |
+| `1.1.0` | Semver (matches `aryx.__version__` / `pyproject.toml`) — always pull an explicit version |
+| `v1.1.0` | Same release, `v`-prefixed |
 | `<git-sha>` | Exact commit (e.g. `a98a954`) |
 
 ```bash
 # Backend (API / worker / MCP)
-docker pull giggsodocker/aryx-lite:latest
-docker pull giggsodocker/aryx-lite:1.0.0
-docker pull giggsodocker/aryx-lite:v1.0.0
+docker pull giggsodocker/aryx-lite:1.1.0
+docker pull giggsodocker/aryx-lite:v1.1.0
 
 # Web UI
-docker pull giggsodocker/aryx-lite-web:latest
-docker pull giggsodocker/aryx-lite-web:1.0.0
-docker pull giggsodocker/aryx-lite-web:v1.0.0
+docker pull giggsodocker/aryx-lite-web:1.1.0
+docker pull giggsodocker/aryx-lite-web:v1.1.0
 ```
 
 ---
@@ -79,8 +76,8 @@ docker compose up -d
 Pin versions:
 
 ```bash
-export ARYX_IMAGE=giggsodocker/aryx-lite:1.0.0
-export ARYX_WEB_IMAGE=giggsodocker/aryx-lite-web:1.0.0
+export ARYX_IMAGE=giggsodocker/aryx-lite:1.1.0
+export ARYX_WEB_IMAGE=giggsodocker/aryx-lite-web:1.1.0
 docker compose up -d
 ```
 
