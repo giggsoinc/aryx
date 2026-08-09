@@ -3,6 +3,79 @@
 All notable changes to **Aryx Lite** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.1] — 2026-08-09
+
+### Fixed
+
+- **Subpath deployments leaked into the neighbouring app.** Two raw
+  `<a href="/start">` anchors (Model empty state, failed-job retry) bypassed
+  Next.js's basePath prefixing — behind the /aryx reverse proxy they
+  navigated to the server root, landing users in whatever app owns `/`.
+  Converted to `<Link>`. (`components/model/Canvas.tsx`,
+  `components/jobs/JobsBadge.tsx`)
+- **Hardcoded `/aryx` basePath broke stock installs.** The web image only
+  answered under /aryx — plain `localhost:3000` returned 404 everywhere.
+  Base path is now a build arg (`ARYX_BASE_PATH`, default empty). The
+  standard image serves at `/`; a new `<version>-subpath` web image is
+  published for reverse-proxy deployments
+  (`ARYX_WEB_IMAGE=giggsodocker/aryx-lite-web:<version>-subpath`).
+  (`next.config.mjs`, `apps/web/Dockerfile`, `scripts/docker-hub-publish.sh`)
+
+## [1.2.0] — 2026-08-09
+
+### Added
+
+- **Landing home at `/`.** Root now lists every workspace with entity/link
+  counts, brief status, and running jobs; blank slate drops straight into the
+  wizard. Ask moved to `/ask`. (`apps/web/app/page.tsx`, `app/ask/page.tsx`,
+  `components/brand/Header.tsx`)
+- **Cruise-control Brief.** Wizard step 1 (replacing the single-box Goals +
+  Confirm steps) and `/brief` now share one builder: drop PDF/DOC/DOCX/PPT
+  documents (read for briefing only — never ingested as data) and/or one
+  sentence; the configured LLM pre-answers all questions; the user confirms
+  tap-chips and edits. Shows which model is drafting; warns with a Settings
+  link when no LLM is reachable. (`components/brief/BriefBuilder.tsx`,
+  `components/start/BriefStep.tsx`)
+- **Sixth brief question — proof questions.** "What must this graph be able
+  to answer?" drafted alongside the original five; stored on the workspace
+  brief as `questions`. (`brief_draft.py`, `workspace_api.py`, `lib/types.ts`)
+- **`POST /admin/workspaces/{id}/brief-doc-text`.** Extracts plain text from
+  an uploaded briefing document via the existing PDF/DOCX/PPTX connectors;
+  20 MB cap, 12k-char excerpt. (`api/brief_api.py`)
+
+### Removed
+
+- Wizard `Goals`/`Confirm` steps — superseded by the Brief step.
+
+## [1.1.1] — 2026-08-09
+
+### Fixed
+
+- **Resolve stage crash on every run:** `'Settings' object has no attribute
+  'max_block_size'`. The multi-key blocker read the block-size cap from
+  Settings, but the field was never defined there. Added
+  `max_block_size` (default 5000, env `ARYX_MAX_BLOCK_SIZE`). (`config.py`)
+
+## [1.1.0] — 2026-08-09
+
+### Added
+
+- **Brief page restored** (`/brief`). The five-question grounding flow (domain,
+  aim, objectives, scope, participant roles) is back as a Next.js page — lost
+  when the Streamlit UI was removed in `926b51a`. Drafts all five fields from a
+  one-line seed via the existing `draft-brief` API, persists via the workspace
+  brief PATCH; Brief nav link precedes Onboard. No backend changes.
+  (`apps/web/app/brief/page.tsx`, `apps/web/components/brand/Header.tsx`)
+
+### Changed
+
+- **Docker images are version-tagged only** — `1.1.0` · `v1.1.0` · git SHA;
+  `latest` is no longer pushed or referenced. Compose defaults, docs, and
+  `scripts/docker-hub-publish.sh` pin the semver tag (builds pinned to
+  linux/amd64). Commercial contact is now support@giggso.com; invalid
+  `mailto:` entry dropped from `pyproject.toml` `[project.urls]` (it broke
+  `pip install -e .` on modern setuptools).
+
 ## [Unreleased] — 2026-08-08
 
 ### Fixed
@@ -120,4 +193,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Notes
 
 - BSL is source-available, not OSI open source. See `docs/LICENSING.md`.
-- Commercial licensing: licensing@giggso.com
+- Commercial licensing: support@giggso.com

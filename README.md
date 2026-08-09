@@ -29,7 +29,7 @@
 | **SoT / graph** | PostgreSQL truth · FalkorDB rebuildable projection |
 | **UI** | Next.js only (`apps/web`) — no Streamlit |
 | **Images (public)** | [`giggsodocker/aryx-lite`](https://hub.docker.com/r/giggsodocker/aryx-lite) (API · worker · MCP) · [`giggsodocker/aryx-lite-web`](https://hub.docker.com/r/giggsodocker/aryx-lite-web) (Next.js UI) |
-| **Tags** | `latest` · `1.0.0` · `v1.0.0` · git short SHA (same tags on both images) |
+| **Tags** | `1.2.1` · `v1.2.1` · git short SHA (same tags on both images — always an explicit version, no `latest`) |
 | **License** | BSL 1.1 → GPL-3.0-or-later on 2029-07-15 · [details](docs/LICENSING.md) |
 | **Docker Hub overview** | [docs/DOCKERHUB.md](docs/DOCKERHUB.md) · [aryx-lite](https://hub.docker.com/r/giggsodocker/aryx-lite) · [aryx-lite-web](https://hub.docker.com/r/giggsodocker/aryx-lite-web) |
 
@@ -39,7 +39,7 @@
 
 | Step | What happens |
 |------|----------------|
-| **1. Goals** | You describe what you want to figure out in plain English |
+| **1. Brief** | You describe what you want to figure out in plain English — five grounding questions (domain, aim, objectives, scope, roles) steer every extraction |
 | **2. Ingest** | Connect a database or upload files (CSV, PDF, DOCX, …) |
 | **3. Resolve** | Duplicates merge into golden entities; weak pairs wait for human review |
 | **4. Link** | Cross-file relationships are discovered and projected into a graph |
@@ -57,7 +57,7 @@ Built for a **single team’s** outcome mapping on a laptop or small server — 
 
 | Image | Role | Tags |
 |-------|------|------|
-| [`giggsodocker/aryx-lite`](https://hub.docker.com/r/giggsodocker/aryx-lite) | API · worker · MCP | `latest` · `1.0.0` · `v1.0.0` · `<sha>` |
+| [`giggsodocker/aryx-lite`](https://hub.docker.com/r/giggsodocker/aryx-lite) | API · worker · MCP | `1.2.1` · `v1.2.1` · `<sha>` |
 | [`giggsodocker/aryx-lite-web`](https://hub.docker.com/r/giggsodocker/aryx-lite-web) | Next.js UI | same tags |
 
 ```bash
@@ -77,7 +77,7 @@ First boot pulls LLM models into Ollama (can take several minutes).
 | **API docs** | http://localhost:8088/docs |
 | **MCP (SSE)** | http://localhost:8765/sse |
 
-Then: open the web UI → **New workspace** → **Onboard** (`/start`) → goals → add a source → run.
+Then: the home page lists your workspaces — **New workspace** walks you through Brief (drop a doc, confirm six drafted answers) → sources → run.
 
 **Sample data:** upload the CSVs in [`examples/quickstart/`](examples/quickstart/) (customers + tickets) to exercise multi-file ingest and the entity graph.
 
@@ -93,9 +93,9 @@ curl -s http://localhost:8088/health
 ### Pull pinned images
 
 ```bash
-docker pull giggsodocker/aryx-lite:1.0.0
-docker pull giggsodocker/aryx-lite-web:1.0.0
-# or latest / v1.0.0 / git short SHA
+docker pull giggsodocker/aryx-lite:1.2.1
+docker pull giggsodocker/aryx-lite-web:1.2.1
+# or v1.2.1 / git short SHA
 ```
 
 ---
@@ -104,8 +104,10 @@ docker pull giggsodocker/aryx-lite-web:1.0.0
 
 | Route | Purpose |
 |-------|---------|
-| `/start` | Guided onboard wizard |
-| `/` | **Ask** — grounded Q&A with citations |
+| `/` | **Home** — workspace list with vitals; blank slate lands in the wizard |
+| `/ask` | **Ask** — grounded Q&A with citations |
+| `/start` | Guided onboard wizard — step 1 is the cruise-control Brief |
+| `/brief` | **Brief** — revisit/edit the six grounding questions; doc upload + AI draft |
 | `/model` | Ontology canvas (types, relationships, survivorship, axioms) |
 | `/data` | Transparency explorer — Tree, Table, **interactive entity Graph** |
 | `/lab` | Accuracy Lab — ontology ON vs OFF + reasoner check |
@@ -117,6 +119,7 @@ There is **no Streamlit UI**. The product UI is Next.js only.
 
 ## Highlights
 
+- **Brief-grounded extraction** — six questions (domain · aim · objectives · scope · roles · proof questions) steer the ontology; AI-drafted from your documents (PDF/DOC/PPT) or one sentence
 - **Multi-source ingest** — Postgres, MySQL, Oracle; files (CSV/JSON/PDF/DOCX/PPTX/images)
 - **Discovery-driven ontology** — propose types, human approval gate, RDF/OWL import-export
 - **Entity resolution** — multi-key blocking, four-band scoring, HITL review, survivorship policies

@@ -33,6 +33,7 @@ class BriefRequest(BaseModel):
     objectives: list[str] = []
     scope: str = ""
     roles: list[str] = []
+    questions: list[str] = []
 
 
 def workspace_router() -> APIRouter:

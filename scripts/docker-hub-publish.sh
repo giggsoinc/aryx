@@ -3,8 +3,11 @@
 #
 # Usage:
 #   docker login   # once — must be giggsodocker (or a collaborator)
-#   ./scripts/docker-hub-publish.sh              # tags: latest + git short SHA
-#   ./scripts/docker-hub-publish.sh v1.0.0       # also tag as v1.0.0
+#   ./scripts/docker-hub-publish.sh              # tags: version from pyproject + v-prefix + git short SHA
+#   ./scripts/docker-hub-publish.sh 1.2.0        # explicit version override
+#
+# Policy: every push carries an explicit semver tag. `latest` is never
+# pushed — deployments pin a version (compose defaults do too).
 #
 # Images:
 #   giggsodocker/aryx-lite       — Python API / worker / MCP (root Dockerfile)
@@ -24,34 +27,48 @@ else
   VERSION_TAG="$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])" 2>/dev/null || true)"
 fi
 GIT_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo local)"
-TAGS=("latest" "$GIT_SHA")
-if [[ -n "$VERSION_TAG" ]]; then
-  TAGS+=("$VERSION_TAG")
-  # Also push v-prefixed semver if bare X.Y.Z was given
-  if [[ "$VERSION_TAG" =~ ^[0-9]+\.[0-9]+ ]]; then
-    TAGS+=("v${VERSION_TAG}")
-  fi
+if [[ -z "$VERSION_TAG" ]]; then
+  echo "ERROR: no version — pass one (./scripts/docker-hub-publish.sh 1.2.0) or set project.version in pyproject.toml"
+  exit 1
 fi
+TAGS=("$VERSION_TAG" "$GIT_SHA")
+# Also push v-prefixed semver if bare X.Y.Z was given
+if [[ "$VERSION_TAG" =~ ^[0-9]+\.[0-9]+ ]]; then
+  TAGS+=("v${VERSION_TAG}")
+fi
+
+# Hub images and the deployment hosts are linux/amd64 — pin it so builds
+# from Apple Silicon don't silently produce arm64 images.
+PLATFORM="${ARYX_BUILD_PLATFORM:-linux/amd64}"
 
 # Prefer BuildKit; fall back to classic builder if buildx perms fail (common on Desktop).
 build_img() {
   local tag="$1" dockerfile="$2" context="$3"
-  if ! docker build -t "$tag" -f "$dockerfile" "$context"; then
+  if ! docker build --platform "$PLATFORM" -t "$tag" -f "$dockerfile" "$context"; then
     echo "BuildKit failed — retrying with DOCKER_BUILDKIT=0"
-    DOCKER_BUILDKIT=0 docker build -t "$tag" -f "$dockerfile" "$context"
+    DOCKER_BUILDKIT=0 docker build --platform "$PLATFORM" -t "$tag" -f "$dockerfile" "$context"
   fi
 }
 
-echo "==> Building ${API_IMAGE} (api/worker/mcp)"
-build_img "${API_IMAGE}:latest" Dockerfile .
+echo "==> Building ${API_IMAGE} (api/worker/mcp) [$PLATFORM]"
+build_img "${API_IMAGE}:${VERSION_TAG}" Dockerfile .
 
-echo "==> Building ${WEB_IMAGE} (web)"
-build_img "${WEB_IMAGE}:latest" apps/web/Dockerfile apps/web
+echo "==> Building ${WEB_IMAGE} (web) [$PLATFORM]"
+build_img "${WEB_IMAGE}:${VERSION_TAG}" apps/web/Dockerfile apps/web
+
+# Subpath variant for reverse-proxy deployments (served under /aryx).
+SUBPATH="${ARYX_SUBPATH:-/aryx}"
+echo "==> Building ${WEB_IMAGE}:${VERSION_TAG}-subpath (basePath ${SUBPATH}) [$PLATFORM]"
+if ! docker build --platform "$PLATFORM" --build-arg "ARYX_BASE_PATH=${SUBPATH}" \
+     -t "${WEB_IMAGE}:${VERSION_TAG}-subpath" -f apps/web/Dockerfile apps/web; then
+  DOCKER_BUILDKIT=0 docker build --platform "$PLATFORM" --build-arg "ARYX_BASE_PATH=${SUBPATH}" \
+     -t "${WEB_IMAGE}:${VERSION_TAG}-subpath" -f apps/web/Dockerfile apps/web
+fi
 
 for tag in "${TAGS[@]}"; do
-  [[ "$tag" == "latest" ]] && continue
-  docker tag "${API_IMAGE}:latest" "${API_IMAGE}:${tag}"
-  docker tag "${WEB_IMAGE}:latest" "${WEB_IMAGE}:${tag}"
+  [[ "$tag" == "$VERSION_TAG" ]] && continue
+  docker tag "${API_IMAGE}:${VERSION_TAG}" "${API_IMAGE}:${tag}"
+  docker tag "${WEB_IMAGE}:${VERSION_TAG}" "${WEB_IMAGE}:${tag}"
 done
 
 echo "==> Checking Docker Hub login (must be ${REGISTRY_USER} or a collaborator)"
@@ -63,11 +80,12 @@ fi
 echo "If push is denied, run:  docker login   (username: ${REGISTRY_USER})"
 echo "Prefer an Access Token from https://hub.docker.com/settings/security"
 
-echo "==> Pushing tags: ${TAGS[*]}"
+echo "==> Pushing tags: ${TAGS[*]} (+ web ${VERSION_TAG}-subpath)"
 for tag in "${TAGS[@]}"; do
   docker push "${API_IMAGE}:${tag}"
   docker push "${WEB_IMAGE}:${tag}"
 done
+docker push "${WEB_IMAGE}:${VERSION_TAG}-subpath"
 
 echo
 echo "Published:"

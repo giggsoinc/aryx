@@ -260,6 +260,8 @@ export interface Brief {
   objectives?: string[];
   scope?: string;
   roles?: string[];
+  /** Proof questions the graph must answer — doubles as the Ask eval set. */
+  questions?: string[];
 }
 
 export interface QuizField {

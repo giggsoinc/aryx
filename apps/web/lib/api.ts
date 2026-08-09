@@ -215,6 +215,24 @@ export const api = {
       },
     ),
 
+  /** Extract plain text from ONE briefing document (PDF/DOC/DOCX/PPT…).
+   *  Brief-only reader — the file is never ingested as data. */
+  extractBriefDoc: async (workspaceId: number, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(
+      `${BASE}/admin/workspaces/${workspaceId}/brief-doc-text`,
+      { method: "POST", body: form },
+    );
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`${res.status} ${res.statusText}: ${detail}`);
+    }
+    return res.json() as Promise<{
+      workspace_id: number; filename: string; chars: number; text: string;
+    }>;
+  },
+
   saveBrief: (workspaceId: number, brief: Brief) =>
     fetchJSON<{ id: number; brief: Brief }>(
       `/admin/workspaces/${workspaceId}/brief`,

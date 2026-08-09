@@ -11,6 +11,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# Empty default = app serves at /. Subpath deployments pass
+# --build-arg ARYX_BASE_PATH=/aryx (baked at build time by Next.js).
+ARG ARYX_BASE_PATH=""
+ENV ARYX_BASE_PATH=$ARYX_BASE_PATH
 RUN npm run build
 
 FROM node:20-alpine AS runner
