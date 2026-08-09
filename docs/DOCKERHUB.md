@@ -122,5 +122,5 @@ Images published from Apple Silicon are **linux/arm64** unless a multi-arch buil
 
 ### Maintainer
 
-[Giggso](https://giggso.com) · Commercial licensing: licensing@giggso.com  
+[Giggso](https://giggso.com) · Commercial licensing: support@giggso.com  
 Source & issues: [giggsoinc/aryx](https://github.com/giggsoinc/aryx)

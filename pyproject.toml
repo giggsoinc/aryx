@@ -25,7 +25,6 @@ Homepage = "https://github.com/giggsoinc/aryx"
 Documentation = "https://github.com/giggsoinc/aryx/tree/main/docs"
 Licensing = "https://github.com/giggsoinc/aryx/blob/main/docs/LICENSING.md"
 "Bug Tracker" = "https://github.com/giggsoinc/aryx/issues"
-Commercial = "mailto:licensing@giggso.com"
 
 [build-system]
 requires = ["setuptools>=68"]

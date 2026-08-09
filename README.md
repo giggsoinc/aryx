@@ -39,7 +39,7 @@
 
 | Step | What happens |
 |------|----------------|
-| **1. Goals** | You describe what you want to figure out in plain English |
+| **1. Brief** | You describe what you want to figure out in plain English — five grounding questions (domain, aim, objectives, scope, roles) steer every extraction |
 | **2. Ingest** | Connect a database or upload files (CSV, PDF, DOCX, …) |
 | **3. Resolve** | Duplicates merge into golden entities; weak pairs wait for human review |
 | **4. Link** | Cross-file relationships are discovered and projected into a graph |
@@ -77,7 +77,7 @@ First boot pulls LLM models into Ollama (can take several minutes).
 | **API docs** | http://localhost:8088/docs |
 | **MCP (SSE)** | http://localhost:8765/sse |
 
-Then: open the web UI → **New workspace** → **Onboard** (`/start`) → goals → add a source → run.
+Then: open the web UI → **New workspace** → **Brief** (`/brief`) → **Onboard** (`/start`) → add a source → run.
 
 **Sample data:** upload the CSVs in [`examples/quickstart/`](examples/quickstart/) (customers + tickets) to exercise multi-file ingest and the entity graph.
 
@@ -104,6 +104,7 @@ docker pull giggsodocker/aryx-lite-web:1.0.0
 
 | Route | Purpose |
 |-------|---------|
+| `/brief` | **Brief** — five questions that ground every extraction; draft all fields from one sentence, edit, save |
 | `/start` | Guided onboard wizard |
 | `/` | **Ask** — grounded Q&A with citations |
 | `/model` | Ontology canvas (types, relationships, survivorship, axioms) |
@@ -117,6 +118,7 @@ There is **no Streamlit UI**. The product UI is Next.js only.
 
 ## Highlights
 
+- **Brief-grounded extraction** — five questions (domain · aim · objectives · scope · roles) steer the ontology; AI-drafted from one sentence
 - **Multi-source ingest** — Postgres, MySQL, Oracle; files (CSV/JSON/PDF/DOCX/PPTX/images)
 - **Discovery-driven ontology** — propose types, human approval gate, RDF/OWL import-export
 - **Entity resolution** — multi-key blocking, four-band scoring, HITL review, survivorship policies

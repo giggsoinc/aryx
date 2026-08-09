@@ -21,7 +21,7 @@ becomes available under the **Change License** (GPL-3.0-or-later).
 | Remove license notices or relicense others' copies | No |
 
 If you want to host Aryx commercially as a competing product, contact
-**licensing@giggso.com** for a commercial license.
+**support@giggso.com** for a commercial license.
 
 ---
 
@@ -33,7 +33,7 @@ If you want to host Aryx commercially as a competing product, contact
 | **Licensed Work** | Aryx Lite |
 | **Change Date** | 2029-07-15 |
 | **Change License** | GPL-3.0-or-later |
-| **Commercial contact** | licensing@giggso.com |
+| **Commercial contact** | support@giggso.com |
 
 The binding text is always the root [`LICENSE`](../LICENSE) file.
 

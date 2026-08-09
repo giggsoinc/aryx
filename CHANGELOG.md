@@ -120,4 +120,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Notes
 
 - BSL is source-available, not OSI open source. See `docs/LICENSING.md`.
-- Commercial licensing: licensing@giggso.com
+- Commercial licensing: support@giggso.com
