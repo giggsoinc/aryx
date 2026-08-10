@@ -28,6 +28,8 @@ export interface LlmConfig {
   api_key_set: boolean;
   /** True once the user explicitly confirmed/persisted a model choice. */
   confirmed?: boolean;
+  /** Where the active values came from: "user" or "environment". */
+  source?: string;
 }
 
 export interface LlmConfigUpdate {

@@ -104,8 +104,17 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
     jobs = JobStore(settings.rdb_dsn)
     broker = _local_broker()
     context = _brief_context(workspace_id)
+    # Replay standing human corrections into the extraction context.
+    try:
+        from aryx.api.corrections_api import corrections_digest
+        digest = corrections_digest(workspace_id)
+        if digest:
+            context = (context + "\n\nStanding corrections from the user "
+                       "(obey these exactly):\n" + digest).strip()
+    except Exception:  # noqa: BLE001 — corrections are best-effort steering
+        logger.debug("corrections digest unavailable", exc_info=True)
     if context:
-        logger.info("ingest steered by brief ws=%s (%d chars)",
+        logger.info("ingest steered by brief+corrections ws=%s (%d chars)",
                     workspace_id, len(context))
     try:
         data_files = [(d, n) for d, n in items if Path(n).suffix.lower() in _DATA_EXTS]

@@ -108,6 +108,8 @@ def create_app() -> FastAPI:
     app.include_router(ask_history_router())
     app.include_router(jobs_router())
     app.include_router(system_router())
+    from aryx.api.corrections_api import corrections_router
+    app.include_router(corrections_router())
     app.include_router(file_ingest_router())
     app.include_router(connect_router())
     app.include_router(demo_ingest_router())

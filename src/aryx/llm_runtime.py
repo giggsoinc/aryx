@@ -152,4 +152,7 @@ def status() -> dict[str, object]:
         "endpoint": _state["endpoint"],
         "api_key_set": bool(_state["api_key"]),
         "confirmed": _confirmed,
+        # Where the active values came from — shown verbatim in the UI so
+        # nobody wonders why "Gemini" appears they never chose.
+        "source": "user" if _confirmed else "environment",
     }
