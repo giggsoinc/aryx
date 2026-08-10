@@ -34,6 +34,7 @@ class BriefRequest(BaseModel):
     scope: str = ""
     roles: list[str] = []
     questions: list[str] = []
+    source_docs: list[str] = []
 
 
 def workspace_router() -> APIRouter:

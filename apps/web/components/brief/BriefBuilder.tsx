@@ -144,6 +144,10 @@ export function BriefBuilder({
         objectives: fromItems(objectives),
         roles: fromItems(roles),
         questions: fromItems(questions),
+        source_docs: Array.from(new Set([
+          ...(initial?.source_docs ?? []),
+          ...docs.filter((d) => !d.error).map((d) => d.filename),
+        ])),
       };
       await api.saveBrief(workspaceId, brief);
       onSubmitted(brief);
@@ -235,6 +239,12 @@ export function BriefBuilder({
           </span>
         </label>
 
+        {(initial?.source_docs?.length ?? 0) > 0 && (
+          <div className="mb-2 text-[11px] text-subtle">
+            Previously drafted from:{" "}
+            {initial!.source_docs!.join(" · ")}
+          </div>
+        )}
         {docs.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-1.5">
             {docs.map((d, i) => (

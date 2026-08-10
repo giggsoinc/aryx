@@ -3,6 +3,37 @@
 All notable changes to **Aryx Lite** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.4.0] — 2026-08-10
+
+### Added
+
+- **Model choice is the first decision, and it sticks.** New Home gate:
+  choose or explicitly confirm the language model (Ollama default) before
+  anything runs — no silent defaults. The choice persists in Postgres
+  (`aryx_llm_config`, migration 0028) with precedence UI > env file >
+  Ollama default, so a container restart no longer reverts a UI-chosen
+  provider. `/llm/config` reports `confirmed`. (`llm_runtime.py`,
+  `app/page.tsx`)
+- **Documents land TYPED and RELATED.** The upload path now lands doc
+  entities per discovered type (Agent, Ticket, WorkflowStage… instead of
+  everything as "Document"), registers those types in the ontology (Model
+  canvas populates), and runs relationship inference across the workspace
+  (capped) so edges appear in Data and the graph. Verified live: 4 types
+  registered, 42 edges projected. (`api/file_ingest_api.py`)
+- **Observe page** (`/observe`): jobs, workspace vitals, and physical
+  storage truth as a first-class surface. Nav reordered to the product
+  flow: Home · Brief · Data · Model · Lab · Ask · Observe · Settings.
+  (`app/observe/page.tsx`, `Header.tsx`)
+- **Brief remembers its sources.** Documents used to draft the brief are
+  stored on it (`source_docs`) and shown on revisit. (`BriefBuilder.tsx`)
+
+### Fixed
+
+- **Relationship inference always returned nothing on Ollama.** The exact
+  JSON shape was never shown to the model (schema isn't transmitted on the
+  Ollama path), so models answered related=true with no name and every
+  edge was skipped. Prompt now pins the exact shape. (`relationships.py`)
+
 ## [1.3.1] — 2026-08-09
 
 ### Fixed
