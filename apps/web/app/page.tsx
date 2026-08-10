@@ -267,9 +267,32 @@ function ModelGate() {
       setModel(cfg.answer_model);
     }
   }, [cfg, provider]);
-  useEffect(() => {
-    api.listLlmModels().then((r) => setOllamaModels(r.models)).catch(() => {});
+  const [modelsErr, setModelsErr] = useState<string | null>(null);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const fetchModels = useCallback(() => {
+    setModelsLoading(true); setModelsErr(null);
+    api.listLlmModels()
+      .then((r) => {
+        setOllamaModels(r.models);
+        if (!r.ok || r.models.length === 0) {
+          setModelsErr(r.error || "no local models found — is Ollama running?");
+        }
+      })
+      .catch((e) => setModelsErr(e instanceof Error ? e.message : "Ollama unreachable"))
+      .finally(() => setModelsLoading(false));
   }, []);
+  // Fetch on mount AND every time the provider flips to Ollama — the list
+  // must appear the moment the user switches, not only if it loaded once.
+  useEffect(() => { fetchModels(); }, [fetchModels]);
+  useEffect(() => { if (provider === "ollama") fetchModels(); }, [provider, fetchModels]);
+  // Keep the saved value honest: once the local list arrives, a leftover
+  // cloud model name (e.g. gemini-flash) must not be submitted as Ollama's.
+  useEffect(() => {
+    if (provider === "ollama" && ollamaModels.length > 0
+        && !ollamaModels.includes(model)) {
+      setModel(ollamaModels[0]);
+    }
+  }, [provider, ollamaModels, model]);
 
   const save = async () => {
     setBusy(true);
@@ -339,9 +362,13 @@ function ModelGate() {
           <option value="openai">OpenAI-compatible</option>
           <option value="grok">Grok (xAI)</option>
         </select>
-        {provider === "ollama" && ollamaModels.length > 0 ? (
+        {provider === "ollama" && modelsLoading ? (
+          <span className="inline-flex items-center gap-1.5 text-[12px] text-subtle">
+            <Loader2 size={12} className="animate-spin" /> listing local models…
+          </span>
+        ) : provider === "ollama" && ollamaModels.length > 0 ? (
           <select
-            value={model}
+            value={ollamaModels.includes(model) ? model : ollamaModels[0]}
             onChange={(e) => setModel(e.target.value)}
             className="focus-ring rounded-lg border border-navy-100 bg-white px-2.5 py-1.5 text-[12px] text-navy-800"
           >
@@ -376,6 +403,17 @@ function ModelGate() {
           all options
         </Link>
       </div>
+      {provider === "ollama" && modelsErr && !modelsLoading && (
+        <div className="mt-2 flex items-center gap-2 text-[11px] text-amber-700">
+          <span>⚠ {modelsErr}</span>
+          <button
+            type="button" onClick={fetchModels}
+            className="focus-ring rounded border border-amber-300 bg-white px-1.5 py-0.5 text-[10px] font-semibold hover:bg-amber-50"
+          >
+            Retry
+          </button>
+        </div>
+      )}
     </div>
   );
 }
