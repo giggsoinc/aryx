@@ -3,6 +3,39 @@
 All notable changes to **Aryx Lite** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.5.0] — 2026-08-10
+
+### Added
+
+- **The correction loop — point Aryx in the right direction.** Two ways,
+  one audited path, every action both fixes the data NOW and stores a
+  standing rule replayed into every future ingest (extraction context +
+  post-relate enforcement):
+  · **Click**: the Data entity panel gains retype (dropdown), merge-into,
+    link-to, per-relationship unlink (✕), and remove-as-junk.
+  · **Chat**: a "Fix by chat" dock on Data AND Model — "merge M. Lopez
+    into Maria Lopez", "T-100 was resolved by Maria". The LLM only
+    classifies the utterance; names resolve deterministically against the
+    workspace roster; ambiguity asks back, questions are redirected to
+    Ask (write-only surface, fully separate from Ask).
+  Rules: retype · suppress · alias · pin_link · forbid_link, listable and
+  deletable via /admin/workspaces/{id}/corrections.
+- **Reset & re-ingest.** Home workspace card gains "↺ Reset & re-ingest":
+  wipes the workspace's records/entities/links/profiles/jobs (Postgres)
+  and its whole FalkorDB graph, with a confirm dialog showing exact
+  counts. Brief, model choice, ontology types, and corrections survive —
+  verified live. (`POST /admin/workspaces/{id}/reset-data`)
+- **Quota failures fall back to local Ollama.** 429/RESOURCE_EXHAUSTED/
+  connection failures on cloud providers transparently retry the call on
+  the local Ollama models and log it loudly; auth errors (401/403) still
+  surface immediately — a broken key is never silently masked.
+- **First-screen LLM picker.** The Home gate is now a full inline picker:
+  provider + model (auto-lists installed Ollama models via /llm/models) +
+  key, verified before save, with the config source named explicitly
+  ("source: environment file — not yet confirmed" → "set by you"). The
+  bar renders only what the server echoes back — stale-provider display
+  is impossible.
+
 ## [1.4.0] — 2026-08-10
 
 ### Added

@@ -129,6 +129,21 @@ export function GraphLens() {
     return () => { live = false; };
   }, [sel, workspaceId]);
 
+  // Chat-dock corrections land outside this component; reload on signal.
+  useEffect(() => {
+    const onCorrected = () => {
+      api.dataGraphEntity(workspaceId)
+        .then((d) => { if (!("error" in d && d.error)) setG(d); });
+      if (sel) {
+        api.dataEntityDetail(workspaceId, Number(sel))
+          .then((d) => { if (!("error" in d && d.error)) setDetail(d); })
+          .catch(() => setSel(null));
+      }
+    };
+    window.addEventListener("aryx:corrected", onCorrected);
+    return () => window.removeEventListener("aryx:corrected", onCorrected);
+  }, [workspaceId, sel]);
+
   useEffect(() => {
     if (!full) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setSel(null); setFull(false); } };
@@ -217,6 +232,19 @@ export function GraphLens() {
           typeIndex={(t) => types.indexOf(t)}
           onSelect={(id) => setSel(String(id))}
           onClose={() => setSel(null)}
+          workspaceId={workspaceId}
+          allTypes={types}
+          onCorrected={(gone) => {
+            // Reload graph truth; keep or drop selection depending on
+            // whether the correction removed the entity.
+            api.dataGraphEntity(workspaceId)
+              .then((d) => { if (!("error" in d && d.error)) setG(d); });
+            if (gone) { setSel(null); setDetail(null); return; }
+            if (sel) {
+              api.dataEntityDetail(workspaceId, Number(sel))
+                .then((d) => { if (!("error" in d && d.error)) setDetail(d); });
+            }
+          }}
         />
       ) : null}
     </div>
@@ -362,10 +390,15 @@ function Flow({ g, full, sel, onSelect, hiddenTypes, focusId }: {
   );
 }
 
-function DetailPanel({ detail, loading, typeIndex, onSelect, onClose }: {
+function DetailPanel({
+  detail, loading, typeIndex, onSelect, onClose,
+  workspaceId, allTypes, onCorrected,
+}: {
   detail: EntityDetail | null; loading: boolean;
   typeIndex: (t: string) => number;
   onSelect: (id: number) => void; onClose: () => void;
+  workspaceId: number; allTypes: string[];
+  onCorrected: (entityGone: boolean) => void;
 }) {
   return (
     <div className="absolute right-3 top-14 bottom-3 z-10 flex w-80 flex-col overflow-hidden rounded-xl border border-navy-100 bg-white shadow-lg">
@@ -409,10 +442,10 @@ function DetailPanel({ detail, loading, typeIndex, onSelect, onClose }: {
             ) : (
               <ul className="space-y-1">
                 {detail.relationships.map((r, i) => (
-                  <li key={i}>
+                  <li key={i} className="group flex items-center gap-1">
                     <button
                       onClick={() => onSelect(r.other_id)}
-                      className="flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left hover:bg-navy-50"
+                      className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 py-1 text-left hover:bg-navy-50"
                     >
                       {r.direction === "out"
                         ? <ArrowRight size={12} className="shrink-0 text-navy-400" />
@@ -420,6 +453,19 @@ function DetailPanel({ detail, loading, typeIndex, onSelect, onClose }: {
                       <span className="shrink-0 font-mono text-[9.5px] text-navy-500">{r.name}</span>
                       <span className="truncate text-navy-800">{r.other_name}</span>
                       <span className="ml-auto shrink-0 text-[10px] text-subtle">{r.other_type}</span>
+                    </button>
+                    <button
+                      title="Wrong link — remove it and never relate these again"
+                      onClick={async () => {
+                        await api.addCorrection(workspaceId, {
+                          kind: "unlink", entity_id: detail.id,
+                          target_id: r.other_id,
+                        });
+                        onCorrected(false);
+                      }}
+                      className="focus-ring shrink-0 rounded p-0.5 text-navy-300 opacity-0 transition-opacity hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100"
+                    >
+                      <X size={11} />
                     </button>
                   </li>
                 ))}
@@ -438,6 +484,11 @@ function DetailPanel({ detail, loading, typeIndex, onSelect, onClose }: {
               </ul>
             </Section>
           ) : null}
+
+          <CorrectBox
+            detail={detail} workspaceId={workspaceId}
+            allTypes={allTypes} onCorrected={onCorrected}
+          />
         </div>
       )}
     </div>
@@ -458,5 +509,144 @@ function Box({ children }: { children: React.ReactNode }) {
     <div className="flex items-center justify-center gap-2 rounded-2xl border border-navy-100 bg-white px-4 py-16 text-[13px] text-subtle">
       {children}
     </div>
+  );
+}
+
+/** Point Aryx in the right direction — every action fixes the data now AND
+ *  becomes a standing rule replayed on every future ingest. */
+function CorrectBox({ detail, workspaceId, allTypes, onCorrected }: {
+  detail: EntityDetail; workspaceId: number; allTypes: string[];
+  onCorrected: (entityGone: boolean) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [mergeQ, setMergeQ] = useState("");
+  const [linkQ, setLinkQ] = useState("");
+  const [linkName, setLinkName] = useState("");
+  const [candidates, setCandidates] = useState<Array<{ id: number; name: string; type: string }>>([]);
+  const [mode, setMode] = useState<"none" | "merge" | "link">("none");
+
+  const search = async (q: string) => {
+    if (q.trim().length < 2) { setCandidates([]); return; }
+    try {
+      const page = await api.dataEntities(workspaceId, undefined, 200, 0);
+      const needle = q.trim().toLowerCase();
+      setCandidates(
+        (page.items || [])
+          .filter((e) => e.id !== detail.id
+            && (e.name || "").toLowerCase().includes(needle))
+          .slice(0, 6)
+          .map((e) => ({ id: e.id, name: e.name, type: e.type })),
+      );
+    } catch { setCandidates([]); }
+  };
+
+  const act = async (
+    body: Parameters<typeof api.addCorrection>[1], gone: boolean, done: string,
+  ) => {
+    setBusy(true); setMsg(null);
+    try {
+      await api.addCorrection(workspaceId, body);
+      setMsg(done);
+      setMode("none"); setMergeQ(""); setLinkQ(""); setLinkName(""); setCandidates([]);
+      onCorrected(gone);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "correction failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Section title="Correct this entity">
+      {msg && <div className="mb-2 rounded-md bg-navy-50 px-2 py-1 text-[11px] text-navy-700">{msg}</div>}
+
+      <div className="mb-2 flex items-center gap-2">
+        <span className="text-[11px] text-subtle">Type:</span>
+        <select
+          value={detail.type}
+          disabled={busy}
+          onChange={(e) => act(
+            { kind: "retype", entity_id: detail.id, name: e.target.value },
+            false, `Retyped to ${e.target.value} — Aryx will remember.`)}
+          className="focus-ring flex-1 rounded-md border border-navy-100 bg-white px-2 py-1 text-[11.5px] text-navy-800"
+        >
+          {(allTypes.includes(detail.type) ? allTypes : [detail.type, ...allTypes]).map(
+            (t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          type="button" disabled={busy}
+          onClick={() => setMode(mode === "merge" ? "none" : "merge")}
+          className="focus-ring rounded-md border border-navy-100 bg-white px-2 py-1 text-[11px] font-medium text-navy-700 hover:bg-navy-50"
+        >
+          Merge into…
+        </button>
+        <button
+          type="button" disabled={busy}
+          onClick={() => setMode(mode === "link" ? "none" : "link")}
+          className="focus-ring rounded-md border border-navy-100 bg-white px-2 py-1 text-[11px] font-medium text-navy-700 hover:bg-navy-50"
+        >
+          Link to…
+        </button>
+        <button
+          type="button" disabled={busy}
+          onClick={() => act(
+            { kind: "remove", entity_id: detail.id }, true,
+            "Removed — Aryx will never extract this again.")}
+          className="focus-ring rounded-md border border-rose-200 bg-white px-2 py-1 text-[11px] font-medium text-rose-700 hover:bg-rose-50"
+        >
+          Remove (junk)
+        </button>
+      </div>
+
+      {mode !== "none" && (
+        <div className="mt-2 space-y-1.5">
+          <input
+            autoFocus
+            value={mode === "merge" ? mergeQ : linkQ}
+            onChange={(e) => {
+              if (mode === "merge") setMergeQ(e.target.value);
+              else setLinkQ(e.target.value);
+              search(e.target.value);
+            }}
+            placeholder={mode === "merge"
+              ? "Search the entity this duplicates…"
+              : "Search the entity to link to…"}
+            className="focus-ring w-full rounded-md border border-navy-100 bg-white px-2 py-1 text-[11.5px] text-navy-800"
+          />
+          {mode === "link" && (
+            <input
+              value={linkName}
+              onChange={(e) => setLinkName(e.target.value)}
+              placeholder="relationship name (e.g. resolved, works_for)"
+              className="focus-ring w-full rounded-md border border-navy-100 bg-white px-2 py-1 text-[11.5px] text-navy-800"
+            />
+          )}
+          {candidates.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              disabled={busy || (mode === "link" && !linkName.trim())}
+              onClick={() => mode === "merge"
+                ? act({ kind: "merge", entity_id: detail.id, target_id: c.id },
+                      true, `Merged into ${c.name}.`)
+                : act({ kind: "link", entity_id: detail.id, target_id: c.id,
+                        name: linkName.trim() },
+                      false, `Linked to ${c.name}.`)}
+              className="focus-ring flex w-full items-center justify-between rounded-md border border-navy-100 bg-white px-2 py-1 text-left text-[11.5px] hover:bg-navy-50 disabled:opacity-50"
+            >
+              <span className="truncate text-navy-800">{c.name}</span>
+              <span className="ml-2 shrink-0 text-[10px] text-subtle">{c.type}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      <p className="mt-2 text-[10px] leading-snug text-subtle">
+        Corrections apply immediately and are replayed on every future ingest.
+      </p>
+    </Section>
   );
 }

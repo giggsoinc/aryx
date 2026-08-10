@@ -29,7 +29,7 @@
 | **SoT / graph** | PostgreSQL truth · FalkorDB rebuildable projection |
 | **UI** | Next.js only (`apps/web`) — no Streamlit |
 | **Images (public)** | [`giggsodocker/aryx-lite`](https://hub.docker.com/r/giggsodocker/aryx-lite) (API · worker · MCP) · [`giggsodocker/aryx-lite-web`](https://hub.docker.com/r/giggsodocker/aryx-lite-web) (Next.js UI) |
-| **Tags** | `1.4.0` · `v1.4.0` · git short SHA (same tags on both images — always an explicit version, no `latest`) |
+| **Tags** | `1.5.0` · `v1.5.0` · git short SHA (same tags on both images — always an explicit version, no `latest`) |
 | **License** | BSL 1.1 → GPL-3.0-or-later on 2029-07-15 · [details](docs/LICENSING.md) |
 | **Docker Hub overview** | [docs/DOCKERHUB.md](docs/DOCKERHUB.md) · [aryx-lite](https://hub.docker.com/r/giggsodocker/aryx-lite) · [aryx-lite-web](https://hub.docker.com/r/giggsodocker/aryx-lite-web) |
 
@@ -57,7 +57,7 @@ Built for a **single team’s** outcome mapping on a laptop or small server — 
 
 | Image | Role | Tags |
 |-------|------|------|
-| [`giggsodocker/aryx-lite`](https://hub.docker.com/r/giggsodocker/aryx-lite) | API · worker · MCP | `1.4.0` · `v1.4.0` · `<sha>` |
+| [`giggsodocker/aryx-lite`](https://hub.docker.com/r/giggsodocker/aryx-lite) | API · worker · MCP | `1.5.0` · `v1.5.0` · `<sha>` |
 | [`giggsodocker/aryx-lite-web`](https://hub.docker.com/r/giggsodocker/aryx-lite-web) | Next.js UI | same tags |
 
 ```bash
@@ -93,9 +93,9 @@ curl -s http://localhost:8088/health
 ### Pull pinned images
 
 ```bash
-docker pull giggsodocker/aryx-lite:1.4.0
-docker pull giggsodocker/aryx-lite-web:1.4.0
-# or v1.4.0 / git short SHA
+docker pull giggsodocker/aryx-lite:1.5.0
+docker pull giggsodocker/aryx-lite-web:1.5.0
+# or v1.5.0 / git short SHA
 ```
 
 ---

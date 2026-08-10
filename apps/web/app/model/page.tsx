@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { Header } from "@/components/brand/Header";
+import { CorrectionChat } from "@/components/corrections/CorrectionChat";
 import { useWorkspace } from "@/lib/workspace";
 
 // React Flow touches `window` during import; keep it client-only.
@@ -16,6 +17,7 @@ export default function ModelPage() {
     <div className="flex h-screen flex-col">
       <Header workspaceId={workspaceId} onWorkspaceChange={setWorkspaceId} />
       <Canvas />
+      <CorrectionChat workspaceId={workspaceId} scope="model" />
     </div>
   );
 }

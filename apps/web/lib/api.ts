@@ -296,6 +296,46 @@ export const api = {
   // ── LLM provider (runtime; process memory — not persisted to disk) ──
   getLlmConfig: () => fetchJSON<LlmConfig>("/llm/config"),
 
+  // ── Corrections: fix now + standing rule replayed on every ingest ─────
+  addCorrection: (workspaceId: number, body: {
+    kind: "retype" | "remove" | "link" | "unlink" | "merge";
+    entity_id: number; target_id?: number; name?: string;
+  }) =>
+    fetchJSON<{ id: number; kind: string; subject: string; object: string }>(
+      `/admin/workspaces/${workspaceId}/corrections`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+
+  /** Plain-language correction (graph chat dock) — write-only, not Ask. */
+  correctionChat: (workspaceId: number, text: string, selectedEntityId = 0) =>
+    fetchJSON<{ status: string; message: string }>(
+      `/admin/workspaces/${workspaceId}/corrections/chat`,
+      { method: "POST",
+        body: JSON.stringify({ text, selected_entity_id: selectedEntityId }) },
+    ),
+
+  listCorrections: (workspaceId: number) =>
+    fetchJSON<Array<{
+      id: number; kind: string; subject: string;
+      object: string; detail: string; created_at: string;
+    }>>(`/admin/workspaces/${workspaceId}/corrections`),
+
+  deleteCorrection: (correctionId: number) =>
+    fetchJSON<{ status: string }>(`/admin/corrections/${correctionId}`,
+      { method: "DELETE" }),
+
+  /** Wipe this workspace's data (records/entities/links/graph) for a clean
+   *  re-ingest. Brief, model choice, types, and corrections survive. */
+  resetWorkspaceData: (workspaceId: number) =>
+    fetchJSON<{ workspace_id: number; deleted: Record<string, number> }>(
+      `/admin/workspaces/${workspaceId}/reset-data`,
+      { method: "POST", body: "{}" },
+    ),
+
+  /** Installed local Ollama models for the Home picker. */
+  listLlmModels: () =>
+    fetchJSON<{ ok: boolean; models: string[]; error?: string }>("/llm/models"),
+
   /** Physical storage truth: what is ACTUALLY in Postgres + FalkorDB, plus
    *  service health. Counts come from the stores, never from job claims. */
   systemStatus: () =>

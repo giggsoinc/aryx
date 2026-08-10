@@ -185,6 +185,22 @@ def ask_router() -> APIRouter:
         """Config PLUS reachability: is the model actually ready to serve?"""
         return _llm_probe()
 
+    @router.get("/llm/models")
+    def llm_models() -> dict:
+        """Installed local Ollama models — feeds the Home model picker."""
+        import urllib.request
+        cfg = llm_runtime.status()
+        endpoint = str(cfg["endpoint"]).rstrip("/")
+        try:
+            with urllib.request.urlopen(f"{endpoint}/api/tags",
+                                        timeout=3) as resp:
+                tags = json.load(resp)
+            models = sorted(str(m.get("name", ""))
+                            for m in tags.get("models", []))
+            return {"ok": True, "models": [m for m in models if m]}
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "models": [], "error": str(exc)}
+
     @router.post("/admin/llm/config")
     def set_llm_config(req: LlmConfigRequest) -> dict:
         llm_runtime.set_config(**req.model_dump())

@@ -31,6 +31,8 @@ export default function HomePage() {
   const [desc, setDesc] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetTarget, setResetTarget] = useState<number | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     api.workspaceOverview()
@@ -165,7 +167,7 @@ export default function HomePage() {
                       <FileText size={10} /> {hasBrief ? "Brief ✓" : "No brief"}
                     </span>
                   </div>
-                  <div className="mt-4 flex gap-2">
+                  <div className="mt-4 flex flex-wrap gap-2">
                     {isEmpty ? (
                       <button
                         type="button"
@@ -175,15 +177,59 @@ export default function HomePage() {
                         Continue setup
                       </button>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => open(w.id, "/ask")}
-                        className="focus-ring rounded-lg bg-navy-800 px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-navy-700"
-                      >
-                        Open
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => open(w.id, "/ask")}
+                          className="focus-ring rounded-lg bg-navy-800 px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-navy-700"
+                        >
+                          Open
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setResetTarget(w.id)}
+                          className="focus-ring rounded-lg border border-rose-200 bg-white px-3.5 py-1.5 text-[12px] font-semibold text-rose-700 hover:bg-rose-50"
+                        >
+                          ↺ Reset &amp; re-ingest
+                        </button>
+                      </>
                     )}
                   </div>
+                  {resetTarget === w.id && (
+                    <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50/60 p-3 text-[12px] text-navy-800">
+                      <b>Reset “{w.name}”?</b> Deletes this workspace's{" "}
+                      {o ? <>{o.landed_records.toLocaleString()} records, {o.entities.toLocaleString()} entities, {o.relationships.toLocaleString()} links</> : "data"}{" "}
+                      from Postgres and its whole FalkorDB graph.
+                      <b> Keeps</b> your Brief, model choice, ontology types, and corrections.
+                      (Shared document chunks are left in place.)
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button" disabled={resetting}
+                          onClick={async () => {
+                            setResetting(true);
+                            try {
+                              await api.resetWorkspaceData(w.id);
+                              open(w.id, "/start");
+                            } catch (e) {
+                              setError(e instanceof Error ? e.message : "reset failed");
+                              setResetting(false);
+                              setResetTarget(null);
+                            }
+                          }}
+                          className="focus-ring rounded-lg bg-rose-700 px-3 py-1 text-[12px] font-semibold text-white hover:bg-rose-800 disabled:opacity-50"
+                        >
+                          {resetting ? "Resetting…" : "Yes, reset & re-ingest"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setResetTarget(null)}
+                          className="focus-ring rounded-lg px-3 py-1 text-[12px] font-medium text-navy-700 hover:bg-navy-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -210,16 +256,34 @@ function ModelGate() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const confirmDefault = async () => {
-    if (!cfg) return;
+  // Inline picker state.
+  const [provider, setProvider] = useState("");
+  const [model, setModel] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [ollamaModels, setOllamaModels] = useState<string[]>([]);
+  useEffect(() => {
+    if (cfg && !provider) {
+      setProvider(cfg.provider);
+      setModel(cfg.answer_model);
+    }
+  }, [cfg, provider]);
+  useEffect(() => {
+    api.listLlmModels().then((r) => setOllamaModels(r.models)).catch(() => {});
+  }, []);
+
+  const save = async () => {
     setBusy(true);
     try {
-      // Persisting the current (Ollama-default or env-set) config marks it
-      // as the user's explicit choice.
-      setCfg(await api.setLlmConfig({
-        provider: cfg.provider, menial_model: cfg.menial_model,
-        answer_model: cfg.answer_model, endpoint: cfg.endpoint,
-      }));
+      // Persist → server echoes back the ACTIVE config; render only that,
+      // never a cached value — so the bar can't show a stale provider.
+      const next = await api.setLlmConfig({
+        provider, answer_model: model, menial_model: model,
+        ...(apiKey ? { api_key: apiKey } : {}),
+        ...(provider === "ollama" ? {} : {}),
+      });
+      setCfg(next);
+      setApiKey("");
+      load();
     } finally {
       setBusy(false);
     }
@@ -227,15 +291,20 @@ function ModelGate() {
 
   if (!cfg) return null;
 
+  const dot = (
+    <span className={cn(
+      "inline-block size-2 shrink-0 rounded-full",
+      health == null ? "bg-navy-200" : health.ok ? "bg-emerald-500" : "bg-amber-500",
+    )} />
+  );
+
   if (cfg.confirmed) {
     return (
-      <div className="mb-5 flex items-center gap-2 text-[12px] text-subtle">
-        <span className={cn(
-          "inline-block size-2 rounded-full",
-          health == null ? "bg-navy-200" : health.ok ? "bg-emerald-500" : "bg-amber-500",
-        )} />
+      <div className="mb-5 flex flex-wrap items-center gap-2 text-[12px] text-subtle">
+        {dot}
         <Cpu size={12} />
         Model: <b className="text-navy-800">{cfg.provider} · {cfg.answer_model}</b>
+        <span className="rounded-full bg-navy-50 px-2 py-0.5 text-[10px]">set by you</span>
         {health && !health.ok && <span className="text-amber-700">— {health.detail}</span>}
         <Link href="/settings" className="underline hover:text-navy-700">change</Link>
       </div>
@@ -244,35 +313,68 @@ function ModelGate() {
 
   return (
     <div className="mb-6 rounded-xl border border-steel-500/40 bg-white p-4 shadow-soft">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-[13px] text-navy-800">
-          <Cpu size={15} className="text-steel-600" />
-          <span>
-            <b>Choose your language model first</b> — everything Aryx extracts
-            runs through it. Current default:{" "}
-            <b>{cfg.provider} · {cfg.answer_model}</b>
-            {health && (
-              <span className={health.ok ? "text-emerald-700" : "text-amber-700"}>
-                {" "}({health.ok ? "ready" : health.detail})
-              </span>
-            )}
+      <div className="mb-1 flex items-center gap-2 text-[13px] text-navy-800">
+        <Cpu size={15} className="text-steel-600" />
+        <b>Choose your language model first</b> — everything Aryx extracts runs through it.
+      </div>
+      <div className="mb-3 text-[11px]">
+        <span className="rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700">
+          source: environment file — not yet confirmed by you
+        </span>
+        {health && (
+          <span className={cn("ml-2", health.ok ? "text-emerald-700" : "text-amber-700")}>
+            {cfg.provider} · {cfg.answer_model} is {health.ok ? "ready" : health.detail}
           </span>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          <Link
-            href="/settings"
-            className="focus-ring rounded-lg border border-navy-100 bg-white px-3.5 py-1.5 text-[12px] font-semibold text-navy-800 hover:bg-navy-50"
+        )}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          value={provider}
+          onChange={(e) => { setProvider(e.target.value); if (e.target.value === "ollama" && ollamaModels[0]) setModel(ollamaModels[0]); }}
+          className="focus-ring rounded-lg border border-navy-100 bg-white px-2.5 py-1.5 text-[12px] text-navy-800"
+        >
+          <option value="ollama">Ollama (local, free) — default</option>
+          <option value="anthropic">Anthropic</option>
+          <option value="gemini">Gemini</option>
+          <option value="openai">OpenAI-compatible</option>
+          <option value="grok">Grok (xAI)</option>
+        </select>
+        {provider === "ollama" && ollamaModels.length > 0 ? (
+          <select
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            className="focus-ring rounded-lg border border-navy-100 bg-white px-2.5 py-1.5 text-[12px] text-navy-800"
           >
-            Choose a different model
-          </Link>
-          <button
-            type="button" onClick={confirmDefault} disabled={busy}
-            className="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-navy-800 px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-navy-700 disabled:opacity-50"
-          >
-            {busy ? <Loader2 size={12} className="animate-spin" /> : null}
-            Use this model
-          </button>
-        </div>
+            {ollamaModels.map((m) => <option key={m} value={m}>{m} (installed)</option>)}
+          </select>
+        ) : (
+          <input
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            placeholder="model name"
+            className="focus-ring w-44 rounded-lg border border-navy-100 bg-white px-2.5 py-1.5 text-[12px] text-navy-800"
+          />
+        )}
+        {provider !== "ollama" && (
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder="API key"
+            className="focus-ring w-48 rounded-lg border border-navy-100 bg-white px-2.5 py-1.5 text-[12px] text-navy-800"
+          />
+        )}
+        <button
+          type="button" onClick={save}
+          disabled={busy || !model.trim() || (provider !== "ollama" && !apiKey && !cfg.api_key_set)}
+          className="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-navy-800 px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-navy-700 disabled:opacity-50"
+        >
+          {busy ? <Loader2 size={12} className="animate-spin" /> : null}
+          Use this model
+        </button>
+        <Link href="/settings" className="text-[11px] text-subtle underline hover:text-navy-700">
+          all options
+        </Link>
       </div>
     </div>
   );
