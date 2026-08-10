@@ -110,6 +110,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
     try:
         data_files = [(d, n) for d, n in items if Path(n).suffix.lower() in _DATA_EXTS]
         doc_files = [(d, n) for d, n in items if Path(n).suffix.lower() in _DOC_EXTS]
+        total_entities = 0
         # Per-file plans feed cross-file FK inference once everything has landed.
         plans: list[dict[str, Any]] = []
         for data, name in data_files:
@@ -148,7 +149,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 keys = [best]
             plans.append({"ontology_type": otype, **cv})
             jobs.update_stage(job_id, "Ingest", 20, f"Processing {name}")
-            run_pipeline(
+            summary = run_pipeline(
                 connector=connector, dsn=settings.rdb_dsn,
                 system=suffix.lstrip("."), dataset=Path(name).stem,
                 ontology_type=otype, match_keys=keys,
@@ -156,6 +157,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 on_progress=lambda s, p, d: jobs.update_stage(job_id, s, p, d),
                 fk_links=fk_links, workspace_id=workspace_id,
             )
+            total_entities += int(summary.get("entities") or 0)
         # Cross-file relationships. The UI sends no fk_links, so with every
         # entity now landed, infer foreign-key edges from the files' columns
         # and materialize the ones whose values actually match, then re-project.
@@ -175,7 +177,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 chunk_overlap=settings.chunk_overlap, expected_embed_dim=settings.embed_dim,
                 context=context,
             )
-            run_pipeline(
+            summary = run_pipeline(
                 connector=connector, dsn=settings.rdb_dsn,
                 system="document", dataset="upload",
                 ontology_type=ontology_type, match_keys=match_keys,
@@ -183,6 +185,17 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 on_progress=lambda s, p, d: jobs.update_stage(job_id, s, p, d),
                 fk_links=fk_links, workspace_id=workspace_id,
             )
+            total_entities += int(summary.get("entities") or 0)
+        # Honest failure beats fake success: files were processed but NOT ONE
+        # entity landed — almost always the extraction model returning
+        # unusable output (still downloading, wrong provider, bad key).
+        if items and total_entities == 0:
+            jobs.finish(
+                job_id, run_id=None, status="failed",
+                error="No entities were extracted from the upload. The "
+                      "language model returned nothing usable — check the "
+                      "model in Settings (is it ready?) and retry.")
+            return
         jobs.finish(job_id, run_id=None, status="complete")
     except Exception as exc:  # noqa: BLE001
         logger.warning("file ingest failed job=%s: %s", job_id, exc, exc_info=True)

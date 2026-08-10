@@ -98,6 +98,11 @@ interface PanelProps {
 
 /** Docked side panel. No backdrop — page stays interactive. */
 function JobsPanel({ open, jobs, onClose, onRefresh }: PanelProps) {
+  // Bump whenever any job reaches a terminal state so the storage-truth
+  // blocks re-read immediately instead of waiting for their heartbeat.
+  const truthKey = jobs.filter(
+    (j) => j.status === "complete" || j.status === "failed",
+  ).length;
   return (
     <AnimatePresence>
       {open && (
@@ -141,9 +146,9 @@ function JobsPanel({ open, jobs, onClose, onRefresh }: PanelProps) {
                 <JobCard key={j.job_id} job={j} onChanged={onRefresh} />
               ))}
             </ul>
-            <WorkspaceOverview />
+            <WorkspaceOverview refreshKey={truthKey} />
           </div>
-          <SystemStatus />
+          <SystemStatus refreshKey={truthKey} />
         </motion.aside>
       )}
     </AnimatePresence>

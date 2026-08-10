@@ -72,7 +72,7 @@ function WorkspaceCard({ ws, onRefresh }: { ws: WsRow; onRefresh: () => void }) 
 }
 
 /** Per-workspace summary panel — lives inside JobsBadge's side panel below the job cards. */
-export function WorkspaceOverview() {
+export function WorkspaceOverview({ refreshKey = 0 }: { refreshKey?: number }) {
   const [data, setData] = useState<WsRow[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,8 +90,14 @@ export function WorkspaceOverview() {
     }
   }, []);
 
-  // Auto-load on mount.
-  useEffect(() => { loadAll(); }, [loadAll]);
+  // Load on mount and whenever a job transitions (refreshKey bumps), plus a
+  // 10s heartbeat while the panel is open (this component only mounts then) —
+  // stored-truth tiles must never sit stale next to live job cards.
+  useEffect(() => { loadAll(); }, [loadAll, refreshKey]);
+  useEffect(() => {
+    const t = setInterval(loadAll, 10000);
+    return () => clearInterval(t);
+  }, [loadAll]);
 
   if (!data && !loading && !error) return null;
 
