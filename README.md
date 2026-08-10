@@ -140,11 +140,64 @@ There is **no Streamlit UI**. The product UI is Next.js only.
 | Web | Next.js 15 (App Router, Tailwind) |
 | Database (source of truth) | PostgreSQL 16 + pgvector |
 | **Graph projection** | **[FalkorDB](https://github.com/FalkorDB/FalkorDB)** (one named graph per workspace) |
-| LLM | Ollama (default) · Anthropic · OpenAI-compatible · Gemini · Grok |
-| Agents | MCP over SSE |
+| LLM | Ollama (default) · Anthropic · OpenAI-compatible · Gemini · Grok — single broker, sequential pipeline (see [LLM architecture](#llm-architecture--how-the-agents-actually-work)) |
+| External agent access | MCP over SSE (Aryx as tool provider) |
 | Deploy | Docker Compose · [`giggsodocker/aryx-lite`](https://hub.docker.com/r/giggsodocker/aryx-lite) |
 
 Aryx is an application on top of FalkorDB (and Postgres), not a fork of the database.
+
+---
+
+## LLM architecture — how the agents actually work
+
+Aryx is **not** a multi-agent framework with autonomous agents negotiating over messages. It is a **single provider-agnostic Model Broker** feeding a **deterministic, sequential pipeline** — each stage calls one narrowly-scoped, stateless LLM function ("agent" in the classic sense: one job, one prompt, one schema) at a fixed point in the pipeline. No agent-to-agent (A2A) protocol, no hub-and-spoke coordinator, no agents calling other agents. Being precise about this matters: it's what makes ingestion auditable, replayable, and provider-swappable without touching orchestration logic.
+
+**Pattern: single-broker pipeline (assembly line), not multi-agent orchestration.**
+
+```
+Ingest → [Discover] → [Resolve] → [Relate] → [Link] → [Project] → Done
+             │            │           │
+        extract_mentions  adjudicate  infer_relationship
+         (cheap tier)    (frontier)    (frontier)
+```
+
+Each bracket is a fixed pipeline stage (`pipeline/orchestrate.py`); each stage below it calls exactly one stateless "agent" function through the broker, gets back structured JSON, and hands control to the next stage. No agent decides what runs next — the pipeline does.
+
+### The Model Broker (`aryx/broker/`)
+
+One provider-agnostic dispatch layer every agent calls through — never a direct SDK call from agent code:
+
+| Provider | Dispatch |
+|---|---|
+| `ollama` | native Ollama `/api/chat` |
+| `anthropic` | Claude SDK |
+| anything else (`openai`, `gemini`, `grok`, `openrouter`, `vllm`, `lmstudio`, …) | OpenAI-compatible HTTP `/chat/completions` |
+
+The broker resolves a **tier** (`frontier` → `mid` → `cheap` → `local`) to a concrete model, meters tokens per tier via `TokenGovernor`, and downgrades tiers on budget exhaustion — callers ask for a tier, never a model name. On quota/5xx/connection failures from a cloud provider, `aryx/llm.py` transparently falls back to the local Ollama model (loud log line, never silent); auth failures (401/403) do **not** fall back, so a bad key surfaces instead of being masked by a weaker model.
+
+### The agents — one job, one prompt, one schema, no memory
+
+| Agent | File | Tier | Classification | Job |
+|---|---|---|---|---|
+| **Schema mapper** | `pipeline/schema_agent.py` | frontier | Structured classifier | DB tables → ontology types + keys + relationships, from a plain-English goal |
+| **Field tagger** | `pipeline/tag.py` | cheap | Structured classifier | Profiled columns → semantic type tags |
+| **Ontology mapper** | `ontology/mapping.py` | frontier | Structured classifier | Source dataset → entity type + field mappings; proposes new types |
+| **Entity extractor** | `ontology/extract.py` | cheap | Extraction agent + deterministic gate | Document chunks → entity mentions; a **non-LLM verbatim-span check** rejects any mention whose name isn't actually in its cited source text |
+| **Adjudicator** | `resolution/adjudicate.py` | frontier | Binary classifier | Ambiguous-confidence record pair → same-entity yes/no |
+| **Relationship namer** | `relationships.py` | frontier | Structured classifier | Two resolved entities → related? + directed relationship name |
+| **Brief drafter** | `brief_draft.py` | frontier | Generative (schema-constrained) | Seed sentence / document → the 6-field workspace Brief |
+| **Ontology assistant** | `ontology_assist.py` | frontier | Generative (schema-constrained) | Brief + type name → suggested attributes |
+| **Correction-chat parser** | `api/corrections_api.py` | cheap | Intent classifier | Plain-language utterance → structured correction proposal (never applies directly — see below) |
+
+None of these agents hold conversation state, call each other, or call tools mid-reasoning. Each is a pure function: `(structured input, prompt, schema) → structured output`. That statelessness is deliberate — it's what makes every stage independently retryable, swappable across providers, and safe to run behind a fallback.
+
+### The one place a "propose → human approves → apply" loop exists
+
+The correction-chat parser is the sole agent whose output is **never applied automatically**. It classifies an utterance into a proposed correction (retype, merge, link, unlink, remove, rename-type); the *human* clicks Apply; only then does a plain, non-LLM function mutate Postgres and re-project the graph. This is intentionally the opposite of autonomous multi-agent action — the LLM proposes, a human disposes, and the applied action is the resolved structure the user saw, not the raw model output. Every applied correction is stored as a standing rule and replayed as steering context into every future ingest — corrections *compound*, they don't need re-teaching.
+
+### MCP — the actual multi-agent surface, and it's external, not internal
+
+Aryx exposes ingestion, ontology, and HITL-question tools over MCP/SSE (`aryx/mcp/`) so **external** agents (Claude Code, Claude Desktop, any MCP client) can drive Aryx as a tool. This is the only point where "another agent" touches Aryx, and it's a client-server tool-call relationship, not peer-to-peer — Aryx is the tool provider, never the caller.
 
 ---
 
