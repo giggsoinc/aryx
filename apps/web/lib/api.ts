@@ -298,17 +298,25 @@ export const api = {
 
   // ── Corrections: fix now + standing rule replayed on every ingest ─────
   addCorrection: (workspaceId: number, body: {
-    kind: "retype" | "remove" | "link" | "unlink" | "merge";
-    entity_id: number; target_id?: number; name?: string;
+    kind: "retype" | "remove" | "link" | "unlink" | "merge" | "rename_type";
+    entity_id?: number; target_id?: number; name?: string; type_name?: string;
   }) =>
     fetchJSON<{ id: number; kind: string; subject: string; object: string }>(
       `/admin/workspaces/${workspaceId}/corrections`,
       { method: "POST", body: JSON.stringify(body) },
     ),
 
-  /** Plain-language correction (graph chat dock) — write-only, not Ask. */
+  /** Plain-language correction (graph chat drawer) — write-only, not Ask.
+   *  Returns a PROPOSAL; nothing is applied until addCorrection is called
+   *  with the returned action. */
   correctionChat: (workspaceId: number, text: string, selectedEntityId = 0) =>
-    fetchJSON<{ status: string; message: string }>(
+    fetchJSON<{
+      status: string; message: string;
+      action?: {
+        kind: "retype" | "remove" | "link" | "unlink" | "merge" | "rename_type";
+        entity_id?: number; target_id?: number; name?: string; type_name?: string;
+      };
+    }>(
       `/admin/workspaces/${workspaceId}/corrections/chat`,
       { method: "POST",
         body: JSON.stringify({ text, selected_entity_id: selectedEntityId }) },

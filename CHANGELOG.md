@@ -3,6 +3,30 @@
 All notable changes to **Aryx Lite** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.5.2] — 2026-08-10
+
+### Changed
+
+- **Fix-by-chat proposes, never auto-applies.** The bot now answers every
+  correction with a structured proposal ("Rename type X → Y. Apply?") and
+  Apply/No buttons — a misparse costs one click, never a wrong edit. The
+  applied action is the resolved structure, not the raw parse, so
+  inverted-direction mistakes are impossible.
+- **Chat drawer, not a mini-dock.** Full-height 420px side drawer with a
+  larger transcript.
+
+### Added
+
+- **Type-level corrections.** New `rename_type` correction: renames the
+  ontology type AND moves all its entities (one value — no duplicated
+  key), stored as a standing rule ("the type X is now called Y") replayed
+  into every ingest. The chat parser now knows the workspace's TYPE list
+  next to the entity roster, with worked examples, and deterministically
+  routes "‹Type› is ‹NewName›" to rename_type even when the model
+  misclassifies. Verified on the exact reported scenario.
+- **Helpful refusals.** "No idea" replies now say what the dock can do
+  and how to phrase it, instead of a flat rejection.
+
 ## [1.5.1] — 2026-08-10
 
 ### Fixed
