@@ -142,6 +142,43 @@ def ask_router() -> APIRouter:
     def get_llm_config() -> dict:
         return llm_runtime.status()
 
+    @router.get("/llm/health")
+    def llm_health() -> dict:
+        """Config PLUS reachability: is the model actually ready to serve?
+
+        On a fresh install Ollama spends its first minutes downloading
+        models — config alone looks fine while every LLM call would hang.
+        """
+        cfg = llm_runtime.status()
+        provider = str(cfg["provider"])
+        endpoint = str(cfg["endpoint"]).rstrip("/")
+        model = str(cfg["answer_model"])
+        if provider != "ollama":
+            return {"ok": True, "provider": provider, "model": model,
+                    "detail": "external provider"}
+        import json as _json
+        import urllib.request
+        try:
+            with urllib.request.urlopen(f"{endpoint}/api/tags",
+                                        timeout=3) as resp:
+                tags = _json.load(resp)
+            names = {str(m.get("name", "")) for m in tags.get("models", [])}
+            bases = {n.split(":")[0] for n in names}
+            def _have(m: str) -> bool:
+                return m in names or m.split(":")[0] in bases
+            wanted = {model, str(cfg["menial_model"])}
+            missing = sorted(m for m in wanted if not _have(m))
+            if missing:
+                return {"ok": False, "provider": provider, "model": model,
+                        "detail": "still downloading model(s): "
+                                  + ", ".join(missing)
+                                  + " — first boot can take several minutes"}
+            return {"ok": True, "provider": provider, "model": model,
+                    "detail": "ready"}
+        except Exception as exc:  # noqa: BLE001 — report, never 500
+            return {"ok": False, "provider": provider, "model": model,
+                    "detail": f"Ollama not reachable at {endpoint} ({exc})"}
+
     @router.post("/admin/llm/config")
     def set_llm_config(req: LlmConfigRequest) -> dict:
         llm_runtime.set_config(**req.model_dump())

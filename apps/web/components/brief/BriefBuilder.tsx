@@ -56,14 +56,31 @@ export function BriefBuilder({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  // LLM reachability — cruise control needs a model. Reuses Settings' API.
-  const [llmLabel, setLlmLabel] = useState<string | null>(null);
-  const [llmDown, setLlmDown] = useState(false);
-  useEffect(() => {
-    api.getLlmConfig()
-      .then((c) => setLlmLabel(`${c.provider} · ${c.answer_model}`))
-      .catch(() => setLlmDown(true));
+  // LLM health — cruise control needs a model that is actually READY, not
+  // just configured (fresh installs spend minutes pulling Ollama models).
+  const [llm, setLlm] = useState<{
+    ok: boolean; provider: string; model: string; detail: string;
+  } | null>(null);
+  const [llmChecking, setLlmChecking] = useState(true);
+  const checkLlm = useCallback(() => {
+    setLlmChecking(true);
+    api.getLlmHealth()
+      .then(setLlm)
+      .catch(() => setLlm({
+        ok: false, provider: "", model: "",
+        detail: "API not reachable — is the backend running?",
+      }))
+      .finally(() => setLlmChecking(false));
   }, []);
+  useEffect(() => { checkLlm(); }, [checkLlm]);
+  // While the model is still downloading, re-probe on its own so the bar
+  // flips to ready without the user hammering Retry.
+  useEffect(() => {
+    if (llm && !llm.ok) {
+      const t = setInterval(checkLlm, 10000);
+      return () => clearInterval(t);
+    }
+  }, [llm, checkLlm]);
 
   // Reload fields when the stored brief changes (workspace switch).
   useEffect(() => {
@@ -145,16 +162,38 @@ export function BriefBuilder({
 
   return (
     <div className="w-full max-w-3xl">
-      {llmDown && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
-          <AlertCircle size={13} className="shrink-0" />
-          <span>
-            Aryx needs a language model to draft your brief —{" "}
-            <Link href="/settings" className="underline">choose one in Settings</Link>{" "}
-            (Ollama is free and local), or fill the fields by hand below.
-          </span>
-        </div>
-      )}
+      {/* Model bar — FIRST thing on the step: which model, and is it ready. */}
+      <div className={cn(
+        "mb-4 flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-[12px]",
+        llm?.ok
+          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+          : "border-amber-200 bg-amber-50 text-amber-800",
+      )}>
+        <span className="flex items-center gap-2">
+          <span className={cn(
+            "inline-block size-2 shrink-0 rounded-full",
+            llmChecking ? "animate-pulse bg-navy-300"
+              : llm?.ok ? "bg-emerald-500" : "bg-amber-500",
+          )} />
+          {llmChecking && !llm
+            ? "Checking your language model…"
+            : llm?.ok
+            ? <>Model ready — <b>{llm.provider} · {llm.model}</b> will draft your brief.</>
+            : <>
+                Model not ready{llm?.model ? <> (<b>{llm.provider} · {llm.model}</b>)</> : null}
+                {" — "}{llm?.detail}{" · "}
+                <Link href="/settings" className="underline">Settings</Link>
+              </>}
+        </span>
+        {!llm?.ok && (
+          <button
+            type="button" onClick={checkLlm} disabled={llmChecking}
+            className="focus-ring shrink-0 rounded-md border border-amber-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+          >
+            {llmChecking ? "Checking…" : "Retry"}
+          </button>
+        )}
+      </div>
       {error && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] text-rose-700">
           <AlertCircle size={13} className="shrink-0" /> {error}
@@ -172,11 +211,6 @@ export function BriefBuilder({
           <h2 className="text-[13px] font-bold text-navy-900">
             ✨ Give Aryx something to read — it does the writing
           </h2>
-          {llmLabel && (
-            <span className="rounded-full bg-navy-50 px-2.5 py-0.5 text-[10px] font-medium text-navy-600">
-              drafting with {llmLabel}
-            </span>
-          )}
         </div>
         <p className="mb-3 text-[12px] text-subtle">
           Drop documents that describe your world (an RFP, process doc,
@@ -210,7 +244,9 @@ export function BriefBuilder({
               )}>
                 <FileText size={11} />
                 {d.filename}
-                {d.error ? ` — ${d.error}` : " ✓"}
+                {d.error
+                  ? ` — ${d.error}`
+                  : ` — ${d.chars.toLocaleString()} characters read ✓`}
               </span>
             ))}
           </div>
