@@ -23,6 +23,44 @@ from aryx.store.ask_history_store import AskHistoryStore
 logger = logging.getLogger(__name__)
 
 
+def _llm_probe() -> dict:
+    """Config PLUS reachability: is the model actually ready to serve?
+
+    On a fresh install Ollama spends its first minutes downloading models —
+    config alone looks fine while every LLM call would hang. Shared by
+    /llm/health and /admin/system/status.
+    """
+    cfg = llm_runtime.status()
+    provider = str(cfg["provider"])
+    endpoint = str(cfg["endpoint"]).rstrip("/")
+    model = str(cfg["answer_model"])
+    if provider != "ollama":
+        return {"ok": True, "provider": provider, "model": model,
+                "detail": "external provider"}
+    import urllib.request
+    try:
+        with urllib.request.urlopen(f"{endpoint}/api/tags", timeout=3) as resp:
+            tags = json.load(resp)
+        names = {str(m.get("name", "")) for m in tags.get("models", [])}
+        bases = {n.split(":")[0] for n in names}
+
+        def _have(m: str) -> bool:
+            return m in names or m.split(":")[0] in bases
+
+        wanted = {model, str(cfg["menial_model"])}
+        missing = sorted(m for m in wanted if not _have(m))
+        if missing:
+            return {"ok": False, "provider": provider, "model": model,
+                    "detail": "still downloading model(s): "
+                              + ", ".join(missing)
+                              + " — first boot can take several minutes"}
+        return {"ok": True, "provider": provider, "model": model,
+                "detail": "ready"}
+    except Exception as exc:  # noqa: BLE001 — report, never 500
+        return {"ok": False, "provider": provider, "model": model,
+                "detail": f"Ollama not reachable at {endpoint} ({exc})"}
+
+
 def _reader(workspace_id: int = 1) -> GraphReaderPort:
     return ports().graph_reader(workspace_id)
 
@@ -144,40 +182,8 @@ def ask_router() -> APIRouter:
 
     @router.get("/llm/health")
     def llm_health() -> dict:
-        """Config PLUS reachability: is the model actually ready to serve?
-
-        On a fresh install Ollama spends its first minutes downloading
-        models — config alone looks fine while every LLM call would hang.
-        """
-        cfg = llm_runtime.status()
-        provider = str(cfg["provider"])
-        endpoint = str(cfg["endpoint"]).rstrip("/")
-        model = str(cfg["answer_model"])
-        if provider != "ollama":
-            return {"ok": True, "provider": provider, "model": model,
-                    "detail": "external provider"}
-        import json as _json
-        import urllib.request
-        try:
-            with urllib.request.urlopen(f"{endpoint}/api/tags",
-                                        timeout=3) as resp:
-                tags = _json.load(resp)
-            names = {str(m.get("name", "")) for m in tags.get("models", [])}
-            bases = {n.split(":")[0] for n in names}
-            def _have(m: str) -> bool:
-                return m in names or m.split(":")[0] in bases
-            wanted = {model, str(cfg["menial_model"])}
-            missing = sorted(m for m in wanted if not _have(m))
-            if missing:
-                return {"ok": False, "provider": provider, "model": model,
-                        "detail": "still downloading model(s): "
-                                  + ", ".join(missing)
-                                  + " — first boot can take several minutes"}
-            return {"ok": True, "provider": provider, "model": model,
-                    "detail": "ready"}
-        except Exception as exc:  # noqa: BLE001 — report, never 500
-            return {"ok": False, "provider": provider, "model": model,
-                    "detail": f"Ollama not reachable at {endpoint} ({exc})"}
+        """Config PLUS reachability: is the model actually ready to serve?"""
+        return _llm_probe()
 
     @router.post("/admin/llm/config")
     def set_llm_config(req: LlmConfigRequest) -> dict:

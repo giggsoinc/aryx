@@ -138,3 +138,10 @@ class FalkorStore:
             "MERGE (a)-[:REL {name: $name}]->(b)",
             {"src": source_id, "tgt": target_id, "name": name},
         )
+
+    def counts(self) -> dict[str, int]:
+        """Physical truth: node and edge counts actually stored in this graph."""
+        nodes = self._graph.query("MATCH (n:Entity) RETURN count(n)")
+        edges = self._graph.query("MATCH (:Entity)-[r:REL]->(:Entity) RETURN count(r)")
+        return {"nodes": int(nodes.result_set[0][0]),
+                "edges": int(edges.result_set[0][0])}

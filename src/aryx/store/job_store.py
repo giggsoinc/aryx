@@ -65,6 +65,18 @@ class JobStore:
                 cur.execute(load("select_recent_jobs"), (workspace_id,))
                 return [_row(r) for r in cur.fetchall()]
 
+    def reap_stale(self, minutes: int = 5) -> list[str]:
+        """Fail 'running' jobs whose last checkpoint is older than *minutes*.
+
+        Ingest runs as an in-process background task; a container restart
+        kills it without any chance to mark the job failed. Reaping on every
+        jobs listing keeps the UI truthful and unlocks Retry.
+        """
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(load("reap_stale_jobs"), (minutes, minutes))
+                return [r[0] for r in cur.fetchall()]
+
     def events(self, job_id: str) -> list[dict[str, Any]]:
         """Return the live event log for one job, newest first."""
         with self._pool.connection() as conn:
