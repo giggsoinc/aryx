@@ -56,15 +56,6 @@ build_img "${API_IMAGE}:${VERSION_TAG}" Dockerfile .
 echo "==> Building ${WEB_IMAGE} (web) [$PLATFORM]"
 build_img "${WEB_IMAGE}:${VERSION_TAG}" apps/web/Dockerfile apps/web
 
-# Subpath variant for reverse-proxy deployments (served under /aryx).
-SUBPATH="${ARYX_SUBPATH:-/aryx}"
-echo "==> Building ${WEB_IMAGE}:${VERSION_TAG}-subpath (basePath ${SUBPATH}) [$PLATFORM]"
-if ! docker build --platform "$PLATFORM" --build-arg "ARYX_BASE_PATH=${SUBPATH}" \
-     -t "${WEB_IMAGE}:${VERSION_TAG}-subpath" -f apps/web/Dockerfile apps/web; then
-  DOCKER_BUILDKIT=0 docker build --platform "$PLATFORM" --build-arg "ARYX_BASE_PATH=${SUBPATH}" \
-     -t "${WEB_IMAGE}:${VERSION_TAG}-subpath" -f apps/web/Dockerfile apps/web
-fi
-
 for tag in "${TAGS[@]}"; do
   [[ "$tag" == "$VERSION_TAG" ]] && continue
   docker tag "${API_IMAGE}:${VERSION_TAG}" "${API_IMAGE}:${tag}"
@@ -80,12 +71,11 @@ fi
 echo "If push is denied, run:  docker login   (username: ${REGISTRY_USER})"
 echo "Prefer an Access Token from https://hub.docker.com/settings/security"
 
-echo "==> Pushing tags: ${TAGS[*]} (+ web ${VERSION_TAG}-subpath)"
+echo "==> Pushing tags: ${TAGS[*]}"
 for tag in "${TAGS[@]}"; do
   docker push "${API_IMAGE}:${tag}"
   docker push "${WEB_IMAGE}:${tag}"
 done
-docker push "${WEB_IMAGE}:${VERSION_TAG}-subpath"
 
 echo
 echo "Published:"

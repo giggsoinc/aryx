@@ -1,6 +1,4 @@
-// Build-time base path. Empty (default) serves at / — the stock install.
-// Reverse-proxy subpath deployments build with ARYX_BASE_PATH=/aryx
-// (docker build --build-arg ARYX_BASE_PATH=/aryx → the "-subpath" image).
+// Optional build-time URL prefix. Empty (default) — the app serves at /.
 const BASE_PATH = process.env.ARYX_BASE_PATH || "";
 
 /** @type {import('next').NextConfig} */
