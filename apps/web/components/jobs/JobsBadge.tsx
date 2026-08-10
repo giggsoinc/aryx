@@ -44,14 +44,18 @@ export function JobsBadge() {
     return () => clearInterval(t);
   }, [refresh]);
 
-  // Auto-open on Ask + Model when something is running and user hasn't
-  // dismissed the panel for this session.
+  // Auto-open wherever a running job matters — Home, Model, the Onboard
+  // wizard (where ingest actually happens), and Data — unless dismissed.
   const running = jobs.filter((j) => RUNNING.has(j.status)).length;
-  const onAskOrModel = pathname === "/" || pathname?.startsWith("/model");
+  const onWatchedPage = pathname === "/"
+    || pathname?.startsWith("/model")
+    || pathname?.startsWith("/start")
+    || pathname?.startsWith("/data")
+    || false;
   useEffect(() => {
-    if (running > 0 && onAskOrModel && !dismissed) setOpen(true);
+    if (running > 0 && onWatchedPage && !dismissed) setOpen(true);
     if (running === 0) setDismissed(false);
-  }, [running, onAskOrModel, dismissed]);
+  }, [running, onWatchedPage, dismissed]);
 
   if (jobs.length === 0) return null;
 

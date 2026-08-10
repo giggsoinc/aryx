@@ -29,7 +29,7 @@ services:
 
   worker:
     # Published to Docker Hub: https://hub.docker.com/r/giggsodocker/aryx-lite
-    image: ${ARYX_IMAGE:-giggsodocker/aryx-lite:1.2.1}
+    image: ${ARYX_IMAGE:-giggsodocker/aryx-lite:1.2.2}
     build: .
     env_file: .env
     depends_on:
@@ -68,7 +68,7 @@ services:
     restart: "no"
 
   api:
-    image: ${ARYX_IMAGE:-giggsodocker/aryx-lite:1.2.1}
+    image: ${ARYX_IMAGE:-giggsodocker/aryx-lite:1.2.2}
     build: .
     env_file: .env
     command: ["uvicorn", "aryx.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
@@ -100,7 +100,7 @@ services:
       retries: 3
 
   mcp:
-    image: ${ARYX_IMAGE:-giggsodocker/aryx-lite:1.2.1}
+    image: ${ARYX_IMAGE:-giggsodocker/aryx-lite:1.2.2}
     build: .
     env_file: .env
     command: ["uvicorn", "aryx.mcp.sse:app", "--host", "0.0.0.0", "--port", "8765"]
@@ -118,7 +118,7 @@ services:
   # Talks to FastAPI only via HTTP; replaceable without touching the backend.
   web:
     # Published to Docker Hub: https://hub.docker.com/r/giggsodocker/aryx-lite-web
-    image: ${ARYX_WEB_IMAGE:-giggsodocker/aryx-lite-web:1.2.1}
+    image: ${ARYX_WEB_IMAGE:-giggsodocker/aryx-lite-web:1.2.2}
     build:
       context: ./apps/web
       dockerfile: Dockerfile

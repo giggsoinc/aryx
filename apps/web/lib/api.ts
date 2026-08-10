@@ -296,6 +296,11 @@ export const api = {
   // ── LLM provider (runtime; process memory — not persisted to disk) ──
   getLlmConfig: () => fetchJSON<LlmConfig>("/llm/config"),
 
+  /** Config + reachability — false while Ollama is still pulling models. */
+  getLlmHealth: () =>
+    fetchJSON<{ ok: boolean; provider: string; model: string; detail: string }>(
+      "/llm/health"),
+
   setLlmConfig: (cfg: LlmConfigUpdate) =>
     fetchJSON<LlmConfig>("/admin/llm/config", {
       method: "POST",

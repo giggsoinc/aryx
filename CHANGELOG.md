@@ -3,6 +3,27 @@
 All notable changes to **Aryx Lite** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.2] — 2026-08-09
+
+### Added
+
+- **Model-readiness bar on the Brief step.** `GET /llm/health` probes the
+  configured provider (for Ollama: are the models actually pulled?) instead
+  of just echoing config. The Brief step opens with a green "Model ready —
+  ollama · <model>" bar, or an amber bar with the reason (e.g. "still
+  downloading models — first boot can take several minutes"), a Retry
+  button, and auto-recheck every 10s. (`ask_api.py`, `BriefBuilder.tsx`)
+
+### Fixed
+
+- **Ingest status panel never appeared on the wizard.** The jobs side panel
+  auto-opened only on Home and Model — not on /start or /data, where ingest
+  actually runs and users stare at an unexplained wait. Now opens on all
+  four (manual refresh button as before). (`JobsBadge.tsx`)
+- **Brief doc upload felt like a black hole.** File tags now report
+  "<name> — N characters read ✓" so it's obvious the document was read and
+  will steer the draft. (`BriefBuilder.tsx`)
+
 ## [1.2.1] — 2026-08-09
 
 ### Fixed
