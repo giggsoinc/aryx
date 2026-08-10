@@ -187,10 +187,19 @@ def ask_router() -> APIRouter:
 
     @router.get("/llm/models")
     def llm_models() -> dict:
-        """Installed local Ollama models — feeds the Home model picker."""
+        """Installed local Ollama models — feeds the Home model picker.
+
+        ALWAYS targets the local Ollama endpoint, regardless of which
+        provider is currently active — switching Gemini→Ollama in the
+        picker must list local models even while Gemini is configured.
+        """
+        import os
         import urllib.request
         cfg = llm_runtime.status()
-        endpoint = str(cfg["endpoint"]).rstrip("/")
+        endpoint = (str(cfg["endpoint"]).rstrip("/")
+                    if str(cfg["provider"]) == "ollama"
+                    else os.environ.get("ARYX_LLM_BASE_URL",
+                                        "http://ollama:11434").rstrip("/"))
         try:
             with urllib.request.urlopen(f"{endpoint}/api/tags",
                                         timeout=3) as resp:

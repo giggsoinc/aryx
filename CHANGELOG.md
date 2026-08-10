@@ -3,6 +3,21 @@
 All notable changes to **Aryx Lite** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.5.1] — 2026-08-10
+
+### Fixed
+
+- **Ollama model list empty in the Home picker.** `/llm/models` asked the
+  ACTIVE provider's endpoint for Ollama tags — with Gemini active it
+  queried Google's API and returned nothing. It now always targets the
+  local Ollama endpoint. Verified: full local model list returned while
+  Gemini is the active provider. (`ask_api.py`)
+- **Switching provider to Ollama showed no dropdown.** The picker fetched
+  the model list once on mount and never refetched; it now refetches on
+  every switch to Ollama, shows a loading state, an explicit "no local
+  models — is Ollama running?" warning with Retry, and never submits a
+  leftover cloud model name as an Ollama model. (`app/page.tsx`)
+
 ## [1.5.0] — 2026-08-10
 
 ### Added
