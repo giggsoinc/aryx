@@ -62,12 +62,51 @@ def _colvals(data: bytes, suffix: str) -> dict[str, Any]:
         return {"colvals": {}}
 
 
+def _brief_context(workspace_id: int) -> str:
+    """Render the workspace brief as steering context for extraction.
+
+    THE foundational contract: everything the user answered in the Brief
+    (domain, aim, scope, roles) steers what the extractors look for. An
+    empty brief returns "" and extraction runs generic.
+    """
+    try:
+        from aryx.workspaces import WorkspaceStore
+        store = WorkspaceStore(get_settings().rdb_dsn)
+        try:
+            ws = next((w for w in store.list_all()
+                       if w["id"] == workspace_id), None)
+        finally:
+            store.close()
+        b = (ws or {}).get("brief") or {}
+        parts = []
+        if b.get("domain"):
+            parts.append(f"Domain: {b['domain']}")
+        if b.get("aim"):
+            parts.append(f"Aim: {b['aim']}")
+        if b.get("scope"):
+            parts.append(f"Scope: {b['scope']}")
+        if b.get("objectives"):
+            parts.append("Objectives: " + "; ".join(b["objectives"]))
+        if b.get("questions"):
+            parts.append("Questions the graph must answer: "
+                         + "; ".join(b["questions"]))
+        return "\n".join(parts)
+    except Exception as exc:  # noqa: BLE001 — steering is best-effort
+        logger.warning("brief context unavailable ws=%s: %s",
+                       workspace_id, exc)
+        return ""
+
+
 def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                match_keys: list[str], fk_links: list[dict], job_id: str,
                workspace_id: int = 1) -> None:
     settings = get_settings()
     jobs = JobStore(settings.rdb_dsn)
     broker = _local_broker()
+    context = _brief_context(workspace_id)
+    if context:
+        logger.info("ingest steered by brief ws=%s (%d chars)",
+                    workspace_id, len(context))
     try:
         data_files = [(d, n) for d, n in items if Path(n).suffix.lower() in _DATA_EXTS]
         doc_files = [(d, n) for d, n in items if Path(n).suffix.lower() in _DOC_EXTS]
@@ -87,7 +126,8 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
             # its identifying columns from this file's own header + sample.
             otype, keys = ontology_type, match_keys
             if not otype or otype.lower() == "document":
-                plan = _infer_type(data[:800].decode("utf-8", "ignore"), name, "")
+                plan = _infer_type(data[:800].decode("utf-8", "ignore"),
+                                   name, context)
                 otype, keys = plan["ontology_type"], plan["match_keys"]
                 logger.info("inferred %s -> type=%s keys=%s", name, otype, keys)
             cv = _colvals(data, suffix)
@@ -133,6 +173,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 paths=paths, system="document", broker=broker,
                 chunk_store=chunk_store, chunk_size=settings.chunk_size,
                 chunk_overlap=settings.chunk_overlap, expected_embed_dim=settings.embed_dim,
+                context=context,
             )
             run_pipeline(
                 connector=connector, dsn=settings.rdb_dsn,

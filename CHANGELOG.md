@@ -3,6 +3,34 @@
 All notable changes to **Aryx Lite** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.0] — 2026-08-09
+
+### Added
+
+- **System status in the product (aryx_stat concept).**
+  `GET /admin/system/status` reports physical storage truth straight from
+  the stores: Postgres reachability + database size + per-workspace landed
+  records / entities / relationships, document chunk + embedding counts,
+  FalkorDB reachability + per-workspace graph node/edge counts, and LLM
+  readiness. The jobs side panel now ends with a "Stored on this server"
+  block showing all of it, refresh on demand — if a load claimed success
+  but these read zero, the data did not land. (`api/system_api.py`,
+  `graph/falkor_store.py` `counts()`, `components/jobs/SystemStatus.tsx`)
+- **Zombie-job reaper.** Ingest runs as an in-process background task; a
+  container restart killed it silently and the job claimed "running"
+  forever. Listing jobs now first fails any running job with no checkpoint
+  for 5+ minutes, with an actionable error ("process likely died — re-run
+  the upload"), which also unlocks the Retry button.
+  (`store/job_store.py`, `queries/reap_stale_jobs.sql`, `api/jobs_api.py`)
+
+### Fixed
+
+- **Brief now actually steers file ingest.** The wizard's upload path built
+  its extractors with empty context — everything answered in the Brief
+  (domain, aim, scope, objectives, proof questions) was ignored. The brief
+  is now rendered into steering context and passed to document extraction
+  and tabular type inference. (`api/file_ingest_api.py`)
+
 ## [1.2.2] — 2026-08-09
 
 ### Added

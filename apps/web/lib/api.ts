@@ -296,6 +296,25 @@ export const api = {
   // ── LLM provider (runtime; process memory — not persisted to disk) ──
   getLlmConfig: () => fetchJSON<LlmConfig>("/llm/config"),
 
+  /** Physical storage truth: what is ACTUALLY in Postgres + FalkorDB, plus
+   *  service health. Counts come from the stores, never from job claims. */
+  systemStatus: () =>
+    fetchJSON<{
+      postgres: {
+        ok: boolean; error?: string; db_size?: string;
+        doc_chunks?: number; chunk_embeddings?: number;
+        workspaces: Array<{
+          id: number; name: string; landed_records: number;
+          entities: number; relationships: number;
+        }>;
+      };
+      falkordb: {
+        ok: boolean; error?: string;
+        graphs: Array<{ workspace_id: number; nodes: number; edges: number }>;
+      };
+      llm: { ok: boolean; provider: string; model: string; detail: string };
+    }>("/admin/system/status"),
+
   /** Config + reachability — false while Ollama is still pulling models. */
   getLlmHealth: () =>
     fetchJSON<{ ok: boolean; provider: string; model: string; detail: string }>(

@@ -12,6 +12,7 @@ import { api } from "@/lib/api";
 import { useWorkspace } from "@/lib/workspace";
 import { cn } from "@/lib/cn";
 import { WorkspaceOverview } from "./WorkspaceOverview";
+import { SystemStatus } from "./SystemStatus";
 
 const POLL_MS = 5_000;
 
@@ -142,6 +143,7 @@ function JobsPanel({ open, jobs, onClose, onRefresh }: PanelProps) {
             </ul>
             <WorkspaceOverview />
           </div>
+          <SystemStatus />
         </motion.aside>
       )}
     </AnimatePresence>
