@@ -52,3 +52,6 @@ temp_design/
 Aryx_OSS_Updates_08Aug/
 .raven/session-backups/
 .raven/.push-notice-shown
+
+# Local session handover notes — never shipped
+HANDOVER.md
