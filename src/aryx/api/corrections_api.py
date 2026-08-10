@@ -27,7 +27,7 @@ from aryx.workspaces import ws_graph
 
 logger = logging.getLogger(__name__)
 
-_KINDS = {"retype", "remove", "link", "unlink", "merge"}
+_KINDS = {"retype", "remove", "link", "unlink", "merge", "rename_type"}
 
 
 class CorrectionRequest(BaseModel):
@@ -37,6 +37,7 @@ class CorrectionRequest(BaseModel):
     entity_id: int = 0
     target_id: int = 0
     name: str = ""          # relationship name (link) or new type (retype)
+    type_name: str = ""     # rename_type: the EXISTING type to rename
 
 
 class ChatCorrection(BaseModel):
@@ -61,6 +62,14 @@ def _entity(cur: psycopg.Cursor, ws: int, eid: int) -> tuple[int, str, Any]:
 def _display(attrs: Any) -> str:
     if isinstance(attrs, dict):
         return str(attrs.get("name") or attrs.get("title") or "")[:200]
+    return ""
+
+
+def _t(entity_id: int, roster: list) -> str:
+    """Type of an entity in the chat roster ('' if unknown)."""
+    for eid, _name, typ in roster:
+        if eid == entity_id:
+            return typ
     return ""
 
 
@@ -105,20 +114,39 @@ def corrections_router() -> APIRouter:
             conn.close()
         roster = [(eid, name, typ) for eid, typ, name in ents if name]
         selected = next((r for r in roster if r[0] == body.selected_entity_id), None)
+        conn = _db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(load("select_type_names"), (workspace_id,))
+                type_names = [str(r[0]) for r in cur.fetchall()]
+        finally:
+            conn.close()
 
         from aryx.api.admin_api import _local_broker
         from aryx.llm import complete_json
         system = (
             "You translate ONE user instruction about a knowledge graph into "
             "ONE correction. Respond with EXACTLY this JSON shape: "
-            '{"kind": "retype|merge|link|unlink|remove|none", "subject": "", '
-            '"target": "", "name": ""}. subject/target are entity names copied '
-            "from the roster; name is the new type (retype) or relationship "
-            "name in snake_case (link). Use kind=none if the message is a "
-            "question or not a correction. "
+            '{"kind": "retype|merge|link|unlink|remove|rename_type|none", '
+            '"subject": "", "target": "", "name": ""}.\n'
+            "Rules:\n"
+            "- retype: subject = an ENTITY name, name = its correct type.\n"
+            "- rename_type: subject = an existing TYPE name, name = the new "
+            "type name. Use this whenever the subject matches the type list.\n"
+            "- merge/link/unlink: subject and target are ENTITY names.\n"
+            "- none: only for questions or non-corrections.\n"
+            "Examples:\n"
+            '  "Maria is a HumanRole" → {"kind":"retype","subject":"Maria",'
+            '"target":"","name":"HumanRole"}\n'
+            '  "AI Security Governance is GREaaS" (subject is a TYPE) → '
+            '{"kind":"rename_type","subject":"AI Security Governance",'
+            '"target":"","name":"GREaaS"}\n'
+            '  "link T-100 to Maria as resolved" → {"kind":"link",'
+            '"subject":"T-100","target":"Maria","name":"resolved"}\n'
             + (f'The user currently has "{selected[1]}" selected — use it as '
-               f"subject when they say this/it. " if selected else "")
-            + "Entity roster: "
+               f"subject when they say this/it.\n" if selected else "")
+            + "TYPE list: " + "; ".join(type_names[:80]) + "\n"
+            + "ENTITY roster: "
             + "; ".join(f"{n} [{t}]" for _e, n, t in roster[:250]))
         parsed = complete_json(_local_broker(), "cheap", system, text, {
             "kind": "string", "subject": "string",
@@ -126,10 +154,33 @@ def corrections_router() -> APIRouter:
         # llm_normalize may rename "kind" to "type" — accept both.
         kind = str(parsed.get("kind") or parsed.get("type")
                    or "none").strip().lower()
+        subject_raw = str(parsed.get("subject") or "").strip()
+        # The model sometimes calls a type-rename a retype — correct it
+        # deterministically: a subject matching a TYPE name is a type op.
+        lower_types = {t.lower(): t for t in type_names}
+        if kind in ("retype", "rename_type") and subject_raw.lower() in lower_types:
+            kind = "rename_type"
         if kind not in _KINDS:
             return {"status": "none",
-                    "message": "This dock only edits the graph (retype, merge, "
-                               "link, unlink, remove). For questions, use Ask."}
+                    "message": "I read that as a question, not a correction — "
+                               "for questions use Ask. Corrections I can do: "
+                               "retype an entity, rename a type, merge "
+                               "duplicates, link/unlink two entities, or "
+                               "remove junk. Try naming the exact entity or "
+                               "type you want changed."}
+
+        if kind == "rename_type":
+            old = lower_types.get(subject_raw.lower())
+            new = str(parsed.get("name") or "").strip()
+            if not old or not new:
+                return {"status": "unclear",
+                        "message": "Which type should become what? "
+                                   "Say: rename type <old> to <new>."}
+            return {"status": "proposal",
+                    "message": f'Rename type “{old}” → “{new}” (all its '
+                               "entities move with it). Apply?",
+                    "action": {"kind": "rename_type", "type_name": old,
+                               "name": new}}
 
         def _resolve(name: str) -> tuple[int, str] | list[str] | None:
             n = name.strip().lower()
@@ -164,17 +215,25 @@ def corrections_router() -> APIRouter:
                         "message": (f"Which target? {opts}" if opts else
                                     "Name the second entity exactly.")}
             tgt = t
-        result = _apply_correction(workspace_id, CorrectionRequest(
-            kind=kind, entity_id=subj[0], target_id=tgt[0] if tgt else 0,
-            name=str(parsed.get("name") or "")))
-        verb = {"retype": f'retyped to {result["object"]}',
-                "remove": "removed and suppressed",
-                "link": f'linked to {result["object"]} ({result["detail"]})',
-                "unlink": f'unlinked from {result["object"]} — never again',
-                "merge": f'merged into {result["object"]}'}[kind]
-        return {"status": "applied",
-                "message": f"Done — {subj[1]} {verb}. Rule saved; every "
-                           "future ingest will honour it."}
+        name = str(parsed.get("name") or "").strip()
+        if kind == "retype" and not name:
+            return {"status": "unclear",
+                    "message": f'Retype “{subj[1]}” to what? Name the type.'}
+        if kind == "link" and not name:
+            name = "related_to"
+        summary = {
+            "retype": f'Retype “{subj[1]}” ({_t(subj[0], roster)}) → “{name}”.',
+            "remove": f'Remove “{subj[1]}” and never extract it again.',
+            "link": f'Link “{subj[1]}” —{name}→ “{tgt[1] if tgt else ""}”.',
+            "unlink": f'Unlink “{subj[1]}” and “{tgt[1] if tgt else ""}” — '
+                      "and never relate them again.",
+            "merge": f'Merge “{subj[1]}” into “{tgt[1] if tgt else ""}” '
+                     "(they are the same thing).",
+        }[kind]
+        return {"status": "proposal",
+                "message": summary + " Apply?",
+                "action": {"kind": kind, "entity_id": subj[0],
+                           "target_id": tgt[0] if tgt else 0, "name": name}}
 
     @router.get("/workspaces/{workspace_id}/corrections")
     def list_corrections(workspace_id: int) -> list[dict[str, Any]]:
@@ -208,6 +267,31 @@ def _apply_correction(workspace_id: int,
         kind = req.kind.strip().lower()
         if kind not in _KINDS:
             raise HTTPException(400, f"kind must be one of {sorted(_KINDS)}")
+        if kind == "rename_type":
+            if not req.type_name or not req.name:
+                raise HTTPException(400, "rename_type needs type_name + name")
+            conn = _db()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(load("rename_ontology_type"),
+                                (req.name, workspace_id, req.type_name))
+                    if cur.fetchone() is None:
+                        raise HTTPException(
+                            404, f"type '{req.type_name}' not found")
+                    cur.execute(load("retype_entities_by_type"),
+                                (req.name, workspace_id, req.type_name))
+                    moved = cur.rowcount
+                    cur.execute(load("insert_correction"),
+                                (workspace_id, "rename_type", req.type_name,
+                                 req.name, f"{moved} entities moved"))
+                    rule_id, created = cur.fetchone()
+            finally:
+                conn.close()
+            counts = _reproject(workspace_id)
+            return {"id": rule_id, "kind": "rename_type",
+                    "subject": req.type_name, "object": req.name,
+                    "detail": f"{moved} entities moved",
+                    "created_at": str(created), "graph": counts}
         conn = _db()
         try:
             with conn.cursor() as cur:
@@ -287,7 +371,10 @@ def corrections_digest(workspace_id: int) -> str:
         conn.close()
     lines = []
     for _id, kind, subject, obj, _detail, _ts in rows:
-        if kind == "retype":
+        if kind == "rename_type":
+            lines.append(f'The type "{subject}" is now called "{obj}" — '
+                         f'always use "{obj}".')
+        elif kind == "retype":
             lines.append(f'"{subject}" must be typed as {obj}.')
         elif kind == "suppress":
             lines.append(f'Never extract "{subject}" — it is noise.')
