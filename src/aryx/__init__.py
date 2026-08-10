@@ -2,4 +2,4 @@
 # Copyright (c) 2025–2026 Giggso Inc.
 """Aryx — AI-powered auto-discovery ontology and knowledge graph platform."""
 
-__version__ = "1.3.1"
+__version__ = "1.4.0"

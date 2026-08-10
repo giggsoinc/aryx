@@ -17,8 +17,12 @@ logger = logging.getLogger(__name__)
 
 _SYSTEM = (
     "You decide whether two entities are related and, if so, name the directed "
-    "relationship from A to B in lowercase snake_case (e.g. places, works_for, "
-    "located_in). If unrelated, set related=false."
+    "relationship from A to B in lowercase snake_case. Respond with EXACTLY "
+    'this JSON shape and nothing else: {"related": true, "name": "works_for", '
+    '"confidence": 0.9} — or {"related": false, "name": "", "confidence": 0}. '
+    "When related is true, name MUST be a non-empty snake_case verb phrase "
+    "(e.g. resolved, raised_by, handles, works_for, located_in). Mark "
+    "related=true only when the attributes clearly imply a real-world link."
 )
 
 _SCHEMA = {

@@ -26,6 +26,8 @@ export interface LlmConfig {
   answer_model: string;
   endpoint: string;
   api_key_set: boolean;
+  /** True once the user explicitly confirmed/persisted a model choice. */
+  confirmed?: boolean;
 }
 
 export interface LlmConfigUpdate {
@@ -262,6 +264,8 @@ export interface Brief {
   roles?: string[];
   /** Proof questions the graph must answer — doubles as the Ask eval set. */
   questions?: string[];
+  /** Filenames of documents used to draft this brief (briefing-only reads). */
+  source_docs?: string[];
 }
 
 export interface QuizField {

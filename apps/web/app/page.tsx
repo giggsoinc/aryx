@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileText, Loader2, Plus } from "lucide-react";
+import { Cpu, FileText, Loader2, Plus } from "lucide-react";
 import { Header } from "@/components/brand/Header";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/cn";
 import { useWorkspace } from "@/lib/workspace";
+import type { LlmConfig } from "@/lib/types";
 
 interface Overview {
   id: number;
@@ -63,6 +66,7 @@ export default function HomePage() {
       <Header workspaceId={workspaceId} onWorkspaceChange={setWorkspaceId} />
       <main className="flex-1 bg-canvas">
         <div className="mx-auto w-full max-w-5xl px-6 pb-10 pt-8">
+          <ModelGate />
           <h1 className="font-display text-[1.7rem] font-bold text-navy-900">
             Your workspaces
           </h1>
@@ -186,6 +190,90 @@ export default function HomePage() {
           </div>
         </div>
       </main>
+    </div>
+  );
+}
+
+/** THE first decision on the first screen: which language model runs this
+ *  workspace. Defaults to Ollama; nothing downstream should run on an
+ *  unconfirmed default. Confirming persists server-side (survives restarts). */
+function ModelGate() {
+  const [cfg, setCfg] = useState<LlmConfig | null>(null);
+  const [health, setHealth] = useState<{ ok: boolean; detail: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(() => {
+    api.getLlmConfig().then(setCfg).catch(() => {});
+    api.getLlmHealth()
+      .then((h) => setHealth({ ok: h.ok, detail: h.detail }))
+      .catch(() => setHealth({ ok: false, detail: "API not reachable" }));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const confirmDefault = async () => {
+    if (!cfg) return;
+    setBusy(true);
+    try {
+      // Persisting the current (Ollama-default or env-set) config marks it
+      // as the user's explicit choice.
+      setCfg(await api.setLlmConfig({
+        provider: cfg.provider, menial_model: cfg.menial_model,
+        answer_model: cfg.answer_model, endpoint: cfg.endpoint,
+      }));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!cfg) return null;
+
+  if (cfg.confirmed) {
+    return (
+      <div className="mb-5 flex items-center gap-2 text-[12px] text-subtle">
+        <span className={cn(
+          "inline-block size-2 rounded-full",
+          health == null ? "bg-navy-200" : health.ok ? "bg-emerald-500" : "bg-amber-500",
+        )} />
+        <Cpu size={12} />
+        Model: <b className="text-navy-800">{cfg.provider} · {cfg.answer_model}</b>
+        {health && !health.ok && <span className="text-amber-700">— {health.detail}</span>}
+        <Link href="/settings" className="underline hover:text-navy-700">change</Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-6 rounded-xl border border-steel-500/40 bg-white p-4 shadow-soft">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-[13px] text-navy-800">
+          <Cpu size={15} className="text-steel-600" />
+          <span>
+            <b>Choose your language model first</b> — everything Aryx extracts
+            runs through it. Current default:{" "}
+            <b>{cfg.provider} · {cfg.answer_model}</b>
+            {health && (
+              <span className={health.ok ? "text-emerald-700" : "text-amber-700"}>
+                {" "}({health.ok ? "ready" : health.detail})
+              </span>
+            )}
+          </span>
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <Link
+            href="/settings"
+            className="focus-ring rounded-lg border border-navy-100 bg-white px-3.5 py-1.5 text-[12px] font-semibold text-navy-800 hover:bg-navy-50"
+          >
+            Choose a different model
+          </Link>
+          <button
+            type="button" onClick={confirmDefault} disabled={busy}
+            className="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-navy-800 px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-navy-700 disabled:opacity-50"
+          >
+            {busy ? <Loader2 size={12} className="animate-spin" /> : null}
+            Use this model
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -168,7 +168,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 link_entities(settings.rdb_dsn, settings.graph_url,
                               workspace_id, inferred)
         if doc_files:
-            jobs.update_stage(job_id, "Documents", 50, f"Chunking {len(doc_files)} doc(s)")
+            jobs.update_stage(job_id, "Documents", 40, f"Chunking {len(doc_files)} doc(s)")
             paths = [_save_tmp(d, Path(n).suffix) for d, n in doc_files]
             chunk_store = ChunkStore(settings.rdb_dsn)
             connector = DocumentRouterConnector(
@@ -177,15 +177,41 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 chunk_overlap=settings.chunk_overlap, expected_embed_dim=settings.embed_dim,
                 context=context,
             )
-            summary = run_pipeline(
-                connector=connector, dsn=settings.rdb_dsn,
-                system="document", dataset="upload",
-                ontology_type=ontology_type, match_keys=match_keys,
-                graph_url=settings.graph_url, broker=broker,
-                on_progress=lambda s, p, d: jobs.update_stage(job_id, s, p, d),
-                fk_links=fk_links, workspace_id=workspace_id,
-            )
-            total_entities += int(summary.get("entities") or 0)
+            # Extract once (chunk→PII→embed→LLM mentions), then land PER
+            # DISCOVERED TYPE — so entities carry their real types (Ticket,
+            # Agent, WorkflowStage…) in the graph and the ontology, instead
+            # of everything collapsing into "Document".
+            mentions = list(connector.extract())
+            by_type: dict[str, list[Any]] = {}
+            for m in mentions:
+                t = str(m.payload.get("type") or "Document").strip() or "Document"
+                by_type.setdefault(t, []).append(m)
+            from aryx.api import ontology_browse
+            from aryx.connectors.records_source import RecordsConnector
+            type_names = sorted(by_type, key=lambda t: -len(by_type[t]))
+            for idx, otype in enumerate(type_names):
+                try:
+                    ontology_browse.add_type(otype, ["name"], "approved",
+                                             source="doc-discovery",
+                                             workspace_id=workspace_id)
+                except Exception:  # noqa: BLE001 — type may already exist
+                    pass
+                jobs.update_stage(job_id, "Documents",
+                                  50 + int(idx * 40 / max(len(type_names), 1)),
+                                  f"Landing {len(by_type[otype])} × {otype}")
+                summary = run_pipeline(
+                    connector=RecordsConnector(by_type[otype]),
+                    dsn=settings.rdb_dsn,
+                    system="document", dataset=otype,
+                    ontology_type=otype, match_keys=["name"],
+                    graph_url=settings.graph_url, broker=broker,
+                    # Relate on the LAST landing only: _relate scans the whole
+                    # workspace, so one pass covers cross-type edges too.
+                    relate=(idx == len(type_names) - 1), max_pairs=150,
+                    on_progress=lambda s, p, d: jobs.update_stage(job_id, s, p, d),
+                    fk_links=fk_links, workspace_id=workspace_id,
+                )
+                total_entities += int(summary.get("entities") or 0)
         # Honest failure beats fake success: files were processed but NOT ONE
         # entity landed — almost always the extraction model returning
         # unusable output (still downloading, wrong provider, bad key).
