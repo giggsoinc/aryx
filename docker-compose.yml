@@ -85,14 +85,6 @@ services:
       - ARYX_LOG_LEVEL=DEBUG
     ports:
       - "8088:8000"
-    # Also on aryx-shared so the reverse proxy in the separate aryx-r3 compose
-    # project can reach it by name. Containers in different compose projects
-    # sit on different bridge networks and cannot resolve each other without
-    # a shared network — the symptom is nginx logging
-    # "could not be resolved (2: Server failure)".
-    networks:
-      - default
-      - aryx-shared
     depends_on:
       postgres:
         condition: service_healthy
@@ -142,10 +134,6 @@ services:
       - HOSTNAME=0.0.0.0
     ports:
       - "3000:3000"
-    # Reachable by name from the aryx-r3 project's nginx. See the note on api.
-    networks:
-      - default
-      - aryx-shared
     depends_on:
       api:
         condition: service_healthy
@@ -156,11 +144,6 @@ networks:
   # of the project directory.
   default:
     name: aryx-lite_default
-  # Created and owned by the aryx-r3 stack. Declared external here: this
-  # project attaches to it but never creates or removes it. If it is missing,
-  # `docker network create aryx-shared` before bringing this stack up.
-  aryx-shared:
-    external: true
 
 volumes:
   pgdata:
