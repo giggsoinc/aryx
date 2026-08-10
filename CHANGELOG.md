@@ -3,6 +3,25 @@
 All notable changes to **Aryx Lite** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.1] — 2026-08-09
+
+### Fixed
+
+- **Storage-truth panels went stale next to live job cards.** WorkspaceOverview
+  and SystemStatus loaded once on mount; a job could finish (data landed)
+  while the tiles kept showing zeros and "1 running". Both now refresh every
+  10s while the panel is open and immediately when any job reaches a
+  terminal state. (`WorkspaceOverview.tsx`, `SystemStatus.tsx`, `JobsBadge.tsx`)
+- **Wizard claimed "reading your data… polling every 3s" forever.** The
+  Running screen now flips to "Done reading your data." on complete and
+  "This run failed." on failure. (`Running.tsx`)
+- **Zero-extraction runs reported success.** When files were processed but
+  not one entity landed (extraction model returning unusable output — still
+  downloading, wrong provider, bad key), the job finished "complete —
+  0 entities". It now fails with: "No entities were extracted… check the
+  model in Settings and retry." Reproduced and verified live.
+  (`api/file_ingest_api.py`)
+
 ## [1.3.0] — 2026-08-09
 
 ### Added

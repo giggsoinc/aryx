@@ -20,7 +20,7 @@ function Dot({ ok }: { ok: boolean | undefined }) {
  *  is ACTUALLY stored in Postgres and projected into FalkorDB right now,
  *  straight from the stores. If a load "succeeded" but these are zero, the
  *  data did not land — no guessing. */
-export function SystemStatus() {
+export function SystemStatus({ refreshKey = 0 }: { refreshKey?: number }) {
   const [status, setStatus] = useState<Status | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +36,13 @@ export function SystemStatus() {
     }
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  // Refresh on mount, on job transitions (refreshKey), and every 10s while
+  // the panel is open — storage truth must track the job cards live.
+  useEffect(() => { refresh(); }, [refresh, refreshKey]);
+  useEffect(() => {
+    const t = setInterval(refresh, 10000);
+    return () => clearInterval(t);
+  }, [refresh]);
 
   const graphByWs = new Map(
     (status?.falkordb.graphs ?? []).map((g) => [g.workspace_id, g]),

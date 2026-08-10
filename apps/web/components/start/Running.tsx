@@ -108,10 +108,18 @@ export function Running({ workspaceId, jobId, onDone, onSkip }: Props) {
   return (
     <StepShell progress={85}>
       <h1 className="max-w-2xl text-center font-display text-[2rem] leading-tight text-navy-900">
-        Aryx is reading your data…
+        {jobStatus === "complete"
+          ? "Done reading your data."
+          : jobStatus === "failed"
+          ? "This run failed."
+          : "Aryx is reading your data…"}
       </h1>
       <p className="mt-3 max-w-lg text-center text-[14px] text-subtle">
-        {jobId
+        {jobStatus === "complete"
+          ? "Job complete — everything below is stored on the server."
+          : jobStatus === "failed"
+          ? "The job stopped with an error — details below. Fix the cause, then retry the upload."
+          : jobId
           ? `Real job state — polling /admin/jobs/${jobId.slice(0, 8)}… every ${JOB_POLL_MS / 1000}s.`
           : "No active ingest job. Open Observability or come back later."}
       </p>
