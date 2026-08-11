@@ -154,7 +154,7 @@ export function GraphLens() {
   if (err) return <Box><span className="text-rose-600">{err}</span></Box>;
   if (!g) return <Box><Loader2 size={16} className="animate-spin" /> building map…</Box>;
   if (g.entity_count === 0) {
-    return <Box>No entities yet — ingest a source from the Onboard tab.</Box>;
+    return <Box>No entities yet — load data from Home → Continue setup (or New workspace).</Box>;
   }
 
   const shell = full
@@ -165,7 +165,17 @@ export function GraphLens() {
   const matches = q
     ? g.nodes.filter((n) => n.name.toLowerCase().includes(q)).slice(0, 8)
     : [];
-  const pick = (id: number) => { setSel(String(id)); setFocusId(String(id)); setQuery(""); };
+  const pick = (id: number) => {
+    setSel(String(id));
+    setFocusId(String(id));
+    setQuery("");
+    const n = g.nodes.find((x) => x.id === id);
+    if (n) {
+      window.dispatchEvent(new CustomEvent("aryx:select-entity", {
+        detail: { id: n.id, name: n.name, type: n.type },
+      }));
+    }
+  };
   const exportGraph = () => {
     const payload = {
       exported_at: new Date().toISOString(),
@@ -396,7 +406,14 @@ function Flow({ g, full, sel, onSelect, hiddenTypes, focusId }: {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onInit={setRf}
-        onNodeClick={(_, n) => onSelect(n.id)}
+        onNodeClick={(_, n) => {
+          onSelect(n.id);
+          const label = String((n.data as { label?: string })?.label || n.id);
+          const typ = idType.get(n.id) || "";
+          window.dispatchEvent(new CustomEvent("aryx:select-entity", {
+            detail: { id: Number(n.id), name: label, type: typ },
+          }));
+        }}
         onPaneClick={() => onSelect(null)}
         fitView
         fitViewOptions={{ padding: 0.15 }}

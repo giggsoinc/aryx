@@ -116,17 +116,47 @@ def chat(role: str, system: str, user: str) -> tuple[str, int, int]:
     return text, pt, ct
 
 
+def ollama_base_url() -> str:
+    """URL to call for Ollama /api/tags — never a cloud provider host."""
+    _ensure_loaded()
+    env = (os.environ.get("ARYX_LLM_BASE_URL") or "http://ollama:11434").rstrip("/")
+    ep = (_state.get("endpoint") or "").rstrip("/")
+    if _state.get("provider") == "ollama" and ep and _looks_like_ollama(ep):
+        return ep
+    return env
+
+
+def _looks_like_ollama(endpoint: str) -> bool:
+    """True when endpoint is a plausible local Ollama base (not Google/OpenAI)."""
+    e = endpoint.lower()
+    if any(x in e for x in (
+        "googleapis", "openai.com", "anthropic.com", "api.x.ai",
+        "generativelanguage", "openrouter",
+    )):
+        return False
+    return "ollama" in e or e.endswith(":11434") or "localhost" in e or "127.0.0.1" in e
+
+
 def set_config(**fields: str) -> None:
     """Merge non-empty Settings fields into the live config AND persist.
 
     Persisting marks the choice as confirmed — the Home gate goes away and
     container restarts keep the user's model instead of reverting to env.
+
+    Switching to Ollama clears a leftover cloud endpoint so /llm/models
+    and chat hit the local Ollama base instead of e.g. Google (HTTP 404).
     """
     global _confirmed
     _ensure_loaded()
     for key in ("provider", "menial_model", "answer_model", "endpoint", "api_key"):
         if fields.get(key):
             _state[key] = fields[key]
+    # Provider switch hygiene: Ollama must not keep a cloud base URL.
+    if _state.get("provider") == "ollama":
+        if not _looks_like_ollama(_state.get("endpoint") or ""):
+            _state["endpoint"] = (
+                os.environ.get("ARYX_LLM_BASE_URL") or "http://ollama:11434"
+            ).rstrip("/")
     dsn = _dsn()
     if dsn:
         try:

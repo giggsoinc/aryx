@@ -39,6 +39,7 @@ export function DataExplorer() {
       <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-subtle">
         Every entity Aryx resolved, what type it is, and the exact source record
         it came from — nothing hidden in a database you can&apos;t see.
+        Select a row in Table, then open <b>Correct data</b> (bottom-right) to fix types or merges with approval.
       </p>
 
       {err && (

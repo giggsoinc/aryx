@@ -110,25 +110,58 @@ export function BriefBuilder({
     setReading(false);
   }, [workspaceId]);
 
+  const friendlyErr = (e: unknown, fallback: string) => {
+    const raw = e instanceof Error ? e.message : String(e);
+    if (/\b413\b/.test(raw)) return "File too large (max 20 MB per document).";
+    if (/\b415\b/.test(raw)) return "Unsupported file type for briefing docs.";
+    if (/\b422\b/.test(raw)) return "Could not read that document — try PDF, DOCX, or plain text.";
+    if (/not ready|unreachable|API not reachable/i.test(raw))
+      return "Language model not ready — check Settings, then retry.";
+    if (raw.length > 180) return `${fallback}: ${raw.slice(0, 160)}…`;
+    return raw || fallback;
+  };
+
+  const hasContent =
+    !!(domain.trim() || aim.trim() || scope.trim()
+      || fromItems(objectives).length || fromItems(roles).length
+      || fromItems(questions).length);
+
+  const [aiOpen, setAiOpen] = useState(!hasContent);
+
+  useEffect(() => {
+    // Keep AI assist collapsed when revisiting a filled brief.
+    if (hasContent) setAiOpen(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initial]);
+
+  const applyDraft = (b: Brief) => {
+    setDomain(b.domain ?? "");
+    setAim(b.aim ?? "");
+    setScope(b.scope ?? "");
+    setObjectives(toItems(b.objectives));
+    setRoles(toItems(b.roles));
+    setQuestions(toItems(b.questions));
+    setNotice("Drafted — tap chips to keep or drop, edit anything, then save.");
+  };
+
   const draft = async () => {
     const docText = docTexts.current.join("\n\n").slice(0, 12000);
     if (!seed.trim() && !docText) {
-      setError("Drop a document or type one sentence first — Aryx needs something to work from.");
+      setError("Add a document or one sentence first — or fill the six questions below by hand.");
       return;
+    }
+    if (hasContent) {
+      const ok = window.confirm(
+        "Replace your current brief answers with the AI draft?",
+      );
+      if (!ok) return;
     }
     setDrafting(true); setError(null); setNotice(null);
     try {
       const res = await api.draftBrief(workspaceId, seed.trim(), docText);
-      const b = res.brief;
-      setDomain(b.domain ?? "");
-      setAim(b.aim ?? "");
-      setScope(b.scope ?? "");
-      setObjectives(toItems(b.objectives));
-      setRoles(toItems(b.roles));
-      setQuestions(toItems(b.questions));
-      setNotice("Drafted — tap chips to keep or drop, edit anything, then save.");
+      applyDraft(res.brief);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Draft failed");
+      setError(friendlyErr(e, "Draft failed"));
     } finally {
       setDrafting(false);
     }
@@ -150,9 +183,11 @@ export function BriefBuilder({
         ])),
       };
       await api.saveBrief(workspaceId, brief);
+      setNotice("Brief saved.");
       onSubmitted(brief);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Save failed");
+      setError(friendlyErr(e, "Save failed"));
+    } finally {
       setSaving(false);
     }
   };
@@ -166,7 +201,6 @@ export function BriefBuilder({
 
   return (
     <div className="w-full max-w-3xl">
-      {/* Model bar — FIRST thing on the step: which model, and is it ready. */}
       <div className={cn(
         "mb-4 flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-[12px]",
         llm?.ok
@@ -182,7 +216,7 @@ export function BriefBuilder({
           {llmChecking && !llm
             ? "Checking your language model…"
             : llm?.ok
-            ? <>Model ready — <b>{llm.provider} · {llm.model}</b> will draft your brief.</>
+            ? <>Model ready — <b>{llm.provider} · {llm.model}</b> (optional AI draft).</>
             : <>
                 Model not ready{llm?.model ? <> (<b>{llm.provider} · {llm.model}</b>)</> : null}
                 {" — "}{llm?.detail}{" · "}
@@ -209,84 +243,14 @@ export function BriefBuilder({
         </div>
       )}
 
-      {/* Feed Aryx: documents + one sentence */}
-      <div className="mb-6 rounded-xl border border-navy-100 bg-white p-5 shadow-soft">
-        <div className="mb-1 flex items-center justify-between">
-          <h2 className="text-[13px] font-bold text-navy-900">
-            ✨ Give Aryx something to read — it does the writing
-          </h2>
-        </div>
-        <p className="mb-3 text-[12px] text-subtle">
-          Drop documents that describe your world (an RFP, process doc,
-          strategy deck…) and/or one sentence. Aryx pre-answers every question
-          below — you just correct it.
-        </p>
-
-        <label className={cn(
-          "mb-3 flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-5 text-center transition-colors",
-          reading ? "border-steel-400 bg-navy-50/50" : "border-navy-100 hover:border-steel-400 hover:bg-navy-50/40",
-        )}>
-          <input
-            type="file" multiple accept={ACCEPT} className="hidden"
-            onChange={(e) => { readDocs(e.target.files); e.target.value = ""; }}
-          />
-          <span className="flex items-center gap-2 text-[13px] font-medium text-navy-700">
-            {reading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-            {reading ? "Reading…" : "Drop or pick documents"}
-          </span>
-          <span className="text-[11px] text-subtle">
-            PDF · DOC · DOCX · PPT · PPTX — read to draft your brief, not ingested as data
-          </span>
-        </label>
-
-        {(initial?.source_docs?.length ?? 0) > 0 && (
-          <div className="mb-2 text-[11px] text-subtle">
-            Previously drafted from:{" "}
-            {initial!.source_docs!.join(" · ")}
-          </div>
-        )}
-        {docs.length > 0 && (
-          <div className="mb-3 flex flex-wrap gap-1.5">
-            {docs.map((d, i) => (
-              <span key={`${d.filename}-${i}`} className={cn(
-                "inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px]",
-                d.error ? "bg-rose-50 text-rose-700" : "bg-navy-50 text-navy-700",
-              )}>
-                <FileText size={11} />
-                {d.filename}
-                {d.error
-                  ? ` — ${d.error}`
-                  : ` — ${d.chars.toLocaleString()} characters read ✓`}
-              </span>
-            ))}
-          </div>
-        )}
-
-        <div className="flex gap-2">
-          <input
-            value={seed}
-            onChange={(e) => setSeed(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && draft()}
-            placeholder="…and/or one sentence: e.g. Match support tickets to the right expert agent"
-            className="focus-ring flex-1 rounded-lg border border-navy-100 bg-white px-3 py-2 text-[13px] text-navy-800 focus:border-steel-500"
-          />
-          <button
-            type="button"
-            onClick={draft}
-            disabled={drafting || reading}
-            className="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-navy-800 px-4 py-2 text-[13px] font-semibold text-white hover:bg-navy-700 disabled:opacity-50"
-          >
-            {drafting
-              ? <><Loader2 size={13} className="animate-spin" /> Drafting…</>
-              : <><Sparkles size={13} /> Draft my brief</>}
-          </button>
-        </div>
-      </div>
-
-      {/* Review: six questions, pre-answered */}
-      <div className="space-y-5 rounded-xl border border-navy-100 bg-white p-5 shadow-soft">
-        <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-navy-500">
-          Confirm — every question is skippable
+      {/* PRIMARY: answer the brief directly */}
+      <div className="mb-4 space-y-5 rounded-xl border border-navy-100 bg-white p-5 shadow-soft">
+        <div>
+          <h2 className="text-[14px] font-bold text-navy-900">Your brief</h2>
+          <p className="mt-1 text-[12px] text-subtle">
+            Answer any of these six questions by hand — every field is optional.
+            Save anytime. AI draft below is optional help, not required.
+          </p>
         </div>
 
         <ScalarField
@@ -318,7 +282,6 @@ export function BriefBuilder({
           addPlaceholder="Add a question…"
         />
 
-        {/* Depth meter */}
         <div>
           <div className="mb-1 flex items-center justify-between">
             <span className="text-[11px] font-medium text-navy-600">Brief depth</span>
@@ -352,6 +315,94 @@ export function BriefBuilder({
               : submitLabel}
           </button>
         </div>
+      </div>
+
+      {/* SECONDARY: optional AI draft */}
+      <div className="rounded-xl border border-dashed border-navy-200 bg-white/80 shadow-soft">
+        <button
+          type="button"
+          onClick={() => setAiOpen((v) => !v)}
+          className="focus-ring flex w-full items-center justify-between px-5 py-3 text-left"
+        >
+          <span>
+            <span className="text-[13px] font-bold text-navy-800">
+              Optional: draft with AI
+            </span>
+            <span className="mt-0.5 block text-[11px] text-subtle">
+              Documents are read only for this draft — not stored as ingest data.
+              Re-upload after reload to draft again.
+            </span>
+          </span>
+          <span className="text-[12px] font-semibold text-steel-600">
+            {aiOpen ? "Hide" : "Show"}
+          </span>
+        </button>
+        {aiOpen && (
+          <div className="border-t border-navy-100 px-5 pb-5 pt-3">
+            <p className="mb-3 text-[12px] text-subtle">
+              Drop a strategy deck or one sentence. Aryx pre-fills the questions
+              above — you confirm. Draft overwrites current answers (you&apos;ll
+              be asked first if they&apos;re not empty).
+            </p>
+            <label className={cn(
+              "mb-3 flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-5 text-center transition-colors",
+              reading ? "border-steel-400 bg-navy-50/50" : "border-navy-100 hover:border-steel-400 hover:bg-navy-50/40",
+            )}>
+              <input
+                type="file" multiple accept={ACCEPT} className="hidden"
+                onChange={(e) => { readDocs(e.target.files); e.target.value = ""; }}
+              />
+              <span className="flex items-center gap-2 text-[13px] font-medium text-navy-700">
+                {reading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                {reading ? "Reading…" : "Drop or pick documents"}
+              </span>
+              <span className="text-[11px] text-subtle">
+                PDF · DOC · DOCX · PPT · PPTX — briefing only, not graph ingest
+              </span>
+            </label>
+            {(initial?.source_docs?.length ?? 0) > 0 && (
+              <div className="mb-2 text-[11px] text-subtle">
+                Filenames from a previous draft (not re-openable files):{" "}
+                {initial!.source_docs!.join(" · ")}
+              </div>
+            )}
+            {docs.length > 0 && (
+              <div className="mb-3 flex flex-wrap gap-1.5">
+                {docs.map((d, i) => (
+                  <span key={`${d.filename}-${i}`} className={cn(
+                    "inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px]",
+                    d.error ? "bg-rose-50 text-rose-700" : "bg-navy-50 text-navy-700",
+                  )}>
+                    <FileText size={11} />
+                    {d.filename}
+                    {d.error
+                      ? ` — ${d.error}`
+                      : ` — ${d.chars.toLocaleString()} chars · not stored · this session only`}
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                value={seed}
+                onChange={(e) => setSeed(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && draft()}
+                placeholder="…and/or one sentence: e.g. Match support tickets to agents"
+                className="focus-ring flex-1 rounded-lg border border-navy-100 bg-white px-3 py-2 text-[13px] text-navy-800 focus:border-steel-500"
+              />
+              <button
+                type="button"
+                onClick={draft}
+                disabled={drafting || reading}
+                className="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-navy-800 px-4 py-2 text-[13px] font-semibold text-white hover:bg-navy-700 disabled:opacity-50"
+              >
+                {drafting
+                  ? <><Loader2 size={13} className="animate-spin" /> Drafting…</>
+                  : <><Sparkles size={13} /> Draft my brief</>}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

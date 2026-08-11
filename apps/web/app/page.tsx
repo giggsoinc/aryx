@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Cpu, FileText, Loader2, Plus } from "lucide-react";
+import { Cpu, FileText, Loader2, Plus, Trash2 } from "lucide-react";
 import { Header } from "@/components/brand/Header";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
+import { LLM_PROVIDER_OPTIONS, defaultSampleFor } from "@/lib/llmPresets";
 import { useWorkspace } from "@/lib/workspace";
 import type { LlmConfig } from "@/lib/types";
 
@@ -33,6 +34,10 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [resetTarget, setResetTarget] = useState<number | null>(null);
   const [resetting, setResetting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
+  const [deleteAck, setDeleteAck] = useState(false);
+  const [deleteTyped, setDeleteTyped] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     api.workspaceOverview()
@@ -194,7 +199,84 @@ export default function HomePage() {
                         </button>
                       </>
                     )}
+                    {w.id !== 1 && (
+                      <button
+                        type="button"
+                        title="Delete workspace permanently"
+                        onClick={() => {
+                          setDeleteTarget(w.id);
+                          setDeleteAck(false);
+                          setDeleteTyped("");
+                          setResetTarget(null);
+                        }}
+                        className="focus-ring inline-flex items-center gap-1 rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-[12px] font-semibold text-rose-800 hover:bg-rose-50"
+                      >
+                        <Trash2 size={12} /> Delete
+                      </button>
+                    )}
                   </div>
+                  {deleteTarget === w.id && (
+                    <div className="mt-3 rounded-lg border border-rose-300 bg-rose-50/80 p-3 text-[12px] text-navy-800">
+                      <b>Delete workspace “{w.name}” forever?</b>
+                      <p className="mt-1 text-[11px] leading-relaxed">
+                        This permanently removes the workspace and its data
+                        (records, entities, jobs, graph). This cannot be undone.
+                        The Default workspace cannot be deleted.
+                      </p>
+                      <label className="mt-2 flex items-start gap-2 text-[11px]">
+                        <input
+                          type="checkbox"
+                          checked={deleteAck}
+                          onChange={(e) => setDeleteAck(e.target.checked)}
+                          className="mt-0.5"
+                        />
+                        <span>I understand this cannot be undone</span>
+                      </label>
+                      <label className="mt-2 block text-[11px]">
+                        Type <b>DELETE</b> to confirm
+                        <input
+                          value={deleteTyped}
+                          onChange={(e) => setDeleteTyped(e.target.value)}
+                          className="focus-ring mt-1 w-full rounded-lg border border-rose-200 bg-white px-2 py-1.5 font-mono text-[12px]"
+                          placeholder="DELETE"
+                          autoComplete="off"
+                        />
+                      </label>
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          disabled={!deleteAck || deleteTyped !== "DELETE" || deleting}
+                          onClick={async () => {
+                            setDeleting(true);
+                            try {
+                              await api.deleteWorkspace(w.id);
+                              setDeleteTarget(null);
+                              await refresh();
+                              if (workspaceId === w.id) {
+                                setWorkspaceId(1);
+                              }
+                              const rows = await api.workspaceOverview().catch(() => []);
+                              setOverview(new Map(rows.map((r) => [r.id, r])));
+                            } catch (e) {
+                              setError(e instanceof Error ? e.message : "delete failed");
+                            } finally {
+                              setDeleting(false);
+                            }
+                          }}
+                          className="focus-ring rounded-lg bg-rose-800 px-3 py-1 text-[12px] font-semibold text-white hover:bg-rose-900 disabled:opacity-40"
+                        >
+                          {deleting ? "Deleting…" : "Delete workspace"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTarget(null)}
+                          className="focus-ring rounded-lg px-3 py-1 text-[12px] font-medium text-navy-700 hover:bg-navy-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {resetTarget === w.id && (
                     <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50/60 p-3 text-[12px] text-navy-800">
                       <b>Reset “{w.name}”?</b> Deletes this workspace's{" "}
@@ -247,6 +329,7 @@ function ModelGate() {
   const [cfg, setCfg] = useState<LlmConfig | null>(null);
   const [health, setHealth] = useState<{ ok: boolean; detail: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
 
   const load = useCallback(() => {
     api.getLlmConfig().then(setCfg).catch(() => {});
@@ -256,60 +339,89 @@ function ModelGate() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  // Inline picker state. `expanded` reopens the picker after confirmation —
-  // changing the model must never require a detour to Settings.
   const [expanded, setExpanded] = useState(false);
-  const [provider, setProvider] = useState("");
+  const [provider, setProvider] = useState<string>("ollama");
   const [model, setModel] = useState("");
+  const [customModel, setCustomModel] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);
+  const [modelsErr, setModelsErr] = useState<string | null>(null);
+  const [modelsLoading, setModelsLoading] = useState(false);
+
   useEffect(() => {
-    if (cfg && !provider) {
+    if (cfg && !expanded) {
       setProvider(cfg.provider);
       setModel(cfg.answer_model);
     }
-  }, [cfg, provider]);
-  const [modelsErr, setModelsErr] = useState<string | null>(null);
-  const [modelsLoading, setModelsLoading] = useState(false);
+  }, [cfg, expanded]);
+
   const fetchModels = useCallback(() => {
     setModelsLoading(true); setModelsErr(null);
     api.listLlmModels()
       .then((r) => {
         setOllamaModels(r.models);
         if (!r.ok || r.models.length === 0) {
-          setModelsErr(r.error || "no local models found — is Ollama running?");
+          setModelsErr(r.error || "No local models found — is Ollama running?");
         }
       })
       .catch((e) => setModelsErr(e instanceof Error ? e.message : "Ollama unreachable"))
       .finally(() => setModelsLoading(false));
   }, []);
-  // Fetch on mount AND every time the provider flips to Ollama — the list
-  // must appear the moment the user switches, not only if it loaded once.
+
   useEffect(() => { fetchModels(); }, [fetchModels]);
-  useEffect(() => { if (provider === "ollama") fetchModels(); }, [provider, fetchModels]);
-  // Keep the saved value honest: once the local list arrives, a leftover
-  // cloud model name (e.g. gemini-flash) must not be submitted as Ollama's.
+  useEffect(() => {
+    if (provider === "ollama") fetchModels();
+  }, [provider, fetchModels]);
+
   useEffect(() => {
     if (provider === "ollama" && ollamaModels.length > 0
         && !ollamaModels.includes(model)) {
       setModel(ollamaModels[0]);
+      setCustomModel(false);
     }
   }, [provider, ollamaModels, model]);
 
+  // Poll Ollama list while picker open and list empty (model download).
+  useEffect(() => {
+    if (provider !== "ollama" || !expanded) return;
+    if (ollamaModels.length > 0) return;
+    const t = setInterval(fetchModels, 10000);
+    return () => clearInterval(t);
+  }, [provider, expanded, ollamaModels.length, fetchModels]);
+
+  const onProviderChange = (id: string) => {
+    setProvider(id);
+    setCustomModel(false);
+    setSaveErr(null);
+    if (id === "ollama") {
+      if (ollamaModels[0]) setModel(ollamaModels[0]);
+      else setModel("");
+    } else {
+      setModel(defaultSampleFor(id));
+    }
+  };
+
+  const samples = LLM_PROVIDER_OPTIONS.find((p) => p.id === provider)?.samples ?? [];
+
   const save = async () => {
-    setBusy(true);
+    setBusy(true); setSaveErr(null);
     try {
-      // Persist → server echoes back the ACTIVE config; render only that,
-      // never a cached value — so the bar can't show a stale provider.
+      // When switching to Ollama, force a local base URL so list/chat
+      // never keep a leftover Google/OpenAI endpoint (HTTP 404 on /api/tags).
       const next = await api.setLlmConfig({
         provider, answer_model: model, menial_model: model,
+        ...(provider === "ollama"
+          ? { endpoint: "http://ollama:11434" }
+          : {}),
         ...(apiKey ? { api_key: apiKey } : {}),
-        ...(provider === "ollama" ? {} : {}),
       });
       setCfg(next);
       setApiKey("");
       setExpanded(false);
+      if (provider === "ollama") fetchModels();
       load();
+    } catch (e) {
+      setSaveErr(e instanceof Error ? e.message : "Could not save model config");
     } finally {
       setBusy(false);
     }
@@ -349,36 +461,46 @@ function ModelGate() {
         <Cpu size={15} className="text-steel-600" />
         <b>Choose your language model first</b> — everything Aryx extracts runs through it.
       </div>
-      <div className="mb-3 text-[11px]">
+      <div className="mb-3 flex flex-col gap-1.5 text-[11px]">
         <span className={cn(
-          "rounded-full px-2 py-0.5 font-medium",
+          "inline-flex w-fit rounded-full px-2 py-0.5 font-medium",
           cfg.confirmed ? "bg-navy-50 text-navy-600" : "bg-amber-50 text-amber-700",
         )}>
           {cfg.confirmed
-            ? `current: ${cfg.provider} · ${cfg.answer_model} (set by you)`
-            : "source: environment file — not yet confirmed by you"}
+            ? `Saved choice: ${cfg.provider} · ${cfg.answer_model}`
+            : "Source: environment file — not yet confirmed by you"}
         </span>
         {health && (
-          <span className={cn("ml-2", health.ok ? "text-emerald-700" : "text-amber-700")}>
-            {cfg.provider} · {cfg.answer_model} is {health.ok ? "ready" : health.detail}
+          <span className={cn(
+            "inline-flex w-fit",
+            health.ok ? "text-emerald-700" : "text-amber-700",
+          )}>
+            Active engine: <b className="mx-1">{cfg.provider}</b>
+            · <b className="mx-1">{cfg.answer_model}</b>
+            {health.ok ? " is ready" : ` — ${health.detail}`}
+          </span>
+        )}
+        {provider === "ollama" && cfg.provider !== "ollama" && (
+          <span className="text-subtle">
+            Picker is set to Ollama — click <b>Use this model</b> to switch
+            the engine (and clear any cloud endpoint).
           </span>
         )}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <select
           value={provider}
-          onChange={(e) => { setProvider(e.target.value); if (e.target.value === "ollama" && ollamaModels[0]) setModel(ollamaModels[0]); }}
+          onChange={(e) => onProviderChange(e.target.value)}
           className="focus-ring rounded-lg border border-navy-100 bg-white px-2.5 py-1.5 text-[12px] text-navy-800"
         >
-          <option value="ollama">Ollama (local, free) — default</option>
-          <option value="anthropic">Anthropic</option>
-          <option value="gemini">Gemini</option>
-          <option value="openai">OpenAI-compatible</option>
-          <option value="grok">Grok (xAI)</option>
+          {LLM_PROVIDER_OPTIONS.map((p) => (
+            <option key={p.id} value={p.id}>{p.label}</option>
+          ))}
         </select>
-        {provider === "ollama" && modelsLoading ? (
+
+        {provider === "ollama" && modelsLoading && ollamaModels.length === 0 ? (
           <span className="inline-flex items-center gap-1.5 text-[12px] text-subtle">
-            <Loader2 size={12} className="animate-spin" /> listing local models…
+            <Loader2 size={12} className="animate-spin" /> Listing installed Ollama models…
           </span>
         ) : provider === "ollama" && ollamaModels.length > 0 ? (
           <select
@@ -386,16 +508,44 @@ function ModelGate() {
             onChange={(e) => setModel(e.target.value)}
             className="focus-ring rounded-lg border border-navy-100 bg-white px-2.5 py-1.5 text-[12px] text-navy-800"
           >
-            {ollamaModels.map((m) => <option key={m} value={m}>{m} (installed)</option>)}
+            {ollamaModels.map((m) => (
+              <option key={m} value={m}>{m} (installed)</option>
+            ))}
           </select>
-        ) : (
+        ) : provider === "ollama" ? (
+          <input
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            placeholder="Custom model name"
+            className="focus-ring w-44 rounded-lg border border-navy-100 bg-white px-2.5 py-1.5 text-[12px] text-navy-800"
+          />
+        ) : customModel || samples.length === 0 ? (
           <input
             value={model}
             onChange={(e) => setModel(e.target.value)}
             placeholder="model name"
-            className="focus-ring w-44 rounded-lg border border-navy-100 bg-white px-2.5 py-1.5 text-[12px] text-navy-800"
+            className="focus-ring w-48 rounded-lg border border-navy-100 bg-white px-2.5 py-1.5 text-[12px] text-navy-800"
           />
+        ) : (
+          <select
+            value={samples.includes(model) ? model : samples[0]}
+            onChange={(e) => {
+              if (e.target.value === "__custom__") {
+                setCustomModel(true);
+                setModel("");
+              } else {
+                setModel(e.target.value);
+              }
+            }}
+            className="focus-ring rounded-lg border border-navy-100 bg-white px-2.5 py-1.5 text-[12px] text-navy-800"
+          >
+            {samples.map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+            <option value="__custom__">Custom…</option>
+          </select>
         )}
+
         {provider !== "ollama" && (
           <input
             type="password"
@@ -418,7 +568,7 @@ function ModelGate() {
         </Link>
       </div>
       {provider === "ollama" && modelsErr && !modelsLoading && (
-        <div className="mt-2 flex items-center gap-2 text-[11px] text-amber-700">
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-amber-700">
           <span>⚠ {modelsErr}</span>
           <button
             type="button" onClick={fetchModels}
@@ -426,7 +576,11 @@ function ModelGate() {
           >
             Retry
           </button>
+          <span className="text-subtle">Or type a custom model name above.</span>
         </div>
+      )}
+      {saveErr && (
+        <div className="mt-2 text-[11px] text-rose-700">⚠ {saveErr}</div>
       )}
     </div>
   );

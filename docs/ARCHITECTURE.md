@@ -14,13 +14,19 @@ Two structural changes define the current generation:
 
    | Route | Surface | Purpose |
    |-------|---------|---------|
-   | `/` | **Ask** | NL question answering with grounded, cited answers |
-   | `/model` | **Model** | Ontology / type model browser |
-   | `/data` | **Data** | Data Explorer (summary, entities, graph) |
+   | `/` | **Home** | Workspaces, model gate, create / open / reset / delete |
+   | `/brief` | **Brief** | Grounding questions (hand or optional AI draft) |
+   | `/start` | **Setup** | Guided workspace + source onboarding wizard |
+   | `/data` | **Data** | Data Explorer + Correct data coach |
+   | `/model` | **Model** | Ontology canvas |
    | `/lab` | **Lab** | Accuracy Lab — ontology-on vs ontology-off A/B |
-   | `/start` | **Onboard** | Guided workspace + source onboarding wizard |
+   | `/ask` | **Ask** | NL Q&A with grounded, cited answers |
+   | `/observe` | **Observe** | Jobs and system status |
+   | `/settings` | **Settings** | LLM provider configuration |
 
-   The Streamlit app was **removed**; use Next.js (`apps/web`) including `/settings` for LLM config.
+   The Streamlit app was **removed**; use Next.js (`apps/web`) only.  
+   **Lite 1.6.x** ships the linear pipeline (ingest → resolve → project).  
+   **Enterprise** agentic ontology planning (EDA + multi-agent Stage-2) is a separate fork — not the default path in this tree.
 
 2. **Ports & adapters (hexagonal) seam.** `src/aryx/ports/` introduces a substrate-swappable seam so the platform is not welded to Postgres/FalkorDB/Ollama:
 

@@ -517,9 +517,24 @@ export const api = {
       { method: "POST", body: "{}" },
     ),
 
+  /** Permanently delete a workspace (Default / id=1 is rejected by the API). */
+  deleteWorkspace: (workspaceId: number) =>
+    fetchJSON<{ status: string; workspace_id: number }>(
+      `/admin/workspaces/${workspaceId}`,
+      { method: "DELETE" },
+    ),
+
   /** Installed local Ollama models for the Home picker. */
   listLlmModels: () =>
-    fetchJSON<{ ok: boolean; models: string[]; error?: string }>("/llm/models"),
+    fetchJSON<{ ok: boolean; models: string[]; error?: string; endpoint?: string }>(
+      "/llm/models"),
+
+  /** Product / runtime version for Settings. */
+  getVersion: () =>
+    fetchJSON<{
+      product: string; version: string; api: string;
+      python: string; platform: string;
+    }>("/version"),
 
   /** Physical storage truth: what is ACTUALLY in Postgres + FalkorDB, plus
    *  service health. Counts come from the stores, never from job claims. */

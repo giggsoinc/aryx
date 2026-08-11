@@ -29,32 +29,47 @@ Everything lives in **workspaces** — isolated projects (partitions + graph). U
 
 | Control | Purpose |
 |---------|---------|
-| **Logo** | Jump to Ask |
-| **Ask** | Grounded Q&A |
+| **Home** | Workspaces, model gate, create / open / reset / delete |
+| **Brief** | Six grounding questions (hand-edit or optional AI draft) |
+| **Data** | Explorer (Tree / Table / Graph) + **Correct data** coach |
 | **Model** | Ontology canvas (types & relationships) |
-| **Data** | Transparency explorer (Tree / Table / Graph) |
 | **Lab** | Accuracy Lab (ontology ON vs OFF) |
-| **Onboard** | Guided setup wizard (`/start`) |
+| **Ask** | Grounded Q&A with citations |
+| **Observe** | Jobs, workspace vitals, storage truth |
 | **Settings** | LLM provider, models, API key |
-| **Jobs** chip | Live ingest/job progress + per-workspace output panel |
-| **Questions** bell | Human-in-the-loop queue |
+| **Jobs** chip | Live ingest progress |
+| **Questions** bell | Human-in-the-loop ingest queue |
 | **Workspace** picker | Switch or create workspaces |
 
-A **new empty workspace** routes you into Onboard automatically.
+**Setup wizard** (`/start`) opens automatically for empty workspaces (Home → Continue setup). There is no separate “Onboard” nav label.
+
+A **new empty workspace** routes into the setup wizard automatically.
 
 ---
 
 ## 1. Workspaces
 
-1. Open the **workspace pill** (top right).  
-2. **Switch** — reloads every surface for that workspace’s isolated data.  
-3. **New workspace…** — name + optional description → **Create & open setup**.
+1. **Home** lists every workspace with entity counts and Brief status.  
+2. Open the **workspace pill** (top right) to switch or create.  
+3. **New workspace** — name + optional description → guided setup.  
+4. **Reset & re-ingest** — clears data for that workspace but keeps brief, types, and corrections.  
+5. **Delete** (non-Default only) — permanent removal; requires checkbox + typing `DELETE`. The **Default** workspace (id 1) cannot be deleted.
 
 Each workspace has its own partitions and graph. Prefer **one workspace per project**.
 
 ---
 
-## 2. Settings (`/settings`) — models & keys
+## 2. Brief (`/brief`)
+
+Ground extraction with domain, aim, objectives, scope, roles, and proof questions.
+
+- **Primary:** type answers directly; all fields optional; **Save Brief**.
+- **Optional AI draft:** collapse/expand section — documents are read for drafting only (not graph ingest; not retained as files after the session).
+- Overwriting with AI when fields are filled asks for confirmation.
+
+---
+
+## 3. Settings (`/settings`) — models & keys
 
 Controls the **LLM engine** used for Ask, discovery, and related stages.
 
@@ -70,7 +85,7 @@ Controls the **LLM engine** used for Ask, discovery, and related stages.
 
 ---
 
-## 3. Onboard (`/start`) — guided setup
+## 4. Setup wizard (`/start`)
 
 Progress steps along the top; you can leave and return.
 
@@ -82,7 +97,7 @@ Nouns in your goals seed the kinds of records Aryx looks for. You can skip.
 
 ### Step 2 — Brief
 
-Aryx restates: domain, aim, in-scope record kinds. Confirm or edit.
+Answer up to **six grounding questions** by hand (primary path), or expand **Optional: draft with AI** (drop a doc / one sentence). Briefing files are **not stored** for re-open — only used to draft. Save when ready.
 
 ### Step 3 — Sources
 
@@ -149,7 +164,7 @@ See **what was resolved** and **where it came from**.
 
 ### Table lens
 
-Per-type grid; sort by headers; row click opens a **provenance drawer**. **Show more** pages rows.
+Per-type grid; sort by headers; row click opens a **provenance drawer** and selects the entity for **Correct data**. **Show more** pages rows.
 
 ### Graph lens (entity-level)
 
@@ -162,11 +177,22 @@ Interactive **entity** graph (not only type bubbles):
 | Fullscreen | Focused exploration |
 | **Search** | Find an entity by name and focus the camera |
 | **Type chips** | Toggle types on/off to declutter |
-| **Click a node** | Highlight it and its neighbours; open a **detail panel** |
+| **Click a node** | Highlight neighbours; detail panel; select for **Correct data** |
 | Detail panel | Type, attributes, source records, relationships; click a related entity to walk the graph |
 | Large graphs | Hub-and-spoke **cluster layout** for readability |
 
 If relationships are missing, upload multi-file data with shared keys or define relationships on **Model**.
+
+### Correct data (coach)
+
+Floating control bottom-right on **Data** (and Model):
+
+1. Select an entity (Table row or Graph node).  
+2. Open **Correct data** — choose an intent (Wrong type, Merge, Link, …) or type a fix.  
+3. Aryx **proposes**; click **Apply** only when correct.  
+4. **Standing rules** tab lists corrections replayed on future ingest.
+
+Use **Ask** for questions about the graph — not Correct data.
 
 ---
 

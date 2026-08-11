@@ -17,12 +17,18 @@ first) — made possible because the core is built behind swappable ports.
 
 ## Aryx Lite (v1) — what it is today
 
-The currently shipped app: guided onboarding (`/start`), Ask with grounded
-answers + citations, the Model canvas, MCP tooling, ingest from DB + files,
-entity resolution, survivorship, RDF/OWL import-export. It runs on the
-bundled Postgres + FalkorDB + Ollama stack. It is the **fast, approachable
-front door** — quick outcome mapping for a single team, not a 200M-row,
-multi-source, governed estate.
+The currently shipped app: Home workspaces, Brief, guided setup (`/start`),
+Ask with grounded answers + citations, Model canvas, Data explorer with
+**Correct data** coach, Accuracy Lab, Observe, Settings, MCP, ingest from
+DB + files, entity resolution, survivorship, RDF/OWL import-export. It runs
+on the bundled Postgres + FalkorDB + Ollama stack. It is the **fast,
+approachable front door** — quick outcome mapping for a single team, not a
+200M-row multi-source governed estate.
+
+Lite gets **UI polish and small deterministic improvements** only. The
+**agentic ontology control plane** (EDA sizing, multi-agent Stage-2 planning,
+pathway gates, full agent tracing) ships on the **Enterprise fork**, not as
+default open-source scope.
 
 > Lite is intentionally *not* the enterprise product. It's the wedge: a
 > clueless user reaches a useful ontology in minutes. **BSL 1.1** keeps
@@ -31,14 +37,17 @@ multi-source, governed estate.
 
 ## Aryx Enterprise (v2) — what we're building
 
-Everything in `temp_design/ontology-v2/`: the Accuracy Lab, the scale
-architecture (schema-not-rows, query-don't-render), Connectors at scale
-(Salesforce/ServiceNow/Drive/warehouse, incremental sync), Governance
-(domain/owner/sensitivity/lineage), Axioms + reasoner enforcement, the
-SKOS relation registry, the surgical Deliberation Adjudicator, the per-task
-LLM Router with sovereignty, pipeline observability + cost Governor, and the
-ports-&-adapters modularity that makes the substrate swappable. See
-**`temp_design/ontology-v2/08-v2-attack-plan.html`** for the build order.
+Enterprise is developed on a **separate commercial fork** (not the default
+Lite path in this repository). It includes the v2 design set in
+`temp_design/ontology-v2/` (Accuracy Lab at scale, connectors, governance,
+reasoner, LLM router, pipeline observability, ports & adapters) **and** the
+**agentic ontology control plane**: EDA / size-shape, pathway gate
+(ontology vs RAG vs hybrid), Stage-2 micro-agents (types, keys, relationships,
+brief alignment, critic), plan accept, and full tracing (at rest / in flight /
+on completion).
+
+See **`temp_design/ontology-v2/08-v2-attack-plan.html`** for the earlier v2
+build order; agentic architecture packs ship to the Enterprise team separately.
 
 ## Aryx-o (v2.1) — native on the hyperscaler
 

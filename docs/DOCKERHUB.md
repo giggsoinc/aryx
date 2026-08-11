@@ -39,18 +39,18 @@ Tags are kept in sync when maintainers run `./scripts/docker-hub-publish.sh`.
 
 | Tag | Meaning |
 |-----|---------|
-| `1.5.3` | Semver (matches `aryx.__version__` / `pyproject.toml`) — always pull an explicit version |
-| `v1.5.3` | Same release, `v`-prefixed |
+| `1.6.1` | Semver (matches `aryx.__version__` / `pyproject.toml`) — always pull an explicit version |
+| `v1.6.1` | Same release, `v`-prefixed |
 | `<git-sha>` | Exact commit (e.g. `a98a954`) |
 
 ```bash
 # Backend (API / worker / MCP)
-docker pull giggsodocker/aryx-lite:1.5.3
-docker pull giggsodocker/aryx-lite:v1.5.3
+docker pull giggsodocker/aryx-lite:1.6.1
+docker pull giggsodocker/aryx-lite:v1.6.1
 
 # Web UI
-docker pull giggsodocker/aryx-lite-web:1.5.3
-docker pull giggsodocker/aryx-lite-web:v1.5.3
+docker pull giggsodocker/aryx-lite-web:1.6.1
+docker pull giggsodocker/aryx-lite-web:v1.6.1
 ```
 
 ---
@@ -76,8 +76,8 @@ docker compose up -d
 Pin versions:
 
 ```bash
-export ARYX_IMAGE=giggsodocker/aryx-lite:1.5.3
-export ARYX_WEB_IMAGE=giggsodocker/aryx-lite-web:1.5.3
+export ARYX_IMAGE=giggsodocker/aryx-lite:1.6.1
+export ARYX_WEB_IMAGE=giggsodocker/aryx-lite-web:1.6.1
 docker compose up -d
 ```
 
