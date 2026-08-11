@@ -104,6 +104,41 @@ def _snapshot_dataset(dsn: str, workspace_id: int, data: bytes, name: str,
     return result.dataset_id
 
 
+def _brief_context(workspace_id: int) -> str:
+    """Render the workspace brief as steering context for extraction.
+
+    THE foundational contract: everything the user answered in the Brief
+    (domain, aim, scope, roles) steers what the extractors look for. An
+    empty brief returns "" and extraction runs generic.
+    """
+    try:
+        from aryx.workspaces import WorkspaceStore
+        store = WorkspaceStore(get_settings().rdb_dsn)
+        try:
+            ws = next((w for w in store.list_all()
+                       if w["id"] == workspace_id), None)
+        finally:
+            store.close()
+        b = (ws or {}).get("brief") or {}
+        parts = []
+        if b.get("domain"):
+            parts.append(f"Domain: {b['domain']}")
+        if b.get("aim"):
+            parts.append(f"Aim: {b['aim']}")
+        if b.get("scope"):
+            parts.append(f"Scope: {b['scope']}")
+        if b.get("objectives"):
+            parts.append("Objectives: " + "; ".join(b["objectives"]))
+        if b.get("questions"):
+            parts.append("Questions the graph must answer: "
+                         + "; ".join(b["questions"]))
+        return "\n".join(parts)
+    except Exception as exc:  # noqa: BLE001 — steering is best-effort
+        logger.warning("brief context unavailable ws=%s: %s",
+                       workspace_id, exc)
+        return ""
+
+
 def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                match_keys: list[str], fk_links: list[dict], job_id: str,
                workspace_id: int = 1, request_id: str = "",
@@ -111,9 +146,23 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
     settings = get_settings()
     jobs = JobStore(settings.rdb_dsn)
     broker = _local_broker()
+    context = _brief_context(workspace_id)
+    # Replay standing human corrections into the extraction context.
+    try:
+        from aryx.api.corrections_api import corrections_digest
+        digest = corrections_digest(workspace_id)
+        if digest:
+            context = (context + "\n\nStanding corrections from the user "
+                       "(obey these exactly):\n" + digest).strip()
+    except Exception:  # noqa: BLE001 — corrections are best-effort steering
+        logger.debug("corrections digest unavailable", exc_info=True)
+    if context:
+        logger.info("ingest steered by brief+corrections ws=%s (%d chars)",
+                    workspace_id, len(context))
     try:
         data_files = [(d, n) for d, n in items if Path(n).suffix.lower() in _DATA_EXTS]
         doc_files = [(d, n) for d, n in items if Path(n).suffix.lower() in _DOC_EXTS]
+        total_entities = 0
         # Per-file plans feed cross-file FK inference once everything has landed.
         plans: list[dict[str, Any]] = []
         snapshotted_ids: set[str] = set()  # datasets touched THIS run (for C07)
@@ -160,7 +209,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 keys = [best]
             plans.append({"ontology_type": otype, **cv})
             jobs.update_stage(job_id, "Ingest", 20, f"Processing {name}")
-            run_pipeline(
+            summary = run_pipeline(
                 connector=connector, dsn=settings.rdb_dsn,
                 system=suffix.lstrip("."), dataset=Path(name).stem,
                 ontology_type=otype, match_keys=keys,
@@ -168,6 +217,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 on_progress=lambda s, p, d: jobs.update_stage(job_id, s, p, d),
                 fk_links=fk_links, workspace_id=workspace_id,
             )
+            total_entities += int(summary.get("entities") or 0)
         # Cross-file relationships. The UI sends no fk_links, so with every
         # entity now landed, infer foreign-key edges from the files' columns
         # and materialize the ones whose values actually match, then re-project.
@@ -191,7 +241,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                     workspace_id, len(snapshotted_ids),
                 )
         if doc_files:
-            jobs.update_stage(job_id, "Documents", 50, f"Chunking {len(doc_files)} doc(s)")
+            jobs.update_stage(job_id, "Documents", 40, f"Chunking {len(doc_files)} doc(s)")
             paths = [_save_tmp(d, Path(n).suffix) for d, n in doc_files]
             chunk_store = ChunkStore(settings.rdb_dsn)
             connector = DocumentRouterConnector(
@@ -200,14 +250,51 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 chunk_overlap=settings.chunk_overlap, expected_embed_dim=settings.embed_dim,
                 context=context,
             )
-            run_pipeline(
-                connector=connector, dsn=settings.rdb_dsn,
-                system="document", dataset="upload",
-                ontology_type=ontology_type, match_keys=match_keys,
-                graph_url=settings.graph_url, broker=broker,
-                on_progress=lambda s, p, d: jobs.update_stage(job_id, s, p, d),
-                fk_links=fk_links, workspace_id=workspace_id,
-            )
+            # Extract once (chunk→PII→embed→LLM mentions), then land PER
+            # DISCOVERED TYPE — so entities carry their real types (Ticket,
+            # Agent, WorkflowStage…) in the graph and the ontology, instead
+            # of everything collapsing into "Document".
+            mentions = list(connector.extract())
+            by_type: dict[str, list[Any]] = {}
+            for m in mentions:
+                t = str(m.payload.get("type") or "Document").strip() or "Document"
+                by_type.setdefault(t, []).append(m)
+            from aryx.api import ontology_browse
+            from aryx.connectors.records_source import RecordsConnector
+            type_names = sorted(by_type, key=lambda t: -len(by_type[t]))
+            for idx, otype in enumerate(type_names):
+                try:
+                    ontology_browse.add_type(otype, ["name"], "approved",
+                                             source="doc-discovery",
+                                             workspace_id=workspace_id)
+                except Exception:  # noqa: BLE001 — type may already exist
+                    pass
+                jobs.update_stage(job_id, "Documents",
+                                  50 + int(idx * 40 / max(len(type_names), 1)),
+                                  f"Landing {len(by_type[otype])} × {otype}")
+                summary = run_pipeline(
+                    connector=RecordsConnector(by_type[otype]),
+                    dsn=settings.rdb_dsn,
+                    system="document", dataset=otype,
+                    ontology_type=otype, match_keys=["name"],
+                    graph_url=settings.graph_url, broker=broker,
+                    # Relate on the LAST landing only: _relate scans the whole
+                    # workspace, so one pass covers cross-type edges too.
+                    relate=(idx == len(type_names) - 1), max_pairs=150,
+                    on_progress=lambda s, p, d: jobs.update_stage(job_id, s, p, d),
+                    fk_links=fk_links, workspace_id=workspace_id,
+                )
+                total_entities += int(summary.get("entities") or 0)
+        # Honest failure beats fake success: files were processed but NOT ONE
+        # entity landed — almost always the extraction model returning
+        # unusable output (still downloading, wrong provider, bad key).
+        if items and total_entities == 0:
+            jobs.finish(
+                job_id, run_id=None, status="failed",
+                error="No entities were extracted from the upload. The "
+                      "language model returned nothing usable — check the "
+                      "model in Settings (is it ready?) and retry.")
+            return
         jobs.finish(job_id, run_id=None, status="complete")
     except Exception as exc:  # noqa: BLE001
         logger.warning("file ingest failed job=%s: %s", job_id, exc, exc_info=True)

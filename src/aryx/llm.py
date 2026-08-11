@@ -59,6 +59,31 @@ def _log_call(role: str, model: str, provider: str, pt: int, ct: int,
         logger.debug("llm call log write failed", exc_info=True)
 
 
+def _fallback_spec(spec: Any, exc: Exception) -> Any:
+    """Local-Ollama fallback spec for QUOTA/TRANSIENT failures — or None.
+
+    Auth failures (401/403 — bad or blocked key) return None on purpose:
+    silently masking a broken key with a weaker local model produces
+    mystery-quality output. Quota (429), 5xx, and connection errors fall
+    back so an exhausted free tier never kills an ingest.
+    """
+    import os
+
+    from aryx.broker import ModelSpec
+    if getattr(spec, "provider", "") == "ollama":
+        return None
+    msg = str(exc)
+    transient = ("429" in msg or "RESOURCE_EXHAUSTED" in msg
+                 or "quota" in msg.lower() or " 50" in msg[:80]
+                 or "Connection" in msg or "timed out" in msg.lower())
+    if not transient:
+        return None
+    endpoint = os.environ.get("ARYX_LLM_BASE_URL", "http://ollama:11434")
+    model = os.environ.get("ARYX_LLM_REASON_MODEL", "lfm2.5-thinking:latest")
+    return ModelSpec(name=model, provider="ollama", tier="cheap",
+                     local=True, endpoint=endpoint, api_key_ref=None)
+
+
 def complete_text(
     broker: Broker, tier: Tier, system: str, user: str,
     think: bool | None = None,
@@ -96,8 +121,24 @@ def complete_text(
         out_tok = int(out.get("eval_count", 0))
     else:
         headers = {"Authorization": f"Bearer {key}"} if key else {}
-        out = post_json((spec.endpoint or "").rstrip("/") + "/chat/completions",
-                        {"model": spec.name, "messages": msgs}, headers)
+        try:
+            out = post_json((spec.endpoint or "").rstrip("/") + "/chat/completions",
+                            {"model": spec.name, "messages": msgs}, headers)
+        except Exception as exc:  # noqa: BLE001 — try local fallback
+            fb = _fallback_spec(spec, exc)
+            if fb is None:
+                raise
+            logger.warning("llm fallback → ollama/%s (provider %s failed: %.120s)",
+                           fb.name, spec.provider, str(exc))
+            out = post_json((fb.endpoint or "").rstrip("/") + "/api/chat",
+                            {"model": fb.name, "stream": False,
+                             "messages": msgs, "think": False}, {})
+            text = out["message"]["content"]
+            in_tok = int(out.get("prompt_eval_count", 0))
+            out_tok = int(out.get("eval_count", 0))
+            broker.charge(tier, in_tok + out_tok)
+            _ = json
+            return text.strip(), in_tok, out_tok
         text = out["choices"][0]["message"]["content"]
         u = out.get("usage", {})
         in_tok = int(u.get("prompt_tokens", 0))
@@ -121,12 +162,20 @@ def complete_json(
     spec = broker.choose(tier)
     key = broker.secrets.get(spec.api_key_ref) if spec.api_key_ref else None
     start = time.monotonic()
-    if spec.provider == "anthropic":
-        data, in_tok, out_tok = anthropic_json(spec, system, user, schema, key)
-    elif spec.provider == "ollama":
-        data, in_tok, out_tok = ollama_json(spec, system, user)
-    else:
-        data, in_tok, out_tok = openai_json(spec, system, user, key)
+    try:
+        if spec.provider == "anthropic":
+            data, in_tok, out_tok = anthropic_json(spec, system, user, schema, key)
+        elif spec.provider == "ollama":
+            data, in_tok, out_tok = ollama_json(spec, system, user)
+        else:
+            data, in_tok, out_tok = openai_json(spec, system, user, key)
+    except Exception as exc:  # noqa: BLE001 — try the local fallback path
+        fb = _fallback_spec(spec, exc)
+        if fb is None:
+            raise
+        logger.warning("llm fallback → ollama/%s (provider %s failed: %.120s)",
+                       fb.name, spec.provider, str(exc))
+        data, in_tok, out_tok = ollama_json(fb, system, user)
     broker.charge(tier, in_tok + out_tok)
     logger.info("complete tier=%s provider=%s model=%s tokens=%d", tier,
                 spec.provider, spec.name, in_tok + out_tok)

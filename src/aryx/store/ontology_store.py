@@ -35,6 +35,35 @@ class OntologyStore:
                       t.status, t.source) for t in types],
                 )
 
+    def upsert_type_attributes(self, name: str, attributes: list[str],
+                                status: str = "approved",
+                                source: str = "derived") -> None:
+        """Insert-or-overwrite a type's attribute list.
+
+        Unlike seed_types (ON CONFLICT DO NOTHING, used for HITL-proposed
+        types where an existing row must never be clobbered), this always
+        applies the given attributes — needed so a manually-stubbed empty
+        type (e.g. a Customer type created with no attributes) can gain
+        real ones once entities are derived into it. Callers are
+        responsible for merging with any pre-existing attribute list first.
+        """
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(load("upsert_ontology_type_overwrite"),
+                            (self._workspace_id, name, Json(attributes),
+                             status, source))
+        logger.info("ontology type attrs upserted ws=%s name=%s attrs=%d",
+                    self._workspace_id, name, len(attributes))
+
+    def merge_attributes(self, name: str, new_attrs: list[str],
+                          status: str = "approved", source: str = "derived") -> None:
+        """Merge new_attrs into name's existing attribute list (or create
+        it) and upsert — order-preserving dedup so a manually-stubbed empty
+        type gains real attributes without losing any it already had."""
+        existing = next((t for t in self.list_types() if t.name == name), None)
+        merged = list(dict.fromkeys((existing.attributes if existing else []) + new_attrs))
+        self.upsert_type_attributes(name, merged, status=status, source=source)
+
     def list_types(self) -> list[OntologyType]:
         """Return ontology types for the bound workspace."""
         with self._pool.connection() as conn:

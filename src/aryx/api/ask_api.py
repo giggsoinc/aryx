@@ -23,6 +23,44 @@ from aryx.store.ask_history_store import AskHistoryStore
 logger = logging.getLogger(__name__)
 
 
+def _llm_probe() -> dict:
+    """Config PLUS reachability: is the model actually ready to serve?
+
+    On a fresh install Ollama spends its first minutes downloading models —
+    config alone looks fine while every LLM call would hang. Shared by
+    /llm/health and /admin/system/status.
+    """
+    cfg = llm_runtime.status()
+    provider = str(cfg["provider"])
+    endpoint = str(cfg["endpoint"]).rstrip("/")
+    model = str(cfg["answer_model"])
+    if provider != "ollama":
+        return {"ok": True, "provider": provider, "model": model,
+                "detail": "external provider"}
+    import urllib.request
+    try:
+        with urllib.request.urlopen(f"{endpoint}/api/tags", timeout=3) as resp:
+            tags = json.load(resp)
+        names = {str(m.get("name", "")) for m in tags.get("models", [])}
+        bases = {n.split(":")[0] for n in names}
+
+        def _have(m: str) -> bool:
+            return m in names or m.split(":")[0] in bases
+
+        wanted = {model, str(cfg["menial_model"])}
+        missing = sorted(m for m in wanted if not _have(m))
+        if missing:
+            return {"ok": False, "provider": provider, "model": model,
+                    "detail": "still downloading model(s): "
+                              + ", ".join(missing)
+                              + " — first boot can take several minutes"}
+        return {"ok": True, "provider": provider, "model": model,
+                "detail": "ready"}
+    except Exception as exc:  # noqa: BLE001 — report, never 500
+        return {"ok": False, "provider": provider, "model": model,
+                "detail": f"Ollama not reachable at {endpoint} ({exc})"}
+
+
 def _reader(workspace_id: int = 1) -> GraphReaderPort:
     return ports().graph_reader(workspace_id)
 
@@ -141,6 +179,36 @@ def ask_router() -> APIRouter:
     @router.get("/llm/config")
     def get_llm_config() -> dict:
         return llm_runtime.status()
+
+    @router.get("/llm/health")
+    def llm_health() -> dict:
+        """Config PLUS reachability: is the model actually ready to serve?"""
+        return _llm_probe()
+
+    @router.get("/llm/models")
+    def llm_models() -> dict:
+        """Installed local Ollama models — feeds the Home model picker.
+
+        ALWAYS targets the local Ollama endpoint, regardless of which
+        provider is currently active — switching Gemini→Ollama in the
+        picker must list local models even while Gemini is configured.
+        """
+        import os
+        import urllib.request
+        cfg = llm_runtime.status()
+        endpoint = (str(cfg["endpoint"]).rstrip("/")
+                    if str(cfg["provider"]) == "ollama"
+                    else os.environ.get("ARYX_LLM_BASE_URL",
+                                        "http://ollama:11434").rstrip("/"))
+        try:
+            with urllib.request.urlopen(f"{endpoint}/api/tags",
+                                        timeout=3) as resp:
+                tags = json.load(resp)
+            models = sorted(str(m.get("name", ""))
+                            for m in tags.get("models", []))
+            return {"ok": True, "models": [m for m in models if m]}
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "models": [], "error": str(exc)}
 
     @router.post("/admin/llm/config")
     def set_llm_config(req: LlmConfigRequest) -> dict:

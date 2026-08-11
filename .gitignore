@@ -56,3 +56,12 @@ raven_html.md
 aryx-website.html
 linkedin-promo.md
 aryx_full.zip
+
+# Local design scratch + session state — never part of the shipped package
+temp_design/
+Aryx_OSS_Updates_08Aug/
+.raven/session-backups/
+.raven/.push-notice-shown
+
+# Local session handover notes — never shipped
+HANDOVER.md

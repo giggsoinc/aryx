@@ -1,5 +1,10 @@
+// Optional build-time URL prefix. Empty (default) — the app serves at /.
+const BASE_PATH = process.env.ARYX_BASE_PATH || "";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  ...(BASE_PATH ? { basePath: BASE_PATH } : {}),
+  env: { NEXT_PUBLIC_BASE_PATH: BASE_PATH },
   // Server-side proxy: the browser hits /api/... on the Next.js host; the
   // Next server rewrites that to the FastAPI URL (api:8000 inside docker,
   // localhost:8088 in dev). The browser never needs to know the API host —
@@ -14,5 +19,4 @@ const nextConfig = {
     optimizePackageImports: ["lucide-react"],
   },
 };
-
 export default nextConfig;

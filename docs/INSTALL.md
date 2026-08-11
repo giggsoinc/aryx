@@ -219,30 +219,29 @@ Canonical copy for Hub paste / maintainers: **[DOCKERHUB.md](DOCKERHUB.md)**.
 
 `docker-compose.yml` references:
 
-- `ARYX_IMAGE` (default `giggsodocker/aryx-lite:latest`)
-- `ARYX_WEB_IMAGE` (default `giggsodocker/aryx-lite-web:latest`)
+- `ARYX_IMAGE` (default `giggsodocker/aryx-lite:1.5.3`)
+- `ARYX_WEB_IMAGE` (default `giggsodocker/aryx-lite-web:1.5.3`)
 
 ### Tags (both images)
 
 | Tag | Meaning |
 |-----|---------|
-| `latest` | Current release build |
-| `1.0.0` | Semver from `pyproject.toml` / `aryx.__version__` |
-| `v1.0.0` | Same release, `v`-prefixed |
+| `1.5.3` | Semver from `pyproject.toml` / `aryx.__version__` — always pull an explicit version |
+| `v1.5.3` | Same release, `v`-prefixed |
 | `<git-sha>` | Exact commit (e.g. `a98a954`) |
 
 ```bash
 # Pull both images explicitly
-docker pull giggsodocker/aryx-lite:latest
-docker pull giggsodocker/aryx-lite-web:latest
+docker pull giggsodocker/aryx-lite:1.5.3
+docker pull giggsodocker/aryx-lite-web:1.5.3
 
 # Or pull everything Compose needs, then run
 docker compose pull
 docker compose up -d
 
 # Pin a version
-export ARYX_IMAGE=giggsodocker/aryx-lite:1.0.0
-export ARYX_WEB_IMAGE=giggsodocker/aryx-lite-web:1.0.0
+export ARYX_IMAGE=giggsodocker/aryx-lite:1.5.3
+export ARYX_WEB_IMAGE=giggsodocker/aryx-lite-web:1.5.3
 docker compose up -d
 ```
 
@@ -252,7 +251,7 @@ Requires Docker Desktop running and `docker login` as **`giggsodocker`** (or a t
 
 ```bash
 docker login
-./scripts/docker-hub-publish.sh          # latest + git SHA + version from pyproject.toml
+./scripts/docker-hub-publish.sh          # version from pyproject.toml + v-prefix + git SHA (never latest)
 ./scripts/docker-hub-publish.sh 1.1.0    # override version tags
 ```
 

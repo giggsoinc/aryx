@@ -21,6 +21,7 @@ _SCHEMA: dict[str, Any] = {
     "objectives": ["string"],
     "scope": "string",
     "roles": ["string"],
+    "questions": ["string"],
 }
 
 _SYSTEM = (
@@ -30,7 +31,10 @@ _SYSTEM = (
     "sentences on the outcome the knowledge graph should enable), objectives "
     "(3-6 concrete, measurable goals), scope (an 'IN:' block of entity kinds "
     "to model and an 'OUT:' block to exclude), roles (2-5 participant roles, "
-    "each with the question that role would ask the graph). Infer sensible "
+    "each with the question that role would ask the graph), questions (3-5 "
+    "concrete proof questions the finished knowledge graph MUST be able to "
+    "answer for this effort to be worth it — phrased as a user would ask "
+    "them). Infer sensible "
     "values from the domain; never echo the instructions. Be specific to the "
     "user's domain, not generic."
 )
@@ -43,7 +47,7 @@ def draft_from_text(broker: Broker, seed: str = "",
     doc_text = (doc_text or "").strip()[:max_doc_chars]
     if not seed and not doc_text:
         return {"domain": "", "aim": "", "objectives": [],
-                "scope": "", "roles": []}
+                "scope": "", "roles": [], "questions": []}
     parts = []
     if seed:
         parts.append(f"Seed sentence:\n{seed}")
@@ -68,4 +72,5 @@ def _coerce(data: dict) -> dict:
         "objectives": _slist(data.get("objectives")),
         "scope": str(data.get("scope") or "").strip(),
         "roles": _slist(data.get("roles")),
+        "questions": _slist(data.get("questions")),
     }

@@ -29,7 +29,7 @@ services:
 
   worker:
     # Published to Docker Hub: https://hub.docker.com/r/giggsodocker/aryx-lite
-    image: ${ARYX_IMAGE:-giggsodocker/aryx-lite:latest}
+    image: ${ARYX_IMAGE:-giggsodocker/aryx-lite:1.5.3}
     build: .
     env_file: .env
     depends_on:
@@ -68,7 +68,7 @@ services:
     restart: "no"
 
   api:
-    image: ${ARYX_IMAGE:-giggsodocker/aryx-lite:latest}
+    image: ${ARYX_IMAGE:-giggsodocker/aryx-lite:1.5.3}
     build: .
     env_file: .env
     command: ["uvicorn", "aryx.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
@@ -100,7 +100,7 @@ services:
       retries: 3
 
   mcp:
-    image: ${ARYX_IMAGE:-giggsodocker/aryx-lite:latest}
+    image: ${ARYX_IMAGE:-giggsodocker/aryx-lite:1.5.3}
     build: .
     env_file: .env
     command: ["uvicorn", "aryx.mcp.sse:app", "--host", "0.0.0.0", "--port", "8765"]
@@ -121,7 +121,7 @@ services:
   # Talks to FastAPI only via HTTP; replaceable without touching the backend.
   web:
     # Published to Docker Hub: https://hub.docker.com/r/giggsodocker/aryx-lite-web
-    image: ${ARYX_WEB_IMAGE:-giggsodocker/aryx-lite-web:latest}
+    image: ${ARYX_WEB_IMAGE:-giggsodocker/aryx-lite-web:1.5.3}
     build:
       context: ./apps/web
       dockerfile: Dockerfile
@@ -130,12 +130,23 @@ services:
       # Browser only talks to the same origin; no CORS, no host coupling.
       - ARYX_API_URL_INTERNAL=${ARYX_API_URL_INTERNAL:-http://api:8000}
       - NODE_ENV=production
+      # Bind every interface. Next.js standalone binds to $HOSTNAME, which in a
+      # container defaults to the container id — so it listens on ONE network
+      # only. Attaching a second network later then gives "connection refused"
+      # from anything on that network, even though DNS resolves fine.
+      - HOSTNAME=0.0.0.0
     ports:
       - "3000:3000"
     depends_on:
       api:
         condition: service_healthy
     restart: unless-stopped
+
+networks:
+  # Project-internal network. Named explicitly so it is stable across renames
+  # of the project directory.
+  default:
+    name: aryx-lite_default
 
 volumes:
   pgdata:

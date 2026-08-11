@@ -118,6 +118,25 @@ class EntityStore:
                 cur.execute(load("select_entities"), (self._ws,))
                 return [(r[0], r[1], r[2]) for r in cur.fetchall()]
 
+    def member_landed_ids(self, entity_ids: list[int]) -> dict[int, list[int]]:
+        """Return entity_id -> [landed_record_id, ...] for the given entities.
+
+        Used to carry provenance forward when one entity is derived from
+        others (e.g. a deduplicated Customer built from many ContractLineItem
+        rows) — lineage should trace back to the original landed rows, not
+        just to the intermediate entity ids.
+        """
+        if not entity_ids:
+            return {}
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(load("select_member_landed_ids"), (self._ws, entity_ids))
+                rows = cur.fetchall()
+        result: dict[int, list[int]] = {}
+        for entity_id, landed_record_id in rows:
+            result.setdefault(entity_id, []).append(landed_record_id)
+        return result
+
     def list_members_provenance(self) -> list[tuple[int, str, str, str]]:
         """Return (entity_id, system, dataset, record_id) provenance edges."""
         with self._pool.connection() as conn:

@@ -11,6 +11,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# Optional URL prefix, baked at build time by Next.js. Empty = serve at /.
+ARG ARYX_BASE_PATH=""
+ENV ARYX_BASE_PATH=$ARYX_BASE_PATH
 RUN npm run build
 
 FROM node:20-alpine AS runner

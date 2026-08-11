@@ -38,6 +38,8 @@ from aryx.api.intent_api import intent_router
 from aryx.api.jobs_api import jobs_router
 from aryx.api.lab_api import lab_router
 from aryx.api.mcp_tokens_api import mcp_tokens_router
+from aryx.api.observability_api import observability_router
+from aryx.api.system_api import system_router
 from aryx.api.ontology_api import ontology_router
 from aryx.api.pipeline_derive_api import pipeline_derive_router
 from aryx.api.pipeline_link_api import pipeline_link_router
@@ -74,6 +76,9 @@ def create_app() -> FastAPI:
     app.include_router(data_router())
     app.include_router(ask_history_router())
     app.include_router(jobs_router())
+    app.include_router(system_router())
+    from aryx.api.corrections_api import corrections_router
+    app.include_router(corrections_router())
     app.include_router(file_ingest_router())
     app.include_router(connect_router())
     app.include_router(demo_ingest_router())
@@ -107,6 +112,7 @@ def create_app() -> FastAPI:
     app.include_router(mcp_tokens_router())
     app.include_router(adjudication_router())
     app.include_router(actions_router())
+    app.include_router(observability_router())
     mount_mcp(app)
     return app
 

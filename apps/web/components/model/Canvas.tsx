@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Background, BackgroundVariant, Controls, MiniMap, ReactFlow,
@@ -261,12 +262,12 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
           the map for you to approve.
         </p>
         <div className="mt-5 flex flex-col items-center gap-2">
-          <a
+          <Link
             href="/start"
             className="focus-ring inline-flex items-center gap-2 rounded-lg bg-navy-800 px-4 py-2 text-[13px] font-semibold text-white hover:bg-navy-700"
           >
             ✨ Start guided setup
-          </a>
+          </Link>
           <button
             onClick={onCreate}
             className="focus-ring text-[12px] text-subtle hover:text-navy-700"

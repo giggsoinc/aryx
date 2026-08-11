@@ -1,6 +1,7 @@
 "use client";
 
 import { Header } from "@/components/brand/Header";
+import { CorrectionChat } from "@/components/corrections/CorrectionChat";
 import { DataExplorer } from "@/components/data/DataExplorer";
 import { useWorkspace } from "@/lib/workspace";
 
@@ -12,6 +13,7 @@ export default function DataPage() {
       <main className="flex-1">
         <DataExplorer />
       </main>
+      <CorrectionChat workspaceId={workspaceId} scope="data" />
     </div>
   );
 }

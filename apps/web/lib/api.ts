@@ -11,7 +11,7 @@ import type {
 // Same-origin relative path. Next.js rewrites /api/* → FastAPI internally
 // (see next.config.mjs). Works in dev (proxies to localhost:8088) and in
 // production (proxies to api:8000) without any client-side knowledge.
-const BASE = "/api";
+const BASE = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api`;
 
 /** Throw on non-2xx; return parsed JSON otherwise. */
 async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
@@ -168,6 +168,13 @@ export const api = {
       `/admin/jobs/${jobId}/cancel`, { method: "POST", body: "{}" },
     ),
 
+  workspaceOverview: () =>
+    fetchJSON<Array<{
+      id: number; name: string;
+      entities: number; relationships: number;
+      landed_records: number; running_jobs: number;
+    }>>("/admin/workspace-overview"),
+
   getIngestQuestions: (workspaceId: number, status = "pending") =>
     fetchJSON<IngestQuestion[]>(
       `/admin/ingest-questions?workspace_id=${workspaceId}&status=${status}&limit=50`,
@@ -231,6 +238,24 @@ export const api = {
         body: JSON.stringify({ seed, doc_text: docText, workspace_id: workspaceId }),
       },
     ),
+
+  /** Extract plain text from ONE briefing document (PDF/DOC/DOCX/PPT…).
+   *  Brief-only reader — the file is never ingested as data. */
+  extractBriefDoc: async (workspaceId: number, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(
+      `${BASE}/admin/workspaces/${workspaceId}/brief-doc-text`,
+      { method: "POST", body: form },
+    );
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`${res.status} ${res.statusText}: ${detail}`);
+    }
+    return res.json() as Promise<{
+      workspace_id: number; filename: string; chars: number; text: string;
+    }>;
+  },
 
   saveBrief: (workspaceId: number, brief: Brief) =>
     fetchJSON<{ id: number; brief: Brief }>(
@@ -447,6 +472,78 @@ export const api = {
 
   // ── LLM provider (runtime; process memory — not persisted to disk) ──
   getLlmConfig: () => fetchJSON<LlmConfig>("/llm/config"),
+
+  // ── Corrections: fix now + standing rule replayed on every ingest ─────
+  addCorrection: (workspaceId: number, body: {
+    kind: "retype" | "remove" | "link" | "unlink" | "merge" | "rename_type";
+    entity_id?: number; target_id?: number; name?: string; type_name?: string;
+  }) =>
+    fetchJSON<{ id: number; kind: string; subject: string; object: string }>(
+      `/admin/workspaces/${workspaceId}/corrections`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+
+  /** Plain-language correction (graph chat drawer) — write-only, not Ask.
+   *  Returns a PROPOSAL; nothing is applied until addCorrection is called
+   *  with the returned action. */
+  correctionChat: (workspaceId: number, text: string, selectedEntityId = 0) =>
+    fetchJSON<{
+      status: string; message: string;
+      action?: {
+        kind: "retype" | "remove" | "link" | "unlink" | "merge" | "rename_type";
+        entity_id?: number; target_id?: number; name?: string; type_name?: string;
+      };
+    }>(
+      `/admin/workspaces/${workspaceId}/corrections/chat`,
+      { method: "POST",
+        body: JSON.stringify({ text, selected_entity_id: selectedEntityId }) },
+    ),
+
+  listCorrections: (workspaceId: number) =>
+    fetchJSON<Array<{
+      id: number; kind: string; subject: string;
+      object: string; detail: string; created_at: string;
+    }>>(`/admin/workspaces/${workspaceId}/corrections`),
+
+  deleteCorrection: (correctionId: number) =>
+    fetchJSON<{ status: string }>(`/admin/corrections/${correctionId}`,
+      { method: "DELETE" }),
+
+  /** Wipe this workspace's data (records/entities/links/graph) for a clean
+   *  re-ingest. Brief, model choice, types, and corrections survive. */
+  resetWorkspaceData: (workspaceId: number) =>
+    fetchJSON<{ workspace_id: number; deleted: Record<string, number> }>(
+      `/admin/workspaces/${workspaceId}/reset-data`,
+      { method: "POST", body: "{}" },
+    ),
+
+  /** Installed local Ollama models for the Home picker. */
+  listLlmModels: () =>
+    fetchJSON<{ ok: boolean; models: string[]; error?: string }>("/llm/models"),
+
+  /** Physical storage truth: what is ACTUALLY in Postgres + FalkorDB, plus
+   *  service health. Counts come from the stores, never from job claims. */
+  systemStatus: () =>
+    fetchJSON<{
+      postgres: {
+        ok: boolean; error?: string; db_size?: string;
+        doc_chunks?: number; chunk_embeddings?: number;
+        workspaces: Array<{
+          id: number; name: string; landed_records: number;
+          entities: number; relationships: number;
+        }>;
+      };
+      falkordb: {
+        ok: boolean; error?: string;
+        graphs: Array<{ workspace_id: number; nodes: number; edges: number }>;
+      };
+      llm: { ok: boolean; provider: string; model: string; detail: string };
+    }>("/admin/system/status"),
+
+  /** Config + reachability — false while Ollama is still pulling models. */
+  getLlmHealth: () =>
+    fetchJSON<{ ok: boolean; provider: string; model: string; detail: string }>(
+      "/llm/health"),
 
   setLlmConfig: (cfg: LlmConfigUpdate) =>
     fetchJSON<LlmConfig>("/admin/llm/config", {

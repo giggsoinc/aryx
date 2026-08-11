@@ -20,6 +20,9 @@ def jobs_router() -> APIRouter:
     def list_jobs(workspace_id: int = 1) -> list[dict[str, Any]]:
         jobs = _store()
         try:
+            # Truth before display: fail any "running" job whose process died
+            # (no checkpoint for 5+ minutes) so the UI never shows a zombie.
+            jobs.reap_stale(minutes=5)
             return jobs.list_recent(workspace_id)
         finally:
             jobs.close()

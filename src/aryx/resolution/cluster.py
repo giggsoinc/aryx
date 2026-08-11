@@ -52,7 +52,14 @@ def golden_record_weighted(
     payloads: list[dict[str, Any]],
     record_ids: list[int],
     pair_scores: dict[tuple[int, int], float],
+    edge_index: dict[int, list[tuple[int, float]]] | None = None,
 ) -> dict[str, Any]:
-    """Confidence-weighted merge with conflict detection and provenance."""
+    """Confidence-weighted merge with conflict detection and provenance.
+
+    ``edge_index`` (built once per run by confidence.build_edge_index) lets
+    survivors look up the pairs touching a record instead of scanning every
+    scored pair for every record. Optional — omitting it keeps the original
+    scan, so existing callers are unaffected.
+    """
     from aryx.resolution.survivor import survivors
-    return survivors(payloads, record_ids, pair_scores)
+    return survivors(payloads, record_ids, pair_scores, edge_index=edge_index)

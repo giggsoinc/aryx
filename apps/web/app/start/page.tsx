@@ -3,10 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkspace } from "@/lib/workspace";
-import type { Brief } from "@/lib/types";
 import { Intro } from "@/components/start/Intro";
-import { Goals } from "@/components/start/Goals";
-import { Confirm } from "@/components/start/Confirm";
+import { BriefStep } from "@/components/start/BriefStep";
 import { Sources, type SourceKind } from "@/components/start/Sources";
 import { Connect } from "@/components/start/Connect";
 import { Files } from "@/components/start/Files";
@@ -14,7 +12,7 @@ import { Running } from "@/components/start/Running";
 import { Done } from "@/components/start/Done";
 
 type Step =
-  | "intro" | "goals" | "confirm" | "sources" | "connect" | "files"
+  | "intro" | "brief" | "sources" | "connect" | "files"
   | "running" | "done";
 
 /** Guided setup state machine. Loops through every picked source kind:
@@ -25,7 +23,6 @@ export default function StartWizard() {
   const { workspaceId } = useWorkspace();
 
   const [step, setStep] = useState<Step>("intro");
-  const [brief, setBrief] = useState<Brief>({});
   const [sources, setSources] = useState<SourceKind[]>(["database"]);
   const [jobId, setJobId] = useState<string | null>(null);
 
@@ -41,22 +38,13 @@ export default function StartWizard() {
 
   return (
     <>
-      {step === "intro" && <Intro onStart={() => setStep("goals")} />}
+      {step === "intro" && <Intro onStart={() => setStep("brief")} />}
 
-      {step === "goals" && (
-        <Goals
+      {step === "brief" && (
+        <BriefStep
           workspaceId={workspaceId}
-          onDrafted={(b) => { setBrief(b); setStep("confirm"); }}
+          onDone={() => setStep("sources")}
           onSkip={() => setStep("sources")}
-        />
-      )}
-
-      {step === "confirm" && (
-        <Confirm
-          workspaceId={workspaceId}
-          brief={brief}
-          onConfirm={() => setStep("sources")}
-          onBack={() => setStep("goals")}
         />
       )}
 
@@ -69,7 +57,7 @@ export default function StartWizard() {
             else if (picked.includes("files")) setStep("files");
             else setStep("running");
           }}
-          onBack={() => setStep("confirm")}
+          onBack={() => setStep("brief")}
         />
       )}
 

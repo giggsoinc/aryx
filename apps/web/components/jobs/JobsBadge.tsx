@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
@@ -10,6 +11,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
 import { useWorkspace } from "@/lib/workspace";
 import { cn } from "@/lib/cn";
+import { WorkspaceOverview } from "./WorkspaceOverview";
+import { SystemStatus } from "./SystemStatus";
 
 const POLL_MS = 5_000;
 
@@ -42,14 +45,18 @@ export function JobsBadge() {
     return () => clearInterval(t);
   }, [refresh]);
 
-  // Auto-open on Ask + Model when something is running and user hasn't
-  // dismissed the panel for this session.
+  // Auto-open wherever a running job matters — Home, Model, the Onboard
+  // wizard (where ingest actually happens), and Data — unless dismissed.
   const running = jobs.filter((j) => RUNNING.has(j.status)).length;
-  const onAskOrModel = pathname === "/" || pathname?.startsWith("/model");
+  const onWatchedPage = pathname === "/"
+    || pathname?.startsWith("/model")
+    || pathname?.startsWith("/start")
+    || pathname?.startsWith("/data")
+    || false;
   useEffect(() => {
-    if (running > 0 && onAskOrModel && !dismissed) setOpen(true);
+    if (running > 0 && onWatchedPage && !dismissed) setOpen(true);
     if (running === 0) setDismissed(false);
-  }, [running, onAskOrModel, dismissed]);
+  }, [running, onWatchedPage, dismissed]);
 
   if (jobs.length === 0) return null;
 
@@ -91,6 +98,11 @@ interface PanelProps {
 
 /** Docked side panel. No backdrop — page stays interactive. */
 function JobsPanel({ open, jobs, onClose, onRefresh }: PanelProps) {
+  // Bump whenever any job reaches a terminal state so the storage-truth
+  // blocks re-read immediately instead of waiting for their heartbeat.
+  const truthKey = jobs.filter(
+    (j) => j.status === "complete" || j.status === "failed",
+  ).length;
   return (
     <AnimatePresence>
       {open && (
@@ -134,7 +146,9 @@ function JobsPanel({ open, jobs, onClose, onRefresh }: PanelProps) {
                 <JobCard key={j.job_id} job={j} onChanged={onRefresh} />
               ))}
             </ul>
+            <WorkspaceOverview refreshKey={truthKey} />
           </div>
+          <SystemStatus refreshKey={truthKey} />
         </motion.aside>
       )}
     </AnimatePresence>
@@ -237,12 +251,12 @@ function JobCard({ job, onChanged }: { job: JobRow; onChanged: () => void }) {
             </button>
           )}
           {isFailed && (
-            <a
+            <Link
               href="/start"
               className="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-navy-800 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-navy-700"
             >
               <RotateCcw size={11} /> Retry — re-onboard
-            </a>
+            </Link>
           )}
           <span className="text-[10px] text-subtle">
             {isRunning

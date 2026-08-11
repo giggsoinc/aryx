@@ -29,6 +29,48 @@ _state: dict[str, str] = {
     "api_key": os.environ.get("ARYX_LLM_API_KEY", ""),
 }
 
+# True once the user has explicitly chosen/confirmed a model (persisted row).
+_confirmed = False
+_loaded = False
+
+
+def _dsn() -> str:
+    try:
+        from aryx.config import get_settings
+        return get_settings().rdb_dsn
+    except Exception:  # noqa: BLE001
+        return os.environ.get("ARYX_RDB_DSN", "")
+
+
+def _ensure_loaded() -> None:
+    """Overlay the persisted choice (if any) on env defaults, once.
+
+    Precedence: user's persisted UI choice > env (.env) > Ollama defaults.
+    Fail-soft — with no DB the env defaults simply stand.
+    """
+    global _loaded, _confirmed
+    if _loaded:
+        return
+    _loaded = True
+    dsn = _dsn()
+    if not dsn:
+        return
+    try:
+        with psycopg.connect(dsn, autocommit=True,
+                             connect_timeout=3) as conn:
+            with conn.cursor() as cur:
+                cur.execute(load("select_llm_config"))
+                row = cur.fetchone()
+        if row:
+            _state.update({"provider": row[0], "menial_model": row[1],
+                           "answer_model": row[2], "endpoint": row[3],
+                           "api_key": row[4] or _state["api_key"]})
+            _confirmed = True
+            logger.info("llm config restored: %s · %s",
+                        row[0], row[2])
+    except Exception:  # noqa: BLE001 — table may not exist yet
+        logger.debug("llm config load skipped", exc_info=True)
+
 
 class _RuntimeSecrets:
     """SecretProvider returning the key entered via the Settings panel."""
@@ -38,6 +80,7 @@ class _RuntimeSecrets:
 
 
 def _broker_for(model: str) -> Broker:
+    _ensure_loaded()
     is_ollama = _state["provider"] == "ollama"
     registry = Registry()
     registry.add(ModelSpec(
@@ -74,18 +117,42 @@ def chat(role: str, system: str, user: str) -> tuple[str, int, int]:
 
 
 def set_config(**fields: str) -> None:
-    """Merge non-empty Settings fields into the live config."""
+    """Merge non-empty Settings fields into the live config AND persist.
+
+    Persisting marks the choice as confirmed — the Home gate goes away and
+    container restarts keep the user's model instead of reverting to env.
+    """
+    global _confirmed
+    _ensure_loaded()
     for key in ("provider", "menial_model", "answer_model", "endpoint", "api_key"):
         if fields.get(key):
             _state[key] = fields[key]
+    dsn = _dsn()
+    if dsn:
+        try:
+            with psycopg.connect(dsn, autocommit=True,
+                                 connect_timeout=3) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(load("upsert_llm_config"),
+                                (_state["provider"], _state["menial_model"],
+                                 _state["answer_model"], _state["endpoint"],
+                                 _state["api_key"]))
+            _confirmed = True
+        except Exception:  # noqa: BLE001 — live config still applies
+            logger.warning("llm config persist failed", exc_info=True)
 
 
 def status() -> dict[str, object]:
     """Non-secret view of the current config (key presence only)."""
+    _ensure_loaded()
     return {
         "provider": _state["provider"],
         "menial_model": _state["menial_model"],
         "answer_model": _state["answer_model"],
         "endpoint": _state["endpoint"],
         "api_key_set": bool(_state["api_key"]),
+        "confirmed": _confirmed,
+        # Where the active values came from — shown verbatim in the UI so
+        # nobody wonders why "Gemini" appears they never chose.
+        "source": "user" if _confirmed else "environment",
     }

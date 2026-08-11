@@ -1,0 +1,1 @@
+SELECT count(*) FROM aryx_job WHERE workspace_id = %s AND status IN ('running', 'queued', 'pending', 'in_progress')

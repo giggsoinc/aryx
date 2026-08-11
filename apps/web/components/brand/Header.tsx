@@ -4,8 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import {
-  ChevronDown, ClipboardList, Database, FlaskConical, Gauge, MessageCircle, Network,
-  Plus, Settings, Sparkles, Loader2,
+  Activity, ChevronDown, ClipboardList, Database, FileText, FlaskConical, Gauge, Home,
+  MessageCircle, Network, Plus, Settings, Loader2,
 } from "lucide-react";
 import { Logo } from "./Logo";
 import { api } from "@/lib/api";
@@ -47,20 +47,26 @@ export function Header(props: HeaderProps) {
             <Logo size={34} withWordmark />
           </Link>
           <nav className="flex items-center gap-1">
-            <NavLink href="/" icon={<MessageCircle size={14} />} label="Ask"
+            {/* Ordered as the product flow: ground it, load it, shape it,
+                prove it, ask it, watch it, tune it. */}
+            <NavLink href="/" icon={<Home size={14} />} label="Home"
                       active={pathname === "/"} />
-            <NavLink href="/dashboard" icon={<ClipboardList size={14} />} label="Dashboard"
-                      active={pathname === "/dashboard"} />
-            <NavLink href="/dashboard-observability" icon={<Gauge size={14} />} label="Observability"
-                      active={pathname?.startsWith("/dashboard-observability") || false} />
-            <NavLink href="/model" icon={<Network size={14} />} label="Model"
-                      active={pathname?.startsWith("/model") || false} />
+            <NavLink href="/brief" icon={<FileText size={14} />} label="Brief"
+                      active={pathname?.startsWith("/brief") || false} />
             <NavLink href="/data" icon={<Database size={14} />} label="Data"
                       active={pathname?.startsWith("/data") || false} />
+            <NavLink href="/model" icon={<Network size={14} />} label="Model"
+                      active={pathname?.startsWith("/model") || false} />
             <NavLink href="/lab" icon={<FlaskConical size={14} />} label="Lab"
                       active={pathname?.startsWith("/lab") || false} />
-            <NavLink href="/start" icon={<Sparkles size={14} />} label="Onboard"
-                      active={pathname?.startsWith("/start") || false} />
+            <NavLink href="/ask" icon={<MessageCircle size={14} />} label="Ask"
+                      active={pathname?.startsWith("/ask") || false} />
+            <NavLink href="/dashboard" icon={<ClipboardList size={14} />} label="Dashboard"
+                      active={pathname === "/dashboard"} />
+            <NavLink href="/dashboard-observability" icon={<Gauge size={14} />} label="Pipeline"
+                      active={pathname?.startsWith("/dashboard-observability") || false} />
+            <NavLink href="/observe" icon={<Activity size={14} />} label="Observe"
+                      active={pathname?.startsWith("/observe") || false} />
             <NavLink href="/settings" icon={<Settings size={14} />} label="Settings"
                       active={pathname?.startsWith("/settings") || false} />
           </nav>

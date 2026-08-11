@@ -39,21 +39,18 @@ Tags are kept in sync when maintainers run `./scripts/docker-hub-publish.sh`.
 
 | Tag | Meaning |
 |-----|---------|
-| `latest` | Current release build |
-| `1.0.0` | Semver (matches `aryx.__version__` / `pyproject.toml`) |
-| `v1.0.0` | Same release, `v`-prefixed |
+| `1.5.3` | Semver (matches `aryx.__version__` / `pyproject.toml`) — always pull an explicit version |
+| `v1.5.3` | Same release, `v`-prefixed |
 | `<git-sha>` | Exact commit (e.g. `a98a954`) |
 
 ```bash
 # Backend (API / worker / MCP)
-docker pull giggsodocker/aryx-lite:latest
-docker pull giggsodocker/aryx-lite:1.0.0
-docker pull giggsodocker/aryx-lite:v1.0.0
+docker pull giggsodocker/aryx-lite:1.5.3
+docker pull giggsodocker/aryx-lite:v1.5.3
 
 # Web UI
-docker pull giggsodocker/aryx-lite-web:latest
-docker pull giggsodocker/aryx-lite-web:1.0.0
-docker pull giggsodocker/aryx-lite-web:v1.0.0
+docker pull giggsodocker/aryx-lite-web:1.5.3
+docker pull giggsodocker/aryx-lite-web:v1.5.3
 ```
 
 ---
@@ -79,8 +76,8 @@ docker compose up -d
 Pin versions:
 
 ```bash
-export ARYX_IMAGE=giggsodocker/aryx-lite:1.0.0
-export ARYX_WEB_IMAGE=giggsodocker/aryx-lite-web:1.0.0
+export ARYX_IMAGE=giggsodocker/aryx-lite:1.5.3
+export ARYX_WEB_IMAGE=giggsodocker/aryx-lite-web:1.5.3
 docker compose up -d
 ```
 
@@ -122,5 +119,5 @@ Images published from Apple Silicon are **linux/arm64** unless a multi-arch buil
 
 ### Maintainer
 
-[Giggso](https://giggso.com) · Commercial licensing: licensing@giggso.com  
+[Giggso](https://giggso.com) · Commercial licensing: support@giggso.com  
 Source & issues: [giggsoinc/aryx](https://github.com/giggsoinc/aryx)
