@@ -50,7 +50,9 @@ export function Header(props: HeaderProps) {
             <NavLink href="/" icon={<MessageCircle size={14} />} label="Ask"
                       active={pathname === "/"} />
             <NavLink href="/dashboard" icon={<ClipboardList size={14} />} label="Dashboard"
-                      active={pathname?.startsWith("/dashboard") || false} />
+                      active={pathname === "/dashboard"} />
+            <NavLink href="/dashboard-observability" icon={<Gauge size={14} />} label="Observability"
+                      active={pathname?.startsWith("/dashboard-observability") || false} />
             <NavLink href="/model" icon={<Network size={14} />} label="Model"
                       active={pathname?.startsWith("/model") || false} />
             <NavLink href="/data" icon={<Database size={14} />} label="Data"
@@ -59,8 +61,6 @@ export function Header(props: HeaderProps) {
                       active={pathname?.startsWith("/lab") || false} />
             <NavLink href="/start" icon={<Sparkles size={14} />} label="Onboard"
                       active={pathname?.startsWith("/start") || false} />
-            <NavLink href="/observability" icon={<Gauge size={14} />} label="Usage"
-                      active={pathname?.startsWith("/observability") || false} />
             <NavLink href="/settings" icon={<Settings size={14} />} label="Settings"
                       active={pathname?.startsWith("/settings") || false} />
           </nav>

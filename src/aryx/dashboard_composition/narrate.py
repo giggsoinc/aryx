@@ -29,6 +29,8 @@ _SCHEMA: dict = {
 
 
 def _prompt(sections: list[DashboardSection], audience: str, objective: str) -> tuple[str, str]:
+    """Build the (system, user) pair asking for titles only — never for
+    components, ids, or values."""
     system = (
         "You title dashboard sections for a business audience. You may ONLY "
         "return a short overall title and one short title per section_id "

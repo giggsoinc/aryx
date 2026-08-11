@@ -215,6 +215,25 @@ export interface OntologyDoc {
   entity_count?: number;
 }
 
+/** Response from POST /pipeline/link-entities — `relationships` is the
+ *  exact count of edges actually created (0 means the two attributes never
+ *  matched on any real value, not a silent success). */
+export interface LinkEntitiesResult {
+  relationships: number;
+  [key: string]: number;
+}
+
+/** Response from POST /pipeline/derive-entities — `created` is the exact
+ *  count of new entities written (0 means no source entity had the
+ *  group-by attribute, not a silent success). */
+export interface DeriveEntitiesResult {
+  type: string;
+  created: number;
+  source_groups: number;
+  skipped_missing_key: number;
+  [key: string]: number | string;
+}
+
 export interface Axiom {
   id: number;
   kind: string;
@@ -925,49 +944,3 @@ export interface DatasetIngestResult {
   created_at: string;
 }
 
-// ── Observability — token consumption ──────────────────────────────────
-export interface LlmStatsBySource {
-  source: string;
-  total_calls: number;
-  total_tokens: number;
-  avg_latency_ms: number;
-  prompt_tokens: number;
-  completion_tokens: number;
-}
-
-export interface LlmStats {
-  total_calls?: number;
-  total_tokens?: number;
-  avg_latency_ms?: number;
-  prompt_tokens?: number;
-  completion_tokens?: number;
-  by_source: LlmStatsBySource[];
-}
-
-export interface LlmCall {
-  role: string;
-  model: string;
-  prompt_tokens: number;
-  completion_tokens: number;
-  latency_ms: number;
-  source: string;
-  error: string | null;
-  ts: string;
-}
-
-export interface ModelConfig {
-  provider: string;
-  menial_model: string;
-  answer_model: string;
-  endpoint: string;
-  api_key_set: boolean;
-}
-
-export interface Observability {
-  jobs: Record<string, number>;
-  llm: LlmStats;
-  llm_recent: LlmCall[];
-  graph: { entities: number; relationships: number };
-  model_config: ModelConfig;
-  platform: Record<string, unknown>;
-}

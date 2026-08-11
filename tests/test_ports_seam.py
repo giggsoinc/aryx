@@ -29,7 +29,7 @@ def test_env_override_swaps_adapter_without_touching_callsites(
 ) -> None:
     """THE anti-surgery proof: flip one env var → a different class backs the
     port and the container constructs it, with zero changes to ask_api /
-    graph_api / observability_api."""
+    graph_api."""
     monkeypatch.setenv(
         "ARYX_ADAPTER_GRAPH_READER",
         "test_ports_seam:_StubGraphReader",

@@ -9,10 +9,9 @@ from __future__ import annotations
 
 from aryx.analysis_execution.models import AnalysisResult, AnalysisResultRow, ExecutionRun, KpiResult
 from aryx.andie_planner.models import Analysis, DashboardSpec, Kpi, Visualization
-from aryx.dashboard_composition.compose import (
-    _KPI_CARD_TYPE, _attach_warnings, _build_components, _group_into_sections,
-    _prioritize, compose, revalidate,
-)
+from aryx.dashboard_composition.compose import compose, revalidate
+from aryx.dashboard_composition.compose_components import _KPI_CARD_TYPE, _build_components, _prioritize
+from aryx.dashboard_composition.compose_sections import _attach_warnings, _group_into_sections
 from aryx.dashboard_composition.narrate import apply_titles, suggest_titles
 
 DATASET = "dataset_contracts"

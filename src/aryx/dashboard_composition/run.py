@@ -103,4 +103,5 @@ def compose_dashboard(
 
 
 def _default_title(spec: DashboardSpec) -> str:
+    """The deterministic dashboard title before any LLM narration runs."""
     return spec.objective.strip() or "Dashboard"

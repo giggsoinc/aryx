@@ -7,6 +7,7 @@ request_id), then assembles and persists the planning context.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from aryx.planning.assemble import assemble_context, assemble_workspace_context
 from aryx.planning.catalogues import CHARTS, OPERATIONS
@@ -18,6 +19,34 @@ from aryx.store.profile_store import ProfileStore
 from aryx.store.semantic_store import SemanticStore
 
 logger = logging.getLogger(__name__)
+
+
+def _intent_for_dataset(dsn: str, workspace_id: int, dataset_id: str) -> Any | None:
+    """The capture that produced this dataset (via its own request_id), if any."""
+    dstore = DatasetStore(dsn, workspace_id)
+    try:
+        latest_ds = dstore.latest(dataset_id)
+    finally:
+        dstore.close()
+    if not (latest_ds and latest_ds.request_id):
+        return None
+    from aryx.store.intent_store import IntentStore
+    istore = IntentStore(dsn, workspace_id)
+    try:
+        return istore.get(latest_ds.request_id)
+    finally:
+        istore.close()
+
+
+def _most_recent_intent(dsn: str, workspace_id: int) -> Any | None:
+    """The single most recent capture in this workspace, if any."""
+    from aryx.store.intent_store import IntentStore
+    istore = IntentStore(dsn, workspace_id)
+    try:
+        recent = istore.list(1)
+        return recent[0] if recent else None
+    finally:
+        istore.close()
 
 
 def run_context(dsn: str, workspace_id: int, dataset_id: str,
@@ -44,19 +73,7 @@ def run_context(dsn: str, workspace_id: int, dataset_id: str,
     finally:
         gstore.close()
 
-    intent = None
-    dstore = DatasetStore(dsn, workspace_id)
-    try:
-        latest_ds = dstore.latest(dataset_id)
-    finally:
-        dstore.close()
-    if latest_ds and latest_ds.request_id:
-        from aryx.store.intent_store import IntentStore
-        istore = IntentStore(dsn, workspace_id)
-        try:
-            intent = istore.get(latest_ds.request_id)
-        finally:
-            istore.close()
+    intent = _intent_for_dataset(dsn, workspace_id, dataset_id)
 
     ctx = assemble_context(
         dataset_id=dataset_id, dataset_version=ver,
@@ -109,14 +126,7 @@ def run_workspace_context(dsn: str, workspace_id: int) -> PlanningContext | None
     finally:
         gstore.close()
 
-    intent = None
-    from aryx.store.intent_store import IntentStore
-    istore = IntentStore(dsn, workspace_id)
-    try:
-        recent = istore.list(1)
-        intent = recent[0] if recent else None
-    finally:
-        istore.close()
+    intent = _most_recent_intent(dsn, workspace_id)
 
     ctx = assemble_workspace_context(
         workspace_id=workspace_id, version="v1", dataset_profiles=profiles,

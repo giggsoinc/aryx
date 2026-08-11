@@ -112,7 +112,7 @@ export function Running({ workspaceId, jobId, onDone, onSkip }: Props) {
       <p className="mt-3 max-w-lg text-center text-[14px] text-subtle">
         {jobId
           ? `Real job state — polling /admin/jobs/${jobId.slice(0, 8)}… every ${JOB_POLL_MS / 1000}s.`
-          : "No active ingest job. Open Observability or come back later."}
+          : "No active ingest job. Come back later."}
       </p>
 
       <div className="mt-8 w-full">

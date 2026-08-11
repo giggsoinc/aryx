@@ -3,8 +3,8 @@ import type {
   Datasource, EntityDetail, EntityGraphView, GraphView, IngestQuestion,
   DatasetIngestResult, DatasetProfile, SemanticProfile, GraphIntakeResult, GraphProfile,
   PlanningContext, PlannerResult, DeltaDraftResult, DeltaSpecItems, ExecutionPlan, ExecutionRun,
-  DashboardModel, RenderTelemetry, Observability,
-  LlmConfig, LlmConfigUpdate, OntologyDoc, QuizSpec, ReasonerCheck, Rule,
+  DashboardModel, RenderTelemetry,
+  LlmConfig, LlmConfigUpdate, DeriveEntitiesResult, LinkEntitiesResult, OntologyDoc, QuizSpec, ReasonerCheck, Rule,
   SurvivorshipPolicy, UserIntent, UserIntentRequest, Workspace,
 } from "./types";
 
@@ -54,10 +54,6 @@ export const api = {
     fetchJSON<ReasonerCheck & { error?: string }>(
       `/lab/reasoner?workspace_id=${workspaceId}`,
     ),
-
-  // ── Observability — token consumption ────────────────────────────────
-  getObservability: (workspaceId: number) =>
-    fetchJSON<Observability>(`/admin/observability?workspace_id=${workspaceId}`),
 
   // ── Data Explorer (v2) ───────────────────────────────────────────────
   dataSummary: (workspaceId: number) =>
@@ -203,6 +199,27 @@ export const api = {
         workspace_id: workspaceId, name,
         source_type: sourceType, target_type: targetType,
       }),
+    }),
+
+  // ── Explicit post-ingest entity linking (real fk_links, not the
+  // cosmetic /ontology/relationships diagram edge above) ─────────────────
+  linkEntities: (workspaceId: number, fkLink: {
+    source_type: string; source_attr: string;
+    target_type: string; target_attr: string; name: string;
+  }) =>
+    fetchJSON<LinkEntitiesResult>(`/pipeline/link-entities?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: JSON.stringify({ fk_links: [fkLink] }),
+    }),
+
+  // ── Derive a new type by deduplicating an existing type's column ───────
+  deriveEntities: (workspaceId: number, spec: {
+    source_type: string; group_by_attr: string;
+    new_type_name: string; carry_attrs: string[];
+  }) =>
+    fetchJSON<DeriveEntitiesResult>(`/pipeline/derive-entities?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: JSON.stringify(spec),
     }),
 
   // ── Wizard / guided setup (Slice W3) ─────────────────────────────────

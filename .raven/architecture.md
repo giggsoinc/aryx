@@ -1,5 +1,5 @@
-## Version: 1.3
-## Last Updated: 2026-08-07
+## Version: 1.5.2
+## Last Updated: 2026-08-11
 ## Project: Aryx
 
 ### System Overview
@@ -42,22 +42,71 @@ ingestion side — the LLM proposes, code disposes.
   closure + golden record); `run.resolve` wires them into entities + members.
 - **Relationships** (`relationships.py`) — infers entity→entity edges from foreign
   keys and co-occurrence (deterministic) plus LLM for implied links.
+- **Derive entities** (`pipeline/derive_entities.py`, `api/pipeline_derive_api.py`)
+  — from the Model tab, deduplicates an already-resolved type's column into a
+  real, populated new entity type (e.g. every ContractLineItem row sharing a
+  Customer Number becomes one Customer entity); provenance carries forward as
+  the union of landed_record_ids behind each folded group.
+- **Explicit entity linking** (`api/pipeline_link_api.py`, wraps
+  `pipeline/orchestrate.link_entities`) — from the Model tab, draws a real,
+  data-level FK edge (exact-value match) between two already-ingested types;
+  distinct from `POST /ontology/relationships`, which only labels a cosmetic
+  diagram edge with no effect on the graph.
 - **Graph projection** (`graph/falkor_store.py`) — wipe-and-rebuild projection of
   ontology/entities/relationships into FalkorDB with provenance threads.
 - **Queries** (`queries/`) — SQL-file loader keeping SQL out of Python (DB-Guard).
-- **LLM dispatch & observability** (`llm.py`, `llm_providers.py`,
-  `api/observability_api.py`) — `complete_json`/`complete_text` is the one
-  dispatcher every backend LLM caller (planner, ontology mapping, resolution,
-  tagging) routes through; per-provider-family tuning (e.g. `reasoning_effort`
-  for hidden-reasoning models, `temperature`) lives here, not per-caller. Every
-  call is logged to `aryx_llm_call`, tagged by `source` (`ask` for the
-  interactive path vs. `pipeline` for everything else), and surfaced in the
-  frontend Usage panel (`components/observability/ObservabilityPanel.tsx`) as
-  overall + per-source token/latency stats.
+- **LLM dispatch** (`llm.py`, `llm_providers.py`) — `complete_json`/`complete_text`
+  is the one dispatcher every backend LLM caller (planner, ontology mapping,
+  resolution, tagging) routes through; per-provider-family tuning (e.g.
+  `reasoning_effort` for hidden-reasoning models, `temperature`) lives here, not
+  per-caller. Every call is logged to `aryx_llm_call`, tagged by `source` (`ask`
+  for the interactive path vs. `pipeline` for everything else) — this is
+  write-only today; the frontend "Usage" tab and its backend query endpoint
+  (`api/observability_api.py`) were both removed, so nothing currently reads
+  this table back.
 - **Config / logging** (`config.py`, `logging_setup.py`) — 12-factor settings from
   `ARYX_`-prefixed env vars; credentials never logged.
+- **Ports** (`ports/`) — six capability-port `Protocol` contracts (structural,
+  duck-typed) so a future Oracle/Fabric/Vertex adapter can swap in via config
+  without call-sites changing. Phase 0 wires `GraphReaderPort`/`GraphStorePort`
+  end-to-end (used by C12's `graph_relation` execution); the other four are
+  defined as a forward contract, migrated incrementally.
+- **Kinetic actions** (`actions/`, G13) — declared, audited graph mutations
+  (`set_attribute`/`add_relationship`/`remove_relationship`/`set_label`; no
+  entity deletes, no source-system writeback yet). Guard → effects → audit
+  log; effects apply to Postgres first (source of truth), never the graph
+  directly — the projector's dirty-set picks up the change. Reuses the same
+  when-clause matcher as `reasoning/engine.py` — one condition grammar across
+  rules, axioms, and actions.
+- **MCP server** (`mcp/`) — stdio + SSE server wrapping the REST API so any
+  MCP host can drive Aryx; tool specs for datasource/ingest/onboard/ontology
+  actions live in `mcp/tools_*.py`. Mounted at `/mcp` in the FastAPI app with
+  bearer-token auth (`_bearer_ok` in `api/mcp_mount.py`); allow-all only when no
+  tokens have been issued yet.
 
-#### Dashboard planning pipeline (C07-C15)
+#### Dashboard planning pipeline (C01-C15)
+- **C01 User Intent Capture** (`intent/`) — deterministic front-door for a
+  dashboard request: collects domain, plain-language objective, and optional
+  preferences into a versioned `user_intent` with a correlation id. No LLM;
+  required fields block, unsupported catalogue values become warnings, never
+  invented substitutes.
+- **C03 Dataset Profiler** (`profiler/`) — reads an immutable dataset
+  snapshot (C02) and measures file/table/column structure, quality, types,
+  distributions, and analytical roles (`candidate_role`: identifier/measure/
+  dimension/time/status/attribute) into a versioned `dataset_profile` — the
+  authoritative source of real column names/types/cardinality for everything
+  downstream, including C07's `ApprovedColumn` and C08's chart-fitness
+  grounding. No LLM.
+- **C05 Knowledge Graph Intake & Validation** (`graph_intake/`) — accepts a
+  knowledge-graph JSON (derived from the workspace's entities/relationships),
+  validates and normalizes it deterministically without changing business
+  meaning, hashes it, and stores the original immutably with a validated
+  version. No LLM.
+- **C06 Knowledge Graph Profiler** (`graph_profiler/`) — summarizes the
+  validated C05 graph into deterministic statistics + a compact schema, and
+  exposes only VERIFIED, bounded paths backed by real relationship instances
+  — a model may explain a verified path but never invent a node/relationship/
+  path, and no path exceeds the requested depth bound.
 - **C07 Context/Resource Retrieval** (`planning/`) — assembles one versioned
   `PlanningContext` from the dataset profile, semantic profile, graph profile,
   and the approved operation/chart catalogues; applies a role filter + budget
@@ -117,6 +166,10 @@ ingestion side — the LLM proposes, code disposes.
 - **C15 Frontend Renderer** (`apps/web/`) — Next.js app; renders the composed
   dashboard model with Plotly-based charts (`PlotlyChart.tsx`/`plotlySpecs.ts`)
   covering bar/line/scatter/sankey/treemap/gantt/survival curves and more.
+  The only piece of C15 that touches the backend is telemetry
+  (`dashboard_render/models.py` + `api/render_telemetry_api.py`) — the
+  frontend reports render/interaction stats after each render; no recompute
+  of a governed KPI formula ever happens client-side.
 
 ### Data Flow
 ```

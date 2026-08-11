@@ -73,6 +73,11 @@ export function DashboardRenderer({ workspaceId }: Props) {
   const [run, setRun] = useState<ExecutionRun | null>(null);
   const [planner, setPlanner] = useState<PlannerResult | null>(null);
   const [loading, setLoading] = useState(true);
+  // Presentation mode: C13's data-quality notes are hidden by default so the
+  // charts read cleanly, and revealed on demand. This is display-only —
+  // warnings are still generated, still stored, and still counted into render
+  // telemetry below regardless of what this flag says.
+  const [showWarnings, setShowWarnings] = useState(false);
   const loggedFor = useRef<string | null>(null);
 
   useEffect(() => {
@@ -114,6 +119,8 @@ export function DashboardRenderer({ workspaceId }: Props) {
     }).catch(() => { /* telemetry is best-effort */ });
   }, [model, run, planner, workspaceId]);
 
+  const hiddenWarningCount = model ? countWarnings(model) : 0;
+
   return (
     <div className="mx-auto max-w-6xl px-6 pb-8">
       <section className="rounded-xl border border-navy-100 bg-white p-6 shadow-sm">
@@ -121,6 +128,22 @@ export function DashboardRenderer({ workspaceId }: Props) {
           <MonitorPlay size={18} className="text-navy-500" />
           <h2 className="text-lg font-semibold text-navy-900">Dashboard</h2>
           {loading && <Loader2 size={14} className="animate-spin text-navy-400" />}
+          {!loading && hiddenWarningCount > 0 && (
+            <label className="ml-auto flex cursor-pointer select-none items-center gap-1.5 text-xs text-navy-500">
+              <input
+                type="checkbox"
+                checked={showWarnings}
+                onChange={(e) => setShowWarnings(e.target.checked)}
+                className="h-3.5 w-3.5 cursor-pointer rounded border-navy-300 accent-steel-500"
+              />
+              Data-quality notes
+              {!showWarnings && (
+                <span className="rounded bg-amber-50 px-1.5 py-0.5 font-medium text-amber-700">
+                  {hiddenWarningCount} hidden
+                </span>
+              )}
+            </label>
+          )}
         </div>
         <p className="mt-1 text-sm text-navy-500">
           The final interface — renders the composed dashboard model (C14)
@@ -145,7 +168,8 @@ export function DashboardRenderer({ workspaceId }: Props) {
         )}
 
         {model && run && model.sections.length > 0 && (
-          <RenderedDashboard model={model} run={run} planner={planner} />
+          <RenderedDashboard model={model} run={run} planner={planner}
+                            showWarnings={showWarnings} />
         )}
       </section>
     </div>
@@ -188,6 +212,15 @@ function safeInsight(analysis: Analysis | undefined, kpi: Kpi | undefined,
     `${lowest.sample_size} completed observations and should be interpreted cautiously.`;
 }
 
+/** Total C13 warnings pinned to components — drives the "N hidden" badge.
+ *  Deliberately independent of the showWarnings flag: the badge reports what
+ *  the data says, not what the UI is currently displaying. */
+function countWarnings(model: DashboardModel): number {
+  return model.sections
+    .flatMap((s) => s.components)
+    .reduce((n, c) => n + c.warning_refs.length, 0);
+}
+
 function summarizeRender(model: DashboardModel, run: ExecutionRun, planner: PlannerResult | null): {
   renderStatus: "success" | "partial" | "failed";
   unsupportedTypes: string[];
@@ -212,8 +245,9 @@ function summarizeRender(model: DashboardModel, run: ExecutionRun, planner: Plan
   };
 }
 
-function RenderedDashboard({ model, run, planner }: {
+function RenderedDashboard({ model, run, planner, showWarnings }: {
   model: DashboardModel; run: ExecutionRun; planner: PlannerResult | null;
+  showWarnings: boolean;
 }) {
   const kpiById = new Map((planner?.spec?.kpis ?? []).map((k) => [k.kpi_id, k]));
   const analysisById = new Map((planner?.spec?.analyses ?? []).map((a) => [a.analysis_id, a]));
@@ -238,7 +272,7 @@ function RenderedDashboard({ model, run, planner }: {
             <ComponentView key={c.component_id} component={c} run={run}
                           kpi={kpiById.get(c.source_ref)} analysis={analysisById.get(c.source_ref)}
                           compareAnalysis={c.compare_ref ? analysisById.get(c.compare_ref) : undefined}
-                          kpiById={kpiById} />
+                          kpiById={kpiById} showWarnings={showWarnings} />
           )),
         ])}
       </div>
@@ -246,9 +280,9 @@ function RenderedDashboard({ model, run, planner }: {
   );
 }
 
-function ComponentView({ component, run, kpi, analysis, compareAnalysis, kpiById }: {
+function ComponentView({ component, run, kpi, analysis, compareAnalysis, kpiById, showWarnings }: {
   component: DashboardComponent; run: ExecutionRun; kpi?: Kpi; analysis?: Analysis;
-  compareAnalysis?: Analysis; kpiById: Map<string, Kpi>;
+  compareAnalysis?: Analysis; kpiById: Map<string, Kpi>; showWarnings: boolean;
 }) {
   if (component.type === "kpi_card") {
     const result = run.kpi_results.find((k) => k.kpi_id === component.source_ref);
@@ -259,7 +293,8 @@ function ComponentView({ component, run, kpi, analysis, compareAnalysis, kpiById
           {kpi?.name || component.source_ref}
         </div>
         <div className="mt-1 text-3xl font-bold text-navy-900">{result.display_value}</div>
-        <WarningBanners refs={component.warning_refs} run={run} sourceRef={component.source_ref} />
+        <WarningBanners refs={component.warning_refs} run={run} sourceRef={component.source_ref}
+                        show={showWarnings} />
       </div>
     );
   }
@@ -268,7 +303,8 @@ function ComponentView({ component, run, kpi, analysis, compareAnalysis, kpiById
     const result = run.analysis_results.find((a) => a.analysis_id === component.source_ref);
     if (!result) {
       const kpiResult = run.kpi_results.find((k) => k.kpi_id === component.source_ref);
-      if (kpiResult) return <SingleValueFallback component={component} kpi={kpi} result={kpiResult} run={run} />;
+      if (kpiResult) return <SingleValueFallback component={component} kpi={kpi} result={kpiResult}
+                                                run={run} showWarnings={showWarnings} />;
       return <UnsupportedPlaceholder type="table (no computed result)" />;
     }
     const metricKpi = kpiById.get(analysis?.metric ?? "");
@@ -296,7 +332,8 @@ function ComponentView({ component, run, kpi, analysis, compareAnalysis, kpiById
             ))}
           </tbody>
         </table>
-        <WarningBanners refs={component.warning_refs} run={run} sourceRef={component.source_ref} />
+        <WarningBanners refs={component.warning_refs} run={run} sourceRef={component.source_ref}
+                        show={showWarnings} />
       </div>
     );
   }
@@ -306,7 +343,8 @@ function ComponentView({ component, run, kpi, analysis, compareAnalysis, kpiById
     if (!result) {
       if (BAR_LIKE_TYPES.has(component.type)) {
         const kpiResult = run.kpi_results.find((k) => k.kpi_id === component.source_ref);
-        if (kpiResult) return <SingleValueFallback component={component} kpi={kpi} result={kpiResult} run={run} />;
+        if (kpiResult) return <SingleValueFallback component={component} kpi={kpi} result={kpiResult}
+                                                  run={run} showWarnings={showWarnings} />;
       }
       return <UnsupportedPlaceholder type={`${component.type} (no computed result)`} />;
     }
@@ -314,7 +352,11 @@ function ComponentView({ component, run, kpi, analysis, compareAnalysis, kpiById
     const fmt: Fmt = (v) => formatValue(v, kpiFormat(metricKpi));
     const title = metricKpi?.name || analysis?.analysis_id || component.source_ref;
     const spec = ROWS_SPEC_BUILDERS[component.type](result.rows, fmt, title);
-    const insight = BAR_LIKE_TYPES.has(component.type) ? safeInsight(analysis, metricKpi, result.rows) : null;
+    // safeInsight only ever returns a small-sample caution (same n < 30 test
+    // C13 uses), so it belongs behind the same toggle — otherwise hiding the
+    // amber banners would leave an equivalent caution visible right above them.
+    const insight = showWarnings && BAR_LIKE_TYPES.has(component.type)
+      ? safeInsight(analysis, metricKpi, result.rows) : null;
     return (
       <div className="rounded-lg border border-navy-100 bg-white p-4">
         <div className="text-xs font-medium uppercase text-navy-500">
@@ -329,7 +371,8 @@ function ComponentView({ component, run, kpi, analysis, compareAnalysis, kpiById
             <Info size={12} className="mt-0.5 shrink-0" /> {insight}
           </div>
         )}
-        <WarningBanners refs={component.warning_refs} run={run} sourceRef={component.source_ref} />
+        <WarningBanners refs={component.warning_refs} run={run} sourceRef={component.source_ref}
+                        show={showWarnings} />
       </div>
     );
   }
@@ -387,8 +430,13 @@ function ComponentView({ component, run, kpi, analysis, compareAnalysis, kpiById
   return <UnsupportedPlaceholder type={component.type} />;
 }
 
-function WarningBanners({ refs, run, sourceRef }: { refs: string[]; run: ExecutionRun; sourceRef: string }) {
-  if (refs.length === 0) return null;
+function WarningBanners({ refs, run, sourceRef, show }: {
+  refs: string[]; run: ExecutionRun; sourceRef: string; show: boolean;
+}) {
+  // Hidden by default (presentation mode) — the warnings still exist on the
+  // component and are still counted into telemetry; this only decides whether
+  // they're painted. Toggle lives in the Dashboard header.
+  if (!show || refs.length === 0) return null;
   return (
     <div className="mt-2 space-y-1">
       {refs.map((w, i) => {
@@ -413,8 +461,9 @@ function WarningBanners({ refs, run, sourceRef }: { refs: string[]; run: Executi
 // One number has nothing to chart, so this renders the real value plainly
 // rather than dropping it as "unsupported" — the requested type is noted,
 // not hidden, so it's clear this isn't the chart that was asked for.
-function SingleValueFallback({ component, kpi, result, run }: {
+function SingleValueFallback({ component, kpi, result, run, showWarnings }: {
   component: DashboardComponent; kpi?: Kpi; result: KpiResult; run: ExecutionRun;
+  showWarnings: boolean;
 }) {
   return (
     <div className="rounded-lg border border-navy-100 bg-navy-50/30 p-4">
@@ -425,7 +474,8 @@ function SingleValueFallback({ component, kpi, result, run }: {
         </span>
       </div>
       <div className="mt-1 text-3xl font-bold text-navy-900">{result.display_value}</div>
-      <WarningBanners refs={component.warning_refs} run={run} sourceRef={component.source_ref} />
+      <WarningBanners refs={component.warning_refs} run={run} sourceRef={component.source_ref}
+                      show={showWarnings} />
     </div>
   );
 }

@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 import logging
-import os
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 
+from aryx.api.mcp_mount import mount_mcp
 from aryx.config import get_settings
 from aryx.logging_setup import configure_logging
 from aryx.api.actions_api import actions_router
@@ -38,8 +38,9 @@ from aryx.api.intent_api import intent_router
 from aryx.api.jobs_api import jobs_router
 from aryx.api.lab_api import lab_router
 from aryx.api.mcp_tokens_api import mcp_tokens_router
-from aryx.api.observability_api import observability_router
 from aryx.api.ontology_api import ontology_router
+from aryx.api.pipeline_derive_api import pipeline_derive_router
+from aryx.api.pipeline_link_api import pipeline_link_router
 from aryx.api.profile_api import profile_router
 from aryx.api.semantic_api import semantic_router
 from aryx.api.ontology_assist_api import ontology_assist_router
@@ -53,54 +54,9 @@ configure_logging(get_settings().log_level)
 logger = logging.getLogger(__name__)
 
 
-def _bearer_ok(request) -> bool:
-    """Verify Authorization: Bearer <token>. Allow-all if no tokens issued."""
-    auth = (request.headers.get("authorization") or "").strip()
-    token = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
-    if not token:
-        return os.environ.get("ARYX_MCP_AUTH_OPTIONAL", "1") == "1"
-    try:
-        from aryx.config import get_settings
-        from aryx.store.mcp_token_store import McpTokenStore
-        store = McpTokenStore(get_settings().rdb_dsn)
-        tokens = store.list_()
-        if not any(not t.get("revoked_at") for t in tokens):
-            return True
-        return store.verify(token)
-    except Exception as exc:  # noqa: BLE001
-        logger.error("mcp auth check failed — failing closed: %s", exc)
-        return False
-
-
-def _mount_mcp(app: FastAPI) -> None:
-    """Mount the MCP SSE transport at /mcp with bearer-token auth."""
-    try:
-        from mcp.server.sse import SseServerTransport
-        from starlette.routing import Mount, Route
-
-        from aryx.mcp.server import server
-
-        sse = SseServerTransport("/mcp/messages/")
-
-        async def handle_sse(request):
-            if not _bearer_ok(request):
-                raise HTTPException(401, "missing or invalid bearer token")
-            async with sse.connect_sse(
-                request.scope, request.receive, request._send,
-            ) as streams:
-                await server.run(streams[0], streams[1],
-                                 server.create_initialization_options())
-
-        app.router.routes.append(Route("/mcp", endpoint=handle_sse))
-        app.router.routes.append(Mount("/mcp/messages/",
-                                       app=sse.handle_post_message))
-        logger.info("MCP mounted at /mcp")
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("MCP mount failed: %s", exc)
-
-
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
+    """Close the shared connection pool on shutdown; nothing needed on startup."""
     yield
     from aryx.store.pool import close_all
     close_all()
@@ -139,8 +95,9 @@ def create_app() -> FastAPI:
     app.include_router(dashboard_model_router())
     app.include_router(render_telemetry_router())
     app.include_router(relationship_type_router())
+    app.include_router(pipeline_link_router())
+    app.include_router(pipeline_derive_router())
     app.include_router(ontology_assist_router())
-    app.include_router(observability_router())
     app.include_router(ontology_router())
     app.include_router(axioms_router())
     app.include_router(shapes_router())
@@ -150,7 +107,7 @@ def create_app() -> FastAPI:
     app.include_router(mcp_tokens_router())
     app.include_router(adjudication_router())
     app.include_router(actions_router())
-    _mount_mcp(app)
+    mount_mcp(app)
     return app
 
 

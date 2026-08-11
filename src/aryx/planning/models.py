@@ -28,6 +28,13 @@ class ApprovedColumn(BaseModel):
     name: str
     type: str
     sample_values: list[str] = Field(default_factory=list)
+    # `cardinality`/`role` come straight from C03's ColumnProfile
+    # (unique_count / candidate_role) — they let a chart-drafting LLM (and
+    # grounding's chart-fitness check) tell a low-cardinality dimension from
+    # a high-cardinality one, and a time column from a plain dimension,
+    # instead of guessing purely from name + a few sample values.
+    cardinality: int = 0
+    role: str = ""
 
 
 class DatasetColumns(BaseModel):
