@@ -1,14 +1,15 @@
 # Feature Matrix
 
-Comprehensive list of Aryx capabilities as of the V2 release (June 2026).
+Comprehensive list of **Aryx Lite** capabilities as shipped in this repository
+(**1.6.0**). Enterprise agentic features live on a **separate commercial fork**.
 
 ## Editions
 
 | Edition | Version | Notes | Component |
 |---------|---------|-------|-----------|
-| Lite | v1 | Core ingest → resolve → graph → Ask | `edition.py`, `ARYX_EDITION` |
-| Enterprise | v2 | Web UI, Accuracy Lab, Data Explorer, ports & adapters | `edition.py`, `ARYX_EDITION` |
-| Aryx-o | v2.1 | Oracle-native adapter set | `edition.py`, `ARYX_EDITION` |
+| Lite (this repo) | **1.6.x** | Core ingest → resolve → graph → Ask; UI polish | `edition.py`, `ARYX_EDITION` |
+| Enterprise | commercial fork | Agentic ontology control plane, scale governance | Separate EE codebase |
+| Aryx-o | v2.1+ | Oracle-native adapter set on Enterprise engine | EE + adapters |
 
 See [EDITIONS.md](EDITIONS.md) for the full edition matrix.
 
@@ -21,7 +22,7 @@ See [EDITIONS.md](EDITIONS.md) for the full edition matrix.
 | REST API connector | Done | `connectors/rest_api.py` |
 | File upload (CSV, JSON, PDF, DOCX, PPTX, images) | Done | `connectors/{csv_source,json_source,pdf,docx,pptx,image}.py` |
 | AI auto-discovery (schema → entity types) | Done | `pipeline/orchestrate.py` |
-| Context-driven discovery (user provides domain context) | Done | UI Ingest tab |
+| Context-driven discovery (user provides domain context) | Done | Brief + setup wizard (`/start`) |
 | Streaming one-record-at-a-time pipeline | Done | `pipeline/spine.py` |
 | Semantic field tagging (Ollama) | Done | `pipeline/orchestrate.py` |
 
@@ -68,16 +69,22 @@ See [EDITIONS.md](EDITIONS.md) for the full edition matrix.
 | Business rules engine | Done | `reasoning/engine.py` |
 | OWL axiom management | Done | `api/axioms_api.py` |
 
-## Web UI (V2)
+## Web UI (Lite)
 
 Next.js application (`apps/web/`, isolated from the Python service).
 
 | Feature | Status | Component |
 |---------|--------|-----------|
-| Ask surface (grounded NL Q&A) | Done | `apps/web/app/page.tsx` (`/`) |
+| Home (workspaces, model gate, delete non-Default) | Done | `apps/web/app/page.tsx` (`/`) |
+| Brief (hand-edit + optional AI draft) | Done | `apps/web/app/brief/`, `BriefBuilder.tsx` |
+| Setup wizard | Done | `apps/web/app/start/` (`/start`) |
+| Ask surface (grounded NL Q&A) | Done | `apps/web/app/ask/` (`/ask`) |
 | Model surface (ontology view/edit) | Done | `apps/web/app/model/` (`/model`) |
-| Data surface (Data Explorer) | Done | `apps/web/app/data/` (`/data`) |
+| Data surface (Tree / Table / Graph) | Done | `apps/web/app/data/` (`/data`) |
+| Correct data coach (propose → Apply) | Done | `CorrectionChat.tsx` |
 | Lab surface (Accuracy Lab) | Done | `apps/web/app/lab/` (`/lab`) |
+| Observe (jobs / system status) | Done | `apps/web/app/observe/` |
+| Settings (LLM provider, Ollama list, samples) | Done | `apps/web/app/settings/`, `LlmSettings.tsx` |
 | Onboard wizard | Done | `apps/web/app/start/` (`/start`) |
 | Settings — LLM provider / keys | Done | `apps/web/app/settings` |
 

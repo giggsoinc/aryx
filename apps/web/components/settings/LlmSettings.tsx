@@ -5,50 +5,16 @@ import { Loader2, Save, KeyRound } from "lucide-react";
 import { api } from "@/lib/api";
 import type { LlmConfig } from "@/lib/types";
 import { cn } from "@/lib/cn";
-
-/** Provider presets — same wire contract as the retired Streamlit Settings. */
-const PROVIDERS: {
-  id: string;
-  label: string;
-  endpoint: string;
-  hint: string;
-}[] = [
-  {
-    id: "ollama",
-    label: "Local (Ollama)",
-    endpoint: "http://ollama:11434",
-    hint: "No API key. Use host.docker.internal or localhost if Ollama runs on the host.",
-  },
-  {
-    id: "anthropic",
-    label: "Claude (Anthropic)",
-    endpoint: "",
-    hint: "Uses the Anthropic SDK. Model ids like claude-sonnet-4-20250514.",
-  },
-  {
-    id: "openai",
-    label: "OpenAI / compatible",
-    endpoint: "https://api.openai.com/v1",
-    hint: "Any OpenAI-compatible /chat/completions base URL.",
-  },
-  {
-    id: "google",
-    label: "Gemini (OpenAI-compatible)",
-    endpoint:
-      "https://generativelanguage.googleapis.com/v1beta/openai",
-    hint: "Google AI Studio key; Gemini model ids via OpenAI-compat path.",
-  },
-  {
-    id: "xai",
-    label: "Grok (xAI)",
-    endpoint: "https://api.x.ai/v1",
-    hint: "xAI API key; model ids like grok-3.",
-  },
-];
+import {
+  SETTINGS_PROVIDER_OPTIONS,
+  defaultSampleFor,
+  samplesFor,
+} from "@/lib/llmPresets";
 
 /**
- * Model provider settings — talks only to FastAPI GET/POST llm config.
+ * Model provider settings — FastAPI GET/POST llm config.
  * Keys stay in API process memory (not written to disk/git).
+ * Ollama: live installed-model dropdowns; cloud: sample models + Custom.
  */
 export function LlmSettings() {
   const [cfg, setCfg] = useState<LlmConfig | null>(null);
@@ -61,33 +27,45 @@ export function LlmSettings() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
+  const [customMenial, setCustomMenial] = useState(false);
+  const [customAnswer, setCustomAnswer] = useState(false);
 
-  // Installed local Ollama models → dropdowns instead of free-text.
   const [localModels, setLocalModels] = useState<string[]>([]);
   const [modelsErr, setModelsErr] = useState<string | null>(null);
   const [modelsLoading, setModelsLoading] = useState(false);
+
   const fetchModels = useCallback(() => {
     setModelsLoading(true); setModelsErr(null);
     api.listLlmModels()
       .then((r) => {
         setLocalModels(r.models);
         if (!r.ok || r.models.length === 0) {
-          setModelsErr(r.error || "no local models found — is Ollama running?");
+          setModelsErr(r.error || "No local models found — is Ollama running?");
         }
       })
       .catch((e) => setModelsErr(e instanceof Error ? e.message : "Ollama unreachable"))
       .finally(() => setModelsLoading(false));
   }, []);
+
   useEffect(() => { fetchModels(); }, [fetchModels]);
   useEffect(() => { if (provider === "ollama") fetchModels(); }, [provider, fetchModels]);
-  // Never submit a leftover cloud model name as an Ollama model.
+
   useEffect(() => {
     if (provider === "ollama" && localModels.length > 0) {
       if (!localModels.includes(menial)) setMenial(localModels[0]);
       if (!localModels.includes(answer)) setAnswer(localModels[0]);
+      setCustomMenial(false);
+      setCustomAnswer(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider, localModels]);
+
+  // Poll while Ollama list is empty (model pull in progress).
+  useEffect(() => {
+    if (provider !== "ollama" || localModels.length > 0) return;
+    const t = setInterval(fetchModels, 10000);
+    return () => clearInterval(t);
+  }, [provider, localModels.length, fetchModels]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -99,6 +77,8 @@ export function LlmSettings() {
       setMenial(c.menial_model || "");
       setAnswer(c.answer_model || "");
       setEndpoint(c.endpoint || "");
+      setCustomMenial(false);
+      setCustomAnswer(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -106,17 +86,27 @@ export function LlmSettings() {
     }
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   const onProviderChange = (id: string) => {
     setProvider(id);
-    const preset = PROVIDERS.find((p) => p.id === id);
-    if (preset && preset.endpoint !== undefined) {
-      setEndpoint(preset.endpoint);
-    }
+    const preset = SETTINGS_PROVIDER_OPTIONS.find((p) => p.id === id);
+    if (preset?.endpoint !== undefined) setEndpoint(preset.endpoint);
     setOk(null);
+    setCustomMenial(false);
+    setCustomAnswer(false);
+    if (id === "ollama") {
+      if (localModels[0]) {
+        setMenial(localModels[0]);
+        setAnswer(localModels[0]);
+      }
+    } else {
+      const sample = defaultSampleFor(id);
+      if (sample) {
+        setMenial(sample);
+        setAnswer(sample);
+      }
+    }
   };
 
   const save = async () => {
@@ -153,7 +143,68 @@ export function LlmSettings() {
     );
   }
 
-  const preset = PROVIDERS.find((p) => p.id === provider);
+  const preset = SETTINGS_PROVIDER_OPTIONS.find((p) => p.id === provider);
+  const cloudSamples = samplesFor(provider);
+
+  const modelField = (
+    label: string,
+    value: string,
+    setValue: (v: string) => void,
+    custom: boolean,
+    setCustom: (v: boolean) => void,
+    placeholder: string,
+  ) => (
+    <label className="block text-sm font-medium text-navy-800">
+      {label}
+      {provider === "ollama" && modelsLoading && localModels.length === 0 ? (
+        <span className="mt-1 flex items-center gap-1.5 text-xs text-navy-500">
+          <Loader2 className="animate-spin" size={12} /> Listing installed models…
+        </span>
+      ) : provider === "ollama" && localModels.length > 0 ? (
+        <select
+          className="mt-1 w-full rounded-md border border-navy-200 bg-white px-3 py-2 font-mono text-sm"
+          value={localModels.includes(value) ? value : localModels[0]}
+          onChange={(e) => setValue(e.target.value)}
+        >
+          {localModels.map((m) => (
+            <option key={m} value={m}>{m} (installed)</option>
+          ))}
+        </select>
+      ) : provider === "ollama" ? (
+        <input
+          className="mt-1 w-full rounded-md border border-navy-200 px-3 py-2 font-mono text-sm"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={placeholder}
+        />
+      ) : custom || cloudSamples.length === 0 ? (
+        <input
+          className="mt-1 w-full rounded-md border border-navy-200 px-3 py-2 font-mono text-sm"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={placeholder}
+        />
+      ) : (
+        <select
+          className="mt-1 w-full rounded-md border border-navy-200 bg-white px-3 py-2 font-mono text-sm"
+          value={cloudSamples.includes(value) ? value : cloudSamples[0]}
+          onChange={(e) => {
+            if (e.target.value === "__custom__") {
+              setCustom(true);
+              setValue("");
+            } else {
+              setValue(e.target.value);
+            }
+          }}
+        >
+          {cloudSamples.map((m) => (
+            <option key={m} value={m}>{m}</option>
+          ))}
+          <option value="__custom__">Custom…</option>
+        </select>
+      )}
+    </label>
+  );
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-6 py-8">
@@ -169,12 +220,7 @@ export function LlmSettings() {
       </div>
 
       {cfg && (
-        <div
-          className={cn(
-            "rounded-lg border px-4 py-3 text-sm",
-            "border-navy-100 bg-white text-navy-700",
-          )}
-        >
+        <div className="rounded-lg border border-navy-100 bg-white px-4 py-3 text-sm text-navy-700">
           Active: <strong>{cfg.provider}</strong>
           {" · "}
           <code className="text-xs">{cfg.answer_model}</code>
@@ -197,74 +243,46 @@ export function LlmSettings() {
             value={provider}
             onChange={(e) => onProviderChange(e.target.value)}
           >
-            {PROVIDERS.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label}
-              </option>
+            {SETTINGS_PROVIDER_OPTIONS.map((p) => (
+              <option key={p.id} value={p.id}>{p.label}</option>
             ))}
-            {!PROVIDERS.some((p) => p.id === provider) && (
+            {!SETTINGS_PROVIDER_OPTIONS.some((p) => p.id === provider) && (
               <option value={provider}>{provider} (custom)</option>
             )}
           </select>
         </label>
-        {preset && (
+        {preset?.hint && (
           <p className="text-xs text-navy-400">{preset.hint}</p>
         )}
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm font-medium text-navy-800">
-            Fast model (extraction)
-            {provider === "ollama" && localModels.length > 0 ? (
-              <select
-                className="mt-1 w-full rounded-md border border-navy-200 bg-white px-3 py-2 font-mono text-sm"
-                value={localModels.includes(menial) ? menial : localModels[0]}
-                onChange={(e) => setMenial(e.target.value)}
-              >
-                {localModels.map((m) => (
-                  <option key={m} value={m}>{m} (installed)</option>
-                ))}
-              </select>
-            ) : (
-            <input
-              className="mt-1 w-full rounded-md border border-navy-200 px-3 py-2 font-mono text-sm"
-              value={menial}
-              onChange={(e) => setMenial(e.target.value)}
-              placeholder="e.g. qwen3.5:0.8b"
-            />
-            )}
-          </label>
-          <label className="block text-sm font-medium text-navy-800">
-            Answer model
-            {provider === "ollama" && localModels.length > 0 ? (
-              <select
-                className="mt-1 w-full rounded-md border border-navy-200 bg-white px-3 py-2 font-mono text-sm"
-                value={localModels.includes(answer) ? answer : localModels[0]}
-                onChange={(e) => setAnswer(e.target.value)}
-              >
-                {localModels.map((m) => (
-                  <option key={m} value={m}>{m} (installed)</option>
-                ))}
-              </select>
-            ) : (
-            <input
-              className="mt-1 w-full rounded-md border border-navy-200 px-3 py-2 font-mono text-sm"
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              placeholder="e.g. grok-3 / gemini-2.0-flash"
-            />
-            )}
-          </label>
+          {modelField(
+            "Fast model (extraction)",
+            menial, setMenial, customMenial, setCustomMenial,
+            "e.g. qwen3.5:0.8b",
+          )}
+          {modelField(
+            "Answer model",
+            answer, setAnswer, customAnswer, setCustomAnswer,
+            "e.g. grok-3 / gemini-2.0-flash",
+          )}
         </div>
+
         {provider === "ollama" && (modelsErr || modelsLoading) && (
-          <div className="flex items-center gap-2 text-xs text-amber-700">
-            {modelsLoading ? "listing local models…" : `⚠ ${modelsErr}`}
-            {!modelsLoading && (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-amber-700">
+            {modelsLoading && localModels.length === 0
+              ? "Listing local models…"
+              : modelsErr ? `⚠ ${modelsErr}` : null}
+            {!modelsLoading && modelsErr && (
               <button
                 type="button" onClick={fetchModels}
                 className="rounded border border-amber-300 bg-white px-1.5 py-0.5 text-[10px] font-semibold hover:bg-amber-50"
               >
                 Retry
               </button>
+            )}
+            {modelsErr && !modelsLoading && (
+              <span className="text-navy-500">You can still type a custom model name above.</span>
             )}
           </div>
         )}
@@ -305,11 +323,7 @@ export function LlmSettings() {
               "text-sm font-medium text-white hover:bg-navy-800 disabled:opacity-60",
             )}
           >
-            {saving ? (
-              <Loader2 className="animate-spin" size={14} />
-            ) : (
-              <Save size={14} />
-            )}
+            {saving ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
             Save
           </button>
           <button
@@ -322,14 +336,10 @@ export function LlmSettings() {
         </div>
 
         {error && (
-          <p className="text-sm text-red-600" role="alert">
-            {error}
-          </p>
+          <p className="text-sm text-red-600" role="alert">{error}</p>
         )}
         {ok && (
-          <p className="text-sm text-emerald-700" role="status">
-            {ok}
-          </p>
+          <p className="text-sm text-emerald-700" role="status">{ok}</p>
         )}
       </div>
 

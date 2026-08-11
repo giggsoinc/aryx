@@ -55,3 +55,6 @@ Aryx_OSS_Updates_08Aug/
 
 # Local session handover notes — never shipped
 HANDOVER.md
+
+# AI Auditor workspace — never commit (observe/document only)
+Audit-Postmortem/

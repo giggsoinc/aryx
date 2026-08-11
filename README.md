@@ -25,11 +25,12 @@
 | | |
 |---|---|
 | **Edition in this repo** | **Aryx Lite** — single-team outcome mapping (laptop / small server) |
-| **Not (yet)** | Multi-tenant governed enterprise estate (that path is Enterprise / Aryx-o) |
+| **Enterprise** | Separate commercial fork — agentic ontology planning, EDA control plane, full observability (not in this repo) |
+| **Not in Lite** | Multi-tenant governance, Stage-2 multi-agent ontology fleet, A2A mesh |
 | **SoT / graph** | PostgreSQL truth · FalkorDB rebuildable projection |
 | **UI** | Next.js only (`apps/web`) — no Streamlit |
 | **Images (public)** | [`giggsodocker/aryx-lite`](https://hub.docker.com/r/giggsodocker/aryx-lite) (API · worker · MCP) · [`giggsodocker/aryx-lite-web`](https://hub.docker.com/r/giggsodocker/aryx-lite-web) (Next.js UI) |
-| **Tags** | `1.5.3` · `v1.5.3` · git short SHA (same tags on both images — always an explicit version, no `latest`) |
+| **Tags** | `1.6.0` · `v1.6.0` · git short SHA (same tags on both images — always an explicit version, no `latest`) |
 | **License** | BSL 1.1 → GPL-3.0-or-later on 2029-07-15 · [details](docs/LICENSING.md) |
 | **Docker Hub overview** | [docs/DOCKERHUB.md](docs/DOCKERHUB.md) · [aryx-lite](https://hub.docker.com/r/giggsodocker/aryx-lite) · [aryx-lite-web](https://hub.docker.com/r/giggsodocker/aryx-lite-web) |
 
@@ -39,11 +40,11 @@
 
 | Step | What happens |
 |------|----------------|
-| **1. Brief** | You describe what you want to figure out in plain English — five grounding questions (domain, aim, objectives, scope, roles) steer every extraction |
-| **2. Ingest** | Connect a database or upload files (CSV, PDF, DOCX, …) |
+| **1. Brief** | Six grounding questions — type them yourself or optionally draft with AI (docs are for drafting only, not stored as ingest) |
+| **2. Ingest** | Connect a database or upload files (CSV, PDF, DOCX, …) via guided setup |
 | **3. Resolve** | Duplicates merge into golden entities; weak pairs wait for human review |
 | **4. Link** | Cross-file relationships are discovered and projected into a graph |
-| **5. Explore** | Ask, Model canvas, Data explorer (tree / table / **entity graph**), Accuracy Lab |
+| **5. Explore** | Home workspaces, Ask, Model, Data (tree / table / graph + **Correct data**), Lab, Observe |
 
 Built for a **single team’s** outcome mapping on a laptop or small server — not yet a multi-tenant governed enterprise estate.
 
@@ -57,7 +58,7 @@ Built for a **single team’s** outcome mapping on a laptop or small server — 
 
 | Image | Role | Tags |
 |-------|------|------|
-| [`giggsodocker/aryx-lite`](https://hub.docker.com/r/giggsodocker/aryx-lite) | API · worker · MCP | `1.5.3` · `v1.5.3` · `<sha>` |
+| [`giggsodocker/aryx-lite`](https://hub.docker.com/r/giggsodocker/aryx-lite) | API · worker · MCP | `1.6.0` · `v1.6.0` · `<sha>` |
 | [`giggsodocker/aryx-lite-web`](https://hub.docker.com/r/giggsodocker/aryx-lite-web) | Next.js UI | same tags |
 
 ```bash
@@ -93,42 +94,45 @@ curl -s http://localhost:8088/health
 ### Pull pinned images
 
 ```bash
-docker pull giggsodocker/aryx-lite:1.5.3
-docker pull giggsodocker/aryx-lite-web:1.5.3
-# or v1.5.3 / git short SHA
+docker pull giggsodocker/aryx-lite:1.6.0
+docker pull giggsodocker/aryx-lite-web:1.6.0
+# or v1.6.0 / git short SHA
 ```
 
 ---
 
-## Product surfaces (Next.js)
+## Product surfaces (Next.js) — Lite 1.6.0
 
 | Route | Purpose |
 |-------|---------|
-| `/` | **Home** — workspace list with vitals; blank slate lands in the wizard |
-| `/ask` | **Ask** — grounded Q&A with citations |
-| `/start` | Guided onboard wizard — step 1 is the cruise-control Brief |
-| `/brief` | **Brief** — revisit/edit the six grounding questions; doc upload + AI draft |
+| `/` | **Home** — workspaces, model gate, create / open / reset / delete (non-Default) |
+| `/brief` | **Brief** — six questions by hand; optional AI draft (docs not stored as ingest) |
+| `/start` | Guided setup wizard (empty workspaces land here) |
+| `/data` | Tree / Table / Graph explorer + **Correct data** coach |
 | `/model` | Ontology canvas (types, relationships, survivorship, axioms) |
-| `/data` | Transparency explorer — Tree, Table, **interactive entity Graph** |
 | `/lab` | Accuracy Lab — ontology ON vs OFF + reasoner check |
-| `/settings` | **LLM provider** — Ollama, Anthropic, OpenAI-compatible, Gemini, Grok (xAI) |
+| `/ask` | **Ask** — grounded Q&A with citations |
+| `/observe` | Jobs, workspace vitals, storage truth |
+| `/settings` | **LLM provider** — Ollama list / cloud samples; keys in API memory only |
 
 There is **no Streamlit UI**. The product UI is Next.js only.
+
+**Enterprise** (separate commercial fork) adds agentic EDA / Stage-2 ontology planning — not part of this Lite tree. See [EDITIONS.md](docs/EDITIONS.md).
 
 ---
 
 ## Highlights
 
-- **Brief-grounded extraction** — six questions (domain · aim · objectives · scope · roles · proof questions) steer the ontology; AI-drafted from your documents (PDF/DOC/PPT) or one sentence
-- **Multi-source ingest** — Postgres, MySQL, Oracle; files (CSV/JSON/PDF/DOCX/PPTX/images)
-- **Discovery-driven ontology** — propose types, human approval gate, RDF/OWL import-export
+- **Brief-grounded extraction** — six questions (domain · aim · objectives · scope · roles · proof questions); type them yourself or optionally AI-draft
+- **Multi-source ingest** — Postgres, MySQL, Oracle; files (CSV/JSON/PDF/DOCX/PPTX/images) via setup wizard
+- **Discovery-driven ontology** — propose types, human approval on Model, RDF/OWL import-export
 - **Entity resolution** — multi-key blocking, four-band scoring, HITL review, survivorship policies
 - **Cross-file relationships** — deterministic FK discovery after multi-file upload
-- **Entity graph** — pan/zoom, search, type filters, click-to-explore neighbors + detail panel
-- **Workspace isolation** — LIST-partitioned Postgres; one graph per workspace
-- **Local or cloud LLMs** — default Ollama; swap live under Settings (no restart)
+- **Entity graph** — pan/zoom, search, type filters, click-to-explore + Correct data selection
+- **Workspace isolation** — LIST-partitioned Postgres; one graph per workspace; safe delete for non-Default
+- **Local or cloud LLMs** — default Ollama (installed models listed); samples for cloud providers under Settings/Home
 - **MCP** — tools over SSE for external agents
-- **Ports & adapters** — relational / graph / vector / LLM / reasoner / compute swappable for Enterprise / Aryx-o
+- **Ports & adapters** — seam for Enterprise / Aryx-o substrate swaps
 
 ---
 

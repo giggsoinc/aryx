@@ -31,8 +31,8 @@ export default function BriefPage() {
             <div>
               <h1 className="font-display text-2xl font-bold text-navy-900">Brief</h1>
               <p className="text-[13px] text-subtle">
-                Six questions that ground every extraction. Skip any — Aryx
-                just ingests more generically.
+                Six questions that ground every extraction. Answer by hand, or
+                optionally draft with AI. Skip any — Aryx ingests more generically.
               </p>
             </div>
           </div>

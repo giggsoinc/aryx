@@ -340,6 +340,13 @@ export const api = {
       { method: "POST", body: "{}" },
     ),
 
+  /** Permanently delete a workspace (Default / id=1 is rejected by the API). */
+  deleteWorkspace: (workspaceId: number) =>
+    fetchJSON<{ status: string; workspace_id: number }>(
+      `/admin/workspaces/${workspaceId}`,
+      { method: "DELETE" },
+    ),
+
   /** Installed local Ollama models for the Home picker. */
   listLlmModels: () =>
     fetchJSON<{ ok: boolean; models: string[]; error?: string }>("/llm/models"),

@@ -3,6 +3,36 @@
 All notable changes to **Aryx Lite** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.6.0] — 2026-08-11
+
+### Added
+
+- **Home — delete workspace** for non-Default workspaces (id ≠ 1), with
+  irreversible confirm (checkbox + type `DELETE`). Default remains protected
+  server-side. (`app/page.tsx`, `api.deleteWorkspace`)
+- **Home ModelGate — provider sample models** for Anthropic / Gemini /
+  OpenAI / Grok (select + Custom…). (`lib/llmPresets.ts`, `app/page.tsx`)
+- **Correct data coach** (was Fix by chat): intent chips, standing rules
+  tab, selection from Table lens, empty-graph coach, real-data examples.
+  (`CorrectionChat.tsx`, `TableLens.tsx`)
+
+### Changed
+
+- **Brief** — hand-authored six questions are primary; AI draft is optional
+  and collapsed when a brief already has content. File chips state
+  session-only / not stored. Save busy state always clears; draft overwrite
+  confirms when fields are non-empty. (`BriefBuilder.tsx`)
+- **Ollama ModelGate + Settings** — clearer empty-list error + Retry + custom
+  name; polls while list is empty; cloud providers get sample model dropdowns
+  + Custom (shared `lib/llmPresets.ts`). Save errors surface in the UI.
+- **Graph lens** — selecting a node notifies Correct data coach (same as Table).
+
+### Documentation
+
+- USER_GUIDE nav and Brief / Correct data / workspaces; EDITIONS clarifies
+  Lite polish vs Enterprise fork agentic plane; pack handoff under
+  `Audit-Postmortem/packs/`.
+
 ## [1.5.3] — 2026-08-10
 
 ### Fixed

@@ -100,7 +100,12 @@ export function TableLens({ types }: { types: DataTypeCount[] }) {
             </thead>
             <tbody>
               {rows.map((e) => (
-                <tr key={e.id} onClick={() => setSelected(e)}
+                <tr key={e.id} onClick={() => {
+                    setSelected(e);
+                    window.dispatchEvent(new CustomEvent("aryx:select-entity", {
+                      detail: { id: e.id, name: e.name, type: e.type || active },
+                    }));
+                  }}
                   className={"cursor-pointer border-t border-navy-50 hover:bg-navy-50/40 " +
                     (selected?.id === e.id ? "bg-navy-50" : "")}>
                   <td className="px-3 py-2 font-medium text-navy-900">{e.name}</td>
