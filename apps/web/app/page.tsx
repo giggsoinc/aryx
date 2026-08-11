@@ -406,13 +406,19 @@ function ModelGate() {
   const save = async () => {
     setBusy(true); setSaveErr(null);
     try {
+      // When switching to Ollama, force a local base URL so list/chat
+      // never keep a leftover Google/OpenAI endpoint (HTTP 404 on /api/tags).
       const next = await api.setLlmConfig({
         provider, answer_model: model, menial_model: model,
+        ...(provider === "ollama"
+          ? { endpoint: "http://ollama:11434" }
+          : {}),
         ...(apiKey ? { api_key: apiKey } : {}),
       });
       setCfg(next);
       setApiKey("");
       setExpanded(false);
+      if (provider === "ollama") fetchModels();
       load();
     } catch (e) {
       setSaveErr(e instanceof Error ? e.message : "Could not save model config");
@@ -455,18 +461,29 @@ function ModelGate() {
         <Cpu size={15} className="text-steel-600" />
         <b>Choose your language model first</b> — everything Aryx extracts runs through it.
       </div>
-      <div className="mb-3 text-[11px]">
+      <div className="mb-3 flex flex-col gap-1.5 text-[11px]">
         <span className={cn(
-          "rounded-full px-2 py-0.5 font-medium",
+          "inline-flex w-fit rounded-full px-2 py-0.5 font-medium",
           cfg.confirmed ? "bg-navy-50 text-navy-600" : "bg-amber-50 text-amber-700",
         )}>
           {cfg.confirmed
-            ? `current: ${cfg.provider} · ${cfg.answer_model} (set by you)`
-            : "source: environment file — not yet confirmed by you"}
+            ? `Saved choice: ${cfg.provider} · ${cfg.answer_model}`
+            : "Source: environment file — not yet confirmed by you"}
         </span>
         {health && (
-          <span className={cn("ml-2", health.ok ? "text-emerald-700" : "text-amber-700")}>
-            {cfg.provider} · {cfg.answer_model} is {health.ok ? "ready" : health.detail}
+          <span className={cn(
+            "inline-flex w-fit",
+            health.ok ? "text-emerald-700" : "text-amber-700",
+          )}>
+            Active engine: <b className="mx-1">{cfg.provider}</b>
+            · <b className="mx-1">{cfg.answer_model}</b>
+            {health.ok ? " is ready" : ` — ${health.detail}`}
+          </span>
+        )}
+        {provider === "ollama" && cfg.provider !== "ollama" && (
+          <span className="text-subtle">
+            Picker is set to Ollama — click <b>Use this model</b> to switch
+            the engine (and clear any cloud endpoint).
           </span>
         )}
       </div>

@@ -32,7 +32,9 @@ def _llm_probe() -> dict:
     """
     cfg = llm_runtime.status()
     provider = str(cfg["provider"])
-    endpoint = str(cfg["endpoint"]).rstrip("/")
+    endpoint = (llm_runtime.ollama_base_url()
+                if provider == "ollama"
+                else str(cfg["endpoint"]).rstrip("/"))
     model = str(cfg["answer_model"])
     if provider != "ollama":
         return {"ok": True, "provider": provider, "model": model,
@@ -189,26 +191,43 @@ def ask_router() -> APIRouter:
     def llm_models() -> dict:
         """Installed local Ollama models — feeds the Home model picker.
 
-        ALWAYS targets the local Ollama endpoint, regardless of which
-        provider is currently active — switching Gemini→Ollama in the
-        picker must list local models even while Gemini is configured.
+        ALWAYS targets a local Ollama base URL — never the active cloud
+        provider endpoint. A stale Google/OpenAI endpoint left in config
+        after switching to Ollama used to produce HTTP 404 on /api/tags.
         """
         import os
+        import urllib.error
         import urllib.request
-        cfg = llm_runtime.status()
-        endpoint = (str(cfg["endpoint"]).rstrip("/")
-                    if str(cfg["provider"]) == "ollama"
-                    else os.environ.get("ARYX_LLM_BASE_URL",
-                                        "http://ollama:11434").rstrip("/"))
+        endpoint = llm_runtime.ollama_base_url()
+        url = f"{endpoint}/api/tags"
         try:
-            with urllib.request.urlopen(f"{endpoint}/api/tags",
-                                        timeout=3) as resp:
+            with urllib.request.urlopen(url, timeout=5) as resp:
                 tags = json.load(resp)
             models = sorted(str(m.get("name", ""))
                             for m in tags.get("models", []))
-            return {"ok": True, "models": [m for m in models if m]}
+            return {"ok": True, "models": [m for m in models if m],
+                    "endpoint": endpoint}
+        except urllib.error.HTTPError as exc:
+            return {"ok": False, "models": [], "endpoint": endpoint,
+                    "error": f"Ollama {url} returned HTTP {exc.code}. "
+                             "Is Ollama running and reachable from the API?"}
         except Exception as exc:  # noqa: BLE001
-            return {"ok": False, "models": [], "error": str(exc)}
+            return {"ok": False, "models": [], "endpoint": endpoint,
+                    "error": f"Cannot reach Ollama at {url}: {exc}"}
+
+    @router.get("/version")
+    def version_info() -> dict:
+        """Product / software version for Settings and operators."""
+        import platform
+        import sys
+        from aryx import __version__
+        return {
+            "product": "Aryx Lite",
+            "version": __version__,
+            "api": "1.6.1",
+            "python": sys.version.split()[0],
+            "platform": platform.platform(),
+        }
 
     @router.post("/admin/llm/config")
     def set_llm_config(req: LlmConfigRequest) -> dict:

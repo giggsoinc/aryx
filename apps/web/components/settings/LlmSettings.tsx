@@ -29,6 +29,10 @@ export function LlmSettings() {
   const [ok, setOk] = useState<string | null>(null);
   const [customMenial, setCustomMenial] = useState(false);
   const [customAnswer, setCustomAnswer] = useState(false);
+  const [version, setVersion] = useState<{
+    product: string; version: string; api: string;
+    python: string; platform: string;
+  } | null>(null);
 
   const [localModels, setLocalModels] = useState<string[]>([]);
   const [modelsErr, setModelsErr] = useState<string | null>(null);
@@ -87,6 +91,9 @@ export function LlmSettings() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    api.getVersion().then(setVersion).catch(() => setVersion(null));
+  }, []);
 
   const onProviderChange = (id: string) => {
     setProvider(id);
@@ -96,10 +103,12 @@ export function LlmSettings() {
     setCustomMenial(false);
     setCustomAnswer(false);
     if (id === "ollama") {
+      setEndpoint(preset?.endpoint || "http://ollama:11434");
       if (localModels[0]) {
         setMenial(localModels[0]);
         setAnswer(localModels[0]);
       }
+      fetchModels();
     } else {
       const sample = defaultSampleFor(id);
       if (sample) {
@@ -118,7 +127,10 @@ export function LlmSettings() {
         provider,
         menial_model: menial,
         answer_model: answer,
-        endpoint,
+        // Always send endpoint — Ollama switch must overwrite a cloud URL.
+        endpoint: provider === "ollama"
+          ? (endpoint || "http://ollama:11434")
+          : endpoint,
       };
       if (apiKey.trim()) body.api_key = apiKey.trim();
       const next = await api.setLlmConfig(body);
@@ -349,6 +361,30 @@ export function LlmSettings() {
         <code>ARYX_LLM_MENIAL_MODEL</code>, <code>ARYX_LLM_REASON_MODEL</code>,{" "}
         <code>ARYX_LLM_API_KEY</code>.
       </p>
+
+      <div className="rounded-xl border border-navy-100 bg-navy-50/60 px-4 py-3 text-[12px] text-navy-700">
+        <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-navy-500">
+          Software
+        </div>
+        {version ? (
+          <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 font-mono text-[11px]">
+            <dt className="text-navy-500">Product</dt>
+            <dd>{version.product}</dd>
+            <dt className="text-navy-500">Version</dt>
+            <dd className="font-semibold text-navy-900">{version.version}</dd>
+            <dt className="text-navy-500">API</dt>
+            <dd>{version.api}</dd>
+            <dt className="text-navy-500">Python</dt>
+            <dd>{version.python}</dd>
+            <dt className="text-navy-500">Platform</dt>
+            <dd className="break-all">{version.platform}</dd>
+          </dl>
+        ) : (
+          <p className="mt-1 text-[11px] text-subtle">
+            Version unavailable — is the API running? Expected Aryx Lite 1.6.0+.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

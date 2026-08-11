@@ -3,6 +3,19 @@
 All notable changes to **Aryx Lite** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.6.1] — 2026-08-11
+
+### Fixed
+
+- **Ollama model list 404** after using a cloud provider: switching to Ollama
+  no longer keeps a Google/OpenAI base URL for `/api/tags`. `/llm/models` and
+  health probe always use a local Ollama base. Home **Use this model** sends
+  `endpoint=http://ollama:11434` when Ollama is selected.
+- **Home model gate copy** — status lines no longer run together
+  (`…by you` + provider); clearer “Saved choice” vs “Active engine”.
+- **Settings** always shows **Software** block (product version, Python,
+  platform) via `GET /version`.
+
 ## [1.6.0] — 2026-08-11
 
 ### Added
