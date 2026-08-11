@@ -258,7 +258,7 @@ export const api = {
   },
 
   saveBrief: (workspaceId: number, brief: Brief) =>
-    fetchJSON<{ id: number; brief: Brief }>(
+    fetchJSON<{ id: number; brief: Brief; chain_job_id: string }>(
       `/admin/workspaces/${workspaceId}/brief`,
       { method: "PATCH", body: JSON.stringify(brief) },
     ),

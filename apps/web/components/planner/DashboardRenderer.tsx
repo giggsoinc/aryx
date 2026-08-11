@@ -5,6 +5,7 @@ import {
   Loader2, MonitorPlay, AlertTriangle, Info, Ban,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/cn";
 import { PlotlyChart } from "@/components/planner/PlotlyChart";
 import {
   buildAreaSpec, buildBarSpec, buildBoxPlotSpec, buildBubbleSpec, buildCalendarHeatmapSpec,
@@ -73,11 +74,11 @@ export function DashboardRenderer({ workspaceId }: Props) {
   const [run, setRun] = useState<ExecutionRun | null>(null);
   const [planner, setPlanner] = useState<PlannerResult | null>(null);
   const [loading, setLoading] = useState(true);
-  // Presentation mode: C13's data-quality notes are hidden by default so the
-  // charts read cleanly, and revealed on demand. This is display-only —
-  // warnings are still generated, still stored, and still counted into render
-  // telemetry below regardless of what this flag says.
-  const [showWarnings, setShowWarnings] = useState(false);
+  // C13's data-quality notes are never shown in this UI — display-only
+  // suppression; warnings are still generated, still stored, and still
+  // counted into render telemetry below regardless of this constant.
+  const showWarnings = false;
+  const [chainJob, setChainJob] = useState<Awaited<ReturnType<typeof api.listJobs>>[number] | null>(null);
   const loggedFor = useRef<string | null>(null);
 
   useEffect(() => {
@@ -91,11 +92,16 @@ export function DashboardRenderer({ workspaceId }: Props) {
         api.getWorkspaceDashboardModel(workspaceId).catch(() => null),
         api.getWorkspaceExecutionRun(workspaceId).catch(() => null),
         api.getWorkspacePlannerResult(workspaceId).catch(() => null),
-      ]).then(([m, r, p]) => {
+        // While there's no dashboard yet, this is what tells the user the
+        // zero-click auto-chain (aryx.pipeline.auto_chain) is still moving
+        // instead of leaving them staring at a bare empty state.
+        api.listJobs(workspaceId).catch(() => []),
+      ]).then(([m, r, p, jobs]) => {
         if (!alive) return;
         setModel(m);
         setRun(r);
         setPlanner(p);
+        setChainJob(jobs.find((j) => j.source_system === "auto_chain") ?? null);
       }).finally(() => { if (alive) setLoading(false); });
     };
     load();
@@ -119,8 +125,6 @@ export function DashboardRenderer({ workspaceId }: Props) {
     }).catch(() => { /* telemetry is best-effort */ });
   }, [model, run, planner, workspaceId]);
 
-  const hiddenWarningCount = model ? countWarnings(model) : 0;
-
   return (
     <div className="mx-auto max-w-6xl px-6 pb-8">
       <section className="rounded-xl border border-navy-100 bg-white p-6 shadow-sm">
@@ -128,22 +132,6 @@ export function DashboardRenderer({ workspaceId }: Props) {
           <MonitorPlay size={18} className="text-navy-500" />
           <h2 className="text-lg font-semibold text-navy-900">Dashboard</h2>
           {loading && <Loader2 size={14} className="animate-spin text-navy-400" />}
-          {!loading && hiddenWarningCount > 0 && (
-            <label className="ml-auto flex cursor-pointer select-none items-center gap-1.5 text-xs text-navy-500">
-              <input
-                type="checkbox"
-                checked={showWarnings}
-                onChange={(e) => setShowWarnings(e.target.checked)}
-                className="h-3.5 w-3.5 cursor-pointer rounded border-navy-300 accent-steel-500"
-              />
-              Data-quality notes
-              {!showWarnings && (
-                <span className="rounded bg-amber-50 px-1.5 py-0.5 font-medium text-amber-700">
-                  {hiddenWarningCount} hidden
-                </span>
-              )}
-            </label>
-          )}
         </div>
         <p className="mt-1 text-sm text-navy-500">
           The final interface — renders the composed dashboard model (C14)
@@ -151,9 +139,26 @@ export function DashboardRenderer({ workspaceId }: Props) {
           here; a value is wrong upstream, or it's right.
         </p>
 
-        {!loading && !model && (
+        {!loading && !model && chainJob && chainJob.status !== "complete" && (
+          <div className={cn(
+            "mt-6 rounded-lg border border-dashed px-4 py-10 text-center text-sm",
+            chainJob.status === "blocked" ? "border-amber-200 bg-amber-50/30 text-amber-700"
+              : chainJob.status === "failed" ? "border-rose-200 bg-rose-50/30 text-rose-700"
+              : "border-navy-200 text-navy-500",
+          )}>
+            {chainJob.status === "blocked"
+              ? <>Auto-chain paused before reaching the dashboard — {chainJob.error || "needs a decision"}.</>
+              : chainJob.status === "failed"
+              ? <>Auto-chain failed before reaching the dashboard — {chainJob.error || "unknown error"}.</>
+              : <>Building your dashboard — {chainJob.stage || "starting"}
+                  {chainJob.pct != null ? ` (${chainJob.pct}%)` : ""}. This updates on its own.</>}
+          </div>
+        )}
+
+        {!loading && !model && (!chainJob || chainJob.status === "complete") && (
           <div className="mt-6 rounded-lg border border-dashed border-navy-200 px-4 py-10 text-center text-sm text-navy-400">
-            Nothing to render yet — compose a dashboard above first.
+            Nothing to render yet — compose a dashboard above, or save a Brief
+            to start the pipeline automatically.
           </div>
         )}
 
@@ -210,15 +215,6 @@ function safeInsight(analysis: Analysis | undefined, kpi: Kpi | undefined,
   return `${lowest.group_value} has the lowest observed ${metricName.toLowerCase()} at ` +
     `${formatValue(lowest.value, kpiFormat(kpi))}, but the result is based on only ` +
     `${lowest.sample_size} completed observations and should be interpreted cautiously.`;
-}
-
-/** Total C13 warnings pinned to components — drives the "N hidden" badge.
- *  Deliberately independent of the showWarnings flag: the badge reports what
- *  the data says, not what the UI is currently displaying. */
-function countWarnings(model: DashboardModel): number {
-  return model.sections
-    .flatMap((s) => s.components)
-    .reduce((n, c) => n + c.warning_refs.length, 0);
 }
 
 function summarizeRender(model: DashboardModel, run: ExecutionRun, planner: PlannerResult | null): {
@@ -433,9 +429,9 @@ function ComponentView({ component, run, kpi, analysis, compareAnalysis, kpiById
 function WarningBanners({ refs, run, sourceRef, show }: {
   refs: string[]; run: ExecutionRun; sourceRef: string; show: boolean;
 }) {
-  // Hidden by default (presentation mode) — the warnings still exist on the
-  // component and are still counted into telemetry; this only decides whether
-  // they're painted. Toggle lives in the Dashboard header.
+  // Always hidden (show is permanently false from DashboardRenderer) — the
+  // warnings still exist on the component and are still counted into
+  // telemetry; this only decides whether they're painted, and it never is.
   if (!show || refs.length === 0) return null;
   return (
     <div className="mt-2 space-y-1">

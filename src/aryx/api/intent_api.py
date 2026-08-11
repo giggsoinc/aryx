@@ -17,8 +17,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from aryx.config import get_settings
 from aryx.intent.capture import capture_intent
 from aryx.intent.models import UserIntent, UserIntentRequest
-from aryx.pipeline.downstream import run_downstream
-from aryx.store.dataset_store import DatasetStore
+from aryx.pipeline.chain_jobs import start_chain
 from aryx.store.intent_store import IntentStore
 
 logger = logging.getLogger(__name__)
@@ -33,9 +32,10 @@ def intent_router() -> APIRouter:
                 workspace_id: int = Query(1)) -> UserIntent:
         """Validate, normalize, version, and persist a capture request.
 
-        Once intent turns valid, backfills C03-C07 for every dataset already
-        sitting in the workspace — those steps were deferred at ingest time
-        until intent existed (see aryx.pipeline.downstream).
+        Once intent turns valid, starts (or reuses) the zero-click auto-chain
+        for the workspace — C03-C07 backfill for every dataset already
+        sitting there, then on through the planner/execution/dashboard
+        stages (see aryx.pipeline.auto_chain).
         """
         result = capture_intent(request)
         dsn = get_settings().rdb_dsn
@@ -50,17 +50,8 @@ def intent_router() -> APIRouter:
             len(result.warnings), len(result.errors),
         )
         if result.validation_status == "valid":
-            dstore = DatasetStore(dsn, workspace_id)
-            try:
-                dataset_ids = sorted({v.dataset_id for v in dstore.list_versions(500)})
-            finally:
-                dstore.close()
-            if dataset_ids:
-                logger.info(
-                    "intent valid ws=%s; backfilling C03-C07 for %d dataset(s)",
-                    workspace_id, len(dataset_ids),
-                )
-                background_tasks.add_task(run_downstream, dsn, workspace_id, dataset_ids)
+            job_id = start_chain(dsn, workspace_id, background_tasks)
+            logger.info("intent valid ws=%s; auto-chain job=%s", workspace_id, job_id)
         return result
 
     # Declared before /{request_id} so "captures" is not swallowed as an id.

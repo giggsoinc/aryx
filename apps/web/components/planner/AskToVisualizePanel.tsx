@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, MessageSquarePlus, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import {
+  Loader2, MessageSquarePlus, CheckCircle2, XCircle, AlertTriangle, X,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
 import type { DeltaDraftResult } from "@/lib/types";
 
@@ -14,10 +17,15 @@ interface Props {
  *  and confirms to have it appended to the existing dashboard. Confirm
  *  re-validates server-side regardless of what this preview showed (never
  *  trust a client-echoed draft) and chains execution + composition in one
- *  call — `DashboardRenderer` below already polls every 4s and picks up the
- *  result without this component needing to do anything else. */
+ *  call — `DashboardRenderer` on the page already polls every 4s and picks
+ *  up the result without this component needing to do anything else.
+ *
+ *  Rendered as a floating chat bubble + docked side panel (same pattern as
+ *  JobsBadge's panel) rather than an inline card, so it doesn't compete
+ *  with the dashboard itself for page real estate. */
 export function AskToVisualizePanel({ workspaceId }: Props) {
   const datasetId = `workspace_${workspaceId}`;
+  const [open, setOpen] = useState(false);
   const [requestText, setRequestText] = useState("");
   const [drafting, setDrafting] = useState(false);
   const [draft, setDraft] = useState<DeltaDraftResult | null>(null);
@@ -66,48 +74,83 @@ export function AskToVisualizePanel({ workspaceId }: Props) {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-6 pb-8">
-      <section className="rounded-xl border border-navy-100 bg-white p-6 shadow-sm">
-        <div className="flex items-center gap-2">
-          <MessageSquarePlus size={18} className="text-navy-500" />
-          <h2 className="text-lg font-semibold text-navy-900">Ask for a Chart</h2>
-        </div>
-        <p className="mt-1 text-sm text-navy-500">
-          Describe one chart you want added to the dashboard below. Andie drafts
-          it against what's already approved — never invents a column, KPI, or
-          chart type — and shows a preview before anything is added.
-        </p>
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title="Ask for a chart"
+        className="focus-ring fixed bottom-6 right-6 z-30 flex items-center gap-2 rounded-full bg-navy-900 px-4 py-3 text-sm font-medium text-white shadow-soft transition-colors hover:bg-navy-800"
+      >
+        <MessageSquarePlus size={18} />
+        Ask for a chart
+      </button>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <input
-            value={requestText}
-            onChange={(e) => setRequestText(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !drafting) runDraft(); }}
-            placeholder="e.g. average deal size by product family as a box plot"
-            className="min-w-[320px] flex-1 rounded-lg border border-navy-200 px-3 py-2 text-sm text-navy-900 outline-none focus:border-navy-300"
-          />
-          <button onClick={runDraft} disabled={drafting || !requestText.trim()}
-                  className="focus-ring inline-flex items-center gap-2 rounded-lg bg-navy-900 px-4 py-2 text-sm font-medium text-white hover:bg-navy-800 disabled:opacity-60">
-            {drafting && <Loader2 size={15} className="animate-spin" />}
-            {drafting ? "Drafting…" : "Draft chart"}
-          </button>
-        </div>
+      <AnimatePresence>
+        {open && (
+          <motion.aside
+            initial={{ x: 420, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: 420, opacity: 0 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed right-0 top-16 z-30 flex h-[calc(100vh-4rem)] w-[420px] flex-col border-l border-navy-100 bg-white shadow-soft"
+          >
+            <header className="flex items-center justify-between border-b border-navy-100 px-5 py-3">
+              <div className="flex items-center gap-2">
+                <MessageSquarePlus size={16} className="text-navy-500" />
+                <h2 className="font-display text-[1.05rem] text-navy-900">
+                  Ask for a Chart
+                </h2>
+              </div>
+              <button
+                onClick={() => setOpen(false)}
+                className="focus-ring rounded-lg p-1 text-subtle hover:bg-navy-50"
+                aria-label="Close"
+              >
+                <X size={16} />
+              </button>
+            </header>
 
-        {error && (
-          <div className="mt-3 flex items-start gap-1.5 rounded-lg border border-red-200 bg-red-50/50 px-3 py-2 text-sm text-red-700">
-            <XCircle size={14} className="mt-0.5 shrink-0" /> {error}
-          </div>
+            <div className="flex-1 overflow-y-auto px-5 py-4">
+              <p className="text-sm text-navy-500">
+                Describe one chart you want added to the dashboard. Andie drafts
+                it against what's already approved — never invents a column,
+                KPI, or chart type — and shows a preview before anything is
+                added.
+              </p>
+
+              <div className="mt-3 flex flex-col gap-2">
+                <input
+                  value={requestText}
+                  onChange={(e) => setRequestText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !drafting) runDraft(); }}
+                  placeholder="e.g. average deal size by product family as a box plot"
+                  className="w-full rounded-lg border border-navy-200 px-3 py-2 text-sm text-navy-900 outline-none focus:border-navy-300"
+                />
+                <button onClick={runDraft} disabled={drafting || !requestText.trim()}
+                        className="focus-ring inline-flex items-center justify-center gap-2 rounded-lg bg-navy-900 px-4 py-2 text-sm font-medium text-white hover:bg-navy-800 disabled:opacity-60">
+                  {drafting && <Loader2 size={15} className="animate-spin" />}
+                  {drafting ? "Drafting…" : "Draft chart"}
+                </button>
+              </div>
+
+              {error && (
+                <div className="mt-3 flex items-start gap-1.5 rounded-lg border border-red-200 bg-red-50/50 px-3 py-2 text-sm text-red-700">
+                  <XCircle size={14} className="mt-0.5 shrink-0" /> {error}
+                </div>
+              )}
+
+              {confirmed && (
+                <div className="mt-3 flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50/50 px-3 py-2 text-sm text-emerald-700">
+                  <CheckCircle2 size={14} /> Added — the dashboard will refresh shortly.
+                </div>
+              )}
+
+              {draft && <DraftPreview draft={draft} confirming={confirming} onConfirm={confirm} onDiscard={discard} />}
+            </div>
+          </motion.aside>
         )}
-
-        {confirmed && (
-          <div className="mt-3 flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50/50 px-3 py-2 text-sm text-emerald-700">
-            <CheckCircle2 size={14} /> Added — the dashboard below will refresh shortly.
-          </div>
-        )}
-
-        {draft && <DraftPreview draft={draft} confirming={confirming} onConfirm={confirm} onDiscard={discard} />}
-      </section>
-    </div>
+      </AnimatePresence>
+    </>
   );
 }
 

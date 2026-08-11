@@ -47,8 +47,12 @@ export function DashboardSpecPanel({ workspaceId }: Props) {
       // a value carried over from a previous workspace may no longer exist,
       // which desyncs the visible <select> (browser shows option 0) from
       // the submitted value (still the stale one) unless reset here.
+      // Default to the whole workspace rather than an arbitrary single
+      // dataset — that's the common case once more than one dataset exists.
       setSelected((prev) => (
-        prev && (prev === WORKSPACE_SENTINEL || ids.includes(prev)) ? prev : (ids[0] ?? "")
+        prev && (prev === WORKSPACE_SENTINEL || ids.includes(prev))
+          ? prev
+          : (ids.length > 0 ? WORKSPACE_SENTINEL : "")
       ));
     }).catch(() => { setDatasetIds([]); setSelected(""); });
     api.listAndiePlans(workspaceId).then(setRecent).catch(() => setRecent([]));
@@ -93,6 +97,8 @@ export function DashboardSpecPanel({ workspaceId }: Props) {
           approved planning context — never a computed value, never a causal
           claim. Every reference is verified before you see it; unsupported
           ones are dropped and listed as warnings, not silently invented.
+          Also runs automatically once a Brief is saved (see the Jobs panel);
+          use the button below to force a fresh draft on demand.
         </p>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -110,7 +116,7 @@ export function DashboardSpecPanel({ workspaceId }: Props) {
           <button onClick={generate} disabled={running || !selected}
                   className="focus-ring inline-flex items-center gap-2 rounded-lg bg-navy-900 px-4 py-2 text-sm font-medium text-white hover:bg-navy-800 disabled:opacity-60">
             {running && <Loader2 size={15} className="animate-spin" />}
-            {running ? "Drafting (real LLM call, ~10–20s)…" : "Generate spec"}
+            {running ? "Drafting (real LLM call, ~10–20s)…" : "Re-run manually"}
           </button>
         </div>
 

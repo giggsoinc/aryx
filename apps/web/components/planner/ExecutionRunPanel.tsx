@@ -68,13 +68,15 @@ export function ExecutionRunPanel({ workspaceId }: Props) {
           <button onClick={trigger} disabled={running}
                   className="focus-ring inline-flex items-center gap-2 rounded-lg bg-navy-900 px-4 py-2 text-sm font-medium text-white hover:bg-navy-800 disabled:opacity-60">
             {running ? <Loader2 size={15} className="animate-spin" /> : <PlayCircle size={15} />}
-            {running ? "Running…" : "Run analysis"}
+            {running ? "Running…" : "Re-run manually"}
           </button>
         </div>
         <p className="mt-1 text-sm text-navy-500">
           C12 runs the compiled execution plan (C11) against real, C10-converted
           rows and produces the first real KPI values and per-group breakdowns
-          — deterministic, no LLM. Runs only when you press the button.
+          — deterministic, no LLM. Also runs automatically once a dashboard
+          spec is approved (see the Jobs panel); use the button to force a
+          fresh run on demand.
         </p>
 
         {!run && !loading && (
@@ -203,16 +205,6 @@ function ValidationView({ validation }: { validation: PostExecutionReport }) {
             <span key={i} title={JSON.stringify(e.details)}
                   className="rounded bg-red-100 px-2 py-0.5 text-xs text-red-800">
               {e.code}{e.reference ? ` · ${e.reference}` : ""}
-            </span>
-          ))}
-        </div>
-      )}
-      {validation.warnings.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
-          {validation.warnings.map((w, i) => (
-            <span key={i} title={JSON.stringify(w.details)}
-                  className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
-              {w.code}{w.reference ? ` · ${w.reference}` : ""}
             </span>
           ))}
         </div>

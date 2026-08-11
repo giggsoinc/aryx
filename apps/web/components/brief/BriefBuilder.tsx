@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  AlertCircle, CheckCircle2, FileText, Loader2, Plus, Sparkles, Upload, X,
+  AlertCircle, AlertTriangle, CheckCircle2, FileText, Loader2, Plus, Sparkles,
+  Upload, X,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import type { Brief } from "@/lib/types";
+import { useChainJob, type ChainJobState } from "@/lib/useChainJob";
 
 /** One toggleable suggestion for a list field (objectives/roles/questions). */
 interface Item { text: string; on: boolean }
@@ -55,6 +57,12 @@ export function BriefBuilder({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // Saving the brief starts the zero-click auto-chain (intent -> context ->
+  // planner -> execution -> dashboard, see aryx.pipeline.auto_chain) —
+  // poll its job so the user sees the chain move without clicking anything.
+  const [chainJobId, setChainJobId] = useState<string | null>(null);
+  const chain = useChainJob(chainJobId);
 
   // LLM health — cruise control needs a model that is actually READY, not
   // just configured (fresh installs spend minutes pulling Ollama models).
@@ -182,7 +190,8 @@ export function BriefBuilder({
           ...docs.filter((d) => !d.error).map((d) => d.filename),
         ])),
       };
-      await api.saveBrief(workspaceId, brief);
+      const res = await api.saveBrief(workspaceId, brief);
+      setChainJobId(res.chain_job_id);
       setNotice("Brief saved.");
       onSubmitted(brief);
     } catch (e) {
@@ -242,6 +251,7 @@ export function BriefBuilder({
           <CheckCircle2 size={13} className="shrink-0" /> {notice}
         </div>
       )}
+      {chain && <ChainStatusStrip chain={chain} />}
 
       {/* PRIMARY: answer the brief directly */}
       <div className="mb-4 space-y-5 rounded-xl border border-navy-100 bg-white p-5 shadow-soft">
@@ -404,6 +414,38 @@ export function BriefBuilder({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Inline status for the auto-chain a Brief save just kicked off — replaces
+ *  the old "saved, now go click Generate" flow with a live read of what's
+ *  actually happening, including a plain-language reason when it pauses. */
+function ChainStatusStrip({ chain }: { chain: ChainJobState }) {
+  const isBlocked = chain.status === "blocked";
+  const isFailed = !isBlocked && chain.status === "failed";
+  const isDone = chain.status === "complete";
+  return (
+    <div className={cn(
+      "mb-4 flex items-start gap-2 rounded-lg border px-3 py-2 text-[12px]",
+      isBlocked ? "border-amber-200 bg-amber-50 text-amber-800"
+        : isFailed ? "border-rose-200 bg-rose-50 text-rose-700"
+        : isDone ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+        : "border-navy-100 bg-navy-50 text-navy-700",
+    )}>
+      {isBlocked || isFailed
+        ? <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+        : isDone
+        ? <CheckCircle2 size={13} className="mt-0.5 shrink-0" />
+        : <Loader2 size={13} className="mt-0.5 shrink-0 animate-spin" />}
+      <span>
+        {isDone && "Pipeline finished automatically — check the Dashboard tab."}
+        {isBlocked && (chain.error || "Paused — needs a decision before it can continue.")}
+        {isFailed && `Something went wrong: ${chain.error || "unknown error"}.`}
+        {!isDone && !isBlocked && !isFailed &&
+          `Running — ${chain.stage || "starting"}${chain.pct != null ? ` (${chain.pct}%)` : ""}. `
+          + "No need to click anything; this keeps going on its own."}
+      </span>
     </div>
   );
 }

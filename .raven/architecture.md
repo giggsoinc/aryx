@@ -183,15 +183,22 @@ Sources (Postgres, + Drive/Salesforce/Odoo planned)
   → relationship inference   (stage 5c)
   → FalkorDB projection       (stage 5d, rebuildable from RDB)
 
-Dashboard planning, on top of the above (on-demand, not auto-chained):
+Dashboard planning, on top of the above — auto-chained end to end
+(`aryx.pipeline.auto_chain.run_auto_chain`, triggered by
+`aryx.pipeline.chain_jobs` off a Brief save / valid intent capture / file
+ingest) and stopping only on a genuine blocker: C09 rejects the spec twice,
+C13 marks the execution results ineligible, or C14 drops every
+visualization. A manual "Generate/Run/Compose" button per stage still
+exists as an escape hatch for per-dataset iteration and forcing a fresh run:
   → C07 context assembly       (dataset + semantic + graph profile -> approved resources)
   → C08 Andie Planner          (LLM drafts DashboardSpec -> ground.py re-verifies, never trusts)
-  → C09 spec validation        (10 checks, one bounded repair retry)
+  → C09 spec validation        (10 checks, one bounded repair retry) — BLOCKS the chain on rejection
   → C10 preprocessing          (typed rows for the approved dataset)
   → C11 execution compiler     (KPI/analysis -> vetted template nodes)
   → C12 analysis execution     (run nodes against rows, or FalkorDB for graph_relation)
-  → C13 post-execution validation (independent recompute + cross-check)
-  → C14 dashboard composition  (arrange into an ordered dashboard model)
+  → C13 post-execution validation (independent recompute + cross-check) — BLOCKS if ineligible
+  → C14 dashboard composition  (arrange into an ordered dashboard model) — BLOCKS only if every
+                                visualization was dropped; partial dashboards proceed
   → C15 frontend renderer      (Next.js + Plotly)
 ```
 

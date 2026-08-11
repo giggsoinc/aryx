@@ -23,8 +23,9 @@ from aryx.connectors.csv_source import CsvConnector
 from aryx.connectors.doc_router import DocumentRouterConnector
 from aryx.connectors.json_source import JsonConnector, _flatten
 from aryx.dataset.ingest import register_dataset
+from aryx.pipeline.chain_jobs import run_chain_now
 from aryx.pipeline.doc_discovery import _infer_type, infer_fk_links
-from aryx.pipeline.downstream import intent_ready, run_downstream
+from aryx.pipeline.downstream import intent_ready
 from aryx.pipeline.orchestrate import link_entities, run_pipeline
 from aryx.store.chunk_store import ChunkStore
 from aryx.store.dataset_store import DatasetStore
@@ -227,17 +228,18 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
             if inferred:
                 link_entities(settings.rdb_dsn, settings.graph_url,
                               workspace_id, inferred)
-        # C03-C07 — profile, interpret, validate/version the graph, profile it,
-        # and assemble planning context for the datasets touched this run.
-        # Gated on C01: deferred until a valid intent exists for the workspace,
-        # at which point intent_api.capture backfills them itself.
+        # C03-C07 onward — the zero-click auto-chain (context -> planner ->
+        # execution -> dashboard). Gated on C01: deferred until a valid
+        # intent exists for the workspace, at which point intent_api.capture
+        # (or a Brief save) starts the chain itself. Called inline, not via
+        # BackgroundTasks — _run_files already runs as its own background
+        # task, so there's no live request/BackgroundTasks to enqueue onto.
         if snapshotted_ids:
             if intent_ready(settings.rdb_dsn, workspace_id):
-                run_downstream(settings.rdb_dsn, workspace_id, snapshotted_ids,
-                               broker=broker)
+                run_chain_now(settings.rdb_dsn, workspace_id, broker=broker)
             else:
                 logger.info(
-                    "intent not yet captured ws=%s; deferring C03-C07 for %d dataset(s)",
+                    "intent not yet captured ws=%s; deferring auto-chain for %d dataset(s)",
                     workspace_id, len(snapshotted_ids),
                 )
         if doc_files:

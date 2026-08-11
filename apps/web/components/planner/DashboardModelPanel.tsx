@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  Loader2, LayoutDashboard, Sparkles, CheckCircle2, XCircle, AlertTriangle,
+  Loader2, LayoutDashboard, Sparkles, CheckCircle2, XCircle,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import type {
@@ -74,7 +74,8 @@ export function DashboardModelPanel({ workspaceId }: Props) {
         <p className="mt-1 text-sm text-navy-500">
           C14 arranges the validated results (C13) into an ordered dashboard —
           it can group and title, but never alter a value, formula, axis, or ID.
-          Runs only when you press the button.
+          Also runs automatically once execution results are eligible (see the
+          Jobs panel); use the button to force a fresh composition on demand.
         </p>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -88,7 +89,7 @@ export function DashboardModelPanel({ workspaceId }: Props) {
           <button onClick={trigger} disabled={composing}
                   className="focus-ring inline-flex items-center gap-2 rounded-lg bg-navy-900 px-4 py-2 text-sm font-medium text-white hover:bg-navy-800 disabled:opacity-60">
             {composing && <Loader2 size={15} className="animate-spin" />}
-            {composing ? "Composing…" : "Compose dashboard"}
+            {composing ? "Composing…" : "Re-run manually"}
           </button>
         </div>
 
@@ -166,15 +167,6 @@ function ComponentCard({ component, kpiDisplay }: {
       <div className="mt-1 font-mono text-navy-600">{component.source_ref}</div>
       {display !== null && (
         <div className="mt-1 text-lg font-semibold text-navy-900">{display}</div>
-      )}
-      {component.warning_refs.length > 0 && (
-        <div className="mt-1 flex flex-wrap gap-1">
-          {component.warning_refs.map((w, i) => (
-            <span key={i} className="flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-amber-800">
-              <AlertTriangle size={10} /> {w}
-            </span>
-          ))}
-        </div>
       )}
     </div>
   );

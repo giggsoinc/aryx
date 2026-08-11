@@ -21,13 +21,11 @@ const Plot = dynamic(
  * "which Plotly trace(s) for this chart_type" actually lives; this
  * component only draws whatever `data`/`layout` it's given.
  *
- * Same accessibility contract every chart component in this app already
- * follows (BarChart/BoxPlotChart/GroupedBarChart before this): a full
- * `aria-label` text-alternative summary (not just Plotly's own hover
- * tooltips) plus a visible, keyboard-focusable per-item text row
- * underneath the chart — `spec.summary`/`spec.rows` carry that, built
- * alongside the trace data itself in plotlySpecs.ts so the two can never
- * drift apart.
+ * Text-alternative summary for screen readers: a full `aria-label` on the
+ * chart container (not just Plotly's own hover tooltips) — `spec.summary`
+ * carries that, built alongside the trace data itself in plotlySpecs.ts.
+ * No visible per-item rows underneath the chart; the data lives in the
+ * chart itself.
  */
 // dataviz skill (interaction.md): tooltips enhance but hit targets need
 // room to breathe, and every value must stay readable in the primary ink,
@@ -70,17 +68,6 @@ export function PlotlyChart({ spec, height = 280 }: Props) {
           useResizeHandler
         />
       </div>
-      {spec.rows.length > 0 && (
-        <div className="mt-1 space-y-1">
-          {spec.rows.map((r) => (
-            <div key={r.key} tabIndex={0} title={r.text}
-                className="focus-ring flex items-center justify-between rounded px-1 py-0.5 text-xs text-navy-600 outline-none focus:bg-navy-50">
-              <span className="font-medium text-navy-700">{r.label}</span>
-              <span>{r.text}</span>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
