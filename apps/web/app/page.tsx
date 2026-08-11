@@ -256,7 +256,9 @@ function ModelGate() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  // Inline picker state.
+  // Inline picker state. `expanded` reopens the picker after confirmation —
+  // changing the model must never require a detour to Settings.
+  const [expanded, setExpanded] = useState(false);
   const [provider, setProvider] = useState("");
   const [model, setModel] = useState("");
   const [apiKey, setApiKey] = useState("");
@@ -306,6 +308,7 @@ function ModelGate() {
       });
       setCfg(next);
       setApiKey("");
+      setExpanded(false);
       load();
     } finally {
       setBusy(false);
@@ -321,7 +324,7 @@ function ModelGate() {
     )} />
   );
 
-  if (cfg.confirmed) {
+  if (cfg.confirmed && !expanded) {
     return (
       <div className="mb-5 flex flex-wrap items-center gap-2 text-[12px] text-subtle">
         {dot}
@@ -329,7 +332,13 @@ function ModelGate() {
         Model: <b className="text-navy-800">{cfg.provider} · {cfg.answer_model}</b>
         <span className="rounded-full bg-navy-50 px-2 py-0.5 text-[10px]">set by you</span>
         {health && !health.ok && <span className="text-amber-700">— {health.detail}</span>}
-        <Link href="/settings" className="underline hover:text-navy-700">change</Link>
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="focus-ring underline hover:text-navy-700"
+        >
+          change
+        </button>
       </div>
     );
   }
@@ -341,8 +350,13 @@ function ModelGate() {
         <b>Choose your language model first</b> — everything Aryx extracts runs through it.
       </div>
       <div className="mb-3 text-[11px]">
-        <span className="rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700">
-          source: environment file — not yet confirmed by you
+        <span className={cn(
+          "rounded-full px-2 py-0.5 font-medium",
+          cfg.confirmed ? "bg-navy-50 text-navy-600" : "bg-amber-50 text-amber-700",
+        )}>
+          {cfg.confirmed
+            ? `current: ${cfg.provider} · ${cfg.answer_model} (set by you)`
+            : "source: environment file — not yet confirmed by you"}
         </span>
         {health && (
           <span className={cn("ml-2", health.ok ? "text-emerald-700" : "text-amber-700")}>
