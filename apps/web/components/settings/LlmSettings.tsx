@@ -62,6 +62,33 @@ export function LlmSettings() {
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
 
+  // Installed local Ollama models → dropdowns instead of free-text.
+  const [localModels, setLocalModels] = useState<string[]>([]);
+  const [modelsErr, setModelsErr] = useState<string | null>(null);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const fetchModels = useCallback(() => {
+    setModelsLoading(true); setModelsErr(null);
+    api.listLlmModels()
+      .then((r) => {
+        setLocalModels(r.models);
+        if (!r.ok || r.models.length === 0) {
+          setModelsErr(r.error || "no local models found — is Ollama running?");
+        }
+      })
+      .catch((e) => setModelsErr(e instanceof Error ? e.message : "Ollama unreachable"))
+      .finally(() => setModelsLoading(false));
+  }, []);
+  useEffect(() => { fetchModels(); }, [fetchModels]);
+  useEffect(() => { if (provider === "ollama") fetchModels(); }, [provider, fetchModels]);
+  // Never submit a leftover cloud model name as an Ollama model.
+  useEffect(() => {
+    if (provider === "ollama" && localModels.length > 0) {
+      if (!localModels.includes(menial)) setMenial(localModels[0]);
+      if (!localModels.includes(answer)) setAnswer(localModels[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider, localModels]);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -187,23 +214,60 @@ export function LlmSettings() {
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block text-sm font-medium text-navy-800">
             Fast model (extraction)
+            {provider === "ollama" && localModels.length > 0 ? (
+              <select
+                className="mt-1 w-full rounded-md border border-navy-200 bg-white px-3 py-2 font-mono text-sm"
+                value={localModels.includes(menial) ? menial : localModels[0]}
+                onChange={(e) => setMenial(e.target.value)}
+              >
+                {localModels.map((m) => (
+                  <option key={m} value={m}>{m} (installed)</option>
+                ))}
+              </select>
+            ) : (
             <input
               className="mt-1 w-full rounded-md border border-navy-200 px-3 py-2 font-mono text-sm"
               value={menial}
               onChange={(e) => setMenial(e.target.value)}
               placeholder="e.g. qwen3.5:0.8b"
             />
+            )}
           </label>
           <label className="block text-sm font-medium text-navy-800">
             Answer model
+            {provider === "ollama" && localModels.length > 0 ? (
+              <select
+                className="mt-1 w-full rounded-md border border-navy-200 bg-white px-3 py-2 font-mono text-sm"
+                value={localModels.includes(answer) ? answer : localModels[0]}
+                onChange={(e) => setAnswer(e.target.value)}
+              >
+                {localModels.map((m) => (
+                  <option key={m} value={m}>{m} (installed)</option>
+                ))}
+              </select>
+            ) : (
             <input
               className="mt-1 w-full rounded-md border border-navy-200 px-3 py-2 font-mono text-sm"
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
               placeholder="e.g. grok-3 / gemini-2.0-flash"
             />
+            )}
           </label>
         </div>
+        {provider === "ollama" && (modelsErr || modelsLoading) && (
+          <div className="flex items-center gap-2 text-xs text-amber-700">
+            {modelsLoading ? "listing local models…" : `⚠ ${modelsErr}`}
+            {!modelsLoading && (
+              <button
+                type="button" onClick={fetchModels}
+                className="rounded border border-amber-300 bg-white px-1.5 py-0.5 text-[10px] font-semibold hover:bg-amber-50"
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        )}
 
         <label className="block text-sm font-medium text-navy-800">
           Endpoint / base URL

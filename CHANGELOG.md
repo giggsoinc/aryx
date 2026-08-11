@@ -3,6 +3,19 @@
 All notable changes to **Aryx Lite** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.5.3] — 2026-08-10
+
+### Fixed
+
+- **No Ollama dropdown anywhere in the real flow.** Two gaps: (1) the
+  Settings page's model fields were always free-text — they are now
+  dropdowns of installed local models whenever the provider is Ollama
+  (live-fetched, loading/empty states, Retry, and a leftover cloud model
+  name is never submitted as an Ollama model); (2) once a model was
+  confirmed, the Home gate collapsed to a status line whose "change" just
+  linked to Settings — it now re-expands the full inline picker in place.
+  (`LlmSettings.tsx`, `app/page.tsx`)
+
 ## [1.5.2] — 2026-08-10
 
 ### Changed
