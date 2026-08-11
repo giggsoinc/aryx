@@ -25,8 +25,9 @@ async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  /** List every workspace (do not filter by workspace_id — that hid others). */
   listWorkspaces: () =>
-    fetchJSON<Workspace[]>("/admin/workspaces?workspace_id=1"),
+    fetchJSON<Workspace[]>("/admin/workspaces"),
 
   createWorkspace: (name: string, description = "") =>
     fetchJSON<Workspace>("/admin/workspaces", {

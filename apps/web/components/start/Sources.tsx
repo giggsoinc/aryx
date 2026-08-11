@@ -16,11 +16,11 @@ interface Props {
 const CARDS: Array<{ kind: SourceKind; ico: React.ReactNode;
                       label: string; hint: string }> = [
   { kind: "database", ico: <Database size={32} />, label: "Database",
-    hint: "Postgres, MySQL, Oracle" },
+    hint: "Connect Postgres, MySQL, or Oracle and pick tables" },
   { kind: "files", ico: <FileText size={32} />, label: "Files",
-    hint: "PDF, CSV, Word, Excel" },
-  { kind: "manual", ico: <Hand size={32} />, label: "Add by hand",
-    hint: "Type records yourself" },
+    hint: "Upload CSV, JSON, PDF, Word, slides (ingest into the graph)" },
+  { kind: "manual", ico: <Hand size={32} />, label: "Types only (no data yet)",
+    hint: "Skip loading data now — define entity types later on the Model canvas" },
 ];
 
 /** Screen 3 — multi-select data sources. */
@@ -41,7 +41,9 @@ export function Sources({ initial = ["database"], onContinue, onBack }: Props) {
         Where is your data?
       </h1>
       <p className="mt-3 max-w-lg text-center text-[14px] text-subtle">
-        Tick any that apply — you can add more later.
+        <b>Step 2 of setup — load data into this workspace.</b>{" "}
+        Tick Database and/or Files to ingest. “Types only” means no upload yet
+        (you’ll sketch types on Model). You can add more sources later from setup.
       </p>
 
       <div className="mt-8 grid w-full max-w-2xl grid-cols-3 gap-4">
