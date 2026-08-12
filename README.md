@@ -31,7 +31,7 @@ Aryx connects what databases, applications, APIs, and documents **mean to each o
 | Who | Guide |
 |-----|--------|
 | **Developers & agent engineers** | [Markdown](docs/guides/DEVELOPER_GUIDE.md) · [HTML](docs/guides/DEVELOPER_GUIDE.html) |
-| **Business & leadership** | [Markdown](docs/guides/BUSINESS_GUIDE.md) · [HTML](docs/guides/BUSINESS_GUIDE.html) |
+| **Business & leadership** | [Markdown](docs/guides/BUSINESS_GUIDE.md) · [HTML](docs/guides/BUSINESS_GUIDE.html) — includes **Claude / Gemini / Copilot** outcome paths |
 
 ---
 

@@ -104,6 +104,121 @@ Sample data: [`examples/quickstart/`](../../examples/quickstart/).
 
 ---
 
+## Using Aryx with Claude, Gemini, or Copilot
+
+Business outcome is the same no matter which chat brand you prefer:
+
+> **Load data into Aryx once → agents answer from connected context with sources — not from guessing across five systems.**
+
+Two different roles get confused. Keep them separate:
+
+| Role | What it does | Who configures it |
+|------|----------------|-------------------|
+| **A. Brain inside Aryx** | The model Aryx uses for smart review, extraction, and **Ask** (Settings) | IT / technical owner |
+| **B. Chat app you work in** | Claude, Gemini app, Microsoft Copilot, Cursor — where *you* type questions | You + IT |
+
+You can use **Gemini as Aryx’s brain** and still ask questions in the **Aryx web UI**.  
+You can use **Claude Desktop** as the chat app that *calls* Aryx via MCP.  
+You can use **Copilot** as the chat app that works best through **your company’s app** that calls Aryx’s API (or the Aryx UI).
+
+### The outcome path (all brands)
+
+```text
+1. Build context in Aryx (data first → smart review → build)
+2. Pick how people ask:
+      • Aryx Ask (web)     — works with any Settings model
+      • Claude + MCP       — Claude tools talk to Aryx
+      • Gemini / Copilot   — use Aryx Ask, or a company app/API bridge
+3. Ask business questions; open cited sources when you need proof
+4. Fix wrong links with Correct data so the next answer improves
+```
+
+### Option 1 — Stay in the Aryx app (simplest for business)
+
+**Best for:** pilots, domain experts, no desktop agent setup.
+
+1. IT runs Aryx (Docker) and sets **Settings → provider** (Ollama, Gemini, Claude/Anthropic, OpenAI, Grok, etc.).  
+2. Your team loads the pilot data and builds the graph.  
+3. Everyone uses **Ask** at http://localhost:3000 (or your company URL).  
+4. Answers come with **citations** to entities / source records.
+
+You do **not** need Claude Desktop or Copilot for this path. Gemini (or any model) is only the engine under Settings.
+
+### Option 2 — Claude (Desktop / Code) with Aryx as tools
+
+**Best for:** “Talk in Claude, but answers grounded in company context.”
+
+| Step | Business | IT |
+|------|----------|-----|
+| 1 | Define pilot questions (“Which accounts have open escalations and expired contracts?”) | Run Aryx; open MCP on port **8765** (see [mcp-guide.html](../mcp-guide.html)) |
+| 2 | Approve the smart-review plan so the graph is trustworthy | Connect Claude Desktop (or Claude Code) as an **MCP host** to Aryx |
+| 3 | In Claude, ask in plain English | Claude calls Aryx tools (workspace, status, ask-style flows) |
+| 4 | Demand sources if Claude cannot show them | Confirm network: Claude machine can reach Aryx MCP URL |
+
+**What you should expect from Claude + Aryx**
+
+- Claude is the **conversation UI**.  
+- Aryx is the **context and identity layer**.  
+- Good outcome: Claude uses Aryx instead of inventing which “Acme” is which.  
+- Weak outcome: Claude answers from general knowledge — IT should fix MCP connection or you should fall back to Aryx **Ask**.
+
+**Plain-language ask examples (after context is built)**
+
+- “Summarize open tickets for customer Acme and list source records.”  
+- “Which products appear most often with high-priority incidents?”  
+- “What did we already load into the Support workspace?”
+
+### Option 3 — Gemini (Google)
+
+Two legitimate patterns:
+
+| Pattern | What the business user does | What IT does |
+|---------|----------------------------|--------------|
+| **Gemini powers Aryx** | Use Aryx **Ask** / setup as usual | Settings → provider **Gemini** + API key; models chosen |
+| **Gemini chat as the front door** | Use Gemini app/workspace only if IT built a bridge (custom Gemini agent that calls Aryx HTTP) | Wire Gemini tools/extensions to Aryx REST; or tell users to use Aryx Ask |
+
+**Honest Lite reality:** Aryx does **not** ship a one-click “Google Gemini app marketplace plugin.”  
+Fastest Gemini-backed outcome today = **Gemini in Settings + humans/agents use Aryx UI Ask (or your internal bot that calls Aryx API).**
+
+### Option 4 — Microsoft Copilot
+
+| Pattern | Business user | IT |
+|---------|---------------|-----|
+| **Copilot as chat only** | Prefer Aryx **Ask** for grounded company context | Ensure Aryx is available on the corp network |
+| **Copilot Studio / custom agent** | Use the company Copilot agent your team published | Plugin/action that calls Aryx **REST Ask** (or entity APIs) with workspace id |
+| **GitHub Copilot (coding)** | Devs use it while building apps *on top of* Aryx | Not the primary business Q&A path |
+
+**Honest Lite reality:** Copilot does not automatically see your Aryx graph. Someone must **connect** it (custom agent + API), or people use the **Aryx web Ask** path.
+
+### Choosing a path (decision table)
+
+| If your company… | Start with |
+|------------------|------------|
+| Wants fastest pilot, mixed non-technical users | **Aryx Ask** (+ any Settings model including Gemini) |
+| Already lives in Claude Desktop / Claude Code | **Claude + MCP → Aryx** |
+| Standardizes on Google Gemini as the model vendor | **Gemini in Settings** + Aryx Ask (or Gemini custom agent later) |
+| Standardizes on Microsoft 365 Copilot | **Aryx Ask** short-term; **Copilot Studio → Aryx API** for embedded experience |
+| Needs “one agent many apps” | Build once on **Aryx API/MCP**; front-ends can be Claude, Copilot, or your portal |
+
+### What “good outcome” looks like (checklist)
+
+- [ ] Pilot data is in **one Aryx workspace**.  
+- [ ] Smart review plan approved by a domain expert.  
+- [ ] Ask (or Claude-via-MCP) returns an answer **plus** sources you can open in **Data**.  
+- [ ] Wrong merges are fixed once in **Correct data**, not re-argued in every chat.  
+- [ ] IT knows which path is supported: **UI only**, **Claude MCP**, or **API to Copilot/Gemini**.
+
+### What you should not expect
+
+| Expectation | Reality |
+|-------------|---------|
+| Install Claude and it “knows” ERP with no Aryx | Claude needs Aryx (or similar) + data loaded |
+| Type into public Gemini with no setup | No company graph until Settings/API/UI path exists |
+| Copilot Chat sees Aryx with zero IT work | Needs API/agent integration or use Aryx Ask |
+| Any model alone replaces identity resolution | Models help; **Aryx keeps identity and links durable** |
+
+---
+
 ## How to use (by business stakeholder)
 
 ### Product / LOB owner
@@ -121,7 +236,8 @@ Sample data: [`examples/quickstart/`](../../examples/quickstart/).
 |----------------|----------------|
 | Who is this customer? | Data explorer: entities, types, source records |
 | Wrong merge or type | **Correct data** coach — propose, then Apply |
-| Daily questions | **Ask** with citations |
+| Daily questions | **Ask** with citations — or Claude via MCP if IT enabled it |
+| Preferred chat (Claude / Gemini / Copilot) | See [Using Aryx with Claude, Gemini, or Copilot](#using-aryx-with-claude-gemini-or-copilot) |
 | Stuck jobs | Tell IT: Observe / Jobs; Resume if checkpoint exists |
 
 ### Data / analytics leadership
@@ -139,7 +255,8 @@ Sample data: [`examples/quickstart/`](../../examples/quickstart/).
 |----------------|--------|
 | Risk | Self-host; keys in Settings; BSL license for internal use |
 | Path to scale | Lite proves value → Enterprise conversation for governance/scale |
-| Integration with AI strategy | Aryx = context layer; not a replacement ERP/CRM |
+| Integration with AI strategy | Aryx = context layer under Claude / Gemini / Copilot — not a replacement ERP/CRM |
+| “Which chat brand do we standardize?” | UI Ask works with any Settings model; Claude MCP is strongest agent-native path; Copilot/Gemini fronts need API bridge or Ask |
 | Commercial hosting of Aryx as SaaS | Requires commercial license ([LICENSING.md](../LICENSING.md)) |
 
 ---
