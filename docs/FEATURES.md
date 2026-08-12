@@ -1,13 +1,13 @@
 # Feature Matrix
 
 Comprehensive list of **Aryx Lite** capabilities as shipped in this repository
-(**1.6.0**). Enterprise agentic features live on a **separate commercial fork**.
+(**1.7.0**). Enterprise agentic features live on a **separate commercial fork**.
 
 ## Editions
 
 | Edition | Version | Notes | Component |
 |---------|---------|-------|-----------|
-| Lite (this repo) | **1.6.x** | Core ingest → resolve → graph → Ask; UI polish | `edition.py`, `ARYX_EDITION` |
+| Lite (this repo) | **1.7.x** | Data-first smart setup + ingest → resolve → graph → Ask | `edition.py`, `ARYX_EDITION` |
 | Enterprise | commercial fork | Agentic ontology control plane, scale governance | Separate EE codebase |
 | Aryx-o | v2.1+ | Oracle-native adapter set on Enterprise engine | EE + adapters |
 
@@ -21,8 +21,10 @@ See [EDITIONS.md](EDITIONS.md) for the full edition matrix.
 | MySQL / MariaDB / Oracle connector | Done | `connectors/sql_source.py` |
 | REST API connector | Done | `connectors/rest_api.py` |
 | File upload (CSV, JSON, PDF, DOCX, PPTX, images) | Done | `connectors/{csv_source,json_source,pdf,docx,pptx,image}.py` |
+| **Data-first smart understand** (sample → brief + graph plan) | Done (1.7) | `pipeline/smart_understand.py`, `api/smart_api.py` |
+| Graph plan dimensions (column → entity types + links) | Done (1.7) | `pipeline/dimension_materialize.py` |
 | AI auto-discovery (schema → entity types) | Done | `pipeline/orchestrate.py` |
-| Context-driven discovery (user provides domain context) | Done | Brief + setup wizard (`/start`) |
+| Context-driven discovery (brief + plan after data) | Done (1.7) | Setup wizard Smart review; Brief edit page |
 | Streaming one-record-at-a-time pipeline | Done | `pipeline/spine.py` |
 | Semantic field tagging (Ollama) | Done | `pipeline/orchestrate.py` |
 
@@ -76,8 +78,9 @@ Next.js application (`apps/web/`, isolated from the Python service).
 | Feature | Status | Component |
 |---------|--------|-----------|
 | Home (workspaces, model gate, delete non-Default) | Done | `apps/web/app/page.tsx` (`/`) |
-| Brief (hand-edit + optional AI draft) | Done | `apps/web/app/brief/`, `BriefBuilder.tsx` |
-| Setup wizard | Done | `apps/web/app/start/` (`/start`) |
+| Brief (edit anytime; usually drafted after data) | Done (1.7) | `apps/web/app/brief/`, `BriefBuilder.tsx` |
+| Setup wizard (data first → smart review → build) | Done (1.7) | `apps/web/app/start/`, `SmartReview.tsx` |
+| Workspace menu list all + delete non-Default | Done (1.7) | `Header.tsx`, `api.listWorkspaces` |
 | Ask surface (grounded NL Q&A) | Done | `apps/web/app/ask/` (`/ask`) |
 | Model surface (ontology view/edit) | Done | `apps/web/app/model/` (`/model`) |
 | Data surface (Tree / Table / Graph) | Done | `apps/web/app/data/` (`/data`) |

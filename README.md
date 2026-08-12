@@ -20,31 +20,34 @@
 
 ## Repository overview
 
-**Aryx** turns the data you already have into a **workspace-scoped knowledge graph** you can ask questions of. You state goals in plain English, connect a database or upload files, approve the model Aryx proposes, resolve duplicates into golden entities, and explore with **Ask**, **Model**, **Data** (tree / table / entity graph), and **Accuracy Lab** — with **provenance** on answers and merges.
+**Aryx** turns the data you already have into a **workspace-scoped knowledge graph** you can ask questions of. **Load data first** — Aryx samples it with your Settings model (any provider), drafts the brief and a multi-type graph plan, you approve lightly, then resolve/link/explore with **Ask**, **Model**, **Data**, and **Accuracy Lab** — with **provenance** on every answer.
 
 | | |
 |---|---|
-| **Edition in this repo** | **Aryx Lite** — single-team outcome mapping (laptop / small server) |
-| **Enterprise** | Separate commercial fork — agentic ontology planning, EDA control plane, full observability (not in this repo) |
+| **Edition in this repo** | **Aryx Lite 1.7** — data-first smart setup · single-team outcome mapping |
+| **Enterprise** | Separate commercial fork — agentic ontology planning, EDA control plane (extends same data-first story) |
 | **Not in Lite** | Multi-tenant governance, Stage-2 multi-agent ontology fleet, A2A mesh |
 | **SoT / graph** | PostgreSQL truth · FalkorDB rebuildable projection |
 | **UI** | Next.js only (`apps/web`) — no Streamlit |
-| **Images (public)** | [`giggsodocker/aryx-lite`](https://hub.docker.com/r/giggsodocker/aryx-lite) (API · worker · MCP) · [`giggsodocker/aryx-lite-web`](https://hub.docker.com/r/giggsodocker/aryx-lite-web) (Next.js UI) |
-| **Tags** | `1.6.1` · `v1.6.1` · git short SHA (same tags on both images — always an explicit version, no `latest`) |
+| **Images (public)** | [`giggsodocker/aryx-lite`](https://hub.docker.com/r/giggsodocker/aryx-lite) · [`giggsodocker/aryx-lite-web`](https://hub.docker.com/r/giggsodocker/aryx-lite-web) |
+| **Tags** | `1.7.0` · `v1.7.0` · git short SHA (always an explicit version, no `latest`) |
 | **License** | BSL 1.1 → GPL-3.0-or-later on 2029-07-15 · [details](docs/LICENSING.md) |
-| **Docker Hub overview** | [docs/DOCKERHUB.md](docs/DOCKERHUB.md) · [aryx-lite](https://hub.docker.com/r/giggsodocker/aryx-lite) · [aryx-lite-web](https://hub.docker.com/r/giggsodocker/aryx-lite-web) |
+| **Product flow (HTML)** | [docs/UI_BUSINESS_FLOW.html](docs/UI_BUSINESS_FLOW.html) |
+| **Docker Hub** | [docs/DOCKERHUB.md](docs/DOCKERHUB.md) |
 
 ---
 
-## What it does
+## What it does (Lite 1.7 — data first)
 
 | Step | What happens |
 |------|----------------|
-| **1. Brief** | Six grounding questions — type them yourself or optionally draft with AI (docs are for drafting only, not stored as ingest) |
-| **2. Ingest** | Connect a database or upload files (CSV, PDF, DOCX, …) via guided setup |
-| **3. Resolve** | Duplicates merge into golden entities; weak pairs wait for human review |
-| **4. Link** | Cross-file relationships are discovered and projected into a graph |
-| **5. Explore** | Home workspaces, Ask, Model, Data (tree / table / graph + **Correct data**), Lab, Observe |
+| **1. Load data** | Setup: Files and/or Database — samples read before full graph build |
+| **2. Smart review** | Answer model drafts **brief** + **graph plan** (e.g. Transaction + Merchant). Optional extra docs suggested |
+| **3. Confirm & build** | Save brief → ingest steered by plan; dimensions + Model types seeded |
+| **4. Resolve & link** | Duplicates merge; column/FK links; provenance kept |
+| **5. Explore** | Data · Model · Lab · Ask · Observe · Correct data |
+
+You do **not** invent six blank brief answers before Aryx has seen data. Edit the brief anytime on `/brief`.
 
 Built for a **single team’s** outcome mapping on a laptop or small server — not yet a multi-tenant governed enterprise estate.
 
@@ -58,7 +61,7 @@ Built for a **single team’s** outcome mapping on a laptop or small server — 
 
 | Image | Role | Tags |
 |-------|------|------|
-| [`giggsodocker/aryx-lite`](https://hub.docker.com/r/giggsodocker/aryx-lite) | API · worker · MCP | `1.6.1` · `v1.6.1` · `<sha>` |
+| [`giggsodocker/aryx-lite`](https://hub.docker.com/r/giggsodocker/aryx-lite) | API · worker · MCP | `1.7.0` · `v1.7.0` · `<sha>` |
 | [`giggsodocker/aryx-lite-web`](https://hub.docker.com/r/giggsodocker/aryx-lite-web) | Next.js UI | same tags |
 
 ```bash
@@ -78,7 +81,7 @@ First boot pulls LLM models into Ollama (can take several minutes).
 | **API docs** | http://localhost:8088/docs |
 | **MCP (SSE)** | http://localhost:8765/sse |
 
-Then: the home page lists your workspaces — **New workspace** walks you through Brief (drop a doc, confirm six drafted answers) → sources → run.
+Then: Home lists workspaces — **New workspace** → setup (**data first**): sources → upload/connect → **smart review** (brief + graph plan) → build.
 
 **Sample data:** upload the CSVs in [`examples/quickstart/`](examples/quickstart/) (customers + tickets) to exercise multi-file ingest and the entity graph.
 
@@ -94,43 +97,45 @@ curl -s http://localhost:8088/health
 ### Pull pinned images
 
 ```bash
-docker pull giggsodocker/aryx-lite:1.6.1
-docker pull giggsodocker/aryx-lite-web:1.6.1
-# or v1.6.1 / git short SHA
+docker pull giggsodocker/aryx-lite:1.7.0
+docker pull giggsodocker/aryx-lite-web:1.7.0
+# or v1.7.0 / git short SHA
 ```
 
 ---
 
-## Product surfaces (Next.js) — Lite 1.6.1
+## Product surfaces (Next.js) — Lite 1.7.0
 
 | Route | Purpose |
 |-------|---------|
 | `/` | **Home** — workspaces, model gate, create / open / reset / delete (non-Default) |
-| `/brief` | **Brief** — six questions by hand; optional AI draft (docs not stored as ingest) |
-| `/start` | Guided setup wizard (empty workspaces land here) |
+| `/start` | **Setup** — data first → smart review → build (empty workspaces land here) |
+| `/brief` | **Brief** — edit anytime (usually drafted after data load) |
 | `/data` | Tree / Table / Graph explorer + **Correct data** coach |
 | `/model` | Ontology canvas (types, relationships, survivorship, axioms) |
 | `/lab` | Accuracy Lab — ontology ON vs OFF + reasoner check |
 | `/ask` | **Ask** — grounded Q&A with citations |
 | `/observe` | Jobs, workspace vitals, storage truth |
-| `/settings` | **LLM provider** — Ollama list / cloud samples; keys in API memory only |
+| `/settings` | **LLM provider** — Ollama / cloud; powers smart understand + Ask |
 
 There is **no Streamlit UI**. The product UI is Next.js only.
 
-**Enterprise** (separate commercial fork) adds agentic EDA / Stage-2 ontology planning — not part of this Lite tree. See [EDITIONS.md](docs/EDITIONS.md).
+**Enterprise** (separate commercial fork) extends the same data-first setup with agentic EDA / Stage-2 planning — not part of this Lite tree. See [EDITIONS.md](docs/EDITIONS.md).
 
 ---
 
 ## Highlights
 
-- **Brief-grounded extraction** — six questions (domain · aim · objectives · scope · roles · proof questions); type them yourself or optionally AI-draft
-- **Multi-source ingest** — Postgres, MySQL, Oracle; files (CSV/JSON/PDF/DOCX/PPTX/images) via setup wizard
-- **Discovery-driven ontology** — propose types, human approval on Model, RDF/OWL import-export
+- **Data-first smart setup** — sample → drafted brief + multi-type graph plan (any Settings model) → approve → build
+- **Brief-grounded extraction** — six questions after data understanding; editable anytime
+- **Multi-source ingest** — Postgres, MySQL, Oracle; files (CSV/JSON/PDF/DOCX/PPTX/images)
+- **Dimension entities** — e.g. Merchant / Category from columns when the plan says so
+- **Discovery-driven ontology** — types seeded to Model; RDF/OWL import-export
 - **Entity resolution** — multi-key blocking, four-band scoring, HITL review, survivorship policies
 - **Cross-file relationships** — deterministic FK discovery after multi-file upload
-- **Entity graph** — pan/zoom, search, type filters, click-to-explore + Correct data selection
-- **Workspace isolation** — LIST-partitioned Postgres; one graph per workspace; safe delete for non-Default
-- **Local or cloud LLMs** — default Ollama (installed models listed); samples for cloud providers under Settings/Home
+- **Entity graph** — pan/zoom, search, type filters + Correct data selection
+- **Workspace isolation** — LIST-partitioned Postgres; menu lists all workspaces; safe delete for non-Default
+- **Local or cloud LLMs** — Ollama · Anthropic · OpenAI · Gemini · Grok — same understand path
 - **MCP** — tools over SSE for external agents
 - **Ports & adapters** — seam for Enterprise / Aryx-o substrate swaps
 

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import {
   Activity, ChevronDown, ClipboardList, Database, FileText, FlaskConical, Gauge, Home,
-  MessageCircle, Network, Plus, Settings, Loader2,
+  MessageCircle, Network, Plus, Settings, Loader2, Trash2,
 } from "lucide-react";
 import { Logo } from "./Logo";
 import { api } from "@/lib/api";
@@ -15,14 +15,11 @@ import { HITLBadge } from "@/components/hitl/HITLBadge";
 import { JobsBadge } from "@/components/jobs/JobsBadge";
 
 interface HeaderProps {
-  /** Optional explicit overrides; defaults to the WorkspaceProvider. */
   workspaceId?: number;
   onWorkspaceChange?: (id: number) => void;
 }
 
-/** Top bar: brand + primary nav + workspace picker. The picker dropdown
- *  ITSELF hosts the "create workspace" form inline (no modal, no z-index
- *  surprises with backdrop-blur containing-block traps). */
+/** Top bar: brand + primary nav + workspace picker. */
 export function Header(props: HeaderProps) {
   const ws = useWorkspace();
   const router = useRouter();
@@ -34,8 +31,6 @@ export function Header(props: HeaderProps) {
   const active = ws.workspaces.find((w) => w.id === workspaceId)
     || ws.workspaces[0];
 
-  // Hide the HITL bell during the wizard (no ingest has run yet, no
-  // questions can exist) and when the active workspace has no entities.
   const onWizard = pathname?.startsWith("/start") || false;
   const showBell = !onWizard && !!active;
 
@@ -47,8 +42,6 @@ export function Header(props: HeaderProps) {
             <Logo size={34} withWordmark />
           </Link>
           <nav className="flex items-center gap-1">
-            {/* Ordered as the product flow: ground it, load it, shape it,
-                prove it, ask it, watch it, tune it. */}
             <NavLink href="/" icon={<Home size={14} />} label="Home"
                       active={pathname === "/"} />
             <NavLink href="/brief" icon={<FileText size={14} />} label="Brief"
@@ -79,13 +72,13 @@ export function Header(props: HeaderProps) {
             activeId={workspaceId}
             activeName={active?.name}
             open={open}
-            onToggle={() => setOpen((v) => !v)}
+            onToggle={async () => {
+              if (!open) await ws.refresh();
+              setOpen((v) => !v);
+            }}
             onSelect={(id) => {
               setWorkspace(id);
               setOpen(false);
-              // Don't strand the user in onboarding after they pick an
-              // existing (possibly populated) workspace — go to Ask, which
-              // self-redirects back to /start only if it's truly empty.
               if (pathname?.startsWith("/start")) router.push("/");
             }}
             onCreated={async (id) => {
@@ -93,6 +86,14 @@ export function Header(props: HeaderProps) {
               setWorkspace(id);
               setOpen(false);
               router.push("/start");
+            }}
+            onDeleted={async (id) => {
+              await ws.refresh();
+              if (workspaceId === id) {
+                setWorkspace(1);
+                router.push("/");
+              }
+              setOpen(false);
             }}
           />
         </div>
@@ -109,20 +110,30 @@ interface PickerProps {
   onToggle: () => void;
   onSelect: (id: number) => void;
   onCreated: (id: number) => void;
+  onDeleted: (id: number) => void;
 }
 
-/** Trigger button + dropdown panel — when "create" is clicked the dropdown
- *  morphs into an inline form, NO separate modal. */
 function WorkspacePicker({
-  workspaces, activeId, activeName, open, onToggle, onSelect, onCreated,
+  workspaces, activeId, activeName, open, onToggle, onSelect, onCreated, onDeleted,
 }: PickerProps) {
-  const [mode, setMode] = useState<"list" | "create">("list");
+  const [mode, setMode] = useState<"list" | "create" | "delete">("list");
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [deleteAck, setDeleteAck] = useState(false);
+  const [deleteTyped, setDeleteTyped] = useState("");
 
-  const reset = () => { setMode("list"); setName(""); setDesc(""); setError(null); };
+  const reset = () => {
+    setMode("list"); setName(""); setDesc(""); setError(null);
+    setDeleteId(null); setDeleteAck(false); setDeleteTyped("");
+  };
+
+  useEffect(() => {
+    if (!open) reset();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const submit = async () => {
     if (!name.trim()) return;
@@ -138,6 +149,23 @@ function WorkspacePicker({
     }
   };
 
+  const confirmDelete = async () => {
+    if (deleteId == null || deleteId === 1) return;
+    if (!deleteAck || deleteTyped !== "DELETE") return;
+    setBusy(true); setError(null);
+    try {
+      await api.deleteWorkspace(deleteId);
+      onDeleted(deleteId);
+      reset();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteTarget = workspaces.find((w) => w.id === deleteId);
+
   return (
     <div className="relative">
       <button
@@ -150,21 +178,44 @@ function WorkspacePicker({
         <ChevronDown size={14} className="text-subtle" />
       </button>
       {open && (
-        <div className="absolute right-0 top-12 w-72 overflow-hidden rounded-xl border border-navy-100 bg-white shadow-soft animate-rise">
-          {mode === "list" ? (
+        <div className="absolute right-0 top-12 z-50 w-80 overflow-hidden rounded-xl border border-navy-100 bg-white shadow-soft animate-rise">
+          {mode === "list" && (
             <ul>
+              <li className="border-b border-navy-50 px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-navy-500">
+                Workspaces{workspaces.length ? ` (${workspaces.length})` : ""}
+              </li>
+              {workspaces.length === 0 && (
+                <li className="px-4 py-3 text-[12px] text-subtle">
+                  No workspaces loaded. Create one below, or open Home and refresh.
+                </li>
+              )}
               {workspaces.map((w) => (
-                <li key={w.id}>
+                <li key={w.id} className="flex items-stretch border-b border-navy-50 last:border-0">
                   <button
                     type="button"
                     onClick={() => onSelect(w.id)}
-                    className="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm hover:bg-navy-50"
+                    className="flex min-w-0 flex-1 items-center justify-between px-4 py-2.5 text-left text-sm hover:bg-navy-50"
                   >
-                    <span className="text-navy-800">{w.name}</span>
+                    <span className="truncate text-navy-800">{w.name}</span>
                     {w.id === activeId && (
-                      <span className="size-1.5 rounded-full bg-steel-500" />
+                      <span className="ml-2 size-1.5 shrink-0 rounded-full bg-steel-500" />
                     )}
                   </button>
+                  {w.id !== 1 && (
+                    <button
+                      type="button"
+                      title="Delete workspace"
+                      onClick={() => {
+                        setDeleteId(w.id);
+                        setDeleteAck(false);
+                        setDeleteTyped("");
+                        setMode("delete");
+                      }}
+                      className="focus-ring shrink-0 px-3 text-rose-600 hover:bg-rose-50"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </li>
               ))}
               <li className="border-t border-navy-100">
@@ -176,8 +227,19 @@ function WorkspacePicker({
                   <Plus size={14} /> New workspace…
                 </button>
               </li>
+              <li>
+                <Link
+                  href="/"
+                  onClick={() => { reset(); onToggle(); }}
+                  className="flex w-full px-4 py-2 text-[11px] text-subtle hover:bg-navy-50 hover:text-navy-700"
+                >
+                  Manage on Home →
+                </Link>
+              </li>
             </ul>
-          ) : (
+          )}
+
+          {mode === "create" && (
             <div className="space-y-3 p-4">
               <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-navy-700">
                 Create a workspace
@@ -219,6 +281,59 @@ function WorkspacePicker({
                   {busy ? <Loader2 size={12} className="animate-spin" />
                          : <Plus size={12} />}
                   Create &amp; open setup
+                </button>
+              </div>
+            </div>
+          )}
+
+          {mode === "delete" && deleteTarget && (
+            <div className="space-y-3 p-4 text-[12px] text-navy-800">
+              <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-rose-700">
+                Delete workspace
+              </div>
+              <p>
+                Permanently delete <b>“{deleteTarget.name}”</b> and all of its
+                data? This cannot be undone. Default workspace cannot be deleted.
+              </p>
+              <label className="flex items-start gap-2 text-[11px]">
+                <input
+                  type="checkbox"
+                  checked={deleteAck}
+                  onChange={(e) => setDeleteAck(e.target.checked)}
+                  className="mt-0.5"
+                />
+                I understand this cannot be undone
+              </label>
+              <label className="block text-[11px]">
+                Type <b>DELETE</b> to confirm
+                <input
+                  value={deleteTyped}
+                  onChange={(e) => setDeleteTyped(e.target.value)}
+                  className="focus-ring mt-1 w-full rounded-lg border border-rose-200 px-2 py-1.5 font-mono text-[12px]"
+                  placeholder="DELETE"
+                  autoComplete="off"
+                />
+              </label>
+              {error && (
+                <div className="rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[11px] text-rose-700">
+                  {error}
+                </div>
+              )}
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="focus-ring rounded-lg px-2.5 py-1.5 text-[12px] font-medium text-navy-700 hover:bg-navy-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={!deleteAck || deleteTyped !== "DELETE" || busy}
+                  onClick={confirmDelete}
+                  className="focus-ring rounded-lg bg-rose-800 px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-rose-900 disabled:opacity-40"
+                >
+                  {busy ? "Deleting…" : "Delete workspace"}
                 </button>
               </div>
             </div>

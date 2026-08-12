@@ -2,7 +2,23 @@
 
 ## Overview
 
-**Ingestion** is the process of converting messy source data (databases, documents) into a clean, deduplicated knowledge graph. The system automates most of the work through a 7-stage pipeline:
+**Ingestion** is the process of converting messy source data (databases, documents) into a clean, deduplicated knowledge graph. The system automates most of the work through a 7-stage pipeline.
+
+### Lite 1.7 product path (UI)
+
+Prefer **data first** in the setup wizard (`/start`):
+
+1. Choose **Files** and/or **Database**.  
+2. Upload or connect — Aryx **samples** content.  
+3. **Smart review** — your Settings answer model drafts a brief + graph plan
+   (primary types + dimensions such as Merchant from a description column).  
+4. Approve (edit lightly; optionally add suggested documents).  
+5. **Build** — full land → resolve → dimension materialize → project.
+
+You should not invent six blank brief answers before Aryx has seen data.
+Ontology packs are optional; the smart plan is enough to start.
+
+Canonical flow HTML: [UI_BUSINESS_FLOW.html](UI_BUSINESS_FLOW.html).
 
 1. **Extract** — Read records from source (Postgres, CSV, PDF, etc.)
 2. **Land** — Store raw records in Postgres with full provenance (source tracking)

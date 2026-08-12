@@ -143,7 +143,7 @@ def _brief_context(workspace_id: int) -> str:
 def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                match_keys: list[str], fk_links: list[dict], job_id: str,
                workspace_id: int = 1, request_id: str = "",
-               context: str = "") -> None:
+               graph_plan: dict | None = None) -> None:
     settings = get_settings()
     jobs = JobStore(settings.rdb_dsn)
     broker = _local_broker()
@@ -188,10 +188,23 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
             # the caller didn't pin a concrete type, infer the row entity and
             # its identifying columns from this file's own header + sample.
             otype, keys = ontology_type, match_keys
+            # Prefer smart graph_plan (data-first understand) over generic Document.
+            if graph_plan and (not otype or otype.lower() == "document"):
+                from aryx.pipeline.smart_understand import primary_type_and_keys
+                otype, keys = primary_type_and_keys(graph_plan, name)
+                logger.info("plan %s -> type=%s keys=%s", name, otype, keys)
             if not otype or otype.lower() == "document":
                 plan = _infer_type(data[:800].decode("utf-8", "ignore"), name, context)
                 otype, keys = plan["ontology_type"], plan["match_keys"]
                 logger.info("inferred %s -> type=%s keys=%s", name, otype, keys)
+            # Seed Model canvas with primary type
+            try:
+                from aryx.api import ontology_browse
+                ontology_browse.add_type(
+                    otype, list(keys)[:8] or ["name"], "approved",
+                    source="ingest", workspace_id=workspace_id)
+            except Exception:  # noqa: BLE001
+                pass
             cv = _colvals(data, suffix)
             # Validate match keys against real columns. A bogus key (the LLM
             # invents one, or wrong casing) forces the whole-row fallback in
@@ -210,12 +223,21 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 keys = [best]
             plans.append({"ontology_type": otype, **cv})
             jobs.update_stage(job_id, "Ingest", 20, f"Processing {name}")
+
+            def _progress(s: str, p: int, d: str, _jid: str = job_id) -> None:
+                # Heartbeats only touch stage (no event spam); others log both.
+                if "still working" in (d or ""):
+                    jobs.heartbeat(_jid, s, p, d)
+                else:
+                    jobs.update_stage(_jid, s, p, d)
+
             summary = run_pipeline(
                 connector=connector, dsn=settings.rdb_dsn,
                 system=suffix.lstrip("."), dataset=Path(name).stem,
                 ontology_type=otype, match_keys=keys,
                 graph_url=settings.graph_url, broker=broker,
-                on_progress=lambda s, p, d: jobs.update_stage(job_id, s, p, d),
+                on_progress=_progress,
+                on_run_id=lambda rid, _jid=job_id: jobs.attach_run(_jid, rid),
                 fk_links=fk_links, workspace_id=workspace_id,
             )
             total_entities += int(summary.get("entities") or 0)
@@ -228,20 +250,19 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
             if inferred:
                 link_entities(settings.rdb_dsn, settings.graph_url,
                               workspace_id, inferred)
-        # C03-C07 onward — the zero-click auto-chain (context -> planner ->
-        # execution -> dashboard). Gated on C01: deferred until a valid
-        # intent exists for the workspace, at which point intent_api.capture
-        # (or a Brief save) starts the chain itself. Called inline, not via
-        # BackgroundTasks — _run_files already runs as its own background
-        # task, so there's no live request/BackgroundTasks to enqueue onto.
-        if snapshotted_ids:
-            if intent_ready(settings.rdb_dsn, workspace_id):
-                run_chain_now(settings.rdb_dsn, workspace_id, broker=broker)
-            else:
-                logger.info(
-                    "intent not yet captured ws=%s; deferring auto-chain for %d dataset(s)",
-                    workspace_id, len(snapshotted_ids),
+        # Data-first plan: dimension entities (Merchant, Category, …) + edges
+        if graph_plan and data_files:
+            jobs.update_stage(job_id, "Dimensions", 93, "Materializing plan dimensions")
+            try:
+                from aryx.pipeline.dimension_materialize import materialize_dimensions
+                nrel = materialize_dimensions(
+                    dsn=settings.rdb_dsn, graph_url=settings.graph_url,
+                    workspace_id=workspace_id, broker=broker,
+                    graph_plan=graph_plan, colvals_by_file=plans,
                 )
+                logger.info("dimension materialize rels=%s", nrel)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("dimension materialize failed: %s", exc)
         if doc_files:
             jobs.update_stage(job_id, "Documents", 40, f"Chunking {len(doc_files)} doc(s)")
             paths = [_save_tmp(d, Path(n).suffix) for d, n in doc_files]
@@ -298,6 +319,22 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                       "model in Settings (is it ready?) and retry.")
             return
         jobs.finish(job_id, run_id=None, status="complete")
+        # C03-C07 onward — the zero-click auto-chain (context -> planner ->
+        # execution -> dashboard). Gated on C01: deferred until a valid
+        # intent exists for the workspace, at which point intent_api.capture
+        # (or a Brief save) starts the chain itself. Runs after every other
+        # data-shaping step (dimensions, documents) so it sees the finished
+        # batch. Called inline, not via BackgroundTasks — _run_files already
+        # runs as its own background task, so there's no live request/
+        # BackgroundTasks to enqueue onto.
+        if snapshotted_ids:
+            if intent_ready(settings.rdb_dsn, workspace_id):
+                run_chain_now(settings.rdb_dsn, workspace_id, broker=broker)
+            else:
+                logger.info(
+                    "intent not yet captured ws=%s; deferring auto-chain for %d dataset(s)",
+                    workspace_id, len(snapshotted_ids),
+                )
     except Exception as exc:  # noqa: BLE001
         logger.warning("file ingest failed job=%s: %s", job_id, exc, exc_info=True)
         jobs.finish(job_id, run_id=None, status="failed", error=str(exc))
@@ -312,17 +349,12 @@ def file_ingest_router() -> APIRouter:
     async def ingest_file(
         background_tasks: BackgroundTasks,
         files: list[UploadFile] = File(...),
-        ontology_type: str = Form(...),
-        match_keys: str = Form(...),
-        context: str = Form(...),
+        ontology_type: str = Form("Document"),
+        match_keys: str = Form("name"),
         fk_links: str = Form("[]"),
         workspace_id: int = Form(1),
-        request_id: str = Form(""),
+        graph_plan: str = Form(""),
     ) -> dict[str, Any]:
-        if not context.strip():
-            raise HTTPException(
-                400, "context is required — describe what these files "
-                     "contain so mapping and extraction can use it")
         if len(files) > _MAX_FILES:
             raise HTTPException(400, f"Max {_MAX_FILES} files per upload")
         items: list[tuple[bytes, str]] = []
@@ -348,8 +380,15 @@ def file_ingest_router() -> APIRouter:
             jobs.close()
         keys = [k.strip() for k in match_keys.split(",") if k.strip()]
         links = json.loads(fk_links) if fk_links else []
-        background_tasks.add_task(_run_files, items, ontology_type, keys, links,
-                                  job_id, workspace_id, request_id, context)
+        plan_obj: dict | None = None
+        if graph_plan and graph_plan.strip():
+            try:
+                plan_obj = json.loads(graph_plan)
+            except json.JSONDecodeError:
+                plan_obj = None
+        background_tasks.add_task(
+            _run_files, items, ontology_type, keys, links, job_id, workspace_id,
+            graph_plan=plan_obj)
         names = [n for _, n in items]
         return {"status": "queued", "job_id": job_id, "files": names, "count": len(items)}
 

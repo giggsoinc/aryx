@@ -3,6 +3,35 @@
 All notable changes to **Aryx Lite** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.7.0] — 2026-08-11
+
+### Added
+
+- **Data-first smart setup** — load files (or DB) *before* a blank brief.
+  Settings **answer model** (Gemini, Claude, OpenAI, Grok, Ollama, …) samples
+  each file and drafts a full brief + multi-type graph plan. User lightly
+  edits, optionally adds suggested documents, then builds.
+  (`/admin/smart/understand`, `/admin/smart/apply`, `SmartReview.tsx`)
+- **Graph plan dimensions** — after primary row entities land, materialize
+  dimension types from columns (e.g. Merchant from Description) and link
+  via attribute equality; seed Model canvas types.
+  (`dimension_materialize.py`, `graph_plan` on file ingest)
+- **Workspace menu** — list all workspaces (no `workspace_id=1` filter),
+  delete non-Default with confirm, refresh on open. (`Header.tsx`, `api.ts`)
+
+### Changed
+
+- **Setup wizard order** — Intro → Sources → Load → Smart review → Build
+  (was Brief → Sources → Load). Brief page is edit-anytime, not step 1.
+- **Sources copy** — “Types only (no data yet)” replaces cryptic “Add by hand”.
+- **Product story** — data first; model-agnostic foundation; ontology packs
+  optional, not required for smart plan.
+
+### Documentation
+
+- USER_GUIDE, EDITIONS, FEATURES, INSTALL, DOCKERHUB, README, ARCHITECTURE,
+  INGESTION_GUIDE, `docs/UI_BUSINESS_FLOW.html`, pack `DATA_FIRST_SMART_SETUP*.md`.
+
 ## [1.6.1] — 2026-08-11
 
 ### Fixed

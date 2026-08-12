@@ -4,10 +4,14 @@ import { useRef, useState } from "react";
 import { ArrowRight, Loader2, UploadCloud, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
+import type { SmartUnderstandResult } from "@/lib/types";
 import { StepShell, ExampleBox } from "./StepShell";
 
 interface Props {
   workspaceId: number;
+  /** understand = sample + smart review; ingest = immediate upload (legacy). */
+  mode?: "understand" | "ingest";
+  onUnderstood?: (files: File[], result: SmartUnderstandResult) => void;
   onUploaded: (jobId: string | null) => void;
   onBack: () => void;
   onSkip: () => void;
@@ -18,11 +22,11 @@ const MAX_PER = 20 * 1024 * 1024;
 const MAX_TOTAL = 50 * 1024 * 1024;
 const MAX_FILES = 50;
 
-/** Files step — drop zone + per-file list. POSTs to /admin/ingest/file
- *  which kicks the doc pipeline (chunk → PII → embed → extract). */
-export function Files({ workspaceId, onUploaded, onBack, onSkip }: Props) {
+/** Files step — drop zone. Default: data-first smart understand (no full ingest yet). */
+export function Files({
+  workspaceId, mode = "understand", onUnderstood, onUploaded, onBack, onSkip,
+}: Props) {
   const [files, setFiles] = useState<File[]>([]);
-  const [context, setContext] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -41,15 +45,19 @@ export function Files({ workspaceId, onUploaded, onBack, onSkip }: Props) {
   const totalBytes = files.reduce((a, f) => a + f.size, 0);
   const tooBig = files.some((f) => f.size > MAX_PER) || totalBytes > MAX_TOTAL;
 
-  const upload = async () => {
+  const continueAction = async () => {
     if (!files.length) return;
     if (tooBig) { setError("Some files exceed the size limits."); return; }
-    if (!context.trim()) { setError("Describe what these files contain first."); return; }
     setBusy(true);
     setError(null);
     try {
-      const r = await api.uploadFiles(workspaceId, files, context.trim());
-      onUploaded(r.job_id || null);
+      if (mode === "understand" && onUnderstood) {
+        const result = await api.smartUnderstand(workspaceId, files);
+        onUnderstood(files, result);
+      } else {
+        const r = await api.uploadFiles(workspaceId, files);
+        onUploaded(r.job_id || null);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -58,28 +66,15 @@ export function Files({ workspaceId, onUploaded, onBack, onSkip }: Props) {
   };
 
   return (
-    <StepShell progress={70}>
+    <StepShell progress={40}>
       <h1 className="max-w-2xl text-center font-display text-[2rem] leading-tight text-navy-900">
         Drop the files you want Aryx to read.
       </h1>
       <p className="mt-3 max-w-lg text-center text-[14px] text-subtle">
-        PDFs, Word docs, slides, CSVs, JSON, images. Up to 50 files, 20&nbsp;MB
-        each, 50&nbsp;MB total — for now.
+        <b>Step 1 — data first.</b>{" "}
+        Aryx samples a few lines from each file, then proposes the brief and graph
+        plan. Full graph build happens after you approve.
       </p>
-
-      <label className="mt-6 w-full max-w-2xl text-left text-[12px] font-medium text-navy-700">
-        What do these files contain? <span className="text-rose-500">*</span>
-        <textarea
-          rows={2}
-          value={context}
-          onChange={(e) => setContext(e.target.value)}
-          placeholder="e.g. Customer support tickets: names, product names, issue descriptions"
-          className="focus-ring mt-1.5 w-full resize-y rounded-xl border-[1.5px] border-navy-100 bg-white px-4 py-3 text-[14px] leading-relaxed text-ink shadow-soft placeholder:text-subtle/70 focus:border-steel-500"
-        />
-        <span className="mt-1 block text-[11px] font-normal text-subtle">
-          Required — drives how Aryx maps fields and extracts entities.
-        </span>
-      </label>
 
       <div
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -159,24 +154,24 @@ export function Files({ workspaceId, onUploaded, onBack, onSkip }: Props) {
 
       <div className="mt-7 flex w-full max-w-2xl items-center justify-between gap-3">
         <div className="flex gap-3 text-[12px] text-subtle">
-          <button onClick={onBack} className="focus-ring hover:text-navy-700">← Back</button>
-          <button onClick={onSkip} className="focus-ring hover:text-navy-700">Skip</button>
+          <button type="button" onClick={onBack} className="focus-ring hover:text-navy-700">← Back</button>
+          <button type="button" onClick={onSkip} className="focus-ring hover:text-navy-700">Skip</button>
         </div>
         <button
           type="button"
-          onClick={upload}
-          disabled={busy || files.length === 0 || tooBig || !context.trim()}
+          onClick={continueAction}
+          disabled={busy || files.length === 0 || tooBig}
           className="focus-ring inline-flex items-center gap-2 rounded-xl bg-navy-800 px-5 py-2.5 text-[14px] font-semibold text-white hover:bg-navy-700 disabled:opacity-50"
         >
           {busy ? <Loader2 size={15} className="animate-spin" />
-                 : <>Upload &amp; continue <ArrowRight size={14} /></>}
+                 : <>Read samples &amp; continue <ArrowRight size={14} /></>}
         </button>
       </div>
 
-      <ExampleBox label="What happens after upload">
-        Aryx chunks each document, runs a PII screen, embeds the chunks for
-        semantic search, and extracts entities into your graph. Progress shows
-        on the next screen — you can leave and come back.
+      <ExampleBox label="What happens next">
+        Aryx reads a sample of each file with your Settings model, drafts the
+        brief and a multi-type graph plan (e.g. Transaction + Merchant), then
+        asks you to approve before building.
       </ExampleBox>
     </StepShell>
   );

@@ -15,18 +15,21 @@ Two structural changes define the current generation:
    | Route | Surface | Purpose |
    |-------|---------|---------|
    | `/` | **Home** | Workspaces, model gate, create / open / reset / delete |
-   | `/brief` | **Brief** | Grounding questions (hand or optional AI draft) |
-   | `/start` | **Setup** | Guided workspace + source onboarding wizard |
+   | `/start` | **Setup** | **Data first** → smart review (brief + graph plan) → build |
+   | `/brief` | **Brief** | Edit grounding questions anytime (usually drafted after data) |
    | `/data` | **Data** | Data Explorer + Correct data coach |
-   | `/model` | **Model** | Ontology canvas |
+   | `/model` | **Model** | Ontology canvas (types seeded from plan) |
    | `/lab` | **Lab** | Accuracy Lab — ontology-on vs ontology-off A/B |
    | `/ask` | **Ask** | NL Q&A with grounded, cited answers |
    | `/observe` | **Observe** | Jobs and system status |
-   | `/settings` | **Settings** | LLM provider configuration |
+   | `/settings` | **Settings** | LLM provider (powers smart understand + Ask) |
 
    The Streamlit app was **removed**; use Next.js (`apps/web`) only.  
-   **Lite 1.6.x** ships the linear pipeline (ingest → resolve → project).  
-   **Enterprise** agentic ontology planning (EDA + multi-agent Stage-2) is a separate fork — not the default path in this tree.
+   **Lite 1.7.x** ships data-first smart setup + linear pipeline (ingest → resolve → project)
+   with optional dimension materialization from the graph plan.  
+   **Enterprise** agentic ontology planning (EDA + multi-agent Stage-2) is a separate fork —
+   same data-first UX metaphor, deeper agents. See [EDITIONS.md](EDITIONS.md) and
+   [UI_BUSINESS_FLOW.html](UI_BUSINESS_FLOW.html).
 
 2. **Ports & adapters (hexagonal) seam.** `src/aryx/ports/` introduces a substrate-swappable seam so the platform is not welded to Postgres/FalkorDB/Ollama:
 

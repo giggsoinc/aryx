@@ -9,7 +9,8 @@ Paste-ready context for a fresh Claude Code session. Keep this current as the co
 | | |
 |---|---|
 | **Project** | Aryx — discovery-driven knowledge-graph engine (Python 3.11, FastAPI, FalkorDB, Postgres+pgvector, Ollama; Next.js 15 web UI) |
-| **Editions** | **Aryx Lite** (v1, this repo, GPL candidate) · **Aryx Enterprise** (v2, in build) · **Aryx-o** (v2.1, Oracle ADB native). See `docs/EDITIONS.md`. |
+| **Editions** | **Aryx Lite 1.7** (data-first smart setup, this repo) · **Aryx Enterprise** (v2 fork) · **Aryx-o**. See `docs/EDITIONS.md`. |
+| **Product flow** | `docs/UI_BUSINESS_FLOW.html` · setup: load → smart review → build |
 | **Repo** | https://github.com/giggsoinc/aryx.git (branch `main`) |
 | **EC2** | `ec2-user@ec2-3-91-73-197.compute-1.amazonaws.com` · key `~/.ssh/rvdts-oracle-key.pem` |
 | **Local dir** | `/Users/giggso/AntiGravity_Projects/Aryx` |
@@ -21,9 +22,8 @@ Paste-ready context for a fresh Claude Code session. Keep this current as the co
 ## V2 status — current state (2026-06-15)
 
 The product now has a **Next.js web UI** (`apps/web/`, isolated deploy unit) as the
-Surfaces live today: **Ask** (grounded
-Q&A + citations), **Model** (ontology canvas), **Data** (transparency explorer),
-**Lab** (Accuracy Lab), **Onboard** (`/start` wizard).
+Surfaces: **Home**, **Setup** (`/start` data-first smart review), **Brief** (edit),
+**Data**, **Model**, **Lab**, **Ask**, **Observe**, **Settings**.
 
 **V2 Enterprise feature ledger** (phases from `temp_design/ontology-v2/08-v2-attack-plan.html`):
 

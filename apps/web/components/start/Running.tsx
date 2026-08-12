@@ -117,11 +117,11 @@ export function Running({ workspaceId, jobId, onDone, onSkip }: Props) {
       <p className="mt-3 max-w-lg text-center text-[14px] text-subtle">
         {jobStatus === "complete"
           ? "Job complete — everything below is stored on the server."
-          : jobStatus === "failed"
-          ? "The job stopped with an error — details below. Fix the cause, then retry the upload."
+          : jobStatus === "failed" || jobStatus === "cancelled"
+          ? "The job stopped. If a run_id was landed (Discover finished), Resume from Observe / Jobs chip continues from the last checkpoint without re-upload. Otherwise re-upload the file."
           : jobId
-          ? `Real job state — polling /admin/jobs/${jobId.slice(0, 8)}… every ${JOB_POLL_MS / 1000}s.`
-          : "No active ingest job. Come back later."}
+          ? `Live job — polling every ${JOB_POLL_MS / 1000}s. Resolve on large files can take 10–30+ minutes (watch for “still working”).`
+          : "No active ingest job. Open Observability or come back later."}
       </p>
 
       <div className="mt-8 w-full">
@@ -167,15 +167,39 @@ export function Running({ workspaceId, jobId, onDone, onSkip }: Props) {
         </ExampleBox>
       )}
 
-      <div className="mt-8 flex gap-3">
+      <div className="mt-8 flex flex-wrap gap-3">
         <button
+          type="button"
           onClick={onSkip}
           className="focus-ring text-[12px] text-subtle hover:text-navy-700"
         >
           Run in the background
         </button>
+        {(jobStatus === "failed" || jobStatus === "cancelled") && jobId && (
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const r = await api.resumeJobRun(jobId);
+                alert(
+                  `Resume queued as job ${r.job_id.slice(0, 8)}… Open the Jobs chip or Observe to watch progress.`,
+                );
+              } catch (e) {
+                alert(
+                  e instanceof Error
+                    ? e.message
+                    : "Cannot resume — re-upload if Discover never finished.",
+                );
+              }
+            }}
+            className="focus-ring rounded-xl border border-navy-200 bg-white px-4 py-2 text-[13px] font-semibold text-navy-800 hover:bg-navy-50"
+          >
+            Resume from checkpoint
+          </button>
+        )}
         {finished && (
           <button
+            type="button"
             onClick={onDone}
             className="focus-ring inline-flex items-center gap-2 rounded-xl bg-navy-800 px-5 py-2.5 text-[14px] font-semibold text-white hover:bg-navy-700"
           >

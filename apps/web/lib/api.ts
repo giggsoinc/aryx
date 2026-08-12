@@ -5,7 +5,7 @@ import type {
   PlanningContext, PlannerResult, DeltaDraftResult, DeltaSpecItems, ExecutionPlan, ExecutionRun,
   DashboardModel, RenderTelemetry,
   LlmConfig, LlmConfigUpdate, DeriveEntitiesResult, LinkEntitiesResult, OntologyDoc, QuizSpec, ReasonerCheck, Rule,
-  SurvivorshipPolicy, UserIntent, UserIntentRequest, Workspace,
+  SmartUnderstandResult, SurvivorshipPolicy, UserIntent, UserIntentRequest, Workspace,
 } from "./types";
 
 // Same-origin relative path. Next.js rewrites /api/* → FastAPI internally
@@ -28,8 +28,9 @@ async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  /** List every workspace (do not filter by workspace_id — that hid others). */
   listWorkspaces: () =>
-    fetchJSON<Workspace[]>("/admin/workspaces?workspace_id=1"),
+    fetchJSON<Workspace[]>("/admin/workspaces"),
 
   createWorkspace: (name: string, description = "") =>
     fetchJSON<Workspace>("/admin/workspaces", {
@@ -148,6 +149,7 @@ export const api = {
     fetchJSON<{
       job_id: string; status: string; stage: string | null;
       pct: number | null; detail: string | null; error: string | null;
+      run_id?: number | null;
     }>(`/admin/jobs/${jobId}`),
 
   listJobs: (workspaceId: number) =>
@@ -155,6 +157,7 @@ export const api = {
       job_id: string; source_system: string; source_dataset: string;
       status: string; stage: string | null; pct: number | null;
       detail: string | null; error: string | null;
+      run_id?: number | null;
       started_at?: string; finished_at?: string | null;
     }>>(`/admin/jobs?workspace_id=${workspaceId}`),
 
@@ -167,6 +170,21 @@ export const api = {
     fetchJSON<{ status: string; job_id: string }>(
       `/admin/jobs/${jobId}/cancel`, { method: "POST", body: "{}" },
     ),
+
+  /** Inspect stage checkpoints for a job (does not start work). */
+  jobResumeStatus: (jobId: string) =>
+    fetchJSON<{
+      job_id: string; run_id: number | null; resumable: boolean;
+      stages: Array<{ stage: string; status: string }>;
+      reason?: string; meta?: Record<string, unknown>;
+    }>(`/admin/jobs/${jobId}/resume`, { method: "POST", body: "{}" }),
+
+  /** Continue pipeline from last done stage (needs run_id on the job). */
+  resumeJobRun: (jobId: string) =>
+    fetchJSON<{
+      status: string; job_id: string; resume_of: string;
+      run_id: number; message?: string;
+    }>(`/admin/jobs/${jobId}/resume-run`, { method: "POST", body: "{}" }),
 
   workspaceOverview: () =>
     fetchJSON<Array<{
@@ -290,13 +308,15 @@ export const api = {
   /** Multipart file upload → kicks the file ingest pipeline server-side. */
   uploadFiles: async (workspaceId: number, files: File[], context: string,
                        ontologyType = "Document",
-                       matchKeys = "name") => {
+                       matchKeys = "name",
+                       graphPlan?: Record<string, unknown>) => {
     const form = new FormData();
     for (const f of files) form.append("files", f);
     form.append("ontology_type", ontologyType);
     form.append("match_keys", matchKeys);
     form.append("context", context);
     form.append("workspace_id", String(workspaceId));
+    if (graphPlan) form.append("graph_plan", JSON.stringify(graphPlan));
     const res = await fetch(`${BASE}/admin/ingest/file`,
                             { method: "POST", body: form });
     if (!res.ok) {
@@ -305,6 +325,35 @@ export const api = {
     }
     return res.json() as Promise<{ status: string; job_id: string }>;
   },
+
+  /** Data-first: sample files → draft brief + graph plan (no full ingest). */
+  smartUnderstand: async (workspaceId: number, files: File[],
+                          userHint = "") => {
+    const form = new FormData();
+    for (const f of files) form.append("files", f);
+    form.append("workspace_id", String(workspaceId));
+    if (userHint) form.append("user_hint", userHint);
+    const res = await fetch(`${BASE}/admin/smart/understand`,
+                            { method: "POST", body: form });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`${res.status} ${res.statusText}: ${detail}`);
+    }
+    return res.json() as Promise<SmartUnderstandResult>;
+  },
+
+  smartApply: (workspaceId: number, brief: Brief,
+               graphPlan?: Record<string, unknown>, planId?: string) =>
+    fetchJSON<{ status: string; graph_plan?: Record<string, unknown> }>(
+      "/admin/smart/apply", {
+        method: "POST",
+        body: JSON.stringify({
+          workspace_id: workspaceId,
+          brief,
+          graph_plan: graphPlan || {},
+          plan_id: planId || null,
+        }),
+      }),
 
   // ── AI ontology assist (option f) ────────────────────────────────────
   suggestAttrs: (workspaceId: number, typeName: string, existing: string[]) =>

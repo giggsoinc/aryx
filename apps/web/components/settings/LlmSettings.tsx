@@ -381,7 +381,7 @@ export function LlmSettings() {
           </dl>
         ) : (
           <p className="mt-1 text-[11px] text-subtle">
-            Version unavailable — is the API running? Expected Aryx Lite 1.6.1+.
+            Version unavailable — is the API running? Expected Aryx Lite 1.7.0+.
           </p>
         )}
       </div>

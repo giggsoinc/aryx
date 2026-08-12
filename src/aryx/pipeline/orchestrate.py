@@ -9,7 +9,10 @@ runs end-to-end without any model configured.
 from __future__ import annotations
 
 import logging
+import threading
 from collections.abc import Callable
+from contextlib import contextmanager
+from typing import Iterator
 
 from aryx.broker import Broker
 from aryx.connectors.base import Connector
@@ -30,6 +33,11 @@ from aryx.models import OntologyType
 logger = logging.getLogger(__name__)
 
 Progress = Callable[[str, int, str], None]
+RunIdCb = Callable[[int], None]
+
+# Keep job.updated_at fresh during long Resolve so reap_stale does not
+# false-fail a healthy process (was 5 min with no intermediate updates).
+_HEARTBEAT_SEC = 40
 
 
 def _emit(cb: Progress | None, stage: str, pct: int, detail: str) -> None:
@@ -74,6 +82,31 @@ def _register_types(dsn: str, workspace_id: int, estore: EntityStore) -> None:
                        workspace_id, exc)
 
 
+@contextmanager
+def _heartbeat(cb: Progress | None, stage: str, pct: int,
+               detail: str) -> Iterator[None]:
+    """Ping progress every _HEARTBEAT_SEC while a long stage runs."""
+    if cb is None:
+        yield
+        return
+    stop = threading.Event()
+
+    def _loop() -> None:
+        n = 0
+        while not stop.wait(_HEARTBEAT_SEC):
+            n += 1
+            mins = (n * _HEARTBEAT_SEC) // 60
+            cb(stage, pct, f"{detail} · still working ({mins}m+)")
+
+    thr = threading.Thread(target=_loop, name="aryx-job-heartbeat", daemon=True)
+    thr.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        thr.join(timeout=2)
+
+
 def run_pipeline(
     connector: Connector,
     dsn: str,
@@ -90,11 +123,12 @@ def run_pipeline(
     fk_links: list[dict] | None = None,
     workspace_id: int = 1,
     resume_run_id: int | None = None,
+    on_run_id: RunIdCb | None = None,
 ) -> dict[str, int]:
     """Run a source from extraction through to the FalkorDB projection.
 
     Args:
-        connector: Configured source connector.
+        connector: Configured source connector (unused when resume_run_id set).
         dsn: Postgres DSN (the source of truth).
         system: Source system label.
         dataset: Source dataset/table label.
@@ -107,14 +141,24 @@ def run_pipeline(
         max_pairs: Cap on candidate pairs when relate is enabled.
         resume_run_id: Resume a crashed run — done stages skip, the landed
             data of that run is reused (no re-extract).
+        on_run_id: Called with run_id as soon as discover completes (or on resume).
 
     Returns:
         Summary of {run_id, entities, relationships} plus graph projection counts.
     """
+    meta = {
+        "ontology_type": ontology_type,
+        "match_keys": match_keys,
+        "workspace_id": workspace_id,
+        "system": system,
+        "dataset": dataset,
+    }
     if resume_run_id is not None:
         run_id = resume_run_id
         runner = StageRunner(dsn, run_id, resume=True)
         logger.info("resuming run_id=%s", run_id)
+        if on_run_id is not None:
+            on_run_id(run_id)
     else:
         _emit(on_progress, "Discover", 10, "Extracting, profiling and landing source records")
         store = PostgresStore(dsn, workspace_id)
@@ -126,20 +170,30 @@ def run_pipeline(
         runner = StageRunner(dsn, run_id, resume=False)
         tracker = StageTracker(dsn)
         tracker.start(run_id, "discover")
-        tracker.finish(run_id, "discover")
+        tracker.finish(run_id, "discover", meta)
+        if on_run_id is not None:
+            on_run_id(run_id)
 
     estore = EntityStore(dsn, workspace_id)
     entities = relationships = 0
+    counts: dict[str, int] = {}
     try:
         if not runner.skip("resolve_cluster"):
-            _emit(on_progress, "Resolve", 50, "Resolving records into canonical entities")
-            with runner.stage("resolve_cluster"):
-                entities = resolve_run(run_id, ontology_type, match_keys,
-                                       estore, broker)
+            detail = (
+                f"Resolving records into canonical entities "
+                f"({ontology_type}; keys={','.join(match_keys) or 'n/a'})"
+            )
+            _emit(on_progress, "Resolve", 50, detail)
+            with runner.stage("resolve_cluster", meta):
+                with _heartbeat(on_progress, "Resolve", 50, detail):
+                    entities = resolve_run(run_id, ontology_type, match_keys,
+                                           estore, broker)
         if relate and not runner.skip("relate"):
             _emit(on_progress, "Relate", 75, "Inferring relationships between entities")
             with runner.stage("relate"):
-                relationships = _relate(estore, broker, max_pairs)
+                with _heartbeat(on_progress, "Relate", 75,
+                                "Inferring relationships between entities"):
+                    relationships = _relate(estore, broker, max_pairs)
         if fk_links and not runner.skip("fk_link"):
             _emit(on_progress, "Link", 80, "Linking entities by foreign-key attributes")
             with runner.stage("fk_link"):
