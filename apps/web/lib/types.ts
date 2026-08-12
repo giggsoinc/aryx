@@ -270,6 +270,30 @@ export interface Brief {
   source_docs?: string[];
 }
 
+/** Result of POST /admin/smart/understand (data-first setup). */
+export interface SmartUnderstandResult {
+  plan_id?: string;
+  workspace_id?: number;
+  summary: string;
+  brief: Brief;
+  graph_plan: {
+    primary_types?: Array<{
+      name?: string; match_keys?: string[]; role?: string; source_file?: string;
+    }>;
+    dimension_types?: Array<{
+      name?: string; source_column?: string; role?: string; from_type?: string;
+    }>;
+    relationships?: Array<{
+      name?: string; from?: string; to?: string; via_column?: string;
+    }>;
+    outcomes?: string[];
+  };
+  follow_ups?: Array<{ id?: string; question?: string; why?: string }>;
+  suggested_documents?: Array<{ what?: string; why?: string }>;
+  source_columns?: Record<string, string[]>;
+  fallback?: boolean;
+}
+
 export interface QuizField {
   name: string;
   label: string;

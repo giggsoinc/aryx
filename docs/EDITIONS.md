@@ -15,20 +15,34 @@ first) — made possible because the core is built behind swappable ports.
 | **Scope** | Brief → ingest → resolve → map → Ask, single workspace, modest scale | Everything in the v2 design set (below) | Same Enterprise engine; substrate swapped via adapters, not surgery |
 | **Licensing** | **BSL 1.1** (→ GPL-3.0-or-later on 2029-07-15) | Commercial EULA | Commercial EULA |
 
-## Aryx Lite (v1) — what it is today
+## Aryx Lite (v1.7) — what it is today
 
-The currently shipped app: Home workspaces, Brief, guided setup (`/start`),
-Ask with grounded answers + citations, Model canvas, Data explorer with
-**Correct data** coach, Accuracy Lab, Observe, Settings, MCP, ingest from
-DB + files, entity resolution, survivorship, RDF/OWL import-export. It runs
-on the bundled Postgres + FalkorDB + Ollama stack. It is the **fast,
-approachable front door** — quick outcome mapping for a single team, not a
-200M-row multi-source governed estate.
+The currently shipped app (**1.7.0**): Home workspaces, **data-first** guided
+setup (`/start` — smart brief + graph plan), Brief edit page, Ask with
+grounded answers + citations, Model canvas, Data explorer with **Correct data**
+coach, Accuracy Lab, Observe, Settings, MCP, ingest from DB + files, dimension
+materialization from plan, entity resolution, survivorship, RDF/OWL
+import-export. It runs on the bundled Postgres + FalkorDB + Ollama stack (or
+cloud LLMs via Settings). Fast front door for a single team — not a 200M-row
+multi-tenant estate.
 
-Lite gets **UI polish and small deterministic improvements** only. The
-**agentic ontology control plane** (EDA sizing, multi-agent Stage-2 planning,
-pathway gates, full agent tracing) ships on the **Enterprise fork**, not as
-default open-source scope.
+### Data-first smart setup (Lite product rule)
+
+Setup is **data first**, then AI-assisted understanding:
+
+1. Point Aryx at files or a database.  
+2. The configured **answer model** (Gemini, Claude, OpenAI, Grok, Ollama — whatever is in Settings) reads samples and drafts the **brief + graph plan**.  
+3. User lightly corrects, optionally adds more documents Aryx suggests.  
+4. Confirm → brief saved → ingest builds the graph (types, dimensions, links).
+
+Users must not invent six blank brief answers before Aryx has seen data.
+Provider is swappable; the foundation is the same. See pack note
+`Audit-Postmortem/packs/OSS_Lite_Polish_Pack/DATA_FIRST_SMART_SETUP.md`.
+
+Lite gets **UI polish, data-first smart understand, and deterministic multi-type
+hooks** for tabular columns. The full **agentic ontology control plane**
+(EDA sizing, multi-agent Stage-2, pathway gates, full agent tracing) ships on
+the **Enterprise fork**, not as default open-source scope.
 
 > Lite is intentionally *not* the enterprise product. It's the wedge: a
 > clueless user reaches a useful ontology in minutes. **BSL 1.1** keeps
@@ -45,6 +59,10 @@ reasoner, LLM router, pipeline observability, ports & adapters) **and** the
 (ontology vs RAG vs hybrid), Stage-2 micro-agents (types, keys, relationships,
 brief alignment, critic), plan accept, and full tracing (at rest / in flight /
 on completion).
+
+Enterprise **extends** Lite’s data-first smart setup (same UX metaphor: load →
+understand → confirm). It does not reintroduce brief-before-data. Delta:
+`Audit-Postmortem/packs/EE_Ontology_Agentic_Pack/DATA_FIRST_SMART_SETUP_EE.md`.
 
 See **`temp_design/ontology-v2/08-v2-attack-plan.html`** for the earlier v2
 build order; agentic architecture packs ship to the Enterprise team separately.

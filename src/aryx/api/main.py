@@ -114,6 +114,8 @@ def create_app() -> FastAPI:
     app.include_router(connect_router())
     app.include_router(demo_ingest_router())
     app.include_router(doc_discover_router())
+    from aryx.api.smart_api import smart_router
+    app.include_router(smart_router())
     app.include_router(workspace_router())
     app.include_router(brief_router())
     app.include_router(datasource_router())

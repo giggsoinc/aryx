@@ -3,50 +3,42 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkspace } from "@/lib/workspace";
+import type { SmartUnderstandResult } from "@/lib/types";
 import { Intro } from "@/components/start/Intro";
-import { BriefStep } from "@/components/start/BriefStep";
 import { Sources, type SourceKind } from "@/components/start/Sources";
 import { Connect } from "@/components/start/Connect";
 import { Files } from "@/components/start/Files";
+import { SmartReview } from "@/components/start/SmartReview";
 import { Running } from "@/components/start/Running";
 import { Done } from "@/components/start/Done";
 
 type Step =
-  | "intro" | "brief" | "sources" | "connect" | "files"
-  | "running" | "done";
+  | "intro" | "sources" | "connect" | "files"
+  | "smart" | "running" | "done";
 
-/** Guided setup state machine. Loops through every picked source kind:
- *  Database → Connect, Files → Files upload step. Manual is informational
- *  for now (Inspector on /model handles manual type creation). */
+/** Guided setup: data first → smart understand → build. */
 export default function StartWizard() {
   const router = useRouter();
   const { workspaceId } = useWorkspace();
 
   const [step, setStep] = useState<Step>("intro");
-  const [sources, setSources] = useState<SourceKind[]>(["database"]);
+  const [sources, setSources] = useState<SourceKind[]>(["files"]);
   const [jobId, setJobId] = useState<string | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [smart, setSmart] = useState<SmartUnderstandResult | null>(null);
 
-  /** After a source completes, advance through any remaining picked
-   *  sources before flipping to "running". */
   const nextSource = (completed: SourceKind) => {
     const remaining = sources.filter((s) => s !== completed);
     setSources(remaining);
     if (remaining.includes("database")) setStep("connect");
     else if (remaining.includes("files")) setStep("files");
+    else if (pendingFiles.length && smart) setStep("smart");
     else setStep("running");
   };
 
   return (
     <>
-      {step === "intro" && <Intro onStart={() => setStep("brief")} />}
-
-      {step === "brief" && (
-        <BriefStep
-          workspaceId={workspaceId}
-          onDone={() => setStep("sources")}
-          onSkip={() => setStep("sources")}
-        />
-      )}
+      {step === "intro" && <Intro onStart={() => setStep("sources")} />}
 
       {step === "sources" && (
         <Sources
@@ -57,7 +49,7 @@ export default function StartWizard() {
             else if (picked.includes("files")) setStep("files");
             else setStep("running");
           }}
-          onBack={() => setStep("brief")}
+          onBack={() => setStep("intro")}
         />
       )}
 
@@ -73,9 +65,29 @@ export default function StartWizard() {
       {step === "files" && (
         <Files
           workspaceId={workspaceId}
+          mode="understand"
+          onUnderstood={(files, result) => {
+            setPendingFiles(files);
+            setSmart(result);
+            setStep("smart");
+          }}
           onUploaded={(id) => { setJobId(id); nextSource("files"); }}
           onBack={() => setStep("sources")}
           onSkip={() => nextSource("files")}
+        />
+      )}
+
+      {step === "smart" && smart && (
+        <SmartReview
+          workspaceId={workspaceId}
+          files={pendingFiles}
+          result={smart}
+          onBuilt={(id) => {
+            setJobId(id);
+            setStep("running");
+          }}
+          onBack={() => setStep("files")}
+          onAddMore={() => setStep("files")}
         />
       )}
 

@@ -164,8 +164,8 @@
   <div class="features">
     <div class="feat">
       <div class="ico">✨</div>
-      <h4>Guided onboarding</h4>
-      <p>Goals → confirm → sources → connect → run → ready. Seven screens, one decision each. Zero ontology vocabulary required.</p>
+      <h4>Data-first smart setup</h4>
+      <p>Load data → smart brief + graph plan (any model) → approve → build. You do not invent six blank questions cold. Lite 1.7.</p>
       <span class="mono">/start</span>
     </div>
     <div class="feat">
@@ -245,10 +245,9 @@
     <div class="arch-layer">
       <span class="badge">UI</span>
       <div class="items">
-        <span class="pill">Next.js wizard <code>:3000/start</code></span>
-        <span class="pill">Ask <code>:3000/</code></span>
-        <span class="pill">Model <code>:3000/model</code></span>
-        <span class="pill">Streamlit admin <code>:8501</code></span>
+        <span class="pill">Setup (data first) <code>:3000/start</code></span>
+        <span class="pill">Home / Ask <code>:3000/</code></span>
+        <span class="pill">Data · Model · Lab</span>
         <span class="pill">Claude Desktop · MCP</span>
       </div>
     </div>
@@ -297,8 +296,8 @@
   <div class="demos">
     <a class="demo" href="http://ec2-3-91-73-197.compute-1.amazonaws.com:3000/start">
       <div class="ico">✨</div>
-      <h4>Guided setup</h4>
-      <p>The 7-screen wizard. New workspaces always land here.</p>
+      <h4>Data-first setup</h4>
+      <p>Load → smart review → build. New empty workspaces land here.</p>
       <code>:3000/start</code>
     </a>
     <a class="demo" href="http://ec2-3-91-73-197.compute-1.amazonaws.com:3000/">
@@ -319,7 +318,7 @@
 <section id="quickstart">
   <span class="sec-label">Quickstart</span>
   <h2 class="sec-h">From clone to running in under five minutes.</h2>
-  <p class="sec-lede">Docker Compose brings up Postgres, FalkorDB, Ollama, FastAPI, MCP, Streamlit, and the Next.js app.</p>
+  <p class="sec-lede">Docker Compose brings up Postgres, FalkorDB, Ollama, FastAPI, MCP, and the Next.js app (Lite 1.7.0).</p>
   <div class="qs">
     <div><span class="cmt"># 1. Clone + bring up the stack</span></div>
     <div class="cmd">git clone https://github.com/giggsoinc/aryx.git</div>
@@ -329,7 +328,7 @@
     <div><span class="cmt"># 2. Wait for healthy (≈ 60s on a warm pull)</span></div>
     <div class="cmd">docker compose ps</div>
     <br />
-    <div><span class="cmt"># 3. Open the wizard — Aryx will guide you the rest of the way</span></div>
+    <div><span class="cmt"># 3. Open setup — data first, then smart brief + graph plan</span></div>
     <div class="cmd">open http://localhost:3000/start</div>
     <br />
     <div><span class="cmt"># Optional — connect Claude Desktop via MCP (21 tools)</span></div>

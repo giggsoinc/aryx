@@ -224,7 +224,7 @@ def ask_router() -> APIRouter:
         return {
             "product": "Aryx Lite",
             "version": __version__,
-            "api": "1.6.1",
+            "api": __version__,
             "python": sys.version.split()[0],
             "platform": platform.platform(),
         }

@@ -2,7 +2,7 @@ import type {
   AbResult, AskResponse, Axiom, Brief, DataEntitiesPage, DataSummary,
   Datasource, EntityDetail, EntityGraphView, GraphView, IngestQuestion,
   LlmConfig, LlmConfigUpdate, OntologyDoc, QuizSpec, ReasonerCheck, Rule,
-  SurvivorshipPolicy, Workspace,
+  SmartUnderstandResult, SurvivorshipPolicy, Workspace,
 } from "./types";
 
 // Same-origin relative path. Next.js rewrites /api/* → FastAPI internally
@@ -267,12 +267,14 @@ export const api = {
   /** Multipart file upload → kicks the file ingest pipeline server-side. */
   uploadFiles: async (workspaceId: number, files: File[],
                        ontologyType = "Document",
-                       matchKeys = "name") => {
+                       matchKeys = "name",
+                       graphPlan?: Record<string, unknown>) => {
     const form = new FormData();
     for (const f of files) form.append("files", f);
     form.append("ontology_type", ontologyType);
     form.append("match_keys", matchKeys);
     form.append("workspace_id", String(workspaceId));
+    if (graphPlan) form.append("graph_plan", JSON.stringify(graphPlan));
     const res = await fetch(`${BASE}/admin/ingest/file`,
                             { method: "POST", body: form });
     if (!res.ok) {
@@ -281,6 +283,35 @@ export const api = {
     }
     return res.json() as Promise<{ status: string; job_id: string }>;
   },
+
+  /** Data-first: sample files → draft brief + graph plan (no full ingest). */
+  smartUnderstand: async (workspaceId: number, files: File[],
+                          userHint = "") => {
+    const form = new FormData();
+    for (const f of files) form.append("files", f);
+    form.append("workspace_id", String(workspaceId));
+    if (userHint) form.append("user_hint", userHint);
+    const res = await fetch(`${BASE}/admin/smart/understand`,
+                            { method: "POST", body: form });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`${res.status} ${res.statusText}: ${detail}`);
+    }
+    return res.json() as Promise<SmartUnderstandResult>;
+  },
+
+  smartApply: (workspaceId: number, brief: Brief,
+               graphPlan?: Record<string, unknown>, planId?: string) =>
+    fetchJSON<{ status: string; graph_plan?: Record<string, unknown> }>(
+      "/admin/smart/apply", {
+        method: "POST",
+        body: JSON.stringify({
+          workspace_id: workspaceId,
+          brief,
+          graph_plan: graphPlan || {},
+          plan_id: planId || null,
+        }),
+      }),
 
   // ── AI ontology assist (option f) ────────────────────────────────────
   suggestAttrs: (workspaceId: number, typeName: string, existing: string[]) =>

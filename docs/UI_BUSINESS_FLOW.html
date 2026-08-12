@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aryx Lite 1.7 — Product business flow</title>
+  <style>
+    :root {
+      --navy-900: #0b1f3a; --navy-800: #132f54; --navy-700: #1c3f6b;
+      --navy-100: #e4ebf5; --navy-50: #f2f6fb; --steel-600: #4068a8;
+      --steel-500: #5b82bc; --canvas: #f7f9fc; --subtle: #6b7c93;
+      --emerald: #047857; --white: #fff;
+      --font: system-ui, -apple-system, sans-serif;
+      --display: Georgia, "Times New Roman", serif;
+      --mono: ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: var(--font); background: var(--canvas);
+      color: var(--navy-900); line-height: 1.55; font-size: 15px; }
+    a { color: var(--steel-600); }
+    main { max-width: 880px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+    .hero {
+      background: linear-gradient(135deg, var(--navy-900), var(--navy-700));
+      color: #e8f0fb; border-radius: 16px; padding: 1.75rem 1.85rem; margin-bottom: 1.5rem;
+    }
+    .hero h1 { font-family: var(--display); font-size: 1.75rem; margin: 0 0 .4rem; color: #fff; }
+    .hero p { margin: 0; color: #b8c9e0; font-size: 14px; }
+    .chip {
+      display: inline-block; margin-top: .75rem; margin-right: .35rem;
+      font-size: 11px; font-weight: 600; border-radius: 999px;
+      padding: .28rem .65rem; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.12);
+    }
+    section {
+      background: var(--white); border: 1px solid var(--navy-100); border-radius: 14px;
+      padding: 1.35rem 1.45rem; margin-bottom: 1rem;
+    }
+    h2 { font-family: var(--display); font-size: 1.3rem; margin: 0 0 .5rem; }
+    h3 { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--navy-700); margin: 1rem 0 .4rem; }
+    .flow { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin: .75rem 0 1rem; }
+    .node {
+      background: var(--navy-800); color: #fff; font-size: 12px; font-weight: 600;
+      padding: .4rem .7rem; border-radius: 999px;
+    }
+    .node.soft { background: var(--steel-500); }
+    .node.ghost { background: #fff; color: var(--navy-800); border: 1px solid var(--navy-100); }
+    .arrow { color: var(--subtle); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin: .5rem 0; }
+    th, td { text-align: left; padding: .5rem .55rem; border-bottom: 1px solid var(--navy-100); vertical-align: top; }
+    th { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--subtle); background: var(--navy-50); }
+    code { font-family: var(--mono); font-size: 12px; background: var(--navy-50); padding: .1rem .35rem; border-radius: 4px; }
+    .ok {
+      border-left: 3px solid var(--emerald); background: #ecfdf5;
+      padding: .7rem .9rem; border-radius: 0 10px 10px 0; font-size: 13px; margin: .75rem 0;
+    }
+    .warn {
+      border-left: 3px solid #b45309; background: #fffbeb;
+      padding: .7rem .9rem; border-radius: 0 10px 10px 0; font-size: 13px; margin: .75rem 0;
+    }
+    ul { margin: .3rem 0 .8rem; padding-left: 1.2rem; }
+    footer { font-size: 12px; color: var(--subtle); margin-top: 1.5rem; }
+  </style>
+</head>
+<body>
+<main>
+  <header class="hero">
+    <h1>Aryx Lite 1.7 — business flow</h1>
+    <p>
+      Product rule: <strong>data first</strong>, then smart brief + graph plan
+      (any Settings model — Gemini, Ollama, Claude, OpenAI, Grok). User approves lightly; spine builds the graph.
+    </p>
+    <span class="chip">Version 1.7.0</span>
+    <span class="chip">Edition: Lite</span>
+    <span class="chip">Provider-agnostic</span>
+  </header>
+
+  <section id="flow">
+    <h2>End-to-end happy path</h2>
+    <div class="flow">
+      <span class="node">Home</span><span class="arrow">→</span>
+      <span class="node soft">ModelGate</span><span class="arrow">→</span>
+      <span class="node">/start</span><span class="arrow">→</span>
+      <span class="node soft">Sources</span><span class="arrow">→</span>
+      <span class="node soft">Load data</span><span class="arrow">→</span>
+      <span class="node">Smart review</span><span class="arrow">→</span>
+      <span class="node">Build</span>
+    </div>
+    <div class="flow">
+      <span class="node ghost">Data</span><span class="arrow">·</span>
+      <span class="node ghost">Model</span><span class="arrow">·</span>
+      <span class="node ghost">Lab</span><span class="arrow">→</span>
+      <span class="node soft">Ask</span><span class="arrow">·</span>
+      <span class="node ghost">Observe</span><span class="arrow">·</span>
+      <span class="node ghost">Brief (edit)</span>
+    </div>
+    <div class="ok">
+      <strong>Outcome:</strong> heterogeneous data becomes a workspace knowledge graph
+      with multi-type plan (when columns allow), provenance, and grounded Ask — without
+      forcing the user to invent six blank brief answers first.
+    </div>
+  </section>
+
+  <section id="start">
+    <h2>Setup wizard <code>/start</code></h2>
+    <div class="flow">
+      <span class="node ghost">intro</span><span class="arrow">→</span>
+      <span class="node">sources</span><span class="arrow">→</span>
+      <span class="node soft">connect / files</span><span class="arrow">→</span>
+      <span class="node">smart</span><span class="arrow">→</span>
+      <span class="node">running</span><span class="arrow">→</span>
+      <span class="node">done</span>
+    </div>
+    <table>
+      <thead><tr><th>Step</th><th>UI</th><th>Business job</th><th>API / mechanism</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Intro</td>
+          <td><code>Intro</code></td>
+          <td>Data-first story</td>
+          <td>Local step only</td>
+        </tr>
+        <tr>
+          <td>Sources</td>
+          <td><code>Sources</code></td>
+          <td>DB / Files / Types only</td>
+          <td>Multi-select kinds</td>
+        </tr>
+        <tr>
+          <td>Load</td>
+          <td><code>Files</code> / <code>Connect</code></td>
+          <td>Point at real data</td>
+          <td>Files: sample only (understand mode)</td>
+        </tr>
+        <tr>
+          <td>Smart review</td>
+          <td><code>SmartReview</code></td>
+          <td>See summary, graph plan, drafted brief; optional extra docs</td>
+          <td><code>POST /admin/smart/understand</code> then apply + ingest</td>
+        </tr>
+        <tr>
+          <td>Build</td>
+          <td><code>Running</code></td>
+          <td>Full ingest + dimensions + project</td>
+          <td><code>POST /admin/ingest/file</code> + <code>graph_plan</code></td>
+        </tr>
+        <tr>
+          <td>Done</td>
+          <td><code>Done</code></td>
+          <td>Exit to Data / Model / Ask</td>
+          <td>—</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="warn">
+      <strong>Not the 1.6 path:</strong> Brief-before-data is retired for setup.
+      <code>/brief</code> remains for edit-anytime after (or instead of) smart draft.
+    </div>
+  </section>
+
+  <section id="smart">
+    <h2>Smart understand (model-agnostic)</h2>
+    <ul>
+      <li>Uses Settings <strong>answer</strong> model via <code>llm_runtime</code> — never hardcodes Gemini.</li>
+      <li>Returns: summary, brief (6 fields), graph_plan (primary + dimension types + relationships), follow_ups, suggested_documents.</li>
+      <li>Offline heuristic fallback if the model is unavailable (still multi-type for bank-like CSVs).</li>
+      <li>Ontology packs are optional; not required for a first plan.</li>
+    </ul>
+  </section>
+
+  <section id="surfaces">
+    <h2>Primary surfaces</h2>
+    <table>
+      <thead><tr><th>Nav</th><th>Route</th><th>Job</th></tr></thead>
+      <tbody>
+        <tr><td>Home</td><td><code>/</code></td><td>Workspaces, model gate, delete non-Default</td></tr>
+        <tr><td>Brief</td><td><code>/brief</code></td><td>Edit drafted grounding questions</td></tr>
+        <tr><td>Data</td><td><code>/data</code></td><td>Entities + provenance + Correct data</td></tr>
+        <tr><td>Model</td><td><code>/model</code></td><td>Ontology canvas (seeded from plan)</td></tr>
+        <tr><td>Lab</td><td><code>/lab</code></td><td>Ontology ON/OFF proof</td></tr>
+        <tr><td>Ask</td><td><code>/ask</code></td><td>Grounded Q&amp;A</td></tr>
+        <tr><td>Observe</td><td><code>/observe</code></td><td>Jobs &amp; vitals</td></tr>
+        <tr><td>Settings</td><td><code>/settings</code></td><td>Provider + models (powers understand + Ask)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="ee">
+    <h2>Enterprise delta</h2>
+    <p>
+      Same UX metaphor (load → understand → confirm). EE adds EDA agents, Stage-2
+      micro-agents, critic, pathway gate, and full plan tracing — not a brief-first fork.
+    </p>
+  </section>
+
+  <footer>
+    Aryx Lite 1.7.0 · See also USER_GUIDE.md · EDITIONS.md · CHANGELOG.md ·
+    Audit packs DATA_FIRST_SMART_SETUP*.md
+  </footer>
+</main>
+</body>
+</html>

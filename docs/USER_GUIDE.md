@@ -30,20 +30,18 @@ Everything lives in **workspaces** — isolated projects (partitions + graph). U
 | Control | Purpose |
 |---------|---------|
 | **Home** | Workspaces, model gate, create / open / reset / delete |
-| **Brief** | Six grounding questions (hand-edit or optional AI draft) |
+| **Brief** | Grounding questions — usually drafted after data load; edit anytime |
 | **Data** | Explorer (Tree / Table / Graph) + **Correct data** coach |
-| **Model** | Ontology canvas (types & relationships) |
+| **Model** | Ontology canvas (types & relationships; seeded from smart plan) |
 | **Lab** | Accuracy Lab (ontology ON vs OFF) |
 | **Ask** | Grounded Q&A with citations |
 | **Observe** | Jobs, workspace vitals, storage truth |
-| **Settings** | LLM provider, models, API key |
+| **Settings** | LLM provider, models, API key (powers smart understand + Ask) |
 | **Jobs** chip | Live ingest progress |
 | **Questions** bell | Human-in-the-loop ingest queue |
-| **Workspace** picker | Switch or create workspaces |
+| **Workspace** picker | Switch, create, or delete (non-Default) workspaces |
 
-**Setup wizard** (`/start`) opens automatically for empty workspaces (Home → Continue setup). There is no separate “Onboard” nav label.
-
-A **new empty workspace** routes into the setup wizard automatically.
+**Setup** (`/start`): data first → smart review → build. Opens automatically for empty workspaces. See [UI_BUSINESS_FLOW.html](UI_BUSINESS_FLOW.html).
 
 ---
 
@@ -89,37 +87,51 @@ Controls the **LLM engine** used for Ask, discovery, and related stages.
 
 Progress steps along the top; you can leave and return.
 
-### Step 1 — Goals
+**Product rule: data first.** You load files or connect a database **before**
+filling a blank brief. Aryx (your Settings model — Gemini, Ollama, etc.) reads
+samples, drafts the brief and a graph plan, then asks only for light corrections
+and optional extra documents.
 
-Describe 2–5 things you want to figure out in plain English  
-(*“Find customers at risk of churn,” “Match tickets to expert agents”*).  
-Nouns in your goals seed the kinds of records Aryx looks for. You can skip.
+### Step 1 — Sources
 
-### Step 2 — Brief
+Choose **Database**, **Files**, and/or **Types only** (skip data for now).
 
-Answer up to **six grounding questions** by hand (primary path), or expand **Optional: draft with AI** (drop a doc / one sentence). Briefing files are **not stored** for re-open — only used to draft. Save when ready.
+### Step 2 — Load data
 
-### Step 3 — Sources
+Connect a DB or upload CSV/JSON/PDF/Word/images. Aryx samples the content.
 
-Pick any mix of:
+### Step 3 — Smart review
 
-- **Database** — Postgres, MySQL/MariaDB, Oracle, REST-style sources  
-- **Files** — CSV, JSON, PDF, DOCX, PPTX, images (limits: see upload UI; typically up to 50 files / 20 MB each / 50 MB total)  
-- **Add by hand** — create types later on the Model canvas  
+The model proposes:
 
-### Step 4a — Database
+- What the data is  
+- A full **brief** (domain, aim, objectives, scope, roles, proof questions)  
+- A **graph plan** (entity types, relationships, column dimensions)  
+- Optional follow-up questions and **suggested extra documents**
 
-Fill host, database, user, password (Advanced: port, dialect, schema). **Connect** runs a **read-only** test and lists tables. Passwords are encrypted before storage; the UI does not show them again.
+Edit anything that looks wrong. Add more files if suggested. Then confirm.
 
-Inside Compose, host for the bundled DB is often `postgres` (not `localhost`).
+### Step 4 — Build
 
-### Step 4b — Files
+Brief is saved; ingest runs steered by that brief + plan. Explore on **Data**
+and **Model**, then **Ask**.
 
-Drag-and-drop or browse. Multi-file CSV/JSON batches get **per-file type and match-key inference** (so everything is not forced to a single “Document” type). After files land, Aryx can **infer cross-file relationships** and re-project the graph.
+### Brief page (`/brief`)
 
-### Step 5 — Pipeline
+Still available anytime to edit the brief. Prefer letting smart review draft it
+after you load data; hand-filling six empty fields first is no longer the main path.
 
-Live progress here and in the **Jobs** chip. If a decision needs a human, Aryx **pauses** and queues a **Question** (bell).
+### Database notes
+
+Fill host, database, user, password (Advanced: port, dialect, schema). **Connect** runs a **read-only** test. Passwords are encrypted before storage. Inside Compose, host for the bundled DB is often `postgres` (not `localhost`).
+
+### Files notes
+
+Drag-and-drop or browse (typically up to 50 files / 20 MB each / 50 MB total). Smart review samples headers and rows before full ingest. Multi-file batches get per-file types; cross-file FK links can be inferred after land.
+
+### Pipeline
+
+Live progress on the wizard and in the **Jobs** chip. HITL questions appear in the **Questions** bell when needed.
 
 When the job completes, a **result card** appears inline with three sections — each has its own **Refresh** button:
 

@@ -24,7 +24,7 @@ const CARDS: Array<{ kind: SourceKind; ico: React.ReactNode;
 ];
 
 /** Screen 3 — multi-select data sources. */
-export function Sources({ initial = ["database"], onContinue, onBack }: Props) {
+export function Sources({ initial = ["files"], onContinue, onBack }: Props) {
   const [picked, setPicked] = useState<Set<SourceKind>>(new Set(initial));
 
   const toggle = (k: SourceKind) => {
@@ -36,14 +36,14 @@ export function Sources({ initial = ["database"], onContinue, onBack }: Props) {
   const list = Array.from(picked);
 
   return (
-    <StepShell progress={50}>
+    <StepShell progress={25}>
       <h1 className="max-w-2xl text-center font-display text-[2rem] leading-tight text-navy-900">
         Where is your data?
       </h1>
       <p className="mt-3 max-w-lg text-center text-[14px] text-subtle">
-        <b>Step 2 of setup — load data into this workspace.</b>{" "}
-        Tick Database and/or Files to ingest. “Types only” means no upload yet
-        (you’ll sketch types on Model). You can add more sources later from setup.
+        <b>Data first.</b> Pick Files and/or Database. Aryx will sample the
+        content and draft your brief + graph plan — you won&apos;t fill six empty
+        questions cold. “Types only” skips data for now (Model canvas).
       </p>
 
       <div className="mt-8 grid w-full max-w-2xl grid-cols-3 gap-4">

@@ -8,27 +8,26 @@ interface Props {
 }
 
 const STEPS = [
-  { n: 1, t: "You tell Aryx what you want to figure out",
-    d: "2–5 goals or questions. That's the brief." },
-  { n: 2, t: "You point Aryx at your data",
-    d: "Database, files, APIs — whatever you have." },
-  { n: 3, t: "Aryx proposes the model, you approve",
-    d: "Records get deduped, things get linked into a map. You stay in the loop on anything ambiguous." },
-  { n: 4, t: "You ask, Aryx answers",
-    d: "Plain English questions. Every answer cites the records behind it." },
+  { n: 1, t: "You point Aryx at your data first",
+    d: "Files or a database — samples are enough to start." },
+  { n: 2, t: "Aryx reads samples and drafts the plan",
+    d: "Your Settings model (any provider) proposes the brief and the graph — merchants, types, links — not a blank form for you to invent." },
+  { n: 3, t: "You approve lightly; add docs if suggested",
+    d: "Correct anything off. Optional extra files sharpen the outcome." },
+  { n: 4, t: "Aryx builds the graph; you ask",
+    d: "Entities link with provenance. Plain-English questions with citations." },
 ];
 
-/** Screen 0 — intro / what Aryx is. Plain headline + ontology positioning. */
+/** Screen 0 — intro / data-first product story. */
 export function Intro({ onStart }: Props) {
   return (
     <StepShell>
       <h1 className="max-w-2xl text-center font-display text-[2.4rem] leading-tight text-navy-900">
-        Aryx connects your data from a business&nbsp;thinking view.
+        Load your data. Aryx figures out the rest.
       </h1>
       <p className="mt-5 max-w-xl text-center text-[15px] italic leading-relaxed text-steel-600">
-        A discovery-driven knowledge graph built on auto-discovered ontology
-        frameworks. The structure emerges from your data and your goals,
-        instead of being designed in advance.
+        Data first — then a smart brief and graph plan from samples.
+        You stay in the loop; you don&apos;t fill six empty questions cold.
       </p>
 
       <section className="mt-10 w-full max-w-xl rounded-2xl bg-navy-50 p-6">
@@ -59,7 +58,9 @@ export function Intro({ onStart }: Props) {
       >
         Get started <ArrowRight size={16} />
       </button>
-      <p className="mt-3 text-[12px] text-subtle">Takes about 3 minutes.</p>
+      <p className="mt-3 text-[12px] text-subtle">
+        About 3 minutes · model from Settings (Gemini, Ollama, …)
+      </p>
     </StepShell>
   );
 }
