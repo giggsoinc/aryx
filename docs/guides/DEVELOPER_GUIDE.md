@@ -2,7 +2,7 @@
 
 **Audience:** AI engineers, agent developers, backend/platform engineers, knowledge-graph engineers, technical architects  
 **Edition:** Aryx Lite (this repository / self-host stack)  
-**Version:** 1.7.x
+**Version:** 1.8.x
 
 ---
 

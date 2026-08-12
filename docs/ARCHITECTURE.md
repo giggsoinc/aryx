@@ -25,7 +25,7 @@ Two structural changes define the current generation:
    | `/settings` | **Settings** | LLM provider (powers smart understand + Ask) |
 
    The Streamlit app was **removed**; use Next.js (`apps/web`) only.  
-   **Lite 1.7.x** ships data-first smart setup + linear pipeline (ingest → resolve → project)
+   **Lite 1.8.x** ships data-first smart setup + linear pipeline (ingest → resolve → project)
    with optional dimension materialization from the graph plan.  
    **Enterprise** agentic ontology planning (EDA + multi-agent Stage-2) is a separate fork —
    same data-first UX metaphor, deeper agents. See [EDITIONS.md](EDITIONS.md) and

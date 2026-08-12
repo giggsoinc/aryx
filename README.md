@@ -82,7 +82,7 @@ Smoke check:
 curl -s http://localhost:8088/health
 ```
 
-Pinned images: `giggsodocker/aryx-lite:1.7.0` · `giggsodocker/aryx-lite-web:1.7.0` — see [DOCKERHUB.md](docs/DOCKERHUB.md).
+Pinned images: `giggsodocker/aryx-lite:1.8.0` · `giggsodocker/aryx-lite-web:1.8.0` — see [DOCKERHUB.md](docs/DOCKERHUB.md).
 
 Full install notes: [docs/INSTALL.md](docs/INSTALL.md).
 

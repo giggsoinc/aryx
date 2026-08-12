@@ -198,7 +198,7 @@ def jobs_router() -> APIRouter:
                 raise HTTPException(
                     400,
                     "Cannot resume: no landed run on this job. Re-upload the "
-                    "file (Resolve never finished Discover, or job is pre-1.7.1).",
+                    "file (Resolve never finished Discover, or job is pre-1.7 resume support).",
                 )
             if job.get("status") == "running":
                 raise HTTPException(

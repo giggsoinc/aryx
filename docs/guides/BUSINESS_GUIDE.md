@@ -2,7 +2,7 @@
 
 **Audience:** Product owners, operations leads, support/sales ops, data/analytics leaders, CTO/CIO/CDO technical sponsors  
 **Edition:** Aryx Lite (self-hostable product in this repository)  
-**Version:** 1.7.x
+**Version:** 1.8.x
 
 ---
 
