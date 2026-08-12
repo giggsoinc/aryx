@@ -146,6 +146,7 @@ export const api = {
     fetchJSON<{
       job_id: string; status: string; stage: string | null;
       pct: number | null; detail: string | null; error: string | null;
+      run_id?: number | null;
     }>(`/admin/jobs/${jobId}`),
 
   listJobs: (workspaceId: number) =>
@@ -153,6 +154,7 @@ export const api = {
       job_id: string; source_system: string; source_dataset: string;
       status: string; stage: string | null; pct: number | null;
       detail: string | null; error: string | null;
+      run_id?: number | null;
       started_at?: string; finished_at?: string | null;
     }>>(`/admin/jobs?workspace_id=${workspaceId}`),
 
@@ -165,6 +167,21 @@ export const api = {
     fetchJSON<{ status: string; job_id: string }>(
       `/admin/jobs/${jobId}/cancel`, { method: "POST", body: "{}" },
     ),
+
+  /** Inspect stage checkpoints for a job (does not start work). */
+  jobResumeStatus: (jobId: string) =>
+    fetchJSON<{
+      job_id: string; run_id: number | null; resumable: boolean;
+      stages: Array<{ stage: string; status: string }>;
+      reason?: string; meta?: Record<string, unknown>;
+    }>(`/admin/jobs/${jobId}/resume`, { method: "POST", body: "{}" }),
+
+  /** Continue pipeline from last done stage (needs run_id on the job). */
+  resumeJobRun: (jobId: string) =>
+    fetchJSON<{
+      status: string; job_id: string; resume_of: string;
+      run_id: number; message?: string;
+    }>(`/admin/jobs/${jobId}/resume-run`, { method: "POST", body: "{}" }),
 
   workspaceOverview: () =>
     fetchJSON<Array<{

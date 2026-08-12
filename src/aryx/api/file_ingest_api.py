@@ -172,12 +172,21 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 keys = [best]
             plans.append({"ontology_type": otype, **cv})
             jobs.update_stage(job_id, "Ingest", 20, f"Processing {name}")
+
+            def _progress(s: str, p: int, d: str, _jid: str = job_id) -> None:
+                # Heartbeats only touch stage (no event spam); others log both.
+                if "still working" in (d or ""):
+                    jobs.heartbeat(_jid, s, p, d)
+                else:
+                    jobs.update_stage(_jid, s, p, d)
+
             summary = run_pipeline(
                 connector=connector, dsn=settings.rdb_dsn,
                 system=suffix.lstrip("."), dataset=Path(name).stem,
                 ontology_type=otype, match_keys=keys,
                 graph_url=settings.graph_url, broker=broker,
-                on_progress=lambda s, p, d: jobs.update_stage(job_id, s, p, d),
+                on_progress=_progress,
+                on_run_id=lambda rid, _jid=job_id: jobs.attach_run(_jid, rid),
                 fk_links=fk_links, workspace_id=workspace_id,
             )
             total_entities += int(summary.get("entities") or 0)

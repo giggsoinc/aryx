@@ -251,17 +251,39 @@ function JobCard({ job, onChanged }: { job: JobRow; onChanged: () => void }) {
             </button>
           )}
           {isFailed && (
-            <Link
-              href="/start"
-              className="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-navy-800 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-navy-700"
-            >
-              <RotateCcw size={11} /> Retry — re-onboard
-            </Link>
+            <>
+              {job.run_id != null && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await api.resumeJobRun(job.job_id);
+                      onChanged();
+                    } catch (e) {
+                      window.alert(
+                        e instanceof Error ? e.message : "Resume failed",
+                      );
+                    }
+                  }}
+                  className="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-navy-800 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-navy-700"
+                >
+                  <RotateCcw size={11} /> Resume from checkpoint
+                </button>
+              )}
+              <Link
+                href="/start"
+                className="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-navy-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-navy-800 hover:bg-navy-50"
+              >
+                Re-upload
+              </Link>
+            </>
           )}
           <span className="text-[10px] text-subtle">
             {isRunning
-              ? "Stuck? Cancel frees the workspace; re-upload to retry."
-              : "Re-run the wizard to re-ingest. Smaller batches help."}
+              ? "Resolve on large CSVs can take 10–30+ min — look for “still working”."
+              : job.run_id != null
+              ? "Resume continues after Discover (no re-upload). Re-upload if no run_id."
+              : "No landed run — re-upload the file to start a new job."}
           </span>
         </div>
       )}

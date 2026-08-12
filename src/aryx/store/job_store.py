@@ -43,6 +43,18 @@ class JobStore:
                 cur.execute(load("update_job_stage"), (stage, pct, detail, job_id))
                 cur.execute(load("insert_job_event"), (job_id, stage, pct, detail))
 
+    def heartbeat(self, job_id: str, stage: str, pct: int, detail: str) -> None:
+        """Touch updated_at during long stages without spamming the event log."""
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(load("update_job_stage"), (stage, pct, detail, job_id))
+
+    def attach_run(self, job_id: str, run_id: int) -> None:
+        """Persist run_id as soon as discover finishes (enables true resume)."""
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(load("attach_job_run"), (run_id, job_id))
+
     def finish(self, job_id: str, run_id: int | None, status: str,
                error: str | None = None) -> None:
         """Mark a job complete or failed."""
