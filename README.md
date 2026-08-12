@@ -26,6 +26,13 @@ Aryx connects what databases, applications, APIs, and documents **mean to each o
 
 [Quick start](#quick-start) · [Install](docs/INSTALL.md) · [User guide](docs/USER_GUIDE.md) · [Architecture](docs/ARCHITECTURE.md) · [MCP](docs/mcp-guide.html) · [Docker Hub](docs/DOCKERHUB.md) · [Contributing](CONTRIBUTING.md)
 
+**Usage guides**
+
+| Who | Guide |
+|-----|--------|
+| **Developers & agent engineers** | [Markdown](docs/guides/DEVELOPER_GUIDE.md) · [HTML](docs/guides/DEVELOPER_GUIDE.html) |
+| **Business & leadership** | [Markdown](docs/guides/BUSINESS_GUIDE.md) · [HTML](docs/guides/BUSINESS_GUIDE.html) |
+
 ---
 
 ## Why Aryx?
