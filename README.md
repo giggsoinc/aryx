@@ -26,7 +26,7 @@ Aryx connects what databases, applications, APIs, and documents **mean to each o
 
 [Quick start](#quick-start) · [Install](docs/INSTALL.md) · [User guide](docs/USER_GUIDE.md) · [Architecture](docs/ARCHITECTURE.md) · [MCP (docs)](docs/mcp-guide.html) · [Docker Hub](docs/DOCKERHUB.md) · [Contributing](CONTRIBUTING.md)
 
-After compose is up: open **http://localhost:3000/mcp** (nav **MCP**) for Claude config, business prompts, and developer HTTP/MCP notes.
+After compose is up: open **http://localhost:3000/mcp** (nav **MCP**) — **10-minute Docker→Claude path**, all **21 MCP tools** (params + example calls + “say in Claude”), and developer notes. Markdown twin: [docs/guides/MCP_QUICKSTART.md](docs/guides/MCP_QUICKSTART.md).
 
 **Usage guides**
 
