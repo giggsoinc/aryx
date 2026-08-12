@@ -306,7 +306,7 @@ export const api = {
     ),
 
   /** Multipart file upload → kicks the file ingest pipeline server-side. */
-  uploadFiles: async (workspaceId: number, files: File[], context: string,
+  uploadFiles: async (workspaceId: number, files: File[],
                        ontologyType = "Document",
                        matchKeys = "name",
                        graphPlan?: Record<string, unknown>) => {
@@ -314,7 +314,6 @@ export const api = {
     for (const f of files) form.append("files", f);
     form.append("ontology_type", ontologyType);
     form.append("match_keys", matchKeys);
-    form.append("context", context);
     form.append("workspace_id", String(workspaceId));
     if (graphPlan) form.append("graph_plan", JSON.stringify(graphPlan));
     const res = await fetch(`${BASE}/admin/ingest/file`,
