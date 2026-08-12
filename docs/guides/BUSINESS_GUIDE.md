@@ -151,7 +151,7 @@ You do **not** need Claude Desktop or Copilot for this path. Gemini (or any mode
 | Step | Business | IT |
 |------|----------|-----|
 | 1 | Define pilot questions (“Which accounts have open escalations and expired contracts?”) | Run Aryx; open MCP on port **8765** (see [mcp-guide.html](../mcp-guide.html)) |
-| 2 | Approve the smart-review plan so the graph is trustworthy | Connect Claude Desktop (or Claude Code) as an **MCP host** to Aryx |
+| 2 | Approve the smart-review plan so the graph is trustworthy | Connect Claude Desktop (or Claude Code) as an **MCP host** to Aryx — in-app **MCP** menu shows the URL + config |
 | 3 | In Claude, ask in plain English | Claude calls Aryx tools (workspace, status, ask-style flows) |
 | 4 | Demand sources if Claude cannot show them | Confirm network: Claude machine can reach Aryx MCP URL |
 

@@ -154,7 +154,7 @@ Ops             →  Observe, Jobs, docker logs
 
 | Channel | Use when |
 |---------|----------|
-| **MCP** | Coding agents and Claude-family hosts should *operate* Aryx |
+| **MCP** | Coding agents and Claude-family hosts should *operate* Aryx — product menu **MCP** (`/mcp`) has copy-paste config |
 | **REST** | Production backends and custom agent frameworks |
 | **UI** | Domain review, demos, smart setup, Correct data |
 | **CLI** (partial) | Pipeline/ops scripts; evolving toward fuller product CLI |

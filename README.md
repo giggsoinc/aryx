@@ -24,7 +24,9 @@ Aryx connects what databases, applications, APIs, and documents **mean to each o
 [![Graph: FalkorDB](https://img.shields.io/badge/graph-FalkorDB-red.svg)](https://github.com/FalkorDB/FalkorDB)
 [![Docker](https://img.shields.io/badge/docker-giggsodocker%2Faryx--lite-blue.svg)](https://hub.docker.com/r/giggsodocker/aryx-lite)
 
-[Quick start](#quick-start) · [Install](docs/INSTALL.md) · [User guide](docs/USER_GUIDE.md) · [Architecture](docs/ARCHITECTURE.md) · [MCP](docs/mcp-guide.html) · [Docker Hub](docs/DOCKERHUB.md) · [Contributing](CONTRIBUTING.md)
+[Quick start](#quick-start) · [Install](docs/INSTALL.md) · [User guide](docs/USER_GUIDE.md) · [Architecture](docs/ARCHITECTURE.md) · [MCP (docs)](docs/mcp-guide.html) · [Docker Hub](docs/DOCKERHUB.md) · [Contributing](CONTRIBUTING.md)
+
+After compose is up: open **http://localhost:3000/mcp** (nav **MCP**) for Claude config, business prompts, and developer HTTP/MCP notes.
 
 **Usage guides**
 
@@ -113,6 +115,8 @@ Land new data, re-resolve, and project changes into the graph. Incremental proje
 ### 6. Serve
 
 Expose grounded context to apps and agents via REST, Ask (graph-grounded answers + citations), and **MCP** tools for hosts such as Claude Desktop.
+
+**In the product UI:** top nav **MCP** → `http://localhost:3000/mcp` (SSE URL, Claude config, business prompts, developer HTTP notes).
 
 ---
 

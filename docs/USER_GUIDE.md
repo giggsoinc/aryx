@@ -35,6 +35,7 @@ Everything lives in **workspaces** — isolated projects (partitions + graph). U
 | **Model** | Ontology canvas (types & relationships; seeded from smart plan) |
 | **Lab** | Accuracy Lab (ontology ON vs OFF) |
 | **Ask** | Grounded Q&A with citations |
+| **MCP** | Connect Claude / coding tools / agents to Aryx (`/mcp`) |
 | **Observe** | Jobs, workspace vitals, storage truth |
 | **Settings** | LLM provider, models, API key (powers smart understand + Ask) |
 | **Jobs** chip | Live ingest progress |
