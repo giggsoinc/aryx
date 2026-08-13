@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aryx Lite — Developer &amp; Agent Engineer Guide</title>
+  <style>
+    :root {
+      --navy-900: #0b1f3a; --navy-800: #132f54; --navy-700: #1c3f6b;
+      --navy-100: #e4ebf5; --navy-50: #f2f6fb; --steel-600: #4068a8;
+      --steel-500: #5b82bc; --canvas: #f7f9fc; --subtle: #6b7c93;
+      --emerald: #047857; --white: #fff;
+      --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+      --display: Georgia, "Times New Roman", serif;
+      --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: var(--font); background: var(--canvas);
+      color: var(--navy-900); line-height: 1.55; font-size: 15px; }
+    a { color: var(--steel-600); }
+    main { max-width: 820px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+    .hero {
+      background: linear-gradient(135deg, var(--navy-900), var(--navy-700));
+      color: #e8f0fb; border-radius: 16px; padding: 1.75rem 1.85rem; margin-bottom: 1.35rem;
+    }
+    .hero h1 { font-family: var(--display); font-size: 1.75rem; margin: 0 0 .35rem; color: #fff; }
+    .hero .sub { font-size: 1.05rem; color: #c5d7f0; margin: 0 0 .5rem; }
+    .hero p { margin: 0; color: #b8c9e0; font-size: 14px; }
+    .chip {
+      display: inline-block; margin-top: .75rem; margin-right: .35rem;
+      font-size: 11px; font-weight: 600; border-radius: 999px;
+      padding: .28rem .65rem; background: rgba(255,255,255,.1);
+      border: 1px solid rgba(255,255,255,.12);
+    }
+    section {
+      background: var(--white); border: 1px solid var(--navy-100); border-radius: 14px;
+      padding: 1.25rem 1.4rem; margin-bottom: 1rem;
+    }
+    h2 { font-family: var(--display); font-size: 1.25rem; margin: 0 0 .65rem; }
+    h3 { font-size: 13px; letter-spacing: .04em; color: var(--navy-700); margin: 1rem 0 .4rem; }
+    p { margin: 0 0 .65rem; }
+    ul, ol { margin: .25rem 0 .75rem; padding-left: 1.2rem; }
+    li { margin-bottom: .3rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin: .5rem 0 1rem; }
+    th, td { text-align: left; padding: .5rem .55rem; border-bottom: 1px solid var(--navy-100); vertical-align: top; }
+    th { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--subtle); background: var(--navy-50); }
+    code, pre { font-family: var(--mono); font-size: 12px; }
+    code { background: var(--navy-50); padding: .1rem .35rem; border-radius: 4px; }
+    pre {
+      background: var(--navy-900); color: #e2e8f0; padding: 1rem 1.1rem; border-radius: 10px;
+      overflow-x: auto; font-size: 12.5px; line-height: 1.45;
+    }
+    .ok {
+      border-left: 3px solid var(--emerald); background: #ecfdf5;
+      padding: .7rem .9rem; border-radius: 0 10px 10px 0; font-size: 13px; margin: .75rem 0;
+    }
+    .quote {
+      border-left: 3px solid var(--steel-500); background: #f0f5fc;
+      padding: .7rem .9rem; border-radius: 0 10px 10px 0; font-size: 14px; margin: .75rem 0;
+      font-style: italic; color: var(--navy-800);
+    }
+    footer { font-size: 12px; color: var(--subtle); margin-top: 1.5rem; }
+    nav.toc { font-size: 13px; }
+    nav.toc a { display: inline-block; margin-right: .75rem; margin-bottom: .35rem; }
+  </style>
+</head>
+<body>
+<main>
+  <header class="hero">
+    <h1>Aryx Lite</h1>
+    <p class="sub">Developer &amp; Agent Engineer Guide</p>
+    <p>Self-building context layer for AI agents — usage, benefits, and how you integrate it.</p>
+    <span class="chip">Audience: AI / backend / platform / KG engineers</span>
+    <span class="chip">Edition: Lite 1.8.x</span>
+    <span class="chip"><a href="DEVELOPER_GUIDE.md" style="color:#c5d7f0">Markdown</a></span>
+    <span class="chip"><a href="BUSINESS_GUIDE.html" style="color:#c5d7f0">Business guide</a></span>
+  </header>
+
+  <section>
+    <nav class="toc">
+      <a href="#what">What is Aryx Lite</a>
+      <a href="#why">Why critical</a>
+      <a href="#start">Get started</a>
+      <a href="#use">How to use</a>
+      <a href="#iface">Interfaces</a>
+    </nav>
+  </section>
+
+  <section id="what">
+    <h2>What is Aryx Lite?</h2>
+    <p><strong>Aryx</strong> is a <strong>self-building context layer for AI agents</strong>.</p>
+    <p>Aryx Lite is the <strong>self-hostable</strong> stack: connect databases and files, discover entities and relationships, resolve identity across sources, project a context/knowledge graph with provenance, then serve that context via <strong>REST</strong>, <strong>Ask</strong>, and <strong>MCP</strong>.</p>
+    <div class="quote">Give AI agents connected business context without hand-building and constantly re-maintaining a full semantic model for every domain.</div>
+    <table>
+      <thead><tr><th>Aryx Lite is</th><th>Aryx Lite is not</th></tr></thead>
+      <tbody>
+        <tr><td>Context engine next to your data</td><td>A replacement for Postgres or your warehouse</td></tr>
+        <tr><td>Identity + links + provenance for agents</td><td>“Just another vector DB”</td></tr>
+        <tr><td>Discover → resolve → graph → serve</td><td>Only an academic ontology studio</td></tr>
+        <tr><td>Docker-first full stack + Python API</td><td>Zero-ops multi-tenant SaaS</td></tr>
+      </tbody>
+    </table>
+    <p><strong>Stack:</strong> Postgres (SoT) · FalkorDB (graph projection) · FastAPI · Next.js · Ollama or cloud LLMs · MCP SSE.</p>
+  </section>
+
+  <section id="why">
+    <h2>Why it is critical (developer POV)</h2>
+    <h3>Problems you actually hit</h3>
+    <ol>
+      <li>Same customer is <code>C-991</code> in CRM, <code>ACME-US</code> in ERP, free text in a ticket.</li>
+      <li>Every agent re-infers joins inside the prompt.</li>
+      <li>RAG returns the right paragraph but not the path: customer → contract → product → incident.</li>
+      <li>No reliable provenance for what justified an answer.</li>
+      <li>Each new agent reimplements the same glue.</li>
+    </ol>
+    <h3>What fails without a context layer</h3>
+    <table>
+      <thead><tr><th>Pattern</th><th>Failure mode</th></tr></thead>
+      <tbody>
+        <tr><td>Bigger context windows</td><td>No stable entity IDs across systems</td></tr>
+        <tr><td>More RAG</td><td>Relevant chunks ≠ connected facts</td></tr>
+        <tr><td>Hand-written tools only</td><td>Rows without shared relationships</td></tr>
+        <tr><td>Per-agent memory</td><td>Personal memory ≠ shared business identity</td></tr>
+      </tbody>
+    </table>
+    <h3>Why Aryx Lite matters to you</h3>
+    <ul>
+      <li><strong>Ship agent features faster</strong> — context is a service.</li>
+      <li><strong>Shared workspace graph</strong> — many agents, one identity layer.</li>
+      <li><strong>MCP-native</strong> — Claude Desktop / Code and other MCP hosts.</li>
+      <li><strong>HTTP-native</strong> — your app calls Ask/API without owning ER.</li>
+      <li><strong>Provenance</strong> — debug and audit grounding.</li>
+      <li><strong>Data-first setup</strong> — sample → smart plan → build.</li>
+    </ul>
+    <div class="ok"><strong>Retrieval finds information. Aryx connects meaning.</strong></div>
+  </section>
+
+  <section id="start">
+    <h2>How to get started</h2>
+    <p><strong>Requirements:</strong> Docker Compose · ~8 GB RAM if using local Ollama · optional cloud LLM key in Settings.</p>
+<pre>git clone https://github.com/giggsoinc/aryx.git
+cd aryx
+cp .env.example .env
+docker compose pull
+docker compose up -d</pre>
+    <table>
+      <thead><tr><th>Surface</th><th>URL</th></tr></thead>
+      <tbody>
+        <tr><td>Web UI</td><td><code>http://localhost:3000</code></td></tr>
+        <tr><td>API OpenAPI</td><td><code>http://localhost:8088/docs</code></td></tr>
+        <tr><td>MCP SSE</td><td><code>http://localhost:8765/sse</code></td></tr>
+        <tr><td>Health</td><td><code>curl -s http://localhost:8088/health</code></td></tr>
+      </tbody>
+    </table>
+    <h3>First technical success path</h3>
+    <ol>
+      <li><strong>Settings</strong> — LLM ready (Ollama or cloud).</li>
+      <li><strong>New workspace</strong> — data-first setup.</li>
+      <li>Upload <code>examples/quickstart/</code> customers + tickets CSVs.</li>
+      <li><strong>Smart review</strong> → approve plan → <strong>Build</strong>.</li>
+      <li><strong>Data</strong> / <strong>Model</strong> / <strong>Ask</strong>.</li>
+      <li>Optional: Claude MCP → <code>:8765/sse</code>.</li>
+    </ol>
+    <p class="subtle" style="color:var(--subtle);font-size:13px">Compose-first today. Pure <code>pip install</code> of the whole stack is packaging roadmap; the Python package is the engine/API, not Postgres+UI alone.</p>
+  </section>
+
+  <section id="use">
+    <h2>How to use (by developer stakeholder)</h2>
+    <h3>AI / agent engineer</h3>
+    <table>
+      <thead><tr><th>Goal</th><th>How</th></tr></thead>
+      <tbody>
+        <tr><td>Ground answers</td><td>UI Ask or HTTP Ask (OpenAPI)</td></tr>
+        <tr><td>Claude tools</td><td>MCP host → Aryx SSE</td></tr>
+        <tr><td>Skip prompt-side ER</td><td>Ingest once; query resolved entities</td></tr>
+        <tr><td>Swap models</td><td>Settings / Home model gate</td></tr>
+      </tbody>
+    </table>
+    <h3>Backend / app developer</h3>
+    <table>
+      <thead><tr><th>Goal</th><th>How</th></tr></thead>
+      <tbody>
+        <tr><td>Feature “explain this account”</td><td>Backend → Aryx Ask/entity APIs</td></tr>
+        <tr><td>Isolation</td><td>Workspaces (one graph per use case)</td></tr>
+        <tr><td>Jobs</td><td>Observe + Jobs; Resume when <code>run_id</code> set</td></tr>
+      </tbody>
+    </table>
+    <h3>Data / platform engineer</h3>
+    <table>
+      <thead><tr><th>Goal</th><th>How</th></tr></thead>
+      <tbody>
+        <tr><td>Sources</td><td>DB connect or file upload</td></tr>
+        <tr><td>Identity quality</td><td>Match keys, HITL, Correct data</td></tr>
+        <tr><td>Config</td><td><code>ARYX_RDB_DSN</code>, <code>ARYX_GRAPH_URL</code>, <code>ARYX_LLM_*</code></td></tr>
+      </tbody>
+    </table>
+    <h3>Knowledge graph engineer</h3>
+    <ul>
+      <li><strong>Model</strong> canvas for types; RDF/OWL import-export.</li>
+      <li>Prefer discovery + smart plan over blank modeling.</li>
+      <li>Accuracy Lab: ontology ON vs OFF.</li>
+    </ul>
+  </section>
+
+  <section id="iface">
+    <h2>Interfaces cheat sheet</h2>
+<pre>Humans     →  Web UI :3000
+Your apps  →  REST   :8088  (OpenAPI)
+Claude/MCP →  MCP SSE :8765
+Ops        →  Observe, Jobs, docker logs</pre>
+    <div class="ok">
+      <strong>Mental model:</strong> Sources → Discover → Resolve → Project graph → Serve (Ask / API / MCP).
+      Postgres = truth; FalkorDB = rebuildable projection. Not zero-copy federation of every SaaS API.
+    </div>
+    <p>Markdown twin: <a href="DEVELOPER_GUIDE.md">DEVELOPER_GUIDE.md</a> · Business: <a href="BUSINESS_GUIDE.html">BUSINESS_GUIDE.html</a></p>
+  </section>
+
+  <footer>
+    Aryx Lite — self-building context for agents. Retrieval finds information; Aryx connects meaning.
+  </footer>
+</main>
+</body>
+</html>

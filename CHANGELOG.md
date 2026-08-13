@@ -3,6 +3,24 @@
 All notable changes to **Aryx Lite** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.8.0] — 2026-08-12
+
+### Added
+
+- **MCP in product UI** — top nav **MCP** → `/mcp`: 10-minute Docker→Claude path,
+  live SSE endpoint, full **21 tools** catalog (params, JSON examples, “say in Claude”),
+  business and developer tabs. (`app/mcp/page.tsx`, `lib/mcpTools.ts`)
+- **Usage guides** — Developer + Business guides (Markdown + HTML) under
+  `docs/guides/`; Business guide covers Claude / Gemini / Copilot outcome paths;
+  `MCP_QUICKSTART.md` for install-to-Claude.
+- **README** rebrand positioning: self-building context layer for AI agents;
+  links to guides and MCP hub.
+
+### Changed
+
+- Package description / docstring aligned to context-layer positioning.
+- Default Docker image tags → `1.8.0` / `v1.8.0`.
+
 ## [1.7.0] — 2026-08-11
 
 ### Added

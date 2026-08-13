@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aryx Lite — Business &amp; Leadership Guide</title>
+  <style>
+    :root {
+      --navy-900: #0b1f3a; --navy-800: #132f54; --navy-700: #1c3f6b;
+      --navy-100: #e4ebf5; --navy-50: #f2f6fb; --steel-600: #4068a8;
+      --steel-500: #5b82bc; --canvas: #f7f9fc; --subtle: #6b7c93;
+      --emerald: #047857; --amber: #b45309; --white: #fff;
+      --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+      --display: Georgia, "Times New Roman", serif;
+      --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: var(--font); background: var(--canvas);
+      color: var(--navy-900); line-height: 1.55; font-size: 15px; }
+    a { color: var(--steel-600); }
+    main { max-width: 820px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+    .hero {
+      background: linear-gradient(135deg, var(--navy-900), var(--navy-700));
+      color: #e8f0fb; border-radius: 16px; padding: 1.75rem 1.85rem; margin-bottom: 1.35rem;
+    }
+    .hero h1 { font-family: var(--display); font-size: 1.75rem; margin: 0 0 .35rem; color: #fff; }
+    .hero .sub { font-size: 1.05rem; color: #c5d7f0; margin: 0 0 .5rem; }
+    .hero p { margin: 0; color: #b8c9e0; font-size: 14px; }
+    .chip {
+      display: inline-block; margin-top: .75rem; margin-right: .35rem;
+      font-size: 11px; font-weight: 600; border-radius: 999px;
+      padding: .28rem .65rem; background: rgba(255,255,255,.1);
+      border: 1px solid rgba(255,255,255,.12);
+    }
+    section {
+      background: var(--white); border: 1px solid var(--navy-100); border-radius: 14px;
+      padding: 1.25rem 1.4rem; margin-bottom: 1rem;
+    }
+    h2 { font-family: var(--display); font-size: 1.25rem; margin: 0 0 .65rem; }
+    h3 { font-size: 13px; letter-spacing: .04em; color: var(--navy-700); margin: 1rem 0 .4rem; }
+    p { margin: 0 0 .65rem; }
+    ul, ol { margin: .25rem 0 .75rem; padding-left: 1.2rem; }
+    li { margin-bottom: .3rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin: .5rem 0 1rem; }
+    th, td { text-align: left; padding: .5rem .55rem; border-bottom: 1px solid var(--navy-100); vertical-align: top; }
+    th { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--subtle); background: var(--navy-50); }
+    code, pre { font-family: var(--mono); font-size: 12px; }
+    code { background: var(--navy-50); padding: .1rem .35rem; border-radius: 4px; }
+    pre {
+      background: var(--navy-900); color: #e2e8f0; padding: 1rem 1.1rem; border-radius: 10px;
+      overflow-x: auto; font-size: 12.5px; line-height: 1.45;
+    }
+    .ok {
+      border-left: 3px solid var(--emerald); background: #ecfdf5;
+      padding: .7rem .9rem; border-radius: 0 10px 10px 0; font-size: 13px; margin: .75rem 0;
+    }
+    .quote {
+      border-left: 3px solid var(--steel-500); background: #f0f5fc;
+      padding: .7rem .9rem; border-radius: 0 10px 10px 0; font-size: 14px; margin: .75rem 0;
+      font-style: italic; color: var(--navy-800);
+    }
+    footer { font-size: 12px; color: var(--subtle); margin-top: 1.5rem; }
+    nav.toc a { display: inline-block; margin-right: .75rem; margin-bottom: .35rem; font-size: 13px; }
+  </style>
+</head>
+<body>
+<main>
+  <header class="hero">
+    <h1>Aryx Lite</h1>
+    <p class="sub">Business &amp; Leadership Guide</p>
+    <p>Usage, benefits, and how each stakeholder works with the self-building context layer for AI.</p>
+    <span class="chip">Audience: product · ops · data leaders · sponsors</span>
+    <span class="chip">Edition: Lite 1.8.x</span>
+    <span class="chip"><a href="BUSINESS_GUIDE.md" style="color:#c5d7f0">Markdown</a></span>
+    <span class="chip"><a href="DEVELOPER_GUIDE.html" style="color:#c5d7f0">Developer guide</a></span>
+  </header>
+
+  <section>
+    <nav class="toc">
+      <a href="#what">What is Aryx Lite</a>
+      <a href="#why">Why critical</a>
+      <a href="#start">Get started</a>
+      <a href="#chat">Claude · Gemini · Copilot</a>
+      <a href="#use">How to use</a>
+      <a href="#fit">Where it fits</a>
+    </nav>
+  </section>
+
+  <section id="what">
+    <h2>What is Aryx Lite?</h2>
+    <p><strong>Aryx</strong> is the <strong>self-building context layer for AI agents</strong>.</p>
+    <p>In plain language: you connect the data your company already has. Aryx figures out <strong>what the things are</strong>, <strong>when two records are the same real-world thing</strong>, and <strong>how things link</strong>. AI assistants and applications then answer from <strong>connected business context</strong>, not disconnected files alone.</p>
+    <p><strong>Aryx Lite</strong> is the version you run yourself (laptop, VM, or small server) to prove value quickly—without a multi-year “enterprise ontology program” first.</p>
+    <table>
+      <thead><tr><th>What you get</th><th>What you do not need on day one</th></tr></thead>
+      <tbody>
+        <tr><td>Connected view of customers, tickets, products…</td><td>A large team drafting every class by hand</td></tr>
+        <tr><td>AI answers with sources you can check</td><td>Blind chat over random PDFs</td></tr>
+        <tr><td>One workspace per initiative</td><td>Replacing your CRM/ERP</td></tr>
+        <tr><td>Path from data → understanding → AI</td><td>A separate “vector project” first</td></tr>
+      </tbody>
+    </table>
+    <div class="quote">Retrieval finds information. Aryx connects meaning.</div>
+  </section>
+
+  <section id="why">
+    <h2>Why it is critical (business POV)</h2>
+    <h3>The business problem</h3>
+    <ol>
+      <li><strong>Customer 360 is a slogan</strong> — same customer, different names in CRM, billing, and support.</li>
+      <li><strong>Agents sound confident and are wrong</strong> — they invent links between systems.</li>
+      <li><strong>Ops waste time</strong> — people manually stitch Salesforce + ERP + tickets + email.</li>
+      <li><strong>Risk</strong> — “the AI said so” needs <strong>where the fact came from</strong>.</li>
+      <li><strong>Every AI use case restarts</strong> — each bot rebuilds the same context.</li>
+    </ol>
+    <h3>Not just another chatbot project</h3>
+    <table>
+      <thead><tr><th>Approach</th><th>Optimizes</th><th>Misses</th></tr></thead>
+      <tbody>
+        <tr><td>Search / RAG</td><td>Finding documents</td><td>Business relationships</td></tr>
+        <tr><td>Bigger LLM only</td><td>Fluent language</td><td>Stable identity across systems</td></tr>
+        <tr><td>Point tools per team</td><td>Local productivity</td><td>Shared durable company context</td></tr>
+        <tr><td><strong>Aryx Lite</strong></td><td><strong>Connected, grounded context</strong></td><td>Does not replace systems of record</td></tr>
+      </tbody>
+    </table>
+    <h3>Outcomes that matter</h3>
+    <ul>
+      <li>Faster, safer AI answers for support, ops, and knowledge work.</li>
+      <li>Less rework building “who is who” into every prompt and bot.</li>
+      <li>Auditability — facts traceable to source records.</li>
+      <li>Reusable context — one workspace graph, many agents and apps.</li>
+      <li>Faster time-to-value than multi-year semantic modeling programs.</li>
+    </ul>
+  </section>
+
+  <section id="start">
+    <h2>How to get started</h2>
+    <h3>Roles</h3>
+    <table>
+      <thead><tr><th>Role</th><th>Involvement</th></tr></thead>
+      <tbody>
+        <tr><td>Sponsor</td><td>Names the pilot outcome</td></tr>
+        <tr><td>Domain expert</td><td>Confirms smart-review plan</td></tr>
+        <tr><td>Technical owner</td><td>Runs Docker, Settings, security</td></tr>
+        <tr><td>End users</td><td>Ask; flag wrong links</td></tr>
+      </tbody>
+    </table>
+    <h3>Install (technical owner)</h3>
+<pre>git clone https://github.com/giggsoinc/aryx.git
+cd aryx
+cp .env.example .env
+docker compose pull
+docker compose up -d</pre>
+    <p>Open <strong>http://localhost:3000</strong>.</p>
+    <h3>First business success path</h3>
+    <ol>
+      <li><strong>Pick one pilot</strong> (e.g. support: customers + tickets).</li>
+      <li><strong>Create a workspace</strong> named for the pilot.</li>
+      <li><strong>Load data first</strong> — CSV upload or read-only database.</li>
+      <li><strong>Smart review</strong> — light-edit the proposed plan.</li>
+      <li><strong>Build</strong> — resolve + context graph.</li>
+      <li><strong>Ask</strong> — questions with sources you can open.</li>
+      <li><strong>Share</strong> — decide if agents (Claude / internal bots) may use this workspace.</li>
+    </ol>
+  </section>
+
+  <section id="chat">
+    <h2>Using Aryx with Claude, Gemini, or Copilot</h2>
+    <p>Business outcome is the same no matter which chat brand you prefer:</p>
+    <div class="quote">Load data into Aryx once → agents answer from connected context with sources — not from guessing across five systems.</div>
+    <p>Two roles get confused. Keep them separate:</p>
+    <table>
+      <thead><tr><th>Role</th><th>What it does</th><th>Who configures</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>A. Brain inside Aryx</strong></td>
+          <td>Model for smart review, extraction, and <strong>Ask</strong> (Settings)</td>
+          <td>IT / technical owner</td>
+        </tr>
+        <tr>
+          <td><strong>B. Chat app you work in</strong></td>
+          <td>Claude, Gemini app, Microsoft Copilot, Cursor — where <em>you</em> type</td>
+          <td>You + IT</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>You can use <strong>Gemini as Aryx’s brain</strong> and still ask in the <strong>Aryx web UI</strong>.
+      You can use <strong>Claude Desktop</strong> as the chat app that <em>calls</em> Aryx via MCP.
+      You can use <strong>Copilot</strong> best through a company app that calls Aryx’s API (or Aryx Ask).</p>
+
+    <h3>Outcome path (all brands)</h3>
+<pre>1. Build context in Aryx (data first → smart review → build)
+2. Pick how people ask:
+      • Aryx Ask (web)  — any Settings model
+      • Claude + MCP    — Claude tools talk to Aryx
+      • Gemini / Copilot — Aryx Ask, or company app/API bridge
+3. Ask business questions; open cited sources for proof
+4. Fix wrong links with Correct data so the next answer improves</pre>
+
+    <h3>Option 1 — Aryx app (simplest)</h3>
+    <ol>
+      <li>IT runs Aryx; sets Settings provider (Ollama, Gemini, Anthropic, OpenAI, Grok…).</li>
+      <li>Team loads pilot data and builds the graph.</li>
+      <li>Everyone uses <strong>Ask</strong> in the web UI.</li>
+      <li>Answers include citations to entities / source records.</li>
+    </ol>
+    <p>No Claude Desktop or Copilot required. Gemini can simply be the Settings engine.</p>
+
+    <h3>Option 2 — Claude Desktop / Code + Aryx tools</h3>
+    <table>
+      <thead><tr><th>Step</th><th>Business</th><th>IT</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Define pilot questions</td><td>Run Aryx; MCP on port <code>8765</code></td></tr>
+        <tr><td>2</td><td>Approve smart-review plan</td><td>Connect Claude as MCP host → Aryx</td></tr>
+        <tr><td>3</td><td>Ask in plain English in Claude</td><td>Claude calls Aryx tools</td></tr>
+        <tr><td>4</td><td>Demand sources if missing</td><td>Network path Claude → Aryx MCP</td></tr>
+      </tbody>
+    </table>
+    <p><strong>Expect:</strong> Claude = conversation UI; Aryx = context and identity.
+      Details: <a href="../mcp-guide.html">mcp-guide.html</a>.</p>
+    <p><strong>Example asks:</strong> “Summarize open tickets for Acme and list sources.”
+      · “Which products appear with high-priority incidents?”</p>
+
+    <h3>Option 3 — Gemini (Google)</h3>
+    <table>
+      <thead><tr><th>Pattern</th><th>Business user</th><th>IT</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Gemini powers Aryx</strong></td>
+          <td>Use Aryx Ask / setup as usual</td>
+          <td>Settings → Gemini + API key</td>
+        </tr>
+        <tr>
+          <td><strong>Gemini chat as front door</strong></td>
+          <td>Only if IT built a bridge</td>
+          <td>Gemini agent/tools → Aryx REST, or use Aryx Ask</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="ok">Lite does <strong>not</strong> ship a one-click Gemini marketplace plugin.
+      Fastest path: Gemini in Settings + Aryx Ask (or your internal bot calling Aryx API).</div>
+
+    <h3>Option 4 — Microsoft Copilot</h3>
+    <table>
+      <thead><tr><th>Pattern</th><th>Business user</th><th>IT</th></tr></thead>
+      <tbody>
+        <tr><td>Copilot chat only</td><td>Prefer Aryx Ask for grounded context</td><td>Network access to Aryx</td></tr>
+        <tr><td>Copilot Studio agent</td><td>Use the published company agent</td><td>Action → Aryx REST Ask + workspace id</td></tr>
+        <tr><td>GitHub Copilot</td><td>For developers building on Aryx</td><td>Not primary business Q&amp;A</td></tr>
+      </tbody>
+    </table>
+    <p>Copilot does <strong>not</strong> automatically see your Aryx graph without an integration.</p>
+
+    <h3>Which path should we pick?</h3>
+    <table>
+      <thead><tr><th>If your company…</th><th>Start with</th></tr></thead>
+      <tbody>
+        <tr><td>Wants fastest pilot, mixed users</td><td><strong>Aryx Ask</strong> (+ any Settings model)</td></tr>
+        <tr><td>Lives in Claude Desktop / Code</td><td><strong>Claude + MCP → Aryx</strong></td></tr>
+        <tr><td>Standardizes on Gemini as model vendor</td><td><strong>Gemini in Settings</strong> + Aryx Ask</td></tr>
+        <tr><td>Standardizes on M365 Copilot</td><td>Aryx Ask short-term; Copilot Studio → API later</td></tr>
+        <tr><td>Wants one agent, many front ends</td><td>Build on <strong>Aryx API/MCP</strong>; attach Claude/Copilot/portal</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Good outcome checklist</h3>
+    <ul>
+      <li>Pilot data in one Aryx workspace</li>
+      <li>Smart review approved by a domain expert</li>
+      <li>Ask (or Claude-via-MCP) returns answer <strong>plus</strong> sources in Data</li>
+      <li>Wrong merges fixed once in Correct data</li>
+      <li>IT documents supported path: UI only · Claude MCP · API to Copilot/Gemini</li>
+    </ul>
+  </section>
+
+  <section id="use">
+    <h2>How to use (by stakeholder)</h2>
+    <h3>Product / LOB owner</h3>
+    <ul>
+      <li>Name the workspace and pilot aim.</li>
+      <li>One use case per workspace — don’t boil the ocean.</li>
+      <li>Success = correct account + ticket link + visible source.</li>
+    </ul>
+    <h3>Operations / support / sales ops</h3>
+    <ul>
+      <li><strong>Data</strong> explorer for entities and sources.</li>
+      <li><strong>Correct data</strong> when merges or types are wrong.</li>
+      <li><strong>Ask</strong> daily questions with citations — or Claude via MCP if IT enabled it.</li>
+      <li>Preferred chat brand (Claude / Gemini / Copilot) → section above.</li>
+      <li>Stuck jobs → IT: Observe / Jobs (Resume if available).</li>
+    </ul>
+    <h3>Data / analytics leadership</h3>
+    <ul>
+      <li>Provenance and Model quality; Accuracy Lab.</li>
+      <li>Lite = pilot/team scale; Enterprise for larger programs.</li>
+    </ul>
+    <h3>Executive sponsor</h3>
+    <ul>
+      <li>Self-host pilot; keys and access controlled by IT.</li>
+      <li>Lite proves value → Enterprise for scale/governance.</li>
+      <li>Aryx is a <strong>context layer under Claude / Gemini / Copilot</strong> — not a replacement CRM/ERP.</li>
+      <li>UI Ask works with any Settings model; Claude MCP is the strongest agent-native path; Copilot/Gemini fronts need API bridge or Ask.</li>
+      <li>Competing multi-tenant hosting of Aryx needs commercial terms.</li>
+    </ul>
+  </section>
+
+  <section id="fit">
+    <h2>Where it fits</h2>
+<pre>CRM · ERP · Tickets · Docs · Spreadsheets
+              │
+              ▼
+     Aryx Lite (context layer)
+     discover · resolve · graph · provenance
+              │
+    ┌─────────┼─────────┐
+    ▼         ▼         ▼
+  People    Apps     AI Agents
+  (UI Ask)  (API)    (MCP / tools)</pre>
+    <div class="ok">
+      Systems of record stay systems of record. Aryx links context for people and agents.
+      Benefits: less manual model maintenance, one customer not five aliases, audit trail, faster AI delivery.
+    </div>
+    <p>Markdown twin: <a href="BUSINESS_GUIDE.md">BUSINESS_GUIDE.md</a> · Developer: <a href="DEVELOPER_GUIDE.html">DEVELOPER_GUIDE.html</a></p>
+  </section>
+
+  <footer>
+    Aryx Lite — connect your data, build business context, give AI agents something real to reason over.
+  </footer>
+</main>
+</body>
+</html>

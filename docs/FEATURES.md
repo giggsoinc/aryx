@@ -1,13 +1,13 @@
 # Feature Matrix
 
 Comprehensive list of **Aryx Lite** capabilities as shipped in this repository
-(**1.7.0**). Enterprise agentic features live on a **separate commercial fork**.
+(**1.8.0**). Enterprise agentic features live on a **separate commercial fork**.
 
 ## Editions
 
 | Edition | Version | Notes | Component |
 |---------|---------|-------|-----------|
-| Lite (this repo) | **1.7.x** | Data-first smart setup + ingest → resolve → graph → Ask | `edition.py`, `ARYX_EDITION` |
+| Lite (this repo) | **1.8.x** | Data-first smart setup + ingest → resolve → graph → Ask | `edition.py`, `ARYX_EDITION` |
 | Enterprise | commercial fork | Agentic ontology control plane, scale governance | Separate EE codebase |
 | Aryx-o | v2.1+ | Oracle-native adapter set on Enterprise engine | EE + adapters |
 

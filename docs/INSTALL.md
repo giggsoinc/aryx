@@ -1,6 +1,6 @@
 # Install Guide — Aryx Lite
 
-Get **Aryx Lite 1.7.0** running with Docker Compose (recommended), then open the web UI and onboard data.
+Get **Aryx Lite 1.8.0** running with Docker Compose (recommended), then open the web UI and onboard data.
 
 | Doc | Audience |
 |-----|----------|
@@ -219,29 +219,29 @@ Canonical copy for Hub paste / maintainers: **[DOCKERHUB.md](DOCKERHUB.md)**.
 
 `docker-compose.yml` references:
 
-- `ARYX_IMAGE` (default `giggsodocker/aryx-lite:1.7.0`)
-- `ARYX_WEB_IMAGE` (default `giggsodocker/aryx-lite-web:1.7.0`)
+- `ARYX_IMAGE` (default `giggsodocker/aryx-lite:1.8.0`)
+- `ARYX_WEB_IMAGE` (default `giggsodocker/aryx-lite-web:1.8.0`)
 
 ### Tags (both images)
 
 | Tag | Meaning |
 |-----|---------|
-| `1.7.0` | Semver from `pyproject.toml` / `aryx.__version__` — always pull an explicit version |
-| `v1.7.0` | Same release, `v`-prefixed |
+| `1.8.0` | Semver from `pyproject.toml` / `aryx.__version__` — always pull an explicit version |
+| `v1.8.0` | Same release, `v`-prefixed |
 | `<git-sha>` | Exact commit (e.g. `a98a954`) |
 
 ```bash
 # Pull both images explicitly
-docker pull giggsodocker/aryx-lite:1.7.0
-docker pull giggsodocker/aryx-lite-web:1.7.0
+docker pull giggsodocker/aryx-lite:1.8.0
+docker pull giggsodocker/aryx-lite-web:1.8.0
 
 # Or pull everything Compose needs, then run
 docker compose pull
 docker compose up -d
 
 # Pin a version
-export ARYX_IMAGE=giggsodocker/aryx-lite:1.7.0
-export ARYX_WEB_IMAGE=giggsodocker/aryx-lite-web:1.7.0
+export ARYX_IMAGE=giggsodocker/aryx-lite:1.8.0
+export ARYX_WEB_IMAGE=giggsodocker/aryx-lite-web:1.8.0
 docker compose up -d
 ```
 

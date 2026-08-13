@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import {
   Activity, ChevronDown, ClipboardList, Database, FileText, FlaskConical, Gauge, Home,
-  MessageCircle, Network, Plus, Settings, Loader2, Trash2,
+  MessageCircle, Network, Plug, Plus, Settings, Loader2, Trash2,
 } from "lucide-react";
 import { Logo } from "./Logo";
 import { api } from "@/lib/api";
@@ -58,6 +58,8 @@ export function Header(props: HeaderProps) {
                       active={pathname === "/dashboard"} />
             <NavLink href="/dashboard-observability" icon={<Gauge size={14} />} label="Pipeline"
                       active={pathname?.startsWith("/dashboard-observability") || false} />
+            <NavLink href="/mcp" icon={<Plug size={14} />} label="MCP"
+                      active={pathname?.startsWith("/mcp") || false} />
             <NavLink href="/observe" icon={<Activity size={14} />} label="Observe"
                       active={pathname?.startsWith("/observe") || false} />
             <NavLink href="/settings" icon={<Settings size={14} />} label="Settings"
