@@ -1,8 +1,11 @@
 import type {
   AbResult, AskResponse, Axiom, Brief, DataEntitiesPage, DataSummary,
   Datasource, EntityDetail, EntityGraphView, GraphView, IngestQuestion,
-  LlmConfig, LlmConfigUpdate, OntologyDoc, QuizSpec, ReasonerCheck, Rule,
-  SmartUnderstandResult, SurvivorshipPolicy, Workspace,
+  DatasetIngestResult, DatasetProfile, SemanticProfile, GraphIntakeResult, GraphProfile,
+  PlanningContext, PlannerResult, DeltaDraftResult, DeltaSpecItems, ExecutionPlan, ExecutionRun,
+  DashboardModel, RenderTelemetry,
+  LlmConfig, LlmConfigUpdate, DeriveEntitiesResult, LinkEntitiesResult, OntologyDoc, QuizSpec, ReasonerCheck, Rule,
+  SmartUnderstandResult, SurvivorshipPolicy, UserIntent, UserIntentRequest, Workspace,
 } from "./types";
 
 // Same-origin relative path. Next.js rewrites /api/* → FastAPI internally
@@ -223,6 +226,27 @@ export const api = {
       }),
     }),
 
+  // ── Explicit post-ingest entity linking (real fk_links, not the
+  // cosmetic /ontology/relationships diagram edge above) ─────────────────
+  linkEntities: (workspaceId: number, fkLink: {
+    source_type: string; source_attr: string;
+    target_type: string; target_attr: string; name: string;
+  }) =>
+    fetchJSON<LinkEntitiesResult>(`/pipeline/link-entities?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: JSON.stringify({ fk_links: [fkLink] }),
+    }),
+
+  // ── Derive a new type by deduplicating an existing type's column ───────
+  deriveEntities: (workspaceId: number, spec: {
+    source_type: string; group_by_attr: string;
+    new_type_name: string; carry_attrs: string[];
+  }) =>
+    fetchJSON<DeriveEntitiesResult>(`/pipeline/derive-entities?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: JSON.stringify(spec),
+    }),
+
   // ── Wizard / guided setup (Slice W3) ─────────────────────────────────
   draftBrief: (workspaceId: number, seed: string, docText = "") =>
     fetchJSON<{ workspace_id: number; brief: Brief }>(
@@ -252,7 +276,7 @@ export const api = {
   },
 
   saveBrief: (workspaceId: number, brief: Brief) =>
-    fetchJSON<{ id: number; brief: Brief }>(
+    fetchJSON<{ id: number; brief: Brief; chain_job_id: string }>(
       `/admin/workspaces/${workspaceId}/brief`,
       { method: "PATCH", body: JSON.stringify(brief) },
     ),
@@ -340,6 +364,158 @@ export const api = {
           workspace_id: workspaceId, type_name: typeName, existing,
         }),
       },
+    ),
+
+  // ── Dataset Upload & Ingestion (C02) — read-only; uploads via Onboard ──
+  listDatasetVersions: (workspaceId: number, limit = 50) =>
+    fetchJSON<DatasetIngestResult[]>(
+      `/dataset/versions?workspace_id=${workspaceId}&limit=${limit}`,
+    ),
+
+  getDataset: (datasetId: string, workspaceId: number) =>
+    fetchJSON<DatasetIngestResult>(
+      `/dataset/${encodeURIComponent(datasetId)}?workspace_id=${workspaceId}`,
+    ),
+
+  // ── Deterministic Dataset Profiler (C03) ─────────────────────────────
+  getProfile: (datasetId: string, workspaceId: number) =>
+    fetchJSON<DatasetProfile>(
+      `/profile/${encodeURIComponent(datasetId)}?workspace_id=${workspaceId}`,
+    ),
+
+  // ── Semantic Field Interpreter (C04) ─────────────────────────────────
+  getSemantic: (datasetId: string, workspaceId: number) =>
+    fetchJSON<SemanticProfile>(
+      `/semantic/${encodeURIComponent(datasetId)}?workspace_id=${workspaceId}`,
+    ),
+
+  // ── Context and Resource Retrieval (C07) ─────────────────────────────
+  getPlanningContext: (datasetId: string, workspaceId: number) =>
+    fetchJSON<PlanningContext>(
+      `/planning-context/${encodeURIComponent(datasetId)}?workspace_id=${workspaceId}`,
+    ),
+
+  getWorkspacePlanningContext: (workspaceId: number) =>
+    fetchJSON<PlanningContext>(`/planning-context/workspace?workspace_id=${workspaceId}`),
+
+  runWorkspacePlanningContext: (workspaceId: number) =>
+    fetchJSON<PlanningContext>(`/planning-context/workspace/run?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: "{}",
+    }),
+
+  // ── Andie Jr Planning Orchestrator (C08) — on-demand, calls a real LLM ──
+  runAndiePlanner: (datasetId: string, workspaceId: number) =>
+    fetchJSON<PlannerResult>(`/andie-planner/run?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: JSON.stringify({ dataset_id: datasetId }),
+    }),
+
+  runAndiePlannerWorkspace: (workspaceId: number) =>
+    fetchJSON<PlannerResult>(`/andie-planner/workspace/run?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: "{}",
+    }),
+
+  listAndiePlans: (workspaceId: number, limit = 50) =>
+    fetchJSON<PlannerResult[]>(
+      `/andie-planner/versions?workspace_id=${workspaceId}&limit=${limit}`,
+    ),
+
+  // ── Ask-to-visualize (C08 extension) — draft, preview, confirm ───────
+  draftDelta: (workspaceId: number, datasetId: string, requestText: string) =>
+    fetchJSON<DeltaDraftResult>(`/andie-planner/delta/draft?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: JSON.stringify({ dataset_id: datasetId, request_text: requestText }),
+    }),
+
+  confirmDelta: (workspaceId: number, datasetId: string, items: DeltaSpecItems) =>
+    fetchJSON<PlannerResult>(`/andie-planner/delta/confirm?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: JSON.stringify({
+        dataset_id: datasetId, new_kpi: items.new_kpi, new_analysis: items.new_analysis,
+        new_visualization: items.new_visualization,
+      }),
+    }),
+
+  // ── Knowledge Graph Intake & Validation (C05) ────────────────────────
+  runGraphIntake: (workspaceId: number) =>
+    fetchJSON<GraphIntakeResult>(`/graph-intake/run?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: "{}",
+    }),
+
+  listGraphVersions: (workspaceId: number, limit = 50) =>
+    fetchJSON<GraphIntakeResult[]>(
+      `/graph-intake/versions?workspace_id=${workspaceId}&limit=${limit}`,
+    ),
+
+  // ── Knowledge Graph Profiler (C06) ───────────────────────────────────
+  getGraphProfile: (workspaceId: number) =>
+    fetchJSON<GraphProfile>(
+      `/graph-profile/graph_workspace_${workspaceId}?workspace_id=${workspaceId}`,
+    ),
+
+  // ── Execution Compiler (C11) — read-only; no LLM ─────────────────────
+  getExecutionPlan: (datasetId: string, workspaceId: number) =>
+    fetchJSON<ExecutionPlan>(
+      `/execution-plan/${encodeURIComponent(datasetId)}?workspace_id=${workspaceId}`,
+    ),
+
+  listExecutionPlans: (workspaceId: number, limit = 50) =>
+    fetchJSON<ExecutionPlan[]>(
+      `/execution-plan/versions?workspace_id=${workspaceId}&limit=${limit}`,
+    ),
+
+  // ── Deterministic Analysis Execution (C12) — on-demand; no LLM ────────
+  runExecutionForWorkspace: (workspaceId: number) =>
+    fetchJSON<ExecutionRun>(`/execution-run/run?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: JSON.stringify({ dataset_id: `workspace_${workspaceId}` }),
+    }),
+
+  getWorkspaceExecutionRun: (workspaceId: number) =>
+    fetchJSON<ExecutionRun | null>(`/execution-run/workspace?workspace_id=${workspaceId}`),
+
+  // C13's post-execution validation report rides along on ExecutionRun
+  // (.validation) — this is the log of past runs/validations, newest first.
+  listWorkspaceExecutionRuns: (workspaceId: number, limit = 50) =>
+    fetchJSON<ExecutionRun[]>(
+      `/execution-run/versions?dataset_id=workspace_${workspaceId}&workspace_id=${workspaceId}&limit=${limit}`,
+    ),
+
+  // ── Dashboard Composition (C14) — on-demand; hybrid, LLM optional ──────
+  composeWorkspaceDashboard: (workspaceId: number, audience: string, useLlm: boolean) =>
+    fetchJSON<DashboardModel>(`/dashboard-model/run?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: JSON.stringify({
+        dataset_id: `workspace_${workspaceId}`, audience, use_llm: useLlm,
+      }),
+    }),
+
+  getWorkspaceDashboardModel: (workspaceId: number) =>
+    fetchJSON<DashboardModel | null>(`/dashboard-model/workspace?workspace_id=${workspaceId}`),
+
+  // ── Frontend Dashboard Renderer (C15) — telemetry only, no compute ─────
+  getWorkspacePlannerResult: (workspaceId: number) =>
+    fetchJSON<PlannerResult>(`/andie-planner/workspace?workspace_id=${workspaceId}`),
+
+  logRenderTelemetry: (workspaceId: number, telemetry: RenderTelemetry) =>
+    fetchJSON<{ status: string }>(`/render-telemetry/log?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: JSON.stringify(telemetry),
+    }),
+
+  // ── User Intent Capture (C01) ────────────────────────────────────────
+  captureIntent: (req: UserIntentRequest, workspaceId: number) =>
+    fetchJSON<UserIntent>(`/intent/capture?workspace_id=${workspaceId}`, {
+      method: "POST",
+      body: JSON.stringify(req),
+    }),
+
+  listIntents: (workspaceId: number, limit = 50) =>
+    fetchJSON<UserIntent[]>(
+      `/intent/captures?workspace_id=${workspaceId}&limit=${limit}`,
     ),
 
   // ── LLM provider (runtime; process memory — not persisted to disk) ──

@@ -21,10 +21,14 @@ from aryx.api.admin_api import _local_broker
 from aryx.config import get_settings
 from aryx.connectors.csv_source import CsvConnector
 from aryx.connectors.doc_router import DocumentRouterConnector
-from aryx.connectors.json_source import JsonConnector
+from aryx.connectors.json_source import JsonConnector, _flatten
+from aryx.dataset.ingest import register_dataset
+from aryx.pipeline.chain_jobs import run_chain_now
 from aryx.pipeline.doc_discovery import _infer_type, infer_fk_links
+from aryx.pipeline.downstream import intent_ready
 from aryx.pipeline.orchestrate import link_entities, run_pipeline
 from aryx.store.chunk_store import ChunkStore
+from aryx.store.dataset_store import DatasetStore
 from aryx.store.job_store import JobStore
 from aryx.store.migrate import apply_migrations
 
@@ -49,7 +53,19 @@ def _save_tmp(data: bytes, suffix: str) -> Path:
 def _colvals(data: bytes, suffix: str) -> dict[str, Any]:
     """Return {colvals: {column -> [values]}} for FK discovery ({} on failure)."""
     if suffix == ".json":
-        return {"colvals": {}}
+        try:
+            loaded = json.loads(data.decode("utf-8-sig"))
+            rows = loaded if isinstance(loaded, list) else [loaded]
+            cols: dict[str, list[str]] = {}
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                for k, v in _flatten(row).items():
+                    if v is not None:
+                        cols.setdefault(k, []).append(str(v).strip())
+            return {"colvals": cols}
+        except (UnicodeDecodeError, json.JSONDecodeError, TypeError):
+            return {"colvals": {}}
     try:
         reader = csv.DictReader(io.StringIO(data.decode("utf-8", "ignore")))
         cols: dict[str, list[str]] = {}
@@ -60,6 +76,33 @@ def _colvals(data: bytes, suffix: str) -> dict[str, Any]:
         return {"colvals": cols}
     except csv.Error:
         return {"colvals": {}}
+
+
+def _snapshot_dataset(dsn: str, workspace_id: int, data: bytes, name: str,
+                      request_id: str) -> str | None:
+    """C02 — register the raw upload as an immutable, versioned dataset.
+
+    C03 (profile) and C04 (interpret) run later, gated on C01 (intent) being
+    valid — see the run_downstream() call in _run_files and the backfill
+    triggered from intent_api.capture.
+
+    Returns the dataset_id when a snapshot exists (so the caller can scope the
+    later graph/context steps to just this run's datasets), else None.
+    Best-effort: registration may never block ingestion.
+    """
+    try:
+        store = DatasetStore(dsn, workspace_id)
+        try:
+            result = register_dataset(data=data, file_name=name,
+                                      request_id=request_id, store=store)
+        finally:
+            store.close()
+    except Exception:  # noqa: BLE001 — snapshot is additive, never block ingest
+        logger.warning("dataset snapshot failed file=%s", name, exc_info=True)
+        return None
+    if result.ingestion_status not in ("accepted", "duplicate") or not result.dataset_version:
+        return None
+    return result.dataset_id
 
 
 def _brief_context(workspace_id: int) -> str:
@@ -99,7 +142,7 @@ def _brief_context(workspace_id: int) -> str:
 
 def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                match_keys: list[str], fk_links: list[dict], job_id: str,
-               workspace_id: int = 1,
+               workspace_id: int = 1, request_id: str = "",
                graph_plan: dict | None = None) -> None:
     settings = get_settings()
     jobs = JobStore(settings.rdb_dsn)
@@ -123,10 +166,19 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
         total_entities = 0
         # Per-file plans feed cross-file FK inference once everything has landed.
         plans: list[dict[str, Any]] = []
+        snapshotted_ids: set[str] = set()  # datasets touched THIS run (for C07)
         for data, name in data_files:
             suffix = Path(name).suffix.lower()
+            # C02 — snapshot the raw upload before transform.
+            snapped = _snapshot_dataset(settings.rdb_dsn, workspace_id, data, name,
+                                        request_id)
+            if snapped:
+                snapshotted_ids.add(snapped)
             if suffix == ".json":
-                connector = JsonConnector(_save_tmp(data, ".json"), system="json")
+                connector = JsonConnector(
+                    _save_tmp(data, ".json"), system="json",
+                    dataset=Path(name).stem,
+                )
             else:
                 connector = CsvConnector(data, system="csv", dataset=Path(name).stem)
             # Per-file type/key inference. A single (type, match_keys) pair
@@ -142,8 +194,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 otype, keys = primary_type_and_keys(graph_plan, name)
                 logger.info("plan %s -> type=%s keys=%s", name, otype, keys)
             if not otype or otype.lower() == "document":
-                plan = _infer_type(data[:800].decode("utf-8", "ignore"),
-                                   name, context)
+                plan = _infer_type(data[:800].decode("utf-8", "ignore"), name, context)
                 otype, keys = plan["ontology_type"], plan["match_keys"]
                 logger.info("inferred %s -> type=%s keys=%s", name, otype, keys)
             # Seed Model canvas with primary type
@@ -268,6 +319,22 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                       "model in Settings (is it ready?) and retry.")
             return
         jobs.finish(job_id, run_id=None, status="complete")
+        # C03-C07 onward — the zero-click auto-chain (context -> planner ->
+        # execution -> dashboard). Gated on C01: deferred until a valid
+        # intent exists for the workspace, at which point intent_api.capture
+        # (or a Brief save) starts the chain itself. Runs after every other
+        # data-shaping step (dimensions, documents) so it sees the finished
+        # batch. Called inline, not via BackgroundTasks — _run_files already
+        # runs as its own background task, so there's no live request/
+        # BackgroundTasks to enqueue onto.
+        if snapshotted_ids:
+            if intent_ready(settings.rdb_dsn, workspace_id):
+                run_chain_now(settings.rdb_dsn, workspace_id, broker=broker)
+            else:
+                logger.info(
+                    "intent not yet captured ws=%s; deferring auto-chain for %d dataset(s)",
+                    workspace_id, len(snapshotted_ids),
+                )
     except Exception as exc:  # noqa: BLE001
         logger.warning("file ingest failed job=%s: %s", job_id, exc, exc_info=True)
         jobs.finish(job_id, run_id=None, status="failed", error=str(exc))
@@ -321,7 +388,7 @@ def file_ingest_router() -> APIRouter:
                 plan_obj = None
         background_tasks.add_task(
             _run_files, items, ontology_type, keys, links, job_id, workspace_id,
-            plan_obj)
+            graph_plan=plan_obj)
         names = [n for _, n in items]
         return {"status": "queued", "job_id": job_id, "files": names, "count": len(items)}
 

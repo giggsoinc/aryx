@@ -48,7 +48,7 @@ def load_json(path: Path, default=None):
     except Exception:
         return default or {}
 
-RAVEN_VERSION = "3.0.0"
+RAVEN_VERSION = "4.3.0"
 PLUGIN_TYPE   = "enterprise"   # overridden by manifest if base plugin
 
 # Cap raw damage-control events per POST. Anything beyond this stays in the queue

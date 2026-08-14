@@ -4,11 +4,12 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 
 from aryx.config import get_settings
 from aryx.graph import FalkorStore
+from aryx.pipeline.chain_jobs import trigger_chain_from_brief
 from aryx.store.migrate import apply_migrations
 from aryx.workspaces import WorkspaceStore, ws_graph
 
@@ -89,12 +90,20 @@ def workspace_router() -> APIRouter:
             store.close()
 
     @router.patch("/{workspace_id}/brief")
-    def set_brief(workspace_id: int, req: BriefRequest) -> dict[str, Any]:
-        store = WorkspaceStore(get_settings().rdb_dsn)
+    def set_brief(workspace_id: int, req: BriefRequest,
+                  background_tasks: BackgroundTasks) -> dict[str, Any]:
+        """Persist the brief, then derive a C01 intent from it and kick off
+        the zero-click auto-chain (context -> planner -> execution ->
+        dashboard) — see aryx.pipeline.auto_chain."""
+        dsn = get_settings().rdb_dsn
+        store = WorkspaceStore(dsn)
         try:
-            return store.set_brief(workspace_id, req.model_dump())
+            result = store.set_brief(workspace_id, req.model_dump())
         finally:
             store.close()
+        result["chain_job_id"] = trigger_chain_from_brief(
+            dsn, workspace_id, req.model_dump(), background_tasks)
+        return result
 
     @router.post("/{workspace_id}/reset-data")
     def reset_workspace_data(workspace_id: int) -> dict[str, Any]:

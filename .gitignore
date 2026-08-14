@@ -20,6 +20,13 @@ raven-claude-guard/
 .raven-claude/
 .raven-claude-guard/
 
+# Raven/Claude local engine state — machine-local, never commit
+.raven/state/
+.raven/backups/
+.raven/session-backups/
+.raven/.model-session.json
+apps/web/.claude/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -41,6 +48,9 @@ Current_State_Aryx.html
 # Local Raven ops notes (not product docs)
 docs/raven_html.md
 raven_html.md
+
+# Not open source — never commit
+.claude/skills/andie-insights/
 
 # Local marketing / packaging scratch — not part of the product
 aryx-website.html

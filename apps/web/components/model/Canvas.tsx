@@ -19,6 +19,8 @@ import {
 import { Inspector } from "./Inspector";
 import { Toolbar } from "./Toolbar";
 import { NewTypeDialog } from "./NewTypeDialog";
+import { DeriveTypeDialog } from "./DeriveTypeDialog";
+import { LinkEntitiesDialog } from "./LinkEntitiesDialog";
 
 const nodeTypes = { entityType: EntityTypeNode };
 
@@ -74,6 +76,8 @@ function CanvasInner() {
   const [loading, setLoading] = useState(true);
   const [doc, setDoc] = useState<OntologyDoc | null>(null);
   const [showNewType, setShowNewType] = useState(false);
+  const [showDeriveType, setShowDeriveType] = useState(false);
+  const [showLinkEntities, setShowLinkEntities] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -172,6 +176,8 @@ function CanvasInner() {
           onRelayout={relayout}
           onRefresh={load}
           onNewType={() => setShowNewType(true)}
+          onDeriveType={() => setShowDeriveType(true)}
+          onLinkEntities={() => setShowLinkEntities(true)}
           typeCount={doc?.types.length || 0}
           relCount={doc?.relationships.length || 0}
           loading={loading}
@@ -226,6 +232,19 @@ function CanvasInner() {
         workspaceId={workspaceId}
         onClose={() => setShowNewType(false)}
         onCreated={load}
+      />
+      <DeriveTypeDialog
+        open={showDeriveType}
+        workspaceId={workspaceId}
+        types={doc?.types || []}
+        onClose={() => setShowDeriveType(false)}
+        onCreated={load}
+      />
+      <LinkEntitiesDialog
+        open={showLinkEntities}
+        workspaceId={workspaceId}
+        types={doc?.types || []}
+        onClose={() => setShowLinkEntities(false)}
       />
     </div>
   );

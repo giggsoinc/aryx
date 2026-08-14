@@ -1,12 +1,14 @@
 "use client";
 
-import { Layout, RefreshCw, Loader2, Plus } from "lucide-react";
+import { Layout, RefreshCw, Loader2, Plus, Link2, Layers } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 interface ToolbarProps {
   onRelayout: () => void;
   onRefresh: () => void;
   onNewType: () => void;
+  onDeriveType: () => void;
+  onLinkEntities: () => void;
   typeCount: number;
   relCount: number;
   loading?: boolean;
@@ -14,7 +16,7 @@ interface ToolbarProps {
 
 /** Floating top-left toolbar over the canvas. */
 export function Toolbar({
-  onRelayout, onRefresh, onNewType, typeCount, relCount, loading,
+  onRelayout, onRefresh, onNewType, onDeriveType, onLinkEntities, typeCount, relCount, loading,
 }: ToolbarProps) {
   return (
     <div className="pointer-events-none absolute left-6 top-6 z-10 flex items-center gap-3">
@@ -36,6 +38,22 @@ export function Toolbar({
           className="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-navy-800 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-navy-700"
         >
           <Plus size={13} /> New type
+        </button>
+        <button
+          type="button"
+          onClick={onDeriveType}
+          title="Derive a new entity type by deduplicating a column"
+          className="focus-ring inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-medium text-navy-700 hover:bg-navy-50"
+        >
+          <Layers size={13} /> Derive type
+        </button>
+        <button
+          type="button"
+          onClick={onLinkEntities}
+          title="Create a real foreign-key link between two entity types"
+          className="focus-ring inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-medium text-navy-700 hover:bg-navy-50"
+        >
+          <Link2 size={13} /> Link entities
         </button>
         <span className="mx-0.5 h-5 w-px bg-navy-100" />
         <button

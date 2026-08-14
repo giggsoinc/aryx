@@ -81,8 +81,12 @@ def doc_discover_router() -> APIRouter:
 
     @router.post("/read")
     async def read(background_tasks: BackgroundTasks,
-                   files: list[UploadFile] = File(...), context: str = Form(""),
+                   files: list[UploadFile] = File(...), context: str = Form(...),
                    workspace_id: int = Form(1)) -> dict[str, Any]:
+        if not context.strip():
+            raise HTTPException(
+                400, "context is required — describe what these documents "
+                     "contain so entity extraction can use it")
         settings = get_settings()
         apply_migrations(settings.rdb_dsn)
         items: list[tuple[bytes, str]] = []

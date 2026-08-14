@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Aryx Dashboard Guide — C01–C15 Business Intelligence Pipeline</title>
+<style>
+  :root {
+    --bg: #0b0f14;
+    --panel: #121821;
+    --panel2: #18212c;
+    --border: #243041;
+    --text: #e7eef7;
+    --muted: #93a4b8;
+    --accent: #5b9dff;
+    --accent2: #3dd6c6;
+    --warn: #f0b429;
+    --danger: #ff6b7a;
+    --ok: #3ecf8e;
+    --code: #0e141c;
+    --sidebar-w: 300px;
+    --font: "Inter", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: var(--font);
+    background: radial-gradient(1200px 600px at 10% -10%, #1a2740 0%, transparent 55%),
+                radial-gradient(900px 500px at 100% 0%, #10241f 0%, transparent 40%),
+                var(--bg);
+    color: var(--text);
+    line-height: 1.55;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .layout { display: flex; min-height: 100vh; }
+  nav.sidebar {
+    position: sticky; top: 0; height: 100vh; width: var(--sidebar-w);
+    overflow-y: auto; background: rgba(12,16,22,.94);
+    border-right: 1px solid var(--border);
+    padding: 1rem 0.85rem 2rem;
+    backdrop-filter: blur(8px);
+    flex-shrink: 0;
+    z-index: 20;
+  }
+  nav.sidebar .brand {
+    font-weight: 700; letter-spacing: .02em; font-size: 1.05rem;
+    padding: .4rem .5rem .9rem; border-bottom: 1px solid var(--border);
+    margin-bottom: .75rem;
+  }
+  nav.sidebar .brand span { color: var(--accent2); }
+  nav.sidebar .search {
+    width: 100%; margin: 0 0 .75rem; padding: .55rem .65rem;
+    border-radius: 8px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--text); font: inherit;
+  }
+  nav.sidebar .group { margin: .85rem 0 .25rem; font-size: .72rem;
+    text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+    padding: 0 .5rem; }
+  nav.sidebar a.nav {
+    display: block; padding: .32rem .55rem; border-radius: 7px;
+    color: var(--muted); font-size: .86rem; margin: 1px 0;
+  }
+  nav.sidebar a.nav:hover, nav.sidebar a.nav.active {
+    background: var(--panel2); color: var(--text); text-decoration: none;
+  }
+  nav.sidebar a.nav.sub { padding-left: 1.1rem; font-size: .8rem; opacity: .92; }
+  main { flex: 1; max-width: 1120px; padding: 1.5rem 2rem 4rem; }
+  header.hero {
+    border: 1px solid var(--border); border-radius: 16px;
+    background: linear-gradient(145deg, #152033, #101820 60%, #0f1c1a);
+    padding: 1.5rem 1.75rem; margin-bottom: 1.75rem;
+  }
+  header.hero h1 { margin: 0 0 .4rem; font-size: 1.75rem; }
+  header.hero p { margin: 0; color: var(--muted); max-width: 75ch; }
+  .meta { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
+  .chip {
+    font-size: .78rem; padding: .25rem .55rem; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--panel); color: var(--muted);
+  }
+  .chip.ok { border-color: #1f5a40; color: var(--ok); }
+  .chip.warn { border-color: #5a4a1f; color: var(--warn); }
+  section { margin: 2.25rem 0; scroll-margin-top: 1rem; }
+  section > h2 {
+    font-size: 1.35rem; margin: 0 0 .75rem; padding-bottom: .45rem;
+    border-bottom: 1px solid var(--border);
+  }
+  section > h3 { font-size: 1.08rem; margin: 1.4rem 0 .5rem; color: #d5e4f7; }
+  section > h4, .card h4 { font-size: .98rem; margin: 1.1rem 0 .4rem; color: #b9c9dc; }
+  p { color: #d5dde8; }
+  .muted { color: var(--muted); }
+  ul, ol { color: #d5dde8; }
+  li { margin: .25rem 0; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: .85rem; }
+  @media (max-width: 980px) {
+    .layout { flex-direction: column; }
+    nav.sidebar { position: relative; height: auto; width: 100%; max-height: 50vh; }
+    .grid2, .grid3 { grid-template-columns: 1fr; }
+    main { padding: 1rem; }
+  }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1rem 1.1rem;
+  }
+  .card h4 { margin: 0 0 .35rem; }
+  .card p { margin: 0; font-size: .92rem; color: var(--muted); }
+  .card p + p { margin-top: .45rem; }
+  table {
+    width: 100%; border-collapse: collapse; font-size: .88rem;
+    background: var(--panel); border-radius: 10px; overflow: hidden;
+    border: 1px solid var(--border); margin: .6rem 0 1rem;
+  }
+  th, td {
+    text-align: left; padding: .55rem .7rem; border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th { background: var(--panel2); color: #c8d7ea; font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  code, .mono { font-family: var(--mono); font-size: .86em; }
+  pre {
+    background: var(--code); border: 1px solid var(--border);
+    border-radius: 10px; padding: .9rem 1rem; overflow-x: auto;
+    font-family: var(--mono); font-size: .8rem; line-height: 1.45;
+    color: #cfe0f5;
+  }
+  .flow {
+    background: var(--code); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1rem; overflow-x: auto;
+    font-family: var(--mono); font-size: .76rem; white-space: pre;
+    color: #b8d4c8; margin: .75rem 0 1rem; line-height: 1.4;
+  }
+  details {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: .65rem .9rem; margin: .6rem 0;
+  }
+  details summary { cursor: pointer; font-weight: 600; color: #dce8f7; }
+  details[open] summary { margin-bottom: .5rem; }
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: rgba(91,157,255,.08);
+    padding: .75rem 1rem; border-radius: 0 10px 10px 0; margin: 1rem 0;
+  }
+  .callout.warn { border-color: var(--warn); background: rgba(240,180,41,.08); }
+  .callout.ok { border-color: var(--ok); background: rgba(62,207,142,.08); }
+  .callout.danger { border-color: var(--danger); background: rgba(255,107,122,.08); }
+  .tag {
+    display: inline-block; font-size: .72rem; padding: .1rem .4rem;
+    border-radius: 4px; background: #1c2a3d; color: #9ec0ef; margin-right: .25rem;
+  }
+  .tag.py { background: #1a2e22; color: #7dcea0; }
+  .tag.ts { background: #1a2438; color: #8ab4f8; }
+  .tag.llm { background: #2e1a3a; color: #d19ef0; }
+  footer.page {
+    margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border);
+    color: var(--muted); font-size: .85rem;
+  }
+  .step-list { counter-reset: step; list-style: none; padding: 0; }
+  .step-list > li {
+    counter-increment: step; position: relative;
+    padding: .75rem 1rem .75rem 3rem; margin: .5rem 0;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  }
+  .step-list > li::before {
+    content: counter(step); position: absolute; left: .75rem; top: .75rem;
+    width: 1.5rem; height: 1.5rem; border-radius: 50%;
+    background: #1c3a5c; color: var(--accent); font-size: .8rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pill-row { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0; }
+  #backTop {
+    position: fixed; bottom: 1.25rem; right: 1.25rem; z-index: 30;
+    background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 999px; padding: .5rem .85rem; font-size: .8rem; cursor: pointer;
+    opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  #backTop.show { opacity: 1; pointer-events: auto; }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar">
+  <div class="brand">Aryx <span>Dashboard Guide</span></div>
+  <input class="search" id="navSearch" type="search" placeholder="Filter nav…" />
+  <div class="group">Start</div>
+  <a class="nav" href="#overview">1. Overview</a>
+  <a class="nav" href="#stagemap">2. Stage map (C01–C15)</a>
+  <a class="nav" href="#principles">3. Cross-cutting principles</a>
+  <div class="group">Upstream (grounding)</div>
+  <a class="nav" href="#c01-c07">4. C01–C07 — intent to planning context</a>
+  <div class="group">The planner &amp; the prompt</div>
+  <a class="nav" href="#c08">5. C08 — Aryx Insight Orchestrator</a>
+  <a class="nav sub" href="#prompt-anatomy">Prompt anatomy</a>
+  <a class="nav sub" href="#prompt-variants">Four prompt builders</a>
+  <a class="nav sub" href="#prompt-repair">Repair &amp; Kaizen retries</a>
+  <div class="group">Validate → compile → run</div>
+  <a class="nav" href="#c09">6. C09 — Pre-execution spec validation</a>
+  <a class="nav" href="#c10">7. C10 — Preprocessing</a>
+  <a class="nav" href="#c11">8. C11 — Execution compiler</a>
+  <a class="nav" href="#c12">9. C12 — Analysis execution</a>
+  <div class="group">Grade → compose → render</div>
+  <a class="nav" href="#c13">10. C13 — Post-execution validation</a>
+  <a class="nav" href="#c14">11. C14 — Dashboard composition</a>
+  <a class="nav" href="#c15">12. C15 — Frontend renderer</a>
+  <a class="nav sub" href="#c15-charts">Chart-type dispatch</a>
+  <div class="group">Reference</div>
+  <a class="nav" href="#api">13. API map</a>
+  <a class="nav" href="#failure">14. Failure &amp; HITL model</a>
+  <a class="nav" href="#extend">15. How to extend</a>
+  <a class="nav" href="#glossary">16. Glossary</a>
+</nav>
+
+<main>
+<header class="hero">
+  <h1>Aryx Dashboard Guide — C01→C15</h1>
+  <p>
+    End-to-end reference for the <strong>business intelligence dashboard</strong> pipeline:
+    a natural-language objective goes in, a governed, chart-rendered dashboard comes out —
+    with two hard validation gates (C09, C13) in between so nothing the model invents
+    ever reaches the screen. This page also walks through <strong>how the planner prompt
+    actually works</strong> (<code>andie_planner/prompt.py</code>) — its discipline rules,
+    its four builder variants, and its repair loops.
+  </p>
+  <div class="meta">
+    <span class="chip ok">Stages: C01–C15</span>
+    <span class="chip">Prompt version: 1.11</span>
+    <span class="chip warn">Two hard gates: C09 (spec) · C13 (results)</span>
+    <span class="chip">Source of truth: <code>src/aryx</code> + <code>apps/web</code></span>
+  </div>
+</header>
+
+<section id="overview">
+  <h2>1. What the dashboard pipeline is</h2>
+  <p>
+    Turns a plain-English objective ("show me renewal health by region") into a working
+    BI dashboard — without ever letting an LLM compute a number, invent a column, or silently
+    drop a chart. The LLM only <strong>drafts</strong> a candidate spec (which columns,
+    operations, chart types to use); every computation runs in deterministic, testable Python,
+    and every LLM output passes a grounding check plus a formal validation gate before it can
+    affect anything downstream.
+  </p>
+  <div class="grid3">
+    <div class="card">
+      <h4>One real LLM call</h4>
+      <p>Of the 15 stages, only <strong>C08</strong> (drafting) calls a frontier model for its
+      core output. C14 has one <em>optional</em> LLM call (chart/section titles only, never values).</p>
+    </div>
+    <div class="card">
+      <h4>Two hard gates</h4>
+      <p><strong>C09</strong> grades the spec before anything executes. <strong>C13</strong>
+      independently recomputes and grades the results after execution. Neither re-litigates
+      the other's decisions.</p>
+    </div>
+    <div class="card">
+      <h4>Never-raise contract</h4>
+      <p>Every stage returns a typed status (<code>valid / invalid / controlled_error /
+      controlled_failure</code>, <code>approved / approved_with_warnings / rejected</code>,
+      etc.) instead of throwing — failures are visible, not silent.</p>
+    </div>
+  </div>
+  <div class="callout">
+    <strong>Design tenet, repeated across C08–C14 docstrings:</strong>
+    C08 "strips and keeps going, warns" on anything ungrounded; C09 "rejects and reports" on
+    the same class of problem, as a hard gate. C11–C14 explicitly say they are
+    <em>"never a re-litigation of C09's decisions"</em> — each stage trusts the upstream gate
+    and only re-checks its own structural concerns.
+  </div>
+</section>
+
+<section id="stagemap">
+  <h2>2. Stage map (C01–C15)</h2>
+  <table>
+    <thead><tr><th>Code</th><th>Stage</th><th>Module</th><th>Trigger</th></tr></thead>
+    <tbody>
+      <tr><td>C01</td><td>User intent capture</td><td><code>src/aryx/intent/</code></td><td>Front door — objective, audience, preferences</td></tr>
+      <tr><td>C02</td><td>Dataset upload &amp; ingestion</td><td><code>src/aryx/dataset/</code></td><td>On file upload</td></tr>
+      <tr><td>C03</td><td>Deterministic dataset profiler</td><td><code>src/aryx/profiler/</code></td><td>Auto, gated on C01</td></tr>
+      <tr><td>C04</td><td>Semantic field interpreter</td><td><code>src/aryx/semantic/</code></td><td>Auto, after C03</td></tr>
+      <tr><td>C05</td><td>Knowledge graph intake &amp; validation</td><td><code>src/aryx/graph_intake/</code></td><td>Auto</td></tr>
+      <tr><td>C06</td><td>Knowledge graph profiler</td><td><code>src/aryx/graph_profiler/</code></td><td>Auto, after C05</td></tr>
+      <tr><td>C07</td><td>Planning context (context &amp; resource retrieval)</td><td><code>src/aryx/planning/</code></td><td>Auto, after C06</td></tr>
+      <tr><td><strong>C08</strong></td><td><strong>Aryx Insight Orchestrator</strong></td><td><code>src/aryx/andie_planner/</code></td><td>On-demand — <span class="tag llm">first LLM call</span></td></tr>
+      <tr><td><strong>C09</strong></td><td><strong>Pre-execution spec validation</strong></td><td><code>src/aryx/spec_validation/</code></td><td>Auto, chained onto C08 — <strong>hard gate</strong></td></tr>
+      <tr><td><strong>C10</strong></td><td><strong>Preprocessing &amp; transformation</strong></td><td><code>src/aryx/preprocess/</code></td><td>Auto, chained onto C09 approval (best-effort)</td></tr>
+      <tr><td><strong>C11</strong></td><td><strong>Execution compiler</strong></td><td><code>src/aryx/execution_compiler/</code></td><td>Auto, chained onto C10</td></tr>
+      <tr><td><strong>C12</strong></td><td><strong>Deterministic analysis execution</strong></td><td><code>src/aryx/analysis_execution/</code></td><td>On-demand — <code>POST /execution-run/run</code></td></tr>
+      <tr><td><strong>C13</strong></td><td><strong>Post-execution validation</strong></td><td><code>src/aryx/post_execution_validation/</code></td><td>Auto, chained onto C12 — <strong>hard gate</strong></td></tr>
+      <tr><td><strong>C14</strong></td><td><strong>Dashboard composition</strong></td><td><code>src/aryx/dashboard_composition/</code></td><td>On-demand, gated on C13 eligibility</td></tr>
+      <tr><td><strong>C15</strong></td><td><strong>Frontend dashboard renderer</strong></td><td><code>apps/web</code> (+ <code>dashboard_render/</code> telemetry)</td><td>Client-side render + telemetry log</td></tr>
+    </tbody>
+  </table>
+
+  <h3>End-to-end flow</h3>
+  <div class="flow">NL objective (+ C01 intent, C07 planning context)
+        │
+        ▼
+  C08 Aryx Insight Orchestrator  ──LLM──▶ ground.py (strip unapproved) ──▶ DashboardSpec (candidate)
+        │
+        ▼
+  C09 Spec Validation (10 checks, 1 bounded repair retry) ──rejected──▶ controlled_failure (terminal)
+        │ approved
+        ▼
+  C10 Preprocess (per dataset, best-effort, additive)
+        │
+        ▼
+  C11 Execution Compiler ──▶ ExecutionPlan (typed DAG, vetted templates only)
+        │ (on-demand trigger)
+        ▼
+  C12 Analysis Execution ──▶ ExecutionRun (real KPI / analysis values)
+        │ (auto-chained)
+        ▼
+  C13 Post-Execution Validation (7 checks, independent recompute) ──rejected──▶ eligible_for_dashboard=False (dead end)
+        │ eligible
+        ▼
+  C14 Dashboard Composition (gated on C13) ──▶ DashboardModel (sections/components, never new values)
+        │ (frontend polls every 4s)
+        ▼
+  C15 Frontend Dashboard Renderer (apps/web) ──▶ rendered dashboard + render_telemetry log</div>
+
+  <h3>Who calls what, on the page</h3>
+  <p><code>apps/web/app/dashboard/page.tsx</code> lays out one panel per stage, in pipeline
+  order, with inline comments matching the backend stage codes:</p>
+  <div class="flow">C01 IntentForm
+  → C02–C04 DatasetsPanel
+  → C05/C06 GraphIntakePanel
+  → C07 WorkspacePlanningContextPanel
+  → C08 DashboardSpecPanel        (draft / approve / reject the spec)
+  → C11 ExecutionPlanPanel        (read-only — compiled DAG)
+  → C12 ExecutionRunPanel         (trigger + view real KPI/analysis values)
+  → C14 DashboardModelPanel       (compose the validated run into sections)
+  → ask-to-visualize              (C08 delta extension — one chart at a time)
+  → C15 DashboardRenderer         (the actual rendered dashboard)</div>
+</section>
+
+<section id="principles">
+  <h2>3. Cross-cutting principles</h2>
+  <div class="grid2">
+    <div class="card">
+      <h4>Never invent</h4>
+      <p>Every column, operation, chart type, and cross-reference the LLM proposes is checked
+      against real approved resources (C08's <code>ground.py</code>) or real profiled data
+      (C09/C13). Anything unsupported is stripped and recorded as a warning — never
+      silently kept, never approximated.</p>
+    </div>
+    <div class="card">
+      <h4>Two different failure philosophies, on purpose</h4>
+      <p>C08 grounds by <em>stripping and warning</em> (degrade gracefully). C09 and C13 are
+      <em>hard pass/fail gates</em> — the same class of problem that's a warning in C08 is a
+      blocking error one/five stages later.</p>
+    </div>
+    <div class="card">
+      <h4>Typed outcomes, never exceptions</h4>
+      <p><code>PlannerResult</code>, <code>ValidationReport</code>, <code>ExecutionRun</code>,
+      <code>PostExecutionReport</code>, <code>DashboardModel</code> all carry an explicit
+      status enum. A stage's own internal crash becomes a typed rejection
+      (e.g. C13's <code>recomputation_failed</code>), not an unhandled exception.</p>
+    </div>
+    <div class="card">
+      <h4>Additive stages can never downgrade a result</h4>
+      <p>C10 (preprocess) and C11 (compile) chaining inside <code>andie_planner/run.py</code>
+      are wrapped in broad <code>except Exception</code> (annotated <code>noqa: BLE001</code>)
+      specifically so a best-effort follow-on stage can never block or corrupt the primary
+      C08/C09 outcome.</p>
+    </div>
+  </div>
+</section>
+
+<section id="c01-c07">
+  <h2>4. C01–C07 — grounding the planner (brief context)</h2>
+  <p>Everything before C08 builds the <strong>planning context</strong> the prompt is allowed to see:</p>
+  <ul>
+    <li><strong>C01</strong> — objective, audience, preferences</li>
+    <li><strong>C02–C04</strong> — ingest a dataset; profile + semantically tag its columns, including real observed <code>sample_values</code> for categorical ones</li>
+    <li><strong>C05/C06</strong> — land and profile the knowledge graph (verified, single-hop <code>graph_paths</code> only)</li>
+    <li><strong>C07</strong> — assembles it all (approved columns, graph paths, operations, chart types) into the <strong>one payload C08's prompt is built from</strong></li>
+  </ul>
+  <p class="muted">Dashboard-specific logic starts at C08, so C01–C07 aren't detailed further here — see <code>planning/*</code> (<code>assemble.py</code>, <code>catalogues.py</code>, <code>models.py</code>).</p>
+</section>
+
+<section id="c08">
+  <h2>5. C08 — Aryx Insight Orchestrator</h2>
+  <p>
+    Package: <code>src/aryx/andie_planner/</code>. This is the only stage that calls a frontier
+    LLM to produce the dashboard's actual content (which KPIs, which analyses, which charts).
+    Its output is explicitly a <strong>candidate, non-executable</strong> spec — nothing here
+    computes a value.
+  </p>
+
+  <table>
+    <thead><tr><th>File</th><th>Responsibility</th></tr></thead>
+    <tbody>
+      <tr><td><code>prompt.py</code></td><td>Builds the versioned (system, user) prompt pair from only approved resources. Detailed in §5.1–5.3 below.</td></tr>
+      <tr><td><code>schema.py</code></td><td><code>DASHBOARD_SPEC_SCHEMA</code> / <code>DELTA_SPEC_SCHEMA</code> / <code>FILTER_REPAIR_SCHEMA</code> — JSON-schema hints for envelope shaping only. Explicitly <em>not</em> the correctness layer.</td></tr>
+      <tr><td><code>generate.py</code></td><td><code>assemble_spec()</code> / <code>assemble_workspace_spec()</code> — prompt → LLM call → ground. <code>_run_llm_loop()</code> retries once (<code>_MAX_ATTEMPTS = 2</code>) on a malformed/empty response, then gives up.</td></tr>
+      <tr><td><code>ground.py</code></td><td><code>ground_spec()</code> / <code>ground_delta()</code> — the real "no invention" gate: strips anything not in the approved resources, records a <code>SpecWarning</code> instead. Pure, deterministic, no LLM/I-O.</td></tr>
+      <tr><td><code>models.py</code></td><td>Pydantic contracts: <code>DashboardSpec</code>, <code>Kpi</code>, <code>Analysis</code>, <code>Visualization</code>, <code>SpecWarning</code>, <code>PlannerResult</code>.</td></tr>
+      <tr><td><code>run.py</code></td><td><code>run_planner()</code> / <code>run_planner_workspace()</code> — ties C08 into C09/C10/C11 (bounded repair retry against C09, then best-effort C10/C11 chaining).</td></tr>
+      <tr><td><code>delta.py</code></td><td>Ask-to-visualize: extend an approved spec with one new chart at a time.</td></tr>
+      <tr><td><code>filter_repair.py</code></td><td>Targeted micro-repair for KPI filters missing a value, using <code>build_filter_repair_prompt</code>.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="prompt-anatomy">5.1 Prompt anatomy — how <code>prompt.py</code> actually works</h3>
+  <p>
+    <code>prompt.py</code> builds a <strong>(system, user)</strong> message pair — it never
+    calls the LLM itself; <code>generate.py</code> does that via <code>complete_json</code>.
+    All four builder functions in the file share one system prompt (<code>_SYSTEM</code>,
+    versioned <code>PROMPT_VERSION = "1.11"</code>) and differ only in what goes in the user
+    message.
+  </p>
+
+  <h4>The system prompt's discipline (six rules, always present)</h4>
+  <table>
+    <thead><tr><th>#</th><th>Rule</th><th>What it means</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Closed vocabulary only</td><td>Reference only column names, operations, chart types listed in "approved resources" — nothing invented, however useful it seems.</td></tr>
+      <tr><td>2</td><td>Include ⇒ verify</td><td>Every column/operation/chart type a KPI/analysis/visualization uses must appear in approved resources, or the whole item is dropped with a warning — never approximated.</td></tr>
+      <tr><td>3</td><td>Filters need a real value</td><td>A filter with only a column name is rejected outright, even if the KPI's name implies one (e.g. "Active X Count" with no status filter). If the column has <code>sample_values</code>, copy one verbatim; if not, drop the KPI/analysis and warn — never guess.</td></tr>
+      <tr><td>4</td><td>Say so, don't guess</td><td>Anything the objective needs but approved resources don't support goes in <code>warnings</code>, not a padded approximation.</td></tr>
+      <tr><td>5</td><td>Layered drafting</td><td>Core KPIs first, then one layer deeper — breakdowns, trends, edge cases (small samples, missing values) — with reasoning captured in <code>assumptions</code>.</td></tr>
+      <tr><td>6</td><td>JSON only</td><td>No preamble, no markdown fences, no explanation outside the JSON object.</td></tr>
+    </tbody>
+  </table>
+  <p class="muted">
+    Rules 3 and 5 are adapted, not invented fresh: the no-invention/state-uncertainty posture
+    borrows from <strong>andie-jr</strong>'s bug-triage discipline (only that posture transfers,
+    not its verdict shape); the layered-drafting framing borrows from <strong>Andie's Deep
+    mode</strong> (core → mental model → what breaks → next level down) — again, only the shape
+    transfers, not Deep mode's teaching tone.
+  </p>
+
+  <h4>The chart-type guide (inside the same system prompt)</h4>
+  <p>
+    A large block maps <em>data shape</em> to chart type, explicitly instructing the model
+    never to default to bar/table when a more specific type fits better:
+  </p>
+  <table>
+    <thead><tr><th>Data shape</th><th>Chart type</th></tr></thead>
+    <tbody>
+      <tr><td>One number</td><td><code>kpi_card</code></td></tr>
+      <tr><td>One category, one metric</td><td><code>bar</code> (or <code>donut</code> for share-of-whole, ≤6 categories)</td></tr>
+      <tr><td>Trend over time</td><td><code>line</code> / <code>area</code> (cumulative) / <code>step</code> (level changes)</td></tr>
+      <tr><td>Two numeric columns per row</td><td><code>scatter</code> (<code>row_points</code>); +third numeric column → <code>bubble</code></td></tr>
+      <tr><td>Distribution of one numeric column</td><td><code>histogram</code>; per category → <code>box_plot</code> (<code>quartiles</code>)</td></tr>
+      <tr><td>Two categorical dimensions crossed</td><td><code>crosstab</code> → <code>heatmap_matrix</code> / <code>sankey</code> / <code>treemap</code> / <code>sunburst</code></td></tr>
+      <tr><td>Before/after per category</td><td><code>slopegraph</code>; full second series → <code>grouped_bar</code> (needs <code>compare_ref</code>)</td></tr>
+      <tr><td>Ordered contributions to a total</td><td><code>waterfall</code>; ranked + cumulative share → <code>pareto</code></td></tr>
+      <tr><td>Start/end dates per item</td><td><code>gantt</code> (<code>date_span</code>)</td></tr>
+      <tr><td>Time-to-event / retention</td><td><code>survival_curve</code> (<code>survival</code>)</td></tr>
+      <tr><td>Several metrics, one entity/segment</td><td><code>radar</code> (needs 3+ <code>axis_refs</code>)</td></tr>
+      <tr><td>A knowledge-graph relationship (not a flat column)</td><td><code>graph_relation</code> — cites an approved <code>graph_path_id</code> (single-hop only); rendered as <code>bar</code>/<code>donut</code> only, never sankey/treemap/heatmap</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="prompt-variants">5.2 Four prompt builders — one discipline, four shapes</h3>
+  <table>
+    <thead><tr><th>Function</th><th>When used</th><th>What's different in the user message</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>build_planner_prompt()</code></td>
+        <td>Fresh draft, single dataset</td>
+        <td>One flat <code>approved_columns</code> list + graph paths/operations/charts. Requests 10–12 visualizations, 3–5 <code>business_questions</code>, plus full <code>kpis</code>/<code>analyses</code>/<code>visualizations</code>/<code>assumptions</code>/<code>warnings</code>.</td>
+      </tr>
+      <tr>
+        <td><code>build_workspace_planner_prompt()</code></td>
+        <td>Fresh draft, <strong>multi-dataset</strong> workspace</td>
+        <td>Resources grouped per <code>dataset_id</code> (never flattened — same column name can mean different things per dataset). Every KPI/analysis declares its own <code>dataset_id</code>; cross-dataset column mixing is an explicit rejection reason.</td>
+      </tr>
+      <tr>
+        <td><code>build_delta_prompt()</code></td>
+        <td>Ask-to-visualize — one new chart on an <em>already-approved</em> dashboard</td>
+        <td>Reuses <code>_SYSTEM</code> unchanged. Frames the model as <strong>extending</strong>: given <code>existing_kpis</code>/<code>existing_analyses</code>, prefer reusing one via <code>source_ref</code>; draft new only if genuinely needed. Caps output at 1 new KPI, 1 new analysis, exactly 1 new visualization.</td>
+      </tr>
+      <tr>
+        <td><code>build_filter_repair_prompt()</code></td>
+        <td>Narrow micro-repair for a known <code>missing_filter_value</code> defect</td>
+        <td>Own smaller system prompt (not <code>_SYSTEM</code>) — fixes named, already-identified defects only. One item per broken filter with real <code>sample_values</code>; reply is an exact verbatim value or <code>null</code>, never a new draft.</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="callout ok">
+    <strong>Recurring guard inside every builder:</strong> right before the "return JSON" instructions,
+    each prompt re-states the filter/sample_values rule one more time as a final self-check —
+    the file's own comment calls a missing filter value <em>"the most common reason a draft
+    gets rejected,"</em> so the prompt asks the model to re-verify it once more immediately
+    before replying.
+  </div>
+
+  <h3 id="prompt-repair">5.3 Repair loops — two different kinds, never confused</h3>
+  <p><code>prompt.py</code> exposes two distinct repair helpers, for two different failure points:</p>
+  <table>
+    <thead><tr><th>Helper</th><th>Triggered when</th><th>Behavior</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>repair_prompt(user, reason)</code></td>
+        <td>Raw LLM response is <em>malformed or empty</em> (missing <code>business_questions</code>/<code>kpis</code>, or a broker exception)</td>
+        <td>Re-states: reply with ONLY the JSON object, exact keys. One retry only (<code>generate.py</code>'s <code>_MAX_ATTEMPTS = 2</code>).</td>
+      </tr>
+      <tr>
+        <td><code>append_repair_constraints(user, constraints_text)</code></td>
+        <td>Spec was <em>well-formed but C09 rejected it</em> for itemized reasons (<code>repair_constraints_text</code> names the exact defect per error)</td>
+        <td>Framed as one <strong>Kaizen cycle</strong> (Andie's fix → verify → iterate): change only what each error names, keep every unflagged item exactly as-is. This is <code>run.py</code>'s single bounded repair retry against C09 — a separate cap from C08's malformed-response retry above.</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="callout">
+    Both caps are enforced independently: C08's loop caps at <code>_MAX_ATTEMPTS = 2</code> for
+    malformed JSON; C09's repair cap (<code>MAX_VALIDATION_ATTEMPTS = 2</code>) is enforced
+    <em>server-side</em> by <code>run_spec_validation()</code>, counting prior attempts via
+    <code>SpecValidationStore</code> — a caller retrying the endpoint directly cannot bypass it.
+  </div>
+</section>
+
+<section id="c09">
+  <h2>6. C09 — Pre-execution specification validation</h2>
+  <p>
+    Package: <code>src/aryx/spec_validation/</code>. The first hard gate: where C08 warns and
+    keeps going, C09 treats the same class of evidence as disqualifying.
+  </p>
+  <h3>6.1 Ten named checks (<code>checks.py</code> → <code>ALL_CHECKS</code>)</h3>
+  <table>
+    <thead><tr><th>#</th><th>Check</th><th>What it enforces</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>check_json_schema</code></td><td>At least one business question + one KPI</td></tr>
+      <tr><td>2</td><td><code>check_column_existence</code></td><td>Promotes C08's <code>unapproved_column</code>/<code>unknown_dataset</code> warnings to hard errors</td></tr>
+      <tr><td>3</td><td><code>check_graph_path_grounding</code></td><td>Assumption text referencing <code>path_*</code> tokens must match an approved graph path</td></tr>
+      <tr><td>4</td><td><code>check_type_compatibility</code></td><td>Numeric ops (sum/average/median) require a real numeric <code>measure</code> — closes a gap where a KPI with no measure used to compile against an empty column and fabricate <code>value=0.0</code></td></tr>
+      <tr><td>5</td><td><code>check_operation_whitelist</code></td><td>Promotes <code>unsupported_operation</code></td></tr>
+      <tr><td>6</td><td><code>check_formula_validity</code></td><td>Ratio/percentage KPIs need both operands; <code>missing_filter_value</code> stays a hard error on purpose — an operand with <code>filter=None</code> silently becomes "count of everything," judged worse than a regeneration</td></tr>
+      <tr><td>7</td><td><code>check_division_by_zero_policy</code></td><td>Zero-denominator policy must be exactly <code>return_null_with_warning</code> — the only value C12/C13 implement</td></tr>
+      <tr><td>8</td><td><code>check_chart_axis_compatibility</code></td><td>Structural shape rule per chart family (crosstab/gantt/survival/scatter/bubble/histogram/radar/graph_relation); dangling refs downgrade to warnings (C08 self-heals them already)</td></tr>
+      <tr><td>9</td><td><code>check_lineage_declaration</code></td><td>Every KPI/analysis must declare its source columns/operations (or a <code>graph_path_id</code> for graph_relation)</td></tr>
+      <tr><td>10</td><td><code>check_claim_safety</code></td><td>Blocklists causal/predictive language ("forecast", "will cause", "due to"…) in questions/assumptions</td></tr>
+    </tbody>
+  </table>
+  <h3>6.2 Orchestration</h3>
+  <ul>
+    <li><code>models.py</code> — <code>ValidationReport</code>, <code>RepairRequest</code> / <code>RepairErrorConstraint</code>, <code>ControlledFailure</code>, <code>MAX_VALIDATION_ATTEMPTS = 2</code>.</li>
+    <li><code>validate.py</code> — <code>validate_spec()</code> runs all 10 checks into one report; <code>_build_repair_request()</code> builds structured, per-error correction constraints (allowed replacement columns/operations/chart types); <code>repair_constraints_text()</code> renders these as plain text for the retry prompt, using <code>difflib.get_close_matches</code> to suggest the likely intended column.</li>
+    <li><code>run.py</code> — <code>run_spec_validation()</code> enforces the attempt cap server-side before running checks.</li>
+  </ul>
+</section>
+
+<section id="c10">
+  <h2>7. C10 — Preprocessing &amp; transformation</h2>
+  <p>
+    Package: <code>src/aryx/preprocess/</code>. Chained automatically onto an approved C09 spec
+    (<code>andie_planner/run.py::_run_c10_for_approved</code>), one call per referenced dataset.
+  </p>
+  <ul>
+    <li><code>policy.py</code> — derives a deterministic conversion/null policy per column from C03's profile.</li>
+    <li><code>transform.py</code> — applies the policy with a <strong>soft per-column safety gate</strong>: if a column's conversion failure rate exceeds a threshold, that column reverts to its original raw values rather than silently corrupting data ("C10 reverts columns, never drops rows").</li>
+    <li>Produces an immutable transformation log — never mutates the raw C02 snapshot. C12's <code>data.py</code> replays this exact log at execution time so both stages see identical converted values.</li>
+  </ul>
+</section>
+
+<section id="c11">
+  <h2>8. C11 — Execution compiler</h2>
+  <p>
+    Package: <code>src/aryx/execution_compiler/</code>. Turns an approved <code>DashboardSpec</code>
+    into a typed, acyclic execution DAG built exclusively from vetted templates — never
+    arbitrary generated code.
+  </p>
+  <ul>
+    <li><code>templates.py</code> — <code>TEMPLATES: dict[str, frozenset[str]]</code>, the exhaustive allowlist of template name → required parameter keys (<code>filter_equals</code>, <code>safe_ratio</code>, <code>grouped_safe_ratio</code>, <code>row_points</code>, <code>survival_curve</code>, <code>graph_relation_count</code>, …). A node using any other template, or mismatched parameters, is rejected.</li>
+    <li><code>compile.py</code> — <code>compile_plan_for_spec(spec, dataset_row_count=None) -> ExecutionPlan</code>. <code>_compile_kpi()</code> builds filter → measure/count → (for ratios) <code>safe_ratio</code> chains; <code>_compile_analysis()</code> dispatches on <code>Analysis.operation</code> to the matching template. After binding, runs 5 structural checks; any hard-failure code sets <code>compilation_status = "rejected"</code>.</li>
+    <li><code>models.py</code> — <code>ExecutionNode</code> (template + parameters + <code>depends_on</code>), <code>CompilationIssue</code>, <code>ExecutionPlan</code> (carries <code>kpi_final_node</code>/<code>kpi_lineage_nodes</code>/<code>analysis_node</code> maps so C12/C13 don't guess from node-id naming).</li>
+    <li><code>validate.py</code> — <code>validate_bindings()</code> (unknown template / wrong params / dangling dep / duplicate id), <code>is_acyclic()</code> (Kahn's algorithm), <code>check_ratio_operand_operations()</code>, <code>check_resource_limits()</code> (node-count cap, <code>DEFAULT_NODE_LIMIT = 200</code>).</li>
+  </ul>
+  <p><strong>Data flow:</strong> input = approved <code>DashboardSpec</code>; output = <code>ExecutionPlan</code>, persisted via <code>ExecutionPlanStore</code>, exposed only as a <strong>read-only</strong> API (no run endpoint — it's compiled automatically right after C09 approval).</p>
+</section>
+
+<section id="c12">
+  <h2>9. C12 — Deterministic analysis execution</h2>
+  <p>
+    Package: <code>src/aryx/analysis_execution/</code>. Runs a compiled C11 plan against real,
+    C10-converted rows — the first stage to produce real business values. Triggered on-demand
+    (<code>POST /execution-run/run</code>), never auto-chained.
+  </p>
+  <ul>
+    <li><code>data.py</code> — <code>load_typed_rows()</code> re-parses the raw C02 snapshot and re-applies the exact conversion policy C10 already logged, so C12 executes against the same values C10 described.</li>
+    <li><code>execute.py</code> — <code>run_plan()</code> executes nodes in topological order; each dispatches to one of ~24 template handlers. A failing node is caught and recorded in <code>errors</code>, skipped — dependents simply get no result rather than crashing the whole run. <code>resolve_graph_relation_nodes()</code> resolves a <code>graph_relation_count</code> node's <code>path_id</code> to a concrete source/relationship/target triple from <code>GraphProfileStore</code> right before execution.</li>
+    <li><code>models.py</code> — <code>KpiResult</code>, <code>AnalysisResult</code>/<code>AnalysisResultRow</code> (wide shape covering grouped scalar, crosstab cell, scatter point, gantt span, survival point, histogram buckets), <code>ExecutionRun</code> (<code>completed | failed | partial</code>).</li>
+    <li><code>run.py</code> — <code>run_analysis_execution()</code>: loads the latest compiled plan (returns immediately if <code>compilation_status == "rejected"</code>), executes, computes <code>_display_value()</code> (a <code>None</code> value renders as an em dash "—", <strong>never fabricated as "0%"</strong>), then calls C13 and attaches the report — wrapped so a C13 failure never loses the C12 result.</li>
+  </ul>
+  <div class="callout">
+    <strong><code>graph/reader.py</code></strong> is C12's only graph touchpoint: when a compiled
+    plan contains a <code>graph_relation_count</code> node, <code>execute.py</code> obtains a
+    <code>GraphReader</code> via dependency injection and calls
+    <code>count_by_relationship(source_type, relationship, target_type, direction)</code> — the
+    only reader method the dashboard pipeline exercises. Every other operation reads exclusively
+    from the relational dataset snapshot (C02/C10); no other pipeline stage touches the graph.
+  </div>
+</section>
+
+<section id="c13">
+  <h2>10. C13 — Post-execution validation</h2>
+  <p>
+    Package: <code>src/aryx/post_execution_validation/</code>. The second hard gate — mirrors
+    C09 one stage later: C09 grades the spec before execution, C13 grades the <em>results</em>
+    after. This is the stage the "close silent-failure gaps" commits target directly.
+  </p>
+  <h3>10.1 Independent recompute</h3>
+  <p><code>recompute.py</code> re-executes the compiled plan from scratch (same <code>load_typed_rows</code> + <code>run_plan</code> primitives C12 uses) — the stored run's values are cross-checked against a fresh computation, never trusted at face value.</p>
+  <h3>10.2 Seven named checks (<code>checks.py</code>, A–G)</h3>
+  <table>
+    <thead><tr><th>Id</th><th>Check</th><th>What it catches</th></tr></thead>
+    <tbody>
+      <tr><td>A</td><td><code>check_result_identity</code></td><td>Every reported ID must be one the spec declared — invented ID is a hard error, expected-but-missing is a warning</td></tr>
+      <tr><td>B</td><td><code>check_aggregation_correctness</code></td><td>Recomputes every KPI value AND analysis row, compares at 1e-6 tolerance — a structurally valid but numerically wrong result is still blocked</td></tr>
+      <tr><td>C</td><td><code>check_sample_size_reconciliation</code></td><td>Numerator can never exceed denominator; no negative counts</td></tr>
+      <tr><td>D</td><td><code>check_evidence_lineage</code></td><td><code>lineage.operation_ids</code> must exactly equal the nodes C11 actually compiled; dataset_version must match</td></tr>
+      <tr><td>E</td><td><code>check_no_invented_columns</code> / <code>_kpis</code></td><td>Every lineage column must be real per the profile; every reported id must trace to a compiled node</td></tr>
+      <tr><td>F</td><td><code>check_result_shape</code></td><td>Types must match schema (a numeric field that became a string fails even if still valid JSON)</td></tr>
+      <tr><td>G</td><td><code>small_sample_warnings</code></td><td>Sample below <code>SMALL_SAMPLE_THRESHOLD = 30</code> is flagged, never rejected</td></tr>
+    </tbody>
+  </table>
+  <div class="callout ok">
+    <strong>The specific silent-failure fix in this stage:</strong> <code>null_result_warnings</code>
+    — C12's <code>safe_ratio</code>/<code>grouped_safe_ratio</code> only ever implemented the
+    "return null" half of the <code>return_null_with_warning</code> policy; nothing actually
+    emitted the promised warning. C13 now surfaces every <code>None</code>-valued KPI/row as a
+    <code>null_result</code> warning so a blank chart is never mistaken for "the feature is broken."
+  </div>
+  <p>
+    <code>validate_execution()</code> aggregates all 7 checks into a
+    <code>PostExecutionReport</code>: <code>rejected</code> if any errors, else
+    <code>approved_with_warnings</code> if warnings exist, else <code>approved</code>.
+    <code>eligible_for_dashboard = not errors</code> is the exact flag C14 gates on. Never
+    raises — even a recompute exception becomes a <code>recomputation_failed</code> error that
+    forces <code>rejected</code> / <code>eligible_for_dashboard=False</code>.
+  </p>
+</section>
+
+<section id="c14">
+  <h2>11. C14 — Dashboard composition</h2>
+  <p>
+    Package: <code>src/aryx/dashboard_composition/</code>. Arranges an approved spec's
+    already-validated results into an ordered, readable dashboard model —
+    <strong>never computes anything, never alters a governed value/formula/axis/ID</strong>.
+  </p>
+  <h3>11.1 <code>compose.py</code> — five mechanical steps</h3>
+  <ol class="step-list">
+    <li><strong>Build components</strong> — one per approved visualization, bound only if the run actually produced a value for that <code>source_ref</code> (a <code>kpi_card</code> bound to a non-KPI id is flagged <code>chart_type_mismatch</code>, never fabricated).</li>
+    <li><strong>Apply layout constraints</strong> — KPI cards are never capped; other charts capped at <code>maximum_primary_charts</code> (default 12); excess is reported as <code>layout_limit_exceeded</code>, never silently dropped.</li>
+    <li><strong>Prioritize</strong> — cards first, then charts; positions renumbered.</li>
+    <li><strong>Group into sections</strong> — cards share one <code>section_summary</code>; remaining charts group by their analysis's <code>group_by</code> column; uncategorized ones fall into <code>section_charts</code>.</li>
+    <li><strong>Attach warnings</strong> — pulls C13's <code>run.validation.warnings</code> forward onto the owning component, at per-group granularity (e.g. a <code>small_sample_size</code> warning attaches only to the one affected region's component).</li>
+  </ol>
+  <p>
+    A final <code>revalidate()</code> structural self-check (duplicate component IDs, empty
+    section titles) runs again after any LLM narration. Composition also surfaces a
+    <code>no_visualizations</code> issue when the approved spec declared none —
+    <strong>the "C14 masking empty output" fix:</strong> downstream code now distinguishes
+    "nothing composed yet" from "the spec legitimately has nothing to show."
+  </p>
+  <h3>11.2 The one optional LLM step — <code>narrate.py</code></h3>
+  <p>
+    <code>suggest_titles()</code> asks for a dashboard title plus one title per
+    <code>section_id</code> — <em>never</em> components, IDs, or values. Any mismatch between
+    returned and expected section IDs discards the whole suggestion (never a partial apply);
+    any exception falls back silently to deterministic titles. <code>compose_dashboard()</code>
+    re-runs <code>revalidate()</code> after narration and discards corrupted titles
+    (<code>"C14 discarding LLM titles — failed revalidation"</code>).
+  </p>
+  <div class="callout danger">
+    <strong>Hard gate on C13:</strong> <code>run.py::compose_dashboard()</code> checks
+    <code>run.validation.eligible_for_dashboard</code> first — if falsy, returns an
+    <code>invalid</code> <code>DashboardModel</code> with issue <code>results_not_eligible</code>
+    immediately. Composition never runs against unvalidated results.
+  </div>
+</section>
+
+<section id="c15">
+  <h2>12. C15 — Frontend dashboard renderer</h2>
+  <p>
+    The actual final interface — no LLM, no server-side compute. Merges the persisted
+    <code>DashboardModel</code> (C14) with the already-computed <code>ExecutionRun</code>
+    (C12/C13) into UI-ready values. <strong>Never recomputes a governed KPI formula
+    client-side.</strong>
+  </p>
+  <ul>
+    <li><code>src/aryx/dashboard_render/models.py</code> — the only backend-touching piece: <code>RenderTelemetry</code> / <code>AccessibilityChecks</code>, an audit trail (never a gate).</li>
+    <li><code>apps/web/components/planner/DashboardSpecPanel.tsx</code> — renders C08's <code>PlannerResult</code>, handling all four statuses distinctly (<code>controlled_error</code> in red with the error code; <code>controlled_failure</code> in rose showing C09's exhausted rejection codes; otherwise the spec itself plus a non-blocking client-side <code>RichnessIndicator</code> heuristic — thin if &lt;3 KPIs, &lt;4 visualizations, or zero substantive assumptions — that only flags, never rejects).</li>
+    <li><code>apps/web/components/planner/DashboardRenderer.tsx</code> — the actual C15 renderer. Polls every 4s (this panel has no run trigger of its own; its data comes from sibling panels).</li>
+  </ul>
+
+  <h3 id="c15-charts">12.1 Chart-type dispatch</h3>
+  <p>
+    Chart-type vocabulary is fully delegated to <strong>Plotly</strong> via
+    <code>lib/plotlySpecs.ts</code>'s 21 <code>build*Spec</code> builders (bar, line, area,
+    step, donut, box_plot, heatmap_matrix, calendar_heatmap, sankey, treemap, sunburst,
+    waterfall, pareto, histogram, scatter, bubble, gantt, survival, grouped_bar, slopegraph,
+    radar — a few, like <code>buildCalendarHeatmapSpec</code>, are thin aliases onto another
+    builder), all rendered through one shared <code>&lt;PlotlyChart spec={...} /&gt;</code> component.
+  </p>
+  <div class="callout warn">
+    <strong><code>BarChart.tsx</code> no longer exists</strong> as a dedicated component — bar
+    charts (and every other family) now go through the unified <code>ROWS_SPEC_BUILDERS</code>
+    dispatch table keyed by <code>component.type</code>, calling into <code>plotlySpecs.ts</code>.
+    Only non-chart types (<code>kpi_card</code>, <code>table</code>) are still bespoke-rendered inline.
+  </div>
+  <table>
+    <thead><tr><th>Bucket</th><th>Types</th></tr></thead>
+    <tbody>
+      <tr><td><code>BAR_LIKE_TYPES</code></td><td>bar, line, area, step, donut — support <code>SingleValueFallback</code></td></tr>
+      <tr><td><code>ROWS_ONLY_TYPES</code></td><td>box_plot, histogram, heatmap_matrix, calendar_heatmap, sankey, treemap, sunburst, waterfall, pareto, scatter, bubble, gantt, survival_curve</td></tr>
+      <tr><td><code>TWO_SERIES_TYPES</code></td><td>grouped_bar, slopegraph — need both <code>source_ref</code> and <code>compare_ref</code></td></tr>
+      <tr><td><code>radar</code></td><td>needs 3+ <code>axis_refs</code></td></tr>
+    </tbody>
+  </table>
+  <table>
+    <thead><tr><th>Aspect</th><th>Behavior</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>KPI binding</td>
+        <td>A <code>kpi_card</code> looks up <code>run.kpi_results</code> by <code>source_ref</code>; no result → <code>UnsupportedPlaceholder</code>. <strong><code>SingleValueFallback</code></strong> renders a bare KPI value under a chart-type component (labeled with the requested chart type) instead of hiding it as unsupported.</td>
+      </tr>
+      <tr>
+        <td>Warnings</td>
+        <td><code>WarningBanners</code> renders C13's per-component <code>warning_refs</code> (attached by C14) as human sentences — special-cased for <code>small_sample_size</code> and <code>null_values_excluded</code>.</td>
+      </tr>
+      <tr>
+        <td>Telemetry</td>
+        <td>After a model+run pair renders (deduped per <code>dashboard_model_id</code>), <code>summarizeRender()</code> computes render_status (success/partial/failed) and accessibility checks (fails if a <code>kpi_card</code> is missing a <code>name</code>), then POSTs via <code>api.logRenderTelemetry</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="callout ok">
+    <strong>Empty vs. not-yet-loaded, distinguished:</strong> "no data yet" and "empty sections"
+    (<code>model.sections.length === 0</code>) are explicit, separate UI states — the frontend
+    half of the C14 "masking empty output" fix. A user sees "the approved spec declared no
+    visualizations," never a blank panel indistinguishable from a loading state.
+  </div>
+</section>
+
+<section id="api">
+  <h2>13. API map</h2>
+  <table>
+    <thead><tr><th>Router</th><th>Prefix</th><th>Endpoints</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>andie_planner_api.py</code></td>
+        <td><code>/andie-planner</code></td>
+        <td>
+          <code>POST /run</code> · <code>GET /versions</code> ·
+          <code>POST /workspace/run</code> · <code>GET /workspace</code> ·
+          <code>POST /delta/draft</code> · <code>POST /delta/confirm</code> ·
+          <code>GET /{dataset_id}</code>
+        </td>
+      </tr>
+      <tr>
+        <td><code>execution_plan_api.py</code></td>
+        <td><code>/execution-plan</code></td>
+        <td><code>GET /versions</code> · <code>GET /{dataset_id}</code> (read-only — C11 has no run endpoint)</td>
+      </tr>
+      <tr>
+        <td><code>execution_run_api.py</code></td>
+        <td><code>/execution-run</code></td>
+        <td><code>POST /run</code> · <code>GET /workspace</code> · <code>GET /versions</code></td>
+      </tr>
+      <tr>
+        <td><code>dashboard_model_api.py</code></td>
+        <td><code>/dashboard-model</code></td>
+        <td><code>POST /run</code> · <code>GET /workspace</code> · <code>GET /versions</code></td>
+      </tr>
+      <tr>
+        <td><code>render_telemetry_api.py</code></td>
+        <td><code>/render-telemetry</code></td>
+        <td><code>POST /log</code> · <code>GET /list</code></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="muted">All five routers are registered in <code>src/aryx/api/main.py</code>. C09 (spec_validation) and C10/C13 have no dedicated router — they run inline inside <code>andie_planner_api.py</code>'s <code>/run</code> handler and <code>execution_run_api.py</code>'s <code>/run</code> handler respectively.</p>
+</section>
+
+<section id="failure">
+  <h2>14. Failure &amp; HITL model</h2>
+  <table>
+    <thead><tr><th>Stage</th><th>Failure surfaces as</th><th>What happens next</th></tr></thead>
+    <tbody>
+      <tr><td>C08</td><td><code>PlannerResult.status = controlled_error</code></td><td>LLM/broker exception or malformed JSON after 1 retry — terminal, nothing to approve</td></tr>
+      <tr><td>C09</td><td><code>PlannerResult.status = controlled_failure</code></td><td>Spec rejected after 1 bounded repair retry — terminal; UI shows the exact rejected error codes</td></tr>
+      <tr><td>C11</td><td><code>ExecutionPlan.compilation_status = rejected</code></td><td>C12 checks this first and refuses to execute a rejected plan</td></tr>
+      <tr><td>C12</td><td><code>ExecutionRun.status = failed | partial</code></td><td>Individual failing nodes are skipped, not fatal to the whole run; still passed to C13</td></tr>
+      <tr><td>C13</td><td><code>PostExecutionReport.status = rejected</code>, <code>eligible_for_dashboard = False</code></td><td>C14 refuses to compose — dead end until re-run</td></tr>
+      <tr><td>C14</td><td><code>DashboardModel.composition_status = invalid</code></td><td>Frontend shows the composition issue instead of a broken dashboard</td></tr>
+    </tbody>
+  </table>
+  <p>
+    HITL is explicit and human-facing at exactly two points: approving/rejecting a C08 spec on
+    <code>DashboardSpecPanel</code>, and triggering a C12 run on <code>ExecutionRunPanel</code>.
+    Every other stage chains automatically once its predecessor is approved.
+  </p>
+</section>
+
+<section id="extend">
+  <h2>15. How to extend the pipeline</h2>
+  <ol class="step-list">
+    <li><strong>New chart type?</strong> Add it to the prompt's chart-type guide (<code>prompt.py</code>'s <code>_SYSTEM</code>) and <code>supported_charts</code> catalogue → add its structural rule to C09's <code>check_chart_axis_compatibility</code> → add a <code>build*Spec</code> function in <code>plotlySpecs.ts</code> and register it in the right type bucket in <code>DashboardRenderer.tsx</code>.</li>
+    <li><strong>New analysis operation?</strong> Add to <code>supported_operations</code> catalogue and the chart-type guide → add a template + param set to C11's <code>templates.py</code> and a compile branch in <code>_compile_analysis()</code> → add an execution handler in C12's <code>_exec_node()</code> → add a check in C13's <code>_ANALYSIS_ROW_CHECKS</code> if it produces its own row shape.</li>
+    <li><strong>New C09 validation rule?</strong> Add a pure function to <code>ALL_CHECKS</code> in <code>checks.py</code>; keep it deterministic and returning <code>(CheckResult, errors, warnings)</code> — never network/LLM calls inside a check.</li>
+    <li><strong>Never</strong> let the LLM compute a value, invent a column/chart type, or bypass the C09/C13 gates — every extension point above keeps the LLM confined to drafting vocabulary that deterministic code then verifies and executes.</li>
+  </ol>
+</section>
+
+<section id="glossary">
+  <h2>16. Glossary</h2>
+  <table>
+    <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td>DashboardSpec</td><td>C08's candidate, non-executable output: business questions, KPIs, analyses, visualizations, assumptions, warnings</td></tr>
+      <tr><td>ExecutionPlan</td><td>C11's typed, acyclic DAG of vetted-template nodes compiled from an approved spec</td></tr>
+      <tr><td>ExecutionRun</td><td>C12's real computed KPI/analysis values from executing a plan</td></tr>
+      <tr><td>PostExecutionReport</td><td>C13's independent grading of an ExecutionRun (approved / approved_with_warnings / rejected)</td></tr>
+      <tr><td>DashboardModel</td><td>C14's arranged sections/components — layout only, never new values</td></tr>
+      <tr><td>Grounding</td><td>C08's strip-and-warn pass confirming every LLM-proposed item is backed by real approved resources</td></tr>
+      <tr><td>Approved resources</td><td>The closed vocabulary (columns, graph paths, operations, chart types) the planner prompt is restricted to</td></tr>
+      <tr><td>sample_values</td><td>Real observed values for a categorical column — the only source a filter value may ever be copied from</td></tr>
+      <tr><td>zero_denominator_policy</td><td>Required for ratio/percentage KPIs; only implemented value is <code>return_null_with_warning</code></td></tr>
+      <tr><td>Kaizen cycle</td><td>Andie's one-fix-verify-iterate framing, used to present C09's itemized rejection reasons to the model as a repair, not a re-guess</td></tr>
+      <tr><td>controlled_error / controlled_failure</td><td>C08's two terminal, never-raised failure states — malformed LLM response vs. exhausted C09 repair</td></tr>
+      <tr><td>eligible_for_dashboard</td><td>C13's exact boolean flag that C14 gates composition on</td></tr>
+      <tr><td>SingleValueFallback</td><td>Frontend fallback rendering a bare KPI value under a chart-type component instead of hiding it as unsupported</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<footer class="page">
+  Generated for dashboard-feature engineering walkthroughs · Source of truth remains
+  <code>src/aryx/andie_planner</code>, <code>src/aryx/spec_validation</code>,
+  <code>src/aryx/preprocess</code>, <code>src/aryx/execution_compiler</code>,
+  <code>src/aryx/analysis_execution</code>, <code>src/aryx/post_execution_validation</code>,
+  <code>src/aryx/dashboard_composition</code>, <code>src/aryx/dashboard_render</code>,
+  <code>apps/web/app/dashboard</code>, <code>apps/web/components/planner</code> ·
+  Companion doc: <a href="ARYX_SYSTEM_GUIDE.html">ARYX_SYSTEM_GUIDE.html</a>
+</footer>
+</main>
+</div>
+
+<button id="backTop" type="button" title="Back to top">↑ Top</button>
+
+<script>
+(function () {
+  const input = document.getElementById('navSearch');
+  const links = [...document.querySelectorAll('nav.sidebar a.nav')];
+  const sections = [...document.querySelectorAll('main section[id]')];
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    links.forEach(a => {
+      const show = !q || a.textContent.toLowerCase().includes(q);
+      a.style.display = show ? '' : 'none';
+    });
+  });
+
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(en => {
+      if (!en.isIntersecting) return;
+      const id = '#' + en.target.id;
+      links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === id));
+    });
+  }, { rootMargin: '-15% 0px -70% 0px', threshold: 0 });
+  sections.forEach(s => io.observe(s));
+
+  const back = document.getElementById('backTop');
+  window.addEventListener('scroll', () => {
+    back.classList.toggle('show', window.scrollY > 600);
+  }, { passive: true });
+  back.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+})();
+</script>
+</body>
+</html>

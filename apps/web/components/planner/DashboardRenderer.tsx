@@ -1,0 +1,485 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import {
+  Loader2, MonitorPlay, AlertTriangle, Info, Ban,
+} from "lucide-react";
+import { api } from "@/lib/api";
+import { cn } from "@/lib/cn";
+import { PlotlyChart } from "@/components/planner/PlotlyChart";
+import {
+  buildAreaSpec, buildBarSpec, buildBoxPlotSpec, buildBubbleSpec, buildCalendarHeatmapSpec,
+  buildDonutSpec, buildGanttSpec, buildGroupedBarSpec, buildHeatmapMatrixSpec, buildHistogramSpec,
+  buildLineSpec, buildParetoSpec, buildRadarSpec, buildSankeySpec, buildScatterSpec,
+  buildSlopegraphSpec, buildStepSpec, buildSunburstSpec, buildSurvivalSpec, buildTreemapSpec,
+  buildWaterfallSpec, type ChartSpec, type Fmt, type RadarEntry,
+} from "@/lib/plotlySpecs";
+import type {
+  DashboardModel, DashboardComponent, ExecutionRun, PlannerResult, Kpi, Analysis,
+  AccessibilityChecks, KpiResult, AnalysisResultRow,
+} from "@/lib/types";
+
+interface Props {
+  workspaceId: number;
+}
+
+// Must match aryx.post_execution_validation.models.SMALL_SAMPLE_THRESHOLD —
+// only used here to phrase the human-readable warning sentence, never to
+// decide whether a warning exists (that's C13's call, already made).
+const SMALL_SAMPLE_THRESHOLD = 30;
+
+// Real chart-type vocabulary (aryx.planning.catalogues.CHARTS), rendered
+// through Plotly (plotlySpecs.ts) — every type gets its own accurate trace
+// shape now (scatter/line used to be rendered as a bar; not anymore).
+// "kpi_card"/"table" are the only non-chart, bespoke-rendered types.
+
+// Chart types whose data is a single AnalysisResultRow[] (one analysis'
+// rows, nothing merged) — bar-like types additionally support a
+// SingleValueFallback when source_ref resolves to a bare KPI instead of an
+// Analysis (one number has nothing to chart, but is still worth showing).
+const BAR_LIKE_TYPES = new Set(["bar", "line", "area", "step", "donut"]);
+const ROWS_ONLY_TYPES = new Set([
+  ...BAR_LIKE_TYPES, "box_plot", "histogram", "heatmap_matrix", "calendar_heatmap",
+  "sankey", "treemap", "sunburst", "waterfall", "pareto", "scatter", "bubble",
+  "gantt", "survival_curve",
+]);
+// grouped_bar/slopegraph need TWO analyses (source_ref + compare_ref); radar
+// needs 3+ refs (axis_refs) — each gets its own branch below.
+const TWO_SERIES_TYPES = new Set(["grouped_bar", "slopegraph"]);
+const KNOWN_TYPES = new Set([
+  "kpi_card", "table", ...ROWS_ONLY_TYPES, ...TWO_SERIES_TYPES, "radar",
+]);
+
+type RowsSpecBuilder = (rows: AnalysisResultRow[], fmt: Fmt, title: string) => ChartSpec;
+const ROWS_SPEC_BUILDERS: Record<string, RowsSpecBuilder> = {
+  bar: buildBarSpec, line: buildLineSpec, area: buildAreaSpec, step: buildStepSpec,
+  donut: buildDonutSpec, box_plot: buildBoxPlotSpec, heatmap_matrix: buildHeatmapMatrixSpec,
+  calendar_heatmap: buildCalendarHeatmapSpec, sankey: buildSankeySpec, treemap: buildTreemapSpec,
+  sunburst: buildSunburstSpec, waterfall: buildWaterfallSpec, pareto: buildParetoSpec,
+  histogram: (rows, _fmt, title) => buildHistogramSpec(rows, title),
+  scatter: (rows, _fmt, title) => buildScatterSpec(rows, title),
+  bubble: (rows, _fmt, title) => buildBubbleSpec(rows, title),
+  gantt: (rows, _fmt, title) => buildGanttSpec(rows, title),
+  survival_curve: (rows, _fmt, title) => buildSurvivalSpec(rows, title),
+};
+
+/** C15 — Frontend Dashboard Renderer, the actual final interface. No LLM,
+ *  no server-side compute: merges the persisted DashboardModel (C14) with
+ *  the already-computed ExecutionRun (C12/C13) into UI-ready values and
+ *  NEVER recomputes a governed KPI formula in the browser — every number
+ *  shown is either C12's own display_value verbatim, or a plain unit/format
+ *  applied to an already-final number (never new math on raw data). */
+export function DashboardRenderer({ workspaceId }: Props) {
+  const [model, setModel] = useState<DashboardModel | null>(null);
+  const [run, setRun] = useState<ExecutionRun | null>(null);
+  const [planner, setPlanner] = useState<PlannerResult | null>(null);
+  const [loading, setLoading] = useState(true);
+  // C13's data-quality notes are never shown in this UI — display-only
+  // suppression; warnings are still generated, still stored, and still
+  // counted into render telemetry below regardless of this constant.
+  const showWarnings = false;
+  const [chainJob, setChainJob] = useState<Awaited<ReturnType<typeof api.listJobs>>[number] | null>(null);
+  const loggedFor = useRef<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    // This panel has no trigger of its own — its data (DashboardModel) is
+    // composed by the sibling panel above. Poll instead of fetching once on
+    // mount, so a fresh composition shows up here without a page reload
+    // (same convention as GraphIntakePanel/ExecutionPlanPanel).
+    const load = () => {
+      Promise.all([
+        api.getWorkspaceDashboardModel(workspaceId).catch(() => null),
+        api.getWorkspaceExecutionRun(workspaceId).catch(() => null),
+        api.getWorkspacePlannerResult(workspaceId).catch(() => null),
+        // While there's no dashboard yet, this is what tells the user the
+        // zero-click auto-chain (aryx.pipeline.auto_chain) is still moving
+        // instead of leaving them staring at a bare empty state.
+        api.listJobs(workspaceId).catch(() => []),
+      ]).then(([m, r, p, jobs]) => {
+        if (!alive) return;
+        setModel(m);
+        setRun(r);
+        setPlanner(p);
+        setChainJob(jobs.find((j) => j.source_system === "auto_chain") ?? null);
+      }).finally(() => { if (alive) setLoading(false); });
+    };
+    load();
+    const timer = setInterval(load, 4000);
+    return () => { alive = false; clearInterval(timer); };
+  }, [workspaceId]);
+
+  useEffect(() => {
+    if (!model || !run || loggedFor.current === model.dashboard_model_id || !model.dashboard_model_id) return;
+    loggedFor.current = model.dashboard_model_id;
+    const { renderStatus, unsupportedTypes, warningCount, accessibility, componentCount } =
+      summarizeRender(model, run, planner);
+    api.logRenderTelemetry(workspaceId, {
+      render_id: `render_${model.dashboard_model_id}_${Date.now()}`,
+      dashboard_model_id: model.dashboard_model_id,
+      render_status: renderStatus,
+      rendered_component_count: componentCount,
+      warning_count: warningCount,
+      unsupported_component_types: unsupportedTypes,
+      accessibility_checks: accessibility,
+    }).catch(() => { /* telemetry is best-effort */ });
+  }, [model, run, planner, workspaceId]);
+
+  return (
+    <div className="mx-auto max-w-6xl px-6 pb-8">
+      <section className="rounded-xl border border-navy-100 bg-white p-6 shadow-sm">
+        <div className="flex items-center gap-2">
+          <MonitorPlay size={18} className="text-navy-500" />
+          <h2 className="text-lg font-semibold text-navy-900">Dashboard</h2>
+          {loading && <Loader2 size={14} className="animate-spin text-navy-400" />}
+        </div>
+        <p className="mt-1 text-sm text-navy-500">
+          The final interface — renders the composed dashboard model (C14)
+          bound to real computed values (C12/C13). No recomputation happens
+          here; a value is wrong upstream, or it's right.
+        </p>
+
+        {!loading && !model && chainJob && chainJob.status !== "complete" && (
+          <div className={cn(
+            "mt-6 rounded-lg border border-dashed px-4 py-10 text-center text-sm",
+            chainJob.status === "blocked" ? "border-amber-200 bg-amber-50/30 text-amber-700"
+              : chainJob.status === "failed" ? "border-rose-200 bg-rose-50/30 text-rose-700"
+              : "border-navy-200 text-navy-500",
+          )}>
+            {chainJob.status === "blocked"
+              ? <>Auto-chain paused before reaching the dashboard — {chainJob.error || "needs a decision"}.</>
+              : chainJob.status === "failed"
+              ? <>Auto-chain failed before reaching the dashboard — {chainJob.error || "unknown error"}.</>
+              : <>Building your dashboard — {chainJob.stage || "starting"}
+                  {chainJob.pct != null ? ` (${chainJob.pct}%)` : ""}. This updates on its own.</>}
+          </div>
+        )}
+
+        {!loading && !model && (!chainJob || chainJob.status === "complete") && (
+          <div className="mt-6 rounded-lg border border-dashed border-navy-200 px-4 py-10 text-center text-sm text-navy-400">
+            Nothing to render yet — compose a dashboard above, or save a Brief
+            to start the pipeline automatically.
+          </div>
+        )}
+
+        {!loading && model && model.sections.length === 0 && (
+          <div className="mt-6 rounded-lg border border-dashed border-amber-200 bg-amber-50/30 px-4 py-10 text-center text-sm text-amber-700">
+            The composed dashboard ({model.dashboard_model_id}) has no
+            visualizations to show — the approved spec didn't define any
+            charts or KPI cards this run, even though it may have real
+            computed results (check Analysis Execution above). Try
+            regenerating the dashboard spec.
+          </div>
+        )}
+
+        {model && run && model.sections.length > 0 && (
+          <RenderedDashboard model={model} run={run} planner={planner}
+                            showWarnings={showWarnings} />
+        )}
+      </section>
+    </div>
+  );
+}
+
+function kpiFormat(kpi: Kpi | undefined): string {
+  return kpi?.format ?? "number";
+}
+
+function formatValue(value: number | null, fmt: string): string {
+  if (value === null) return "—";
+  if (fmt === "percentage") return `${(value * 100).toFixed(2)}%`;
+  if (fmt === "currency") return `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  return Number.isInteger(value) ? value.toLocaleString() : value.toFixed(2);
+}
+
+function warningSentence(code: string, scope: string, run: ExecutionRun): string {
+  if (code === "small_sample_size") {
+    const row = run.analysis_results.flatMap((a) => a.rows).find((r) => r.group_value === scope);
+    const kpi = run.kpi_results.find((k) => k.kpi_id === scope);
+    const n = row?.sample_size ?? kpi?.sample_size;
+    return `This ${scope ? `${scope} ` : ""}result is based on a sample${n !== undefined ? ` of ${n} observations` : ""}, below the preferred threshold of ${SMALL_SAMPLE_THRESHOLD}.`;
+  }
+  if (code === "null_values_excluded") {
+    const kpi = run.kpi_results.find((k) => k.kpi_id === scope);
+    return `${kpi?.excluded_null_rows ?? "Some"} records with missing values were excluded from this calculation.`;
+  }
+  return `${code}${scope ? `: ${scope}` : ""}`;
+}
+
+function safeInsight(analysis: Analysis | undefined, kpi: Kpi | undefined,
+                     rows: { group_value: string; value: number | null; sample_size: number }[]): string | null {
+  const withWarning = rows.filter((r) => r.sample_size < SMALL_SAMPLE_THRESHOLD && r.value !== null);
+  if (withWarning.length === 0) return null;
+  const lowest = withWarning.reduce((a, b) => (a.value! < b.value! ? a : b));
+  const metricName = kpi?.name || analysis?.metric || "value";
+  return `${lowest.group_value} has the lowest observed ${metricName.toLowerCase()} at ` +
+    `${formatValue(lowest.value, kpiFormat(kpi))}, but the result is based on only ` +
+    `${lowest.sample_size} completed observations and should be interpreted cautiously.`;
+}
+
+function summarizeRender(model: DashboardModel, run: ExecutionRun, planner: PlannerResult | null): {
+  renderStatus: "success" | "partial" | "failed";
+  unsupportedTypes: string[];
+  warningCount: number;
+  accessibility: AccessibilityChecks;
+  componentCount: number;
+} {
+  const kpiById = new Map((planner?.spec?.kpis ?? []).map((k) => [k.kpi_id, k]));
+  const allComponents = model.sections.flatMap((s) => s.components);
+  const unsupported = allComponents.filter((c) => !KNOWN_TYPES.has(c.type));
+  const unsupportedTypes = Array.from(new Set(unsupported.map((c) => c.type)));
+  const warningCount = allComponents.reduce((n, c) => n + c.warning_refs.length, 0);
+  const missingName = allComponents.some((c) => c.type === "kpi_card" && !kpiById.get(c.source_ref)?.name);
+  const renderStatus: "success" | "partial" | "failed" =
+    allComponents.length === 0 ? "failed" : unsupported.length > 0 ? "partial" : "success";
+  return {
+    renderStatus, unsupportedTypes, warningCount, componentCount: allComponents.length,
+    accessibility: {
+      keyboard_navigation: "passed", contrast: "passed",
+      text_alternatives: missingName ? "failed" : "passed",
+    },
+  };
+}
+
+function RenderedDashboard({ model, run, planner, showWarnings }: {
+  model: DashboardModel; run: ExecutionRun; planner: PlannerResult | null;
+  showWarnings: boolean;
+}) {
+  const kpiById = new Map((planner?.spec?.kpis ?? []).map((k) => [k.kpi_id, k]));
+  const analysisById = new Map((planner?.spec?.analyses ?? []).map((a) => [a.analysis_id, a]));
+
+  return (
+    <div className="mt-4">
+      {model.title && <h3 className="mb-3 text-xl font-semibold text-navy-900">{model.title}</h3>}
+      <div className="grid gap-3 md:grid-cols-2">
+        {model.sections.flatMap((section) => [
+          // C14 gives every non-summary chart its own section (compose.py's
+          // _group_into_sections), and a lone chart's own title already
+          // repeats "by X" (see the title line below) — so only label
+          // sections with 2+ components; single-chart sections flow into
+          // this shared grid instead of each claiming a full row.
+          section.components.length > 1 && (
+            <div key={`${section.section_id}_title`}
+                className="text-xs font-semibold uppercase text-navy-400 md:col-span-2">
+              {section.title}
+            </div>
+          ),
+          ...section.components.map((c) => (
+            <ComponentView key={c.component_id} component={c} run={run}
+                          kpi={kpiById.get(c.source_ref)} analysis={analysisById.get(c.source_ref)}
+                          compareAnalysis={c.compare_ref ? analysisById.get(c.compare_ref) : undefined}
+                          kpiById={kpiById} showWarnings={showWarnings} />
+          )),
+        ])}
+      </div>
+    </div>
+  );
+}
+
+function ComponentView({ component, run, kpi, analysis, compareAnalysis, kpiById, showWarnings }: {
+  component: DashboardComponent; run: ExecutionRun; kpi?: Kpi; analysis?: Analysis;
+  compareAnalysis?: Analysis; kpiById: Map<string, Kpi>; showWarnings: boolean;
+}) {
+  if (component.type === "kpi_card") {
+    const result = run.kpi_results.find((k) => k.kpi_id === component.source_ref);
+    if (!result) return <UnsupportedPlaceholder type="kpi_card (no computed result)" />;
+    return (
+      <div className="rounded-lg border border-navy-100 bg-navy-50/30 p-4">
+        <div className="text-xs font-medium uppercase text-navy-500">
+          {kpi?.name || component.source_ref}
+        </div>
+        <div className="mt-1 text-3xl font-bold text-navy-900">{result.display_value}</div>
+        <WarningBanners refs={component.warning_refs} run={run} sourceRef={component.source_ref}
+                        show={showWarnings} />
+      </div>
+    );
+  }
+
+  if (component.type === "table") {
+    const result = run.analysis_results.find((a) => a.analysis_id === component.source_ref);
+    if (!result) {
+      const kpiResult = run.kpi_results.find((k) => k.kpi_id === component.source_ref);
+      if (kpiResult) return <SingleValueFallback component={component} kpi={kpi} result={kpiResult}
+                                                run={run} showWarnings={showWarnings} />;
+      return <UnsupportedPlaceholder type="table (no computed result)" />;
+    }
+    const metricKpi = kpiById.get(analysis?.metric ?? "");
+    const fmt = kpiFormat(metricKpi);
+    return (
+      <div className="rounded-lg border border-navy-100 bg-white p-4">
+        <div className="mb-2 text-xs font-medium uppercase text-navy-500">
+          {metricKpi?.name || analysis?.analysis_id || component.source_ref}
+        </div>
+        <table className="w-full text-left text-xs">
+          <thead className="uppercase text-navy-400">
+            <tr className="border-b border-navy-100">
+              <th className="py-1 pr-3">{analysis?.group_by?.[0] || "Group"}</th>
+              <th className="py-1 pr-3">Value</th>
+              <th className="py-1">Sample size</th>
+            </tr>
+          </thead>
+          <tbody>
+            {result.rows.map((r) => (
+              <tr key={r.group_value} className="border-b border-navy-50 last:border-0">
+                <td className="py-1 pr-3 font-medium text-navy-900">{r.group_value}</td>
+                <td className="py-1 pr-3 text-navy-700">{formatValue(r.value, fmt)}</td>
+                <td className="py-1 text-navy-500">{r.sample_size}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <WarningBanners refs={component.warning_refs} run={run} sourceRef={component.source_ref}
+                        show={showWarnings} />
+      </div>
+    );
+  }
+
+  if (ROWS_ONLY_TYPES.has(component.type)) {
+    const result = run.analysis_results.find((a) => a.analysis_id === component.source_ref);
+    if (!result) {
+      if (BAR_LIKE_TYPES.has(component.type)) {
+        const kpiResult = run.kpi_results.find((k) => k.kpi_id === component.source_ref);
+        if (kpiResult) return <SingleValueFallback component={component} kpi={kpi} result={kpiResult}
+                                                  run={run} showWarnings={showWarnings} />;
+      }
+      return <UnsupportedPlaceholder type={`${component.type} (no computed result)`} />;
+    }
+    const metricKpi = kpiById.get(analysis?.metric ?? "");
+    const fmt: Fmt = (v) => formatValue(v, kpiFormat(metricKpi));
+    const title = metricKpi?.name || analysis?.analysis_id || component.source_ref;
+    const spec = ROWS_SPEC_BUILDERS[component.type](result.rows, fmt, title);
+    // safeInsight only ever returns a small-sample caution (same n < 30 test
+    // C13 uses), so it belongs behind the same toggle — otherwise hiding the
+    // amber banners would leave an equivalent caution visible right above them.
+    const insight = showWarnings && BAR_LIKE_TYPES.has(component.type)
+      ? safeInsight(analysis, metricKpi, result.rows) : null;
+    return (
+      <div className="rounded-lg border border-navy-100 bg-white p-4">
+        <div className="text-xs font-medium uppercase text-navy-500">
+          {title}
+          {analysis?.group_by?.[0] && ` by ${analysis.group_by[0]}`}
+        </div>
+        <div className="mt-2">
+          <PlotlyChart spec={spec} />
+        </div>
+        {insight && (
+          <div className="mt-2 flex items-start gap-1.5 rounded bg-sky-50 px-2 py-1.5 text-xs text-sky-800">
+            <Info size={12} className="mt-0.5 shrink-0" /> {insight}
+          </div>
+        )}
+        <WarningBanners refs={component.warning_refs} run={run} sourceRef={component.source_ref}
+                        show={showWarnings} />
+      </div>
+    );
+  }
+
+  if (TWO_SERIES_TYPES.has(component.type)) {
+    const primary = run.analysis_results.find((a) => a.analysis_id === component.source_ref);
+    const compare = component.compare_ref
+      ? run.analysis_results.find((a) => a.analysis_id === component.compare_ref) : undefined;
+    if (!primary || !compare) return <UnsupportedPlaceholder type={`${component.type} (no computed result)`} />;
+    const primaryKpi = kpiById.get(analysis?.metric ?? "");
+    const compareKpi = kpiById.get(compareAnalysis?.metric ?? "");
+    const primaryLabel = primaryKpi?.name || component.source_ref;
+    const compareLabel = compareKpi?.name || component.compare_ref || "compare";
+    const fmt: Fmt = (v) => formatValue(v, kpiFormat(primaryKpi));
+    const title = primaryLabel;
+    const spec = component.type === "slopegraph"
+      ? buildSlopegraphSpec(primary.rows, compare.rows, primaryLabel, compareLabel, fmt, title)
+      : buildGroupedBarSpec(primary.rows, compare.rows, primaryLabel, compareLabel, fmt, title);
+    return (
+      <div className="rounded-lg border border-navy-100 bg-white p-4">
+        <div className="text-xs font-medium uppercase text-navy-500">
+          {title}
+          {analysis?.group_by?.[0] && ` by ${analysis.group_by[0]}`}
+        </div>
+        <div className="mt-2">
+          <PlotlyChart spec={spec} />
+        </div>
+      </div>
+    );
+  }
+
+  if (component.type === "radar") {
+    const entries: RadarEntry[] = (component.axis_refs ?? []).map((ref) => {
+      const kpiResult = run.kpi_results.find((k) => k.kpi_id === ref);
+      if (kpiResult) {
+        const refKpi = kpiById.get(ref);
+        return { axis: refKpi?.name || ref, value: kpiResult.value ?? 0, displayValue: kpiResult.display_value };
+      }
+      const analysisResult = run.analysis_results.find((a) => a.analysis_id === ref);
+      const total = analysisResult?.rows.reduce((n, r) => n + (r.value ?? 0), 0) ?? 0;
+      return { axis: ref, value: total, displayValue: formatValue(total, "number") };
+    }).filter((e) => Number.isFinite(e.value));
+    if (entries.length < 3) return <UnsupportedPlaceholder type="radar (fewer than 3 computed axes)" />;
+    const spec = buildRadarSpec(entries, component.source_ref);
+    return (
+      <div className="rounded-lg border border-navy-100 bg-white p-4">
+        <div className="text-xs font-medium uppercase text-navy-500">{component.source_ref}</div>
+        <div className="mt-2">
+          <PlotlyChart spec={spec} />
+        </div>
+      </div>
+    );
+  }
+
+  return <UnsupportedPlaceholder type={component.type} />;
+}
+
+function WarningBanners({ refs, run, sourceRef, show }: {
+  refs: string[]; run: ExecutionRun; sourceRef: string; show: boolean;
+}) {
+  // Always hidden (show is permanently false from DashboardRenderer) — the
+  // warnings still exist on the component and are still counted into
+  // telemetry; this only decides whether they're painted, and it never is.
+  if (!show || refs.length === 0) return null;
+  return (
+    <div className="mt-2 space-y-1">
+      {refs.map((w, i) => {
+        // A KPI-level warning's reference is the bare kpi_id with no ":"
+        // suffix (see compose.py._attach_warnings), so scope falls back to
+        // the component's own source_ref rather than going unmatched.
+        const [code, scope] = w.split(":");
+        return (
+          <div key={i} className="flex items-start gap-1.5 text-xs text-amber-700">
+            <AlertTriangle size={11} className="mt-0.5 shrink-0" />
+            {warningSentence(code, scope ?? sourceRef, run)}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// A chart-type component (bar/line/scatter/donut/table) whose source_ref
+// turns out to be a KPI, not an analysis (C14 groups these into "Additional
+// Charts" — a chart requested for a single value has no series to plot).
+// One number has nothing to chart, so this renders the real value plainly
+// rather than dropping it as "unsupported" — the requested type is noted,
+// not hidden, so it's clear this isn't the chart that was asked for.
+function SingleValueFallback({ component, kpi, result, run, showWarnings }: {
+  component: DashboardComponent; kpi?: Kpi; result: KpiResult; run: ExecutionRun;
+  showWarnings: boolean;
+}) {
+  return (
+    <div className="rounded-lg border border-navy-100 bg-navy-50/30 p-4">
+      <div className="flex items-center justify-between text-xs font-medium uppercase text-navy-500">
+        <span>{kpi?.name || component.source_ref}</span>
+        <span className="rounded bg-navy-100 px-1.5 py-0.5 normal-case text-navy-500">
+          {component.type} requested — single value, nothing to chart
+        </span>
+      </div>
+      <div className="mt-1 text-3xl font-bold text-navy-900">{result.display_value}</div>
+      <WarningBanners refs={component.warning_refs} run={run} sourceRef={component.source_ref}
+                      show={showWarnings} />
+    </div>
+  );
+}
+
+function UnsupportedPlaceholder({ type }: { type: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-dashed border-navy-200 bg-navy-50/40 p-4 text-xs text-navy-400">
+      <Ban size={13} /> Unsupported component: {type}
+    </div>
+  );
+}

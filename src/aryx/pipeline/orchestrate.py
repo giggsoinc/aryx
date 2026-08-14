@@ -25,8 +25,10 @@ from aryx.store.checkpoint_store import StageTracker
 from aryx.project import project_graph
 from aryx.resolve_entities import resolve_run
 from aryx.store.entity_store import EntityStore
+from aryx.store.ontology_store import OntologyStore
 from aryx.store.postgres_store import PostgresStore
 from aryx.workspaces import ws_graph
+from aryx.models import OntologyType
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +44,42 @@ def _emit(cb: Progress | None, stage: str, pct: int, detail: str) -> None:
     """Report a pipeline stage to an optional progress callback."""
     if cb is not None:
         cb(stage, pct, detail)
+
+
+def _register_types(dsn: str, workspace_id: int, estore: EntityStore) -> None:
+    """Seed the ontology type registry from resolved entities.
+
+    Ingest pins a type name onto every entity row (aryx_entity.ontology_type)
+    but nothing registers that name as an ontology class, so the Model tab —
+    which reads aryx_ontology_type — stays empty. Backfill the registry with
+    every distinct type actually materialized in this workspace, deriving each
+    type's attributes from the union of its entities' attribute keys.
+
+    Best-effort: registry population is additive and must never block the
+    projection that follows.
+    """
+    try:
+        by_type: dict[str, set[str]] = {}
+        for _id, etype, attrs in estore.list_entities():
+            if not etype:
+                continue
+            by_type.setdefault(etype, set()).update((attrs or {}).keys())
+        if not by_type:
+            return
+        ostore = OntologyStore(dsn, workspace_id)
+        try:
+            ostore.seed_types([
+                OntologyType(name=name, attributes=sorted(keys),
+                             status="approved", source="ingest")
+                for name, keys in by_type.items()
+            ])
+        finally:
+            ostore.close()
+        logger.info("registered %d ontology type(s) ws=%s: %s",
+                    len(by_type), workspace_id, sorted(by_type))
+    except Exception as exc:  # noqa: BLE001 — never block projection on registry
+        logger.warning("ontology type registration failed ws=%s: %s",
+                       workspace_id, exc)
 
 
 @contextmanager
@@ -164,6 +202,7 @@ def run_pipeline(
                         estore, spec["source_type"], spec["source_attr"],
                         spec["target_type"], spec["target_attr"], spec["name"],
                     )
+        _register_types(dsn, workspace_id, estore)
         _emit(on_progress, "Project", 90, "Projecting entities and edges to the graph")
         with runner.stage("project"):
             type_ancestors = _build_type_ancestors(dsn)

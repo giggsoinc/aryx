@@ -21,12 +21,15 @@ class JsonConnector(Connector):
     objects are JSON-stringified so every value is a scalar in the payload.
     """
 
-    def __init__(self, path: Path, system: str = "json") -> None:
+    def __init__(self, path: Path, system: str = "json",
+                 dataset: str | None = None) -> None:
         self._path = path
         self._system = system
+        self._dataset = dataset or path.stem
 
     def extract(self) -> Iterator[RawRecord]:
-        data = json.loads(self._path.read_text(encoding="utf-8"))
+        # utf-8-sig strips a leading BOM (common in Excel/Windows exports).
+        data = json.loads(self._path.read_text(encoding="utf-8-sig"))
         records = data if isinstance(data, list) else [data]
         for record in records:
             flat = _flatten(record)
@@ -34,7 +37,7 @@ class JsonConnector(Connector):
             yield RawRecord(
                 source=SourceRef(
                     system=self._system,
-                    dataset=self._path.stem,
+                    dataset=self._dataset,
                     record_id=record_id,
                 ),
                 payload=flat,

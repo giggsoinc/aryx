@@ -46,12 +46,16 @@ export function JobsBadge() {
   }, [refresh]);
 
   // Auto-open wherever a running job matters — Home, Model, the Onboard
-  // wizard (where ingest actually happens), and Data — unless dismissed.
+  // wizard (where ingest actually happens), Data, Brief (where the
+  // zero-click auto-chain starts), and Dashboard/Pipeline (where it ends)
+  // — unless dismissed.
   const running = jobs.filter((j) => RUNNING.has(j.status)).length;
   const onWatchedPage = pathname === "/"
     || pathname?.startsWith("/model")
     || pathname?.startsWith("/start")
     || pathname?.startsWith("/data")
+    || pathname?.startsWith("/brief")
+    || pathname?.startsWith("/dashboard")
     || false;
   useEffect(() => {
     if (running > 0 && onWatchedPage && !dismissed) setOpen(true);
@@ -159,8 +163,13 @@ function JobCard({ job, onChanged }: { job: JobRow; onChanged: () => void }) {
   const [open, setOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const isRunning = RUNNING.has(job.status);
-  const isFailed = job.status === "failed" || job.status === "cancelled"
-    || !!job.error;
+  // "blocked" is a designed pause (see aryx.pipeline.auto_chain) — a
+  // validation/eligibility gate stopped the chain on purpose, not a crash.
+  // Rendered distinct from a real failure even though it also carries an
+  // `error` explaining why it paused.
+  const isBlocked = job.status === "blocked";
+  const isFailed = !isBlocked && (job.status === "failed" || job.status === "cancelled"
+    || !!job.error);
   const isDone = job.status === "complete";
 
   const cancel = async () => {
@@ -176,6 +185,7 @@ function JobCard({ job, onChanged }: { job: JobRow; onChanged: () => void }) {
     <li className={cn(
       "rounded-xl border bg-white shadow-soft",
       isFailed ? "border-rose-200" :
+      isBlocked ? "border-amber-200" :
       isDone ? "border-emerald-200" : "border-navy-100",
     )}>
       <button
@@ -188,7 +198,7 @@ function JobCard({ job, onChanged }: { job: JobRow; onChanged: () => void }) {
             <div className="flex items-center gap-2">
               {open ? <ChevronDown size={12} className="text-subtle" />
                     : <ChevronRight size={12} className="text-subtle" />}
-              <StatusIcon running={isRunning} done={isDone} failed={isFailed} />
+              <StatusIcon running={isRunning} done={isDone} failed={isFailed} blocked={isBlocked} />
               <span className="truncate text-[13px] font-semibold text-navy-900">
                 {job.source_dataset || "upload"}
               </span>
@@ -201,8 +211,9 @@ function JobCard({ job, onChanged }: { job: JobRow; onChanged: () => void }) {
             "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
             isRunning && "bg-steel-500/15 text-steel-600",
             isDone && "bg-emerald-50 text-emerald-700",
+            isBlocked && "bg-amber-50 text-amber-700",
             isFailed && "bg-rose-50 text-rose-700",
-            !isRunning && !isDone && !isFailed && "bg-navy-50 text-navy-700",
+            !isRunning && !isDone && !isBlocked && !isFailed && "bg-navy-50 text-navy-700",
           )}>
             {job.status}
           </span>
@@ -217,7 +228,7 @@ function JobCard({ job, onChanged }: { job: JobRow; onChanged: () => void }) {
               <div
                 className={cn(
                   "h-full rounded-full transition-all",
-                  isFailed ? "bg-rose-400" : "bg-steel-500",
+                  isFailed ? "bg-rose-400" : isBlocked ? "bg-amber-400" : "bg-steel-500",
                 )}
                 style={{ width: `${Math.min(job.pct ?? 0, 100)}%` }}
               />
@@ -230,13 +241,17 @@ function JobCard({ job, onChanged }: { job: JobRow; onChanged: () => void }) {
           </div>
         )}
         {job.error && (
-          <div className="ml-5 mt-2 rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] text-rose-700">
+          <div className={cn(
+            "ml-5 mt-2 rounded-md border px-2 py-1 text-[11px]",
+            isBlocked ? "border-amber-200 bg-amber-50 text-amber-800"
+                      : "border-rose-200 bg-rose-50 text-rose-700",
+          )}>
             {job.error}
           </div>
         )}
       </button>
 
-      {(isRunning || isFailed) && (
+      {(isRunning || isFailed || isBlocked) && (
         <div className="flex items-center gap-2 border-t border-navy-100 px-3.5 py-2">
           {isRunning && (
             <button
@@ -280,7 +295,9 @@ function JobCard({ job, onChanged }: { job: JobRow; onChanged: () => void }) {
           )}
           <span className="text-[10px] text-subtle">
             {isRunning
-              ? "Resolve on large CSVs can take 10–30+ min — look for “still working”."
+              ? "Resolve on large CSVs can take 10–30+ min — look for “still working”. Stuck? Cancel frees the workspace."
+              : isBlocked
+              ? "Paused on purpose — fix what the message above flags, then it picks back up on the next trigger."
               : job.run_id != null
               ? "Resume continues after Discover (no re-upload). Re-upload if no run_id."
               : "No landed run — re-upload the file to start a new job."}
@@ -344,9 +361,10 @@ function EventLog({ jobId, live }: { jobId: string; live: boolean }) {
 }
 
 function StatusIcon({
-  running, done, failed,
-}: { running: boolean; done: boolean; failed: boolean }) {
+  running, done, failed, blocked,
+}: { running: boolean; done: boolean; failed: boolean; blocked: boolean }) {
   if (failed) return <AlertTriangle size={13} className="text-rose-500" />;
+  if (blocked) return <AlertTriangle size={13} className="text-amber-500" />;
   if (done) return <CheckCircle2 size={13} className="text-emerald-500" />;
   if (running) return <Loader2 size={13} className="animate-spin text-steel-500" />;
   return <Activity size={13} className="text-subtle" />;

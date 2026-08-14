@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import {
-  Activity, ChevronDown, Database, FileText, FlaskConical, Home,
-  MessageCircle, Network, Plus, Settings, Loader2, Trash2, Plug,
+  Activity, ChevronDown, ClipboardList, Database, FileText, FlaskConical, Gauge, Home,
+  MessageCircle, Network, Plug, Plus, Settings, Loader2, Trash2,
 } from "lucide-react";
 import { Logo } from "./Logo";
 import { api } from "@/lib/api";
@@ -54,6 +54,10 @@ export function Header(props: HeaderProps) {
                       active={pathname?.startsWith("/lab") || false} />
             <NavLink href="/ask" icon={<MessageCircle size={14} />} label="Ask"
                       active={pathname?.startsWith("/ask") || false} />
+            <NavLink href="/dashboard" icon={<ClipboardList size={14} />} label="Dashboard"
+                      active={pathname === "/dashboard"} />
+            <NavLink href="/dashboard-observability" icon={<Gauge size={14} />} label="Pipeline"
+                      active={pathname?.startsWith("/dashboard-observability") || false} />
             <NavLink href="/mcp" icon={<Plug size={14} />} label="MCP"
                       active={pathname?.startsWith("/mcp") || false} />
             <NavLink href="/observe" icon={<Activity size={14} />} label="Observe"

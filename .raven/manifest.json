@@ -59,7 +59,24 @@
       "pgvector~",
       "mcp~",
       "rdflib~"
-    ]
+    ],
+    "frontend_libraries": {
+      "_note": "npm deps for apps/web. CVE-checked at approval time; recheck on version bump.",
+      "approved": [
+        {
+          "name": "plotly.js-dist-min", "version": "2.35.2",
+          "cve_status": "clean — well above 2.25.2 (CVE-2023-46308, prototype pollution, CVSS 9.8) and 1.16.0 (CVE-2017-1000006, XSS)",
+          "approved": "2026-08-13"
+        },
+        {
+          "name": "react-plotly.js", "version": "2.6.0",
+          "cve_status": "clean — no known CVEs; note: no release in ~12mo, watch for a maintained fork if that changes",
+          "approved": "2026-08-13"
+        },
+        {"name": "@types/plotly.js", "version": "2.35.5", "cve_status": "dev-only, no runtime surface"},
+        {"name": "@types/react-plotly.js", "version": "2.6.3", "cve_status": "dev-only, no runtime surface"}
+      ]
+    }
   },
   "raven_version": "4.4.0",
   "standards": "raven-v3.0",

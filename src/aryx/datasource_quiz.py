@@ -17,8 +17,9 @@ _PG = [
      "help": "Database username."},
     {"name": "password", "secret": True, "required": True,
      "help": "Encrypted at rest with Fernet; never echoed."},
-    {"name": "extra_context", "secret": False, "required": False,
-     "help": "Optional notes — e.g. 'focus on Q3 onboarding tables'."},
+    {"name": "extra_context", "secret": False, "required": True,
+     "help": "Business context — e.g. 'focus on Q3 onboarding tables'. "
+             "Required: drives entity/field mapping quality."},
 ]
 
 _MYSQL = [
@@ -32,8 +33,8 @@ _MYSQL = [
      "help": "Database user."},
     {"name": "password", "secret": True, "required": True,
      "help": "Encrypted at rest with Fernet; never echoed."},
-    {"name": "extra_context", "secret": False, "required": False,
-     "help": "Optional notes."},
+    {"name": "extra_context", "secret": False, "required": True,
+     "help": "Business context — required: drives entity/field mapping quality."},
 ]
 
 _ORACLE = [
@@ -47,15 +48,15 @@ _ORACLE = [
      "help": "Database user."},
     {"name": "password", "secret": True, "required": True,
      "help": "Encrypted at rest with Fernet; never echoed."},
-    {"name": "extra_context", "secret": False, "required": False,
-     "help": "Optional notes."},
+    {"name": "extra_context", "secret": False, "required": True,
+     "help": "Business context — required: drives entity/field mapping quality."},
 ]
 
 _DOCS = [
     {"name": "path", "secret": False, "required": True,
      "help": "Folder path containing PDF/DOCX/PPTX/CSV/JSON files."},
-    {"name": "extra_context", "secret": False, "required": False,
-     "help": "What the documents describe — drives entity extraction."},
+    {"name": "extra_context", "secret": False, "required": True,
+     "help": "What the documents describe — required: drives entity extraction."},
 ]
 
 _REST = [
@@ -65,8 +66,8 @@ _REST = [
      "help": "Header name to attach (e.g. Authorization)."},
     {"name": "token", "secret": True, "required": False,
      "help": "Bearer token / API key; Fernet-encrypted."},
-    {"name": "extra_context", "secret": False, "required": False,
-     "help": "Optional notes about the API."},
+    {"name": "extra_context", "secret": False, "required": True,
+     "help": "Business context about the API — required: drives entity/field mapping quality."},
 ]
 
 
