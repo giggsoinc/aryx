@@ -49,7 +49,7 @@ validates required fields (blocks on missing), normalizes text/dates/lists,
 checks chart types and audience against catalogues (warns but keeps unsupported
 values), and stamps a versioned `UserIntent` with a correlation `request_id`.
 Every attempt — valid or invalid — is persisted via `IntentStore.save()` for
-audit (`aryx_user_intent` table, migration `0028_user_intent.sql`).
+audit (`aryx_user_intent` table, migration `0042_user_intent.sql`).
 
 **Test:** `tests/test_intent_capture.py`.
 

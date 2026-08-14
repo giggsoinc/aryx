@@ -1,4 +1,4 @@
--- 0028 — User Intent Capture (C01).
+-- 0042 — User Intent Capture (C01).
 -- Persists every capture attempt (valid and invalid) as an auditable, versioned
 -- record keyed by its correlation id. Workspace-scoped like every other table.
 
