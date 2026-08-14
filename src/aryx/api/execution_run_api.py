@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from aryx.analysis_execution.models import ExecutionRun
 from aryx.analysis_execution.run import run_analysis_execution
@@ -22,11 +22,18 @@ from aryx.store.execution_run_store import ExecutionRunStore
 
 logger = logging.getLogger(__name__)
 
+# Hard server-side ceilings — a caller can ask for LESS than these, never
+# more. Without them, maximum_runtime_seconds/maximum_rows were unbounded
+# client input straight into an in-memory computation: a caller could hang
+# the process for as long as they liked over as many rows as they liked.
+_MAX_RUNTIME_SECONDS_CEILING = 30.0
+_MAX_ROWS_CEILING = 50_000
+
 
 class ExecutionRunRequest(BaseModel):
     dataset_id: str
-    maximum_runtime_seconds: float = 30.0
-    maximum_rows: int = 1_000_000
+    maximum_runtime_seconds: float = Field(default=30.0, gt=0, le=_MAX_RUNTIME_SECONDS_CEILING)
+    maximum_rows: int = Field(default=50_000, gt=0, le=_MAX_ROWS_CEILING)
 
 
 def execution_run_router() -> APIRouter:
