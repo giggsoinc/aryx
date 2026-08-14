@@ -60,9 +60,15 @@ class FakeBackgroundTasks:
         self.tasks.append((fn, args, kwargs))
 
 
-def _patch_job_store(monkeypatch) -> FakeJobStore:
+class FakeSettings:
+    def __init__(self, auto_chain_enabled: bool) -> None:
+        self.auto_chain_enabled = auto_chain_enabled
+
+
+def _patch_job_store(monkeypatch, *, auto_chain_enabled: bool = True) -> FakeJobStore:
     job_store = FakeJobStore(DSN)
     monkeypatch.setattr(chain_jobs, "JobStore", lambda dsn: job_store)
+    monkeypatch.setattr(chain_jobs, "get_settings", lambda: FakeSettings(auto_chain_enabled))
     return job_store
 
 
@@ -103,6 +109,66 @@ def test_run_chain_now_reuses_active_job_and_does_not_rerun(monkeypatch) -> None
 
     assert job_id == "existing_job"
     assert calls == []
+
+
+# ── ARYX_AUTO_CHAIN_ENABLED gate (off by default — no LLM spend without it) ─
+
+def test_start_chain_blocked_when_disabled(monkeypatch) -> None:
+    job_store = _patch_job_store(monkeypatch, auto_chain_enabled=False)
+    bg = FakeBackgroundTasks()
+
+    job_id = chain_jobs.start_chain(DSN, WS, bg)
+
+    assert bg.tasks == []  # never reaches run_auto_chain — no LLM call, no execution
+    job_id, run_id, status, error = job_store.finish_calls[0]
+    assert status == "blocked"
+    assert "disabled" in error and "ARYX_AUTO_CHAIN_ENABLED" in error
+
+
+def test_run_chain_now_blocked_when_disabled(monkeypatch) -> None:
+    job_store = _patch_job_store(monkeypatch, auto_chain_enabled=False)
+    calls = []
+    monkeypatch.setattr(chain_jobs, "run_auto_chain", lambda *a, **k: calls.append(a))
+
+    job_id = chain_jobs.run_chain_now(DSN, WS)
+
+    assert calls == []
+    job_id, run_id, status, error = job_store.finish_calls[0]
+    assert status == "blocked"
+    assert "disabled" in error
+
+
+def test_trigger_chain_from_brief_blocked_when_disabled(monkeypatch) -> None:
+    job_store = _patch_job_store(monkeypatch, auto_chain_enabled=False)
+    intent_store = FakeIntentStore(DSN, WS)
+    monkeypatch.setattr(chain_jobs, "IntentStore", lambda dsn, ws: intent_store)
+    bg = FakeBackgroundTasks()
+
+    job_id = chain_jobs.trigger_chain_from_brief(
+        DSN, WS, {"domain": "sales", "aim": "understand renewals"}, bg)
+
+    # A valid intent is still captured/persisted (cheap, no LLM) — only the
+    # expensive chain itself is gated.
+    assert intent_store.saved and intent_store.saved[0].validation_status == "valid"
+    assert bg.tasks == []
+    job_id, run_id, status, error = job_store.finish_calls[0]
+    assert status == "blocked"
+    assert "disabled" in error
+
+
+def test_disabled_gate_does_not_duplicate_an_already_active_job(monkeypatch) -> None:
+    # Debounce still wins over the disabled check — an active job (e.g. from
+    # a moment when the flag was on) is reused rather than double-finished.
+    job_store = _patch_job_store(monkeypatch, auto_chain_enabled=False)
+    job_store.create("existing_job", "auto_chain", f"workspace_{WS}", WS)
+    job_store.jobs["existing_job"]["status"] = "running"
+    bg = FakeBackgroundTasks()
+
+    job_id = chain_jobs.start_chain(DSN, WS, bg)
+
+    assert job_id == "existing_job"
+    assert job_store.finish_calls == []
+    assert bg.tasks == []
 
 
 # ── trigger_chain_from_brief ─────────────────────────────────────────────

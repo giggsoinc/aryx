@@ -35,7 +35,16 @@ class Settings(BaseSettings):
                     "blob_store), content-addressed by SHA-256. Postgres "
                     "keeps hash + metadata only — never the bytes.",
     )
-
+    auto_chain_enabled: bool = Field(
+        default=False,
+        description="Gate for the zero-click Brief->Dashboard auto-chain "
+                    "(aryx.pipeline.chain_jobs). Off by default: the chain "
+                    "calls a real LLM (planner) and runs analysis execution "
+                    "on every valid intent/brief/ingest, so an unauthenticated "
+                    "or optionally-authenticated caller could otherwise "
+                    "trigger real spend just by hitting the API. Manual "
+                    "per-stage buttons always work regardless of this flag.",
+    )
 
 
 @lru_cache(maxsize=1)
