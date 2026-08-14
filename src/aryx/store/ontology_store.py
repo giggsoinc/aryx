@@ -59,9 +59,18 @@ class OntologyStore:
                           status: str = "approved", source: str = "derived") -> None:
         """Merge new_attrs into name's existing attribute list (or create
         it) and upsert — order-preserving dedup so a manually-stubbed empty
-        type gains real attributes without losing any it already had."""
+        type gains real attributes without losing any it already had.
+
+        Additive on attributes only: if the type already exists, its
+        current status and source are kept as-is (status/source args only
+        apply when creating a brand-new type) so this can never silently
+        flip a HITL-approved or manually-sourced type's status/source just
+        because a derive run happened to touch the same name.
+        """
         existing = next((t for t in self.list_types() if t.name == name), None)
         merged = list(dict.fromkeys((existing.attributes if existing else []) + new_attrs))
+        if existing:
+            status, source = existing.status, existing.source
         self.upsert_type_attributes(name, merged, status=status, source=source)
 
     def list_types(self) -> list[OntologyType]:

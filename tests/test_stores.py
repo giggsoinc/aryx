@@ -388,6 +388,23 @@ def test_ontology_store_merge_attributes_creates_when_type_is_new():
         OntologyStore("dsn", 29).merge_attributes("Contract", ["contract_number", "status"])
     _, upsert_params = cursor.calls[-1]
     assert upsert_params[2].obj == ["contract_number", "status"]
+    assert upsert_params[3] == "approved"  # caller's default applies only on create
+    assert upsert_params[4] == "derived"
+
+
+def test_ontology_store_merge_attributes_never_overwrites_existing_status_or_source():
+    """A derive run merging attrs into an existing type must not silently flip
+    it to approved/derived — that would bypass the HITL approve_type gate or
+    clobber a manually-sourced type's provenance."""
+    from aryx.store.ontology_store import OntologyStore
+    row = ("Customer", ["Customer Number"], "proposed", "manual", None)
+    cursor = _Cursor(fetchall=[row])
+    with _patched("aryx.store.ontology_store", cursor):
+        OntologyStore("dsn", 29).merge_attributes("Customer", ["Segment"])
+    _, upsert_params = cursor.calls[-1]
+    assert upsert_params[2].obj == ["Customer Number", "Segment"]
+    assert upsert_params[3] == "proposed"
+    assert upsert_params[4] == "manual"
 
 
 def test_render_telemetry_store_save_hits_the_db():
