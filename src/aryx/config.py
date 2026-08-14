@@ -10,7 +10,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Aryx runtime settings sourced from ARYX_-prefixed env variables."""
 
-    model_config = SettingsConfigDict(env_prefix="ARYX_", env_file=".env")
+    # extra="ignore": a local .env commonly carries keys for other tools/
+    # experiments (or legacy ARYX_ vars this schema no longer declares) —
+    # those must not hard-crash every Settings() construction.
+    model_config = SettingsConfigDict(env_prefix="ARYX_", env_file=".env", extra="ignore")
 
     rdb_dsn: str = Field(
         default="postgresql://aryx:aryx@localhost:5432/aryx",
@@ -26,6 +29,13 @@ class Settings(BaseSettings):
     chunk_size: int = Field(default=1000, description="Target chunk size in characters.")
     chunk_overlap: int = Field(default=100, description="Overlap in characters between adjacent chunks.")
     max_block_size: int = Field(default=5000, description="Resolution blocking: blocks with more members than this are skipped.")
+    blob_dir: str = Field(
+        default="/data/aryx-blobs",
+        description="On-disk root for raw dataset upload bytes (aryx.store."
+                    "blob_store), content-addressed by SHA-256. Postgres "
+                    "keeps hash + metadata only — never the bytes.",
+    )
+
 
 
 @lru_cache(maxsize=1)

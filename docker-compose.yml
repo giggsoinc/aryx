@@ -83,6 +83,10 @@ services:
       - ARYX_LLM_API_KEY=${ARYX_LLM_API_KEY:-}
       # DEBUG-level app logging (overrides ARYX_LOG_LEVEL from .env)
       - ARYX_LOG_LEVEL=DEBUG
+    volumes:
+      # Raw dataset upload bytes, content-addressed (aryx.store.blob_store) —
+      # never in Postgres. Must persist across container restarts like pgdata.
+      - dataset_blobs:/data/aryx-blobs
     ports:
       - "8088:8000"
     depends_on:
@@ -152,3 +156,4 @@ volumes:
   pgdata:
   graphdata:
   ollama_models:
+  dataset_blobs:

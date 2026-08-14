@@ -106,7 +106,8 @@ def register_dataset(
         result = DatasetIngestResult(
             request_id=request_id, dataset_id=dataset_id, dataset_version=version,
             format=fmt, content_hash=content_hash,
-            raw_snapshot_ref=f"raw/{dataset_id}/{version}",
+            # save_version fills this in with the real blob store key
+            # (content-hash-derived) once the bytes are actually written.
             row_count_estimate=row_count, columns=columns, sheets=[],
             ingestion_status="accepted", processing_status="pending",
             file_name=file_name, file_size_bytes=size,

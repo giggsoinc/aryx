@@ -1,8 +1,9 @@
 """Persistence for Dataset Upload & Ingestion (C02).
 
-Workspace-scoped. Versions are insert-only and carry the raw bytes as an
-immutable snapshot; the same content hash under a dataset is stored once.
-Reads never return the raw bytes.
+Workspace-scoped. Versions are insert-only; the same content hash under a
+dataset is stored once. Raw bytes live on disk (aryx.store.blob_store),
+content-addressed by hash — Postgres holds only the hash + metadata, never
+the bytes themselves (see migration 0043's header for why).
 """
 from __future__ import annotations
 
@@ -10,8 +11,10 @@ import logging
 
 from psycopg.types.json import Json
 
+from aryx.config import get_settings
 from aryx.dataset.models import DatasetIngestResult
 from aryx.queries import load
+from aryx.store.blob_store import read_blob, write_blob
 from aryx.store.pool import get_pool
 
 logger = logging.getLogger(__name__)
@@ -24,6 +27,7 @@ class DatasetStore:
         """Acquire the shared pool + bind a workspace for every call."""
         self._pool = get_pool(dsn)
         self._ws = int(workspace_id)
+        self._blob_dir = get_settings().blob_dir
 
     def upsert_dataset(self, dataset_id: str, request_id: str, file_name: str) -> None:
         """Create or refresh the logical dataset row."""
@@ -49,7 +53,12 @@ class DatasetStore:
         return _row_to_result(row) if row else None
 
     def save_version(self, result: DatasetIngestResult, raw_bytes: bytes) -> None:
-        """Insert one immutable version row, snapshotting the raw bytes."""
+        """Snapshot the raw bytes to disk (content-addressed), then insert
+        one immutable version row pointing at that blob. Mutates
+        `result.raw_snapshot_ref` to the real stored ref so the in-memory
+        result the caller holds matches what was actually persisted."""
+        blob_ref = write_blob(self._blob_dir, result.content_hash, raw_bytes)
+        result.raw_snapshot_ref = blob_ref
         with self._pool.connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -57,7 +66,7 @@ class DatasetStore:
                     (
                         self._ws, result.dataset_id, result.dataset_version,
                         result.request_id, result.format, result.content_hash,
-                        raw_bytes, result.raw_snapshot_ref,
+                        blob_ref,
                         result.row_count_estimate, Json(result.columns),
                         Json(result.sheets), result.ingestion_status,
                         result.processing_status, Json(result.errors),
@@ -101,7 +110,8 @@ class DatasetStore:
         return row[0] if row else None
 
     def get_raw(self, dataset_id: str, version: str) -> tuple[bytes, str] | None:
-        """Return (raw_bytes, format) for a version's immutable snapshot."""
+        """Return (raw_bytes, format) for a version's immutable snapshot,
+        reading the bytes back from disk via its stored blob ref."""
         with self._pool.connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(load("select_dataset_raw"),
@@ -109,8 +119,8 @@ class DatasetStore:
                 row = cur.fetchone()
         if not row:
             return None
-        raw = row[0]
-        return (bytes(raw), row[1])
+        blob_ref, fmt = row
+        return (read_blob(self._blob_dir, blob_ref), fmt)
 
     def close(self) -> None:
         """No-op: connections are managed by the shared pool (G12)."""

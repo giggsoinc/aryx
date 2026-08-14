@@ -1,8 +1,11 @@
--- 0029 — Dataset Upload & Ingestion (C02).
+-- 0043 — Dataset Upload & Ingestion (C02).
 -- A logical dataset (aryx_dataset) owns one or more immutable versions
--- (aryx_dataset_version). Each version stores the raw bytes verbatim as an
--- immutable snapshot plus its SHA-256 hash; the same content hash under a
--- dataset is never stored twice. Workspace-scoped.
+-- (aryx_dataset_version). The raw bytes of each version live on disk
+-- (aryx.store.blob_store), addressed by content_hash — never in Postgres —
+-- so accepted uploads (up to 20MB each) don't bloat the RDB, stall backups,
+-- or slow autovacuum. Postgres keeps the hash + row_count/columns/etc.
+-- metadata only; raw_snapshot_ref is the blob store key. The same content
+-- hash under a dataset is never stored twice. Workspace-scoped.
 
 CREATE TABLE IF NOT EXISTS aryx_dataset (
     id            BIGSERIAL PRIMARY KEY,
@@ -22,7 +25,6 @@ CREATE TABLE IF NOT EXISTS aryx_dataset_version (
     request_id         TEXT NOT NULL DEFAULT '',
     format             TEXT NOT NULL DEFAULT '',
     content_hash       TEXT NOT NULL,
-    raw_bytes          BYTEA NOT NULL,
     raw_snapshot_ref   TEXT NOT NULL DEFAULT '',
     row_count_estimate BIGINT NOT NULL DEFAULT 0,
     columns            JSONB NOT NULL DEFAULT '[]'::jsonb,

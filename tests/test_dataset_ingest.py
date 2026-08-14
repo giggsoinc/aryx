@@ -76,7 +76,11 @@ def test_accepts_and_versions() -> None:
     assert res.dataset_version == "v1"
     assert res.format == "csv"
     assert res.content_hash.startswith("sha256:")
-    assert res.raw_snapshot_ref == "raw/dataset_contracts_1000/v1"
+    # register_dataset no longer fabricates a ref — the real DatasetStore.
+    # save_version fills it in with the actual blob store key once bytes are
+    # written (see test_stores.py); this fake sink never touches disk, so it
+    # stays at its default.
+    assert res.raw_snapshot_ref == ""
     assert res.row_count_estimate == 3
     assert len(sink.saved) == 1
 

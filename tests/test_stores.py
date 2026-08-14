@@ -113,6 +113,49 @@ def test_dataset_store_count_versions():
         assert DatasetStore("dsn").count_versions("ds1") == 3
 
 
+def test_dataset_store_save_version_writes_bytes_to_disk_not_postgres():
+    """raven-review finding: raw bytes must never reach a SQL param — only
+    the content-hash-derived blob ref does."""
+    import tempfile
+    from unittest.mock import patch as _patch
+    from aryx.dataset.models import DatasetIngestResult
+    from aryx.store.dataset_store import DatasetStore
+
+    cursor = _Cursor()
+    with tempfile.TemporaryDirectory() as tmp:
+        with _patched("aryx.store.dataset_store", cursor), \
+             _patch("aryx.store.dataset_store.get_settings",
+                    return_value=type("S", (), {"blob_dir": tmp})()):
+            store = DatasetStore("dsn")
+            result = DatasetIngestResult(
+                request_id="req-1", dataset_id="ds1", dataset_version="v1",
+                format="csv", content_hash="sha256:" + "c" * 64,
+            )
+            store.save_version(result, raw_bytes=b"a,b\n1,2\n")
+
+    insert_query, insert_params = cursor.calls[0]
+    assert b"a,b\n1,2\n" not in insert_params  # bytes never went into the SQL call
+    assert "c" * 64 in insert_params          # the blob ref (bare hex digest) did
+    assert result.raw_snapshot_ref == "c" * 64  # caller's in-memory result matches too
+
+
+def test_dataset_store_get_raw_reads_bytes_back_from_disk():
+    from unittest.mock import patch as _patch
+    from aryx.store.blob_store import write_blob
+    from aryx.store.dataset_store import DatasetStore
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        ref = write_blob(tmp, "sha256:" + "d" * 64, b"raw file contents")
+        cursor = _Cursor(fetchone=(ref, "csv"))
+        with _patched("aryx.store.dataset_store", cursor), \
+             _patch("aryx.store.dataset_store.get_settings",
+                    return_value=type("S", (), {"blob_dir": tmp})()):
+            raw, fmt = DatasetStore("dsn").get_raw("ds1", "v1")
+    assert raw == b"raw file contents"
+    assert fmt == "csv"
+
+
 def test_intent_store_row_to_intent_field_order():
     from aryx.store.intent_store import IntentStore
     row = ("req-1", "v1", "file.csv", "contracts", "analyze renewals",
