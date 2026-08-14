@@ -86,7 +86,7 @@ services:
       # to "required") instead of flipping it on blindly.
       - ARYX_AUTO_CHAIN_ENABLED=${ARYX_AUTO_CHAIN_ENABLED:-true}
       - ARYX_LLM_MENIAL_MODEL=${ARYX_LLM_MENIAL_MODEL:-qwen3.5:0.8b}
-      - ARYX_LLM_REASON_MODEL=${ARYX_LLM_REASON_MODEL:-qwen3.5:0.8b}
+      - ARYX_LLM_REASON_MODEL=${ARYX_LLM_REASON_MODEL:-lfm2.5-thinking:latest}
       - ARYX_LLM_API_KEY=${ARYX_LLM_API_KEY:-}
       # DEBUG-level app logging (overrides ARYX_LOG_LEVEL from .env)
       - ARYX_LOG_LEVEL=DEBUG
