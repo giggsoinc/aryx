@@ -1,8 +1,9 @@
-"""MCP tool specs for HITL ingest (Slice 3).
+"""MCP tool specs for ingest: starting a run plus the HITL loop (Slice 3/5).
 
-Four tools: agents poll pending questions, route them to the user, write
-answers back, and peek at the projected entities/relationships before
-declaring ingest done. ingest_status returns counts + job summary.
+Five tools: ingest_file starts a run from raw file bytes; the other four
+let agents poll pending questions, route them to the user, write answers
+back, and peek at the projected entities/relationships before declaring
+ingest done. ingest_status returns counts + job summary.
 """
 from __future__ import annotations
 
@@ -10,8 +11,48 @@ import mcp.types as types
 
 
 def ingest_tool_specs() -> list[types.Tool]:
-    """Return the 4 HITL ingest tool specs."""
+    """Return the 5 ingest tool specs (1 start + 4 HITL)."""
     return [
+        types.Tool(
+            name="ingest_file",
+            description=(
+                "Start an ingest run from raw file bytes — up to 50 files, "
+                "20MB each, 50MB total. Runs as a background job: returns "
+                "job_id immediately, does NOT wait for completion. Use "
+                "ingest_status(job_id=...) to poll, ingest_questions to "
+                "resolve any clarifications the pipeline raises, and "
+                "entities_preview once done. Dataset-shaped uploads (csv/"
+                "json/xlsx) are content-addressed on disk, not stored in "
+                "Postgres — the returned result never echoes raw bytes."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "workspace_id": {"type": "integer"},
+                    "files": {
+                        "type": "array",
+                        "description": "Each item: {filename, content_base64}.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "filename": {"type": "string"},
+                                "content_base64": {"type": "string"},
+                            },
+                            "required": ["filename", "content_base64"],
+                        },
+                    },
+                    "ontology_type": {"type": "string",
+                                     "description": "Default 'Document'."},
+                    "match_keys": {"type": "string",
+                                  "description": "Comma-separated. Default 'name'."},
+                    "fk_links": {"type": "array",
+                                "description": "Optional foreign-key link plan."},
+                    "graph_plan": {"type": "object",
+                                  "description": "Optional pre-approved graph plan."},
+                },
+                "required": ["workspace_id", "files"],
+            },
+        ),
         types.Tool(
             name="ingest_questions",
             description=(

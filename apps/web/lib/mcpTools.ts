@@ -9,14 +9,17 @@ export type McpToolDoc = {
   sayInClaude: string;
 };
 
-export const MCP_TOOL_COUNT = 21;
+export const MCP_TOOL_COUNT = 27;
 
 export const MCP_TOOL_GROUPS = [
   "Core",
   "Workspace & brief",
   "Datasource",
-  "Ingest HITL",
+  "Ingest",
   "Ontology",
+  "Dashboard",
+  "Correction",
+  "Ask-to-visualize",
 ] as const;
 
 export const MCP_TOOLS: McpToolDoc[] = [
@@ -141,8 +144,16 @@ export const MCP_TOOLS: McpToolDoc[] = [
     sayInClaude: "Delete datasource 3.",
   },
   {
+    name: "ingest_file",
+    group: "Ingest",
+    summary: "Start an ingest run from raw file bytes (async — returns job_id).",
+    params: "workspace_id, files [{filename, content_base64}], ontology_type?, match_keys?, fk_links?, graph_plan?",
+    example: `{"workspace_id": 1, "files": [{"filename": "contracts.csv", "content_base64": "…"}]}`,
+    sayInClaude: "Ingest this CSV into workspace 1 as Document.",
+  },
+  {
     name: "ingest_questions",
-    group: "Ingest HITL",
+    group: "Ingest",
     summary: "List pipeline clarifying questions (default: pending).",
     params: "workspace_id, status?, limit?",
     example: `{"workspace_id": 1, "status": "pending"}`,
@@ -150,7 +161,7 @@ export const MCP_TOOLS: McpToolDoc[] = [
   },
   {
     name: "ingest_answer",
-    group: "Ingest HITL",
+    group: "Ingest",
     summary: "Answer a pending question to unblock the pipeline.",
     params: "question_id, answer, answered_by?",
     example: `{"question_id": 12, "answer": "Same", "answered_by": "you"}`,
@@ -158,7 +169,7 @@ export const MCP_TOOLS: McpToolDoc[] = [
   },
   {
     name: "ingest_status",
-    group: "Ingest HITL",
+    group: "Ingest",
     summary: "Question counts + optional job stage/progress.",
     params: "workspace_id, job_id?",
     example: `{"workspace_id": 1}`,
@@ -166,7 +177,7 @@ export const MCP_TOOLS: McpToolDoc[] = [
   },
   {
     name: "entities_preview",
-    group: "Ingest HITL",
+    group: "Ingest",
     summary: "Sample entities and edges from the live graph.",
     params: "workspace_id, limit?",
     example: `{"workspace_id": 1, "limit": 20}`,
@@ -187,5 +198,45 @@ export const MCP_TOOLS: McpToolDoc[] = [
     params: "workspace_id, target",
     example: `{"workspace_id": 1, "target": "turtle"}`,
     sayInClaude: "Export workspace 1 ontology as Turtle.",
+  },
+  {
+    name: "dashboard_link",
+    group: "Dashboard",
+    summary: "URL of the rendered dashboard for a workspace.",
+    params: "workspace_id (required)",
+    example: `{"workspace_id": 1}`,
+    sayInClaude: "Give me the dashboard link for workspace 1.",
+  },
+  {
+    name: "correction_propose",
+    group: "Correction",
+    summary: "Parse a plain-language correction into a structured proposal. Never applies anything.",
+    params: "workspace_id, text (required), selected_entity_id?",
+    example: `{"workspace_id": 1, "text": "Maria is a HumanRole"}`,
+    sayInClaude: "Propose a correction: Maria is a HumanRole.",
+  },
+  {
+    name: "correction_apply",
+    group: "Correction",
+    summary: "Apply a correction — mutates the graph immediately, no further confirmation.",
+    params: "workspace_id, kind, entity_id?, target_id?, name?, type_name?",
+    example: `{"workspace_id": 1, "kind": "retype", "entity_id": 42, "name": "HumanRole"}`,
+    sayInClaude: "Apply that correction now.",
+  },
+  {
+    name: "chart_draft",
+    group: "Ask-to-visualize",
+    summary: "Step 1: draft one new chart against the dataset's approved spec. Never persists.",
+    params: "workspace_id, dataset_id, request_text (required), tier?",
+    example: `{"workspace_id": 1, "dataset_id": "contracts", "request_text": "show renewals by month"}`,
+    sayInClaude: "Draft a chart of renewals by month for the contracts dataset.",
+  },
+  {
+    name: "chart_confirm",
+    group: "Ask-to-visualize",
+    summary: "Step 2: re-validate, persist, and compose — the chart appears in the dashboard.",
+    params: "workspace_id, dataset_id, new_kpi?, new_analysis?, new_visualization? (echo chart_draft's items)",
+    example: `{"workspace_id": 1, "dataset_id": "contracts", "new_visualization": { "...": "from chart_draft" }}`,
+    sayInClaude: "Confirm that chart.",
   },
 ];

@@ -2,7 +2,7 @@
 
 **Goal:** From `docker compose up` to a grounded answer in **Claude Desktop** in under 10 minutes.
 
-**In the product:** open **http://localhost:3000/mcp** (nav **MCP**) — live endpoint, same steps, full **21 tools** catalog.
+**In the product:** open **http://localhost:3000/mcp** (nav **MCP**) — live endpoint, same steps, full **27 tools** catalog.
 
 ---
 
@@ -58,7 +58,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-Quit Claude fully (⌘Q) → reopen → 🔌 tools → **aryx** (~21 tools).
+Quit Claude fully (⌘Q) → reopen → 🔌 tools → **aryx** (~27 tools).
 
 ---
 
@@ -72,15 +72,18 @@ If empty: open UI setup → upload `examples/quickstart/` → build → retry.
 
 ---
 
-## Tools (21) — quick index
+## Tools (27) — quick index
 
 | Group | Tools |
 |-------|--------|
 | Core | `list`, `ask`, `act` |
 | Workspace & brief | `workspace_list`, `workspace_create`, `workspace_select`, `brief_get`, `brief_draft`, `brief_set`, `brief_save` |
 | Datasource | `datasource_quiz`, `datasource_add`, `datasource_list`, `datasource_test`, `datasource_delete` |
-| Ingest HITL | `ingest_questions`, `ingest_answer`, `ingest_status`, `entities_preview` |
+| Ingest | `ingest_file`, `ingest_questions`, `ingest_answer`, `ingest_status`, `entities_preview` |
 | Ontology | `ontology_get`, `ontology_export` |
+| Dashboard | `dashboard_link` |
+| Correction | `correction_propose`, `correction_apply` |
+| Ask-to-visualize | `chart_draft`, `chart_confirm` |
 
 Full parameters, JSON examples, and “say in Claude” lines: **UI → MCP → Tools** tab (`apps/web/lib/mcpTools.ts` mirrors `src/aryx/mcp/tools*.py`).
 

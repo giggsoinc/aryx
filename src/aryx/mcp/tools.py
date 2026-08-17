@@ -3,11 +3,17 @@
 Read: ``list``, ``ask``. Act: ``act`` (G13). Onboarding: workspace_list /
 workspace_create / workspace_select / brief_get / brief_draft / brief_set /
 brief_save — together these let an agent drive the setup quiz with the user.
+Dashboard/correction/chart (Slices 5-7) round out the dashboard pipeline:
+a link to the rendered result, a propose-then-apply graph-correction pair,
+and the ask-to-visualize draft/confirm pair.
 """
 from __future__ import annotations
 
 import mcp.types as types
 
+from aryx.mcp.tools_chart import chart_tool_specs
+from aryx.mcp.tools_correction import correction_tool_specs
+from aryx.mcp.tools_dashboard import dashboard_tool_specs
 from aryx.mcp.tools_datasource import datasource_tool_specs
 from aryx.mcp.tools_ingest import ingest_tool_specs
 from aryx.mcp.tools_onboard import onboard_tool_specs
@@ -15,10 +21,12 @@ from aryx.mcp.tools_ontology import ontology_tool_specs
 
 
 def tool_specs() -> list[types.Tool]:
-    """Return every MCP tool: read + act + onboarding + datasource + HITL + ontology."""
+    """Return every MCP tool: read + act + onboarding + datasource + HITL
+    + ontology + dashboard + correction + chart."""
     return (_read_act_specs() + onboard_tool_specs()
             + datasource_tool_specs() + ingest_tool_specs()
-            + ontology_tool_specs())
+            + ontology_tool_specs() + dashboard_tool_specs()
+            + correction_tool_specs() + chart_tool_specs())
 
 
 def _read_act_specs() -> list[types.Tool]:
