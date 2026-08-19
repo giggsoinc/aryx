@@ -135,8 +135,36 @@ def check_type_compatibility(spec: DashboardSpec, ctx: ValidationContext) -> tup
         if col_type is not None and col_type != "numeric":
             errors.append(ValidationError(code="type_mismatch", path=f"kpi:{kpi.kpi_id}.measure",
                                           reference=kpi.measure))
+    errors.extend(_histogram_metric_errors(spec))
     status = "failed" if errors else "passed"
     return CheckResult(check="type_compatibility", status=status), errors, []
+
+
+def _histogram_metric_errors(spec: DashboardSpec) -> list[ValidationError]:
+    """A histogram Analysis must reference a histogram KPI to bucket.
+
+    The analysis-level sibling of the missing-measure case above. A histogram
+    needs a numeric column to bucket, and an Analysis carries no measure of
+    its own — it borrows the one on its `metric` KPI. Point it at, say, a
+    `count` KPI (no measure at all) and C11 cannot emit a histogram template,
+    so it falls through to a grouped count; C12 then unpacks that `{group:
+    int}` as `{group: {"buckets": ...}}` and raises. Catching it here lets
+    the planner's one-shot repair retry fix the pairing before compilation.
+    """
+    kpis_by_id = {k.kpi_id: k for k in spec.kpis}
+    errors: list[ValidationError] = []
+    for analysis in spec.analyses:
+        if analysis.operation != "histogram":
+            continue
+        metric_kpi = kpis_by_id.get(analysis.metric or "")
+        if metric_kpi is not None and metric_kpi.operation == "histogram" \
+                and metric_kpi.measure:
+            continue
+        errors.append(ValidationError(
+            code="histogram_metric_mismatch",
+            path=f"analysis:{analysis.analysis_id}.metric",
+            reference=analysis.metric or ""))
+    return errors
 
 
 def check_operation_whitelist(spec: DashboardSpec, ctx: ValidationContext) -> tuple[CheckResult, list[ValidationError], list[ValidationWarning]]:

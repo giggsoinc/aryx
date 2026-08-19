@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid
+from typing import Any
 
 from aryx.analysis_execution.data import load_typed_rows
 from aryx.analysis_execution.execute import (
@@ -17,7 +18,12 @@ from aryx.analysis_execution.execute import (
     run_plan,
 )
 from aryx.analysis_execution.models import (
-    AnalysisResult, AnalysisResultRow, ExecutionMetrics, ExecutionRun, KpiLineage, KpiResult,
+    AnalysisResult,
+    AnalysisResultRow,
+    ExecutionMetrics,
+    ExecutionRun,
+    KpiLineage,
+    KpiResult,
 )
 from aryx.andie_planner.models import Analysis, DashboardSpec, Kpi
 from aryx.ports import ports
@@ -135,6 +141,34 @@ def _analysis_rows(analysis: Analysis, result: Any) -> list[AnalysisResultRow]:
     return _1d_grouped_rows(result)
 
 
+def _unpack_analysis(
+    analysis: Analysis, result: Any,
+) -> tuple[list[AnalysisResultRow] | None, str]:
+    """Unpack one analysis's node result, containing any shape mismatch.
+
+    Returns `(rows, "")` on success and `(None, reason)` when the computed
+    result does not match the shape `analysis.operation` promised.
+
+    `_analysis_rows` dispatches strictly on the DECLARED operation and never
+    shape-sniffs — that is deliberate, but it makes C12 wholly dependent on
+    C11 honouring the declaration. When C11 cannot compile the declared
+    operation it falls back to another template, and the node still
+    SUCCEEDS — so the mismatch never reaches `exec_errors` via the normal
+    node-failure path, and the raw exception used to escape the analysis
+    loop and abort the entire run. One unusable chart must never discard
+    every other analysis's real results, so it is downgraded to a per-
+    analysis error and the run completes as "partial".
+    """
+    try:
+        return _analysis_rows(analysis, result), ""
+    except (TypeError, KeyError, IndexError, AttributeError, ValueError) as exc:
+        return None, (
+            f"analysis {analysis.analysis_id!r} declared operation "
+            f"{analysis.operation!r} but its computed result did not match "
+            f"that shape — {type(exc).__name__}: {exc}. This chart is "
+            f"omitted; the rest of the dashboard is unaffected.")
+
+
 def _kpi_source_columns(kpi: Kpi) -> list[str]:
     """Every column this KPI's lineage should cite — source_columns plus
     whatever measure/filter columns the compiler actually bound."""
@@ -232,10 +266,16 @@ def run_analysis_execution(
         result = node_results.get(node_id)
         if analysis is None or result is None:
             continue
+        rows, unpack_error = _unpack_analysis(analysis, result)
+        if unpack_error:
+            exec_errors.append(unpack_error)
+            logger.warning("analysis unpack mismatch ws=%s analysis=%s op=%s",
+                           workspace_id, analysis_id, analysis.operation)
+            continue
         analysis_results.append(AnalysisResult(
             analysis_id=analysis_id,
             group_column=analysis.group_by[0] if analysis.group_by else "",
-            rows=_analysis_rows(analysis, result)))
+            rows=rows or []))
 
     status = "completed" if not exec_errors else ("partial" if node_results else "failed")
     run = ExecutionRun(
