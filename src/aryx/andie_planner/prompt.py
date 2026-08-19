@@ -130,6 +130,7 @@ def build_planner_prompt(
     target_audience: str,
     output_schema_version: str,
     domain: str = "",
+    brief_context: str = "",
     user_preferences: dict[str, object] | None = None,
     graph_path_hints: list[dict[str, object]] | None = None,
     graph_quality_notes: list[str] | None = None,
@@ -143,6 +144,10 @@ def build_planner_prompt(
             empty for non-categorical/high-cardinality columns).
         approved_graph_paths: verified graph path ids (C06) available to cite.
         supported_operations / supported_charts: the approved catalogues.
+        brief_context: the rest of the customer brief (scope, objectives,
+            proof questions, audiences) as prose. Steers the plan but is
+            NEVER written onto the spec — `objective` stays the short,
+            human-readable line the dashboard is titled with.
         user_preferences: C01 IntentPreferences fields (preferred_kpis,
             preferred_dimensions, preferred_chart_types, date_range) — hints,
             never a substitute for the approved-resources restriction.
@@ -167,7 +172,9 @@ def build_planner_prompt(
     user = (
         f"Domain: {domain or 'general'}\n"
         f"Objective: {objective}\n"
-        f"Target audience: {target_audience or 'general business audience'}\n"
+        + (f"\nCustomer brief — plan against ALL of this:\n{brief_context}\n\n"
+           if brief_context.strip() else "")
+        + f"Target audience: {target_audience or 'general business audience'}\n"
         f"Output schema version: {output_schema_version}\n\n"
         "Approved resources (the ONLY vocabulary you may use):\n"
         f"{json.dumps(resources, indent=2)}\n\n"
@@ -241,6 +248,7 @@ def build_workspace_planner_prompt(
     target_audience: str,
     output_schema_version: str,
     domain: str = "",
+    brief_context: str = "",
     user_preferences: dict[str, object] | None = None,
     graph_path_hints: list[dict[str, object]] | None = None,
     graph_quality_notes: list[str] | None = None,
@@ -272,7 +280,9 @@ def build_workspace_planner_prompt(
     user = (
         f"Domain: {domain or 'general'}\n"
         f"Objective: {objective}\n"
-        f"Target audience: {target_audience or 'general business audience'}\n"
+        + (f"\nCustomer brief — plan against ALL of this:\n{brief_context}\n\n"
+           if brief_context.strip() else "")
+        + f"Target audience: {target_audience or 'general business audience'}\n"
         f"Output schema version: {output_schema_version}\n\n"
         "This workspace has MULTIPLE datasets. Approved resources are grouped "
         "per dataset below — the SAME column name can mean different things "

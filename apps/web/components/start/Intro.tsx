@@ -8,26 +8,26 @@ interface Props {
 }
 
 const STEPS = [
-  { n: 1, t: "You point Aryx at your data first",
+  { n: 1, t: "You tell Aryx what you're trying to do",
+    d: "One sentence or a document — Aryx drafts the brief, you correct it. This is the goal everything else is measured against." },
+  { n: 2, t: "You point Aryx at your data",
     d: "Files or a database — samples are enough to start." },
-  { n: 2, t: "Aryx reads samples and drafts the plan",
-    d: "Your Settings model (any provider) proposes the brief and the graph — merchants, types, links — not a blank form for you to invent." },
-  { n: 3, t: "You approve lightly; add docs if suggested",
-    d: "Correct anything off. Optional extra files sharpen the outcome." },
+  { n: 3, t: "Aryx reads the data through your brief",
+    d: "Your Settings model (any provider) proposes the graph — merchants, types, links — and tells you what your data can and can't answer." },
   { n: 4, t: "Aryx builds the graph; you ask",
     d: "Entities link with provenance. Plain-English questions with citations." },
 ];
 
-/** Screen 0 — intro / data-first product story. */
+/** Screen 0 — intro / brief-first product story. */
 export function Intro({ onStart }: Props) {
   return (
     <StepShell>
       <h1 className="max-w-2xl text-center font-display text-[2.4rem] leading-tight text-navy-900">
-        Load your data. Aryx figures out the rest.
+Tell Aryx what you need. Then load your data.
       </h1>
       <p className="mt-5 max-w-xl text-center text-[15px] italic leading-relaxed text-steel-600">
-        Data first — then a smart brief and graph plan from samples.
-        You stay in the loop; you don&apos;t fill six empty questions cold.
+        Your brief comes first, so ingestion and your dashboard are both built
+        around your goal — not around whatever a model guessed from column names.
       </p>
 
       <section className="mt-10 w-full max-w-xl rounded-2xl bg-navy-50 p-6">

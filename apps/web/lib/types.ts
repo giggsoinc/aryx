@@ -294,7 +294,16 @@ export interface SmartUnderstandResult {
   plan_id?: string;
   workspace_id?: number;
   summary: string;
+  /** Aryx's READING of the data — not the customer's brief. Read-only. */
   brief: Brief;
+  /** The customer's own brief, captured before upload. Echoed back unchanged. */
+  customer_brief?: Brief;
+  /** Server verdict (aryx.brief.is_populated) — never re-derive this client-side. */
+  customer_brief_populated?: boolean;
+  /** Where the data disagrees with what the customer stated. */
+  divergences?: string[];
+  /** Customer objectives / proof questions this data cannot answer. */
+  gaps?: string[];
   graph_plan: {
     primary_types?: Array<{
       name?: string; match_keys?: string[]; role?: string; source_file?: string;
@@ -311,6 +320,26 @@ export interface SmartUnderstandResult {
   suggested_documents?: Array<{ what?: string; why?: string }>;
   source_columns?: Record<string, string[]>;
   fallback?: boolean;
+}
+
+/** Response of GET /admin/workspaces/{id}/understanding. */
+export interface WorkspaceUnderstanding {
+  /** Customer-authored and authoritative. */
+  brief: Brief;
+  /** Aryx's read-only reading of the ingested data. */
+  data_understanding: {
+    summary?: string;
+    brief?: Brief;
+    graph_plan?: Record<string, unknown>;
+    divergences?: string[];
+    gaps?: string[];
+    source_files?: string[];
+    fallback?: boolean;
+    generated_at?: string;
+    promoted_to_brief?: boolean;
+  };
+  /** "customer" when a human wrote the brief; "derived" when back-filled. */
+  brief_source?: "customer" | "derived";
 }
 
 export interface QuizField {

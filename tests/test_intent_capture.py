@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from aryx.intent import UserIntentRequest, capture_intent
-from aryx.intent.models import DateRange
+from aryx.intent.models import SCHEMA_VERSION, BriefContext, DateRange
 
 
 def _contracts_request(**overrides: object) -> UserIntentRequest:
@@ -25,7 +25,7 @@ def test_reference_contract_is_valid() -> None:
     assert intent.validation_status == "valid"
     assert intent.errors == []
     assert intent.warnings == []
-    assert intent.schema_version == "1.0"
+    assert intent.schema_version == SCHEMA_VERSION
     assert intent.domain == "contract_management"
     assert intent.preferences.preferred_kpis == ["renewal rate", "renewed contract value"]
     assert intent.preferences.preferred_chart_types == ["bar"]
@@ -114,3 +114,71 @@ def test_unparseable_date_blocks() -> None:
     ))
     assert intent.validation_status == "invalid"
     assert any("not a valid date" in e for e in intent.errors)
+
+
+def test_brief_context_carries_scope_objectives_and_questions() -> None:
+    """The whole customer brief must survive capture — not just domain + aim.
+
+    Before schema 1.1 these fields were dropped in intent/from_brief.py, so
+    the dashboard could only ever reflect domain and objective.
+    """
+    intent = capture_intent(_contracts_request(brief_context=BriefContext(
+        scope="IN: contracts  OUT: payroll",
+        objectives=["lift renewal rate", "lift renewal rate", " "],
+        questions=["which regions churn?"],
+        roles=["Sales lead", "CFO"],
+    )))
+    assert intent.validation_status == "valid"
+    assert intent.brief_context.scope == "IN: contracts OUT: payroll"
+    # Normalised: whitespace collapsed, blanks dropped, deduped in order.
+    assert intent.brief_context.objectives == ["lift renewal rate"]
+    assert intent.brief_context.questions == ["which regions churn?"]
+    assert intent.brief_context.roles == ["Sales lead", "CFO"]
+
+
+def test_brief_context_defaults_empty_for_non_brief_capture() -> None:
+    """A manual capture with no brief still validates — brief_context is optional."""
+    intent = capture_intent(_contracts_request())
+    assert intent.brief_context.scope == ""
+    assert intent.brief_context.objectives == []
+    assert intent.brief_context.questions == []
+
+
+def test_brief_context_text_excludes_the_objective_itself() -> None:
+    """The objective must NOT be duplicated into brief_context_text.
+
+    `objective` is persisted on the dashboard spec and rendered as the
+    dashboard title — if the whole brief leaked into it, the title became a
+    wall of text. The two travel separately for exactly that reason.
+    """
+    intent = capture_intent(_contracts_request(brief_context=BriefContext(
+        scope="IN: contracts",
+        objectives=["lift renewal rate"],
+        questions=["which regions churn?"],
+        roles=["Sales lead", "CFO"],
+    )))
+    text = intent.brief_context_text()
+
+    assert intent.objective not in text
+    assert "Scope: IN: contracts" in text
+    assert "lift renewal rate" in text
+    assert "which regions churn?" in text
+    assert "Sales lead, CFO" in text
+
+
+def test_brief_context_text_is_empty_without_brief_context() -> None:
+    """No brief captured — nothing extra to steer the planner with."""
+    assert capture_intent(_contracts_request()).brief_context_text() == ""
+
+
+def test_objective_stays_short_and_unchanged_by_capture() -> None:
+    """Regression guard: the title field must stay a single human line."""
+    intent = capture_intent(_contracts_request(brief_context=BriefContext(
+        scope="IN: contracts", objectives=["a", "b"], questions=["q"],
+        roles=["Sales lead", "CFO"],
+    )))
+
+    assert "\n" not in intent.objective
+    assert intent.objective == (
+        "Show contract renewal performance and identify regions with weak "
+        "renewal outcomes")

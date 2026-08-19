@@ -110,6 +110,7 @@ def assemble_spec(
     planning_context: PlanningContextLike,
     *,
     objective: str,
+    brief_context: str = "",
     target_audience: str = "",
     output_schema_version: str = "dashboard_spec_v1",
     broker: Any,
@@ -143,6 +144,7 @@ def assemble_spec(
         objective=objective, target_audience=target_audience,
         output_schema_version=output_schema_version,
         domain=getattr(planning_context, "domain", ""),
+        brief_context=brief_context,
         user_preferences=user_preferences,
         graph_path_hints=[{"path_id": h.path_id, "label": h.label, "depth": h.depth}
                           for h in getattr(planning_context, "graph_path_hints", []) or []],
@@ -210,6 +212,7 @@ def assemble_workspace_spec(
     workspace_context: WorkspaceContextLike,
     *,
     objective: str,
+    brief_context: str = "",
     target_audience: str = "",
     output_schema_version: str = "dashboard_spec_v1",
     broker: Any,
@@ -246,6 +249,7 @@ def assemble_workspace_spec(
         objective=objective, target_audience=target_audience,
         output_schema_version=output_schema_version,
         domain=getattr(workspace_context, "domain", ""),
+        brief_context=brief_context,
         user_preferences=user_preferences,
         graph_path_hints=[{"path_id": h.path_id, "label": h.label, "depth": h.depth}
                           for h in getattr(workspace_context, "graph_path_hints", []) or []],

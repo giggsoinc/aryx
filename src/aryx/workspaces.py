@@ -9,6 +9,7 @@ from psycopg import sql
 from psycopg.types.json import Json
 
 from aryx.naming import ws_graph  # noqa: F401  re-exported for back-compat
+from aryx.workspace_understanding import WorkspaceUnderstandingMixin
 from aryx.queries import load
 
 logger = logging.getLogger(__name__)
@@ -16,8 +17,13 @@ logger = logging.getLogger(__name__)
 _PARTITIONED = ["aryx_landed_record", "aryx_entity", "aryx_entity_member", "aryx_relationship"]
 
 
-class WorkspaceStore:
-    """CRUD + purge/nuke over workspaces and their table partitions."""
+class WorkspaceStore(WorkspaceUnderstandingMixin):
+    """CRUD + purge/nuke over workspaces and their table partitions.
+
+    Brief-provenance and data-understanding accessors live in
+    WorkspaceUnderstandingMixin (same public API, separate module for
+    the file-length cap).
+    """
 
     def __init__(self, dsn: str) -> None:
         self._conn = psycopg.connect(dsn, autocommit=True)

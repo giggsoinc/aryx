@@ -1,7 +1,9 @@
 """Knowledge-modelling brief helpers — serialise to a context string.
 
-The 5-question brief (domain / aim / objectives / scope / roles) is
-captured BEFORE ingest. When non-empty, its serialised form is the
+The brief (domain / aim / objectives / scope / roles / proof questions)
+is captured BEFORE ingest — the customer states what they want before any
+data is uploaded, so extraction and the dashboard are both built around
+their goal rather than around inferred column semantics. When non-empty, its serialised form is the
 canonical workspace context fed into every extraction / discovery /
 inference prompt. The free-text `context` column remains as an optional
 supplement / override.
@@ -34,6 +36,15 @@ def serialize(brief: dict[str, Any] | None) -> str:
              if str(r).strip()]
     if roles:
         lines.append(f"Participants / roles: {', '.join(roles)}")
+    # Proof questions are the sharpest steer in the whole brief — they say
+    # what the finished graph must be able to answer. They were added to the
+    # brief after this serialiser was written and were silently dropped from
+    # every prompt until brief-first made the brief authoritative.
+    questions = [str(q).strip() for q in (brief.get("questions") or [])
+                 if str(q).strip()]
+    if questions:
+        lines.append("Questions the graph must answer:")
+        lines.extend(f"  - {q}" for q in questions)
     return "\n".join(lines)
 
 
@@ -59,5 +70,7 @@ def is_populated(brief: dict[str, Any] | None) -> bool:
     if str(brief.get("scope") or "").strip():
         return True
     if [r for r in (brief.get("roles") or []) if str(r).strip()]:
+        return True
+    if [q for q in (brief.get("questions") or []) if str(q).strip()]:
         return True
     return False
