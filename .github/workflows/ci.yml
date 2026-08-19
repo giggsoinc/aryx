@@ -33,14 +33,74 @@ jobs:
         env:
           PYTHONPATH: src
         run: |
-          pytest -q \
-            tests/test_ports_seam.py \
-            tests/test_grounding.py \
-            tests/test_ab.py \
-            tests/test_explore.py \
-            tests/test_blocking.py \
-            tests/test_confidence.py \
-            tests/test_funnel_unionfind.py
+          bash scripts/run_unit_tests.sh
+
+  e2e-tests:
+    name: E2E tests (real Postgres + FalkorDB)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Kept separate from python-tests: this job needs real service
+    # containers and a live API process, so it's naturally slower — it
+    # shouldn't hold up the fast unit-test signal on every push.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: aryx
+          POSTGRES_PASSWORD: aryx
+          POSTGRES_DB: aryx
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aryx"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      falkordb:
+        image: falkordb/falkordb:latest
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Start API server (in-process, against the real service containers above)
+        env:
+          PYTHONPATH: src
+          ARYX_RDB_DSN: postgresql://aryx:aryx@localhost:5432/aryx
+          ARYX_GRAPH_URL: redis://localhost:6379
+          ARYX_BLOB_DIR: /tmp/aryx-e2e-blobs
+        run: |
+          python -m uvicorn aryx.api.main:app --port 8088 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8088/health && exit 0
+            sleep 1
+          done
+          echo "API server did not become healthy in time" >&2
+          exit 1
+
+      - name: Run e2e tests
+        # Excludes e2e_llm: those tests need a real, reachable LLM for
+        # entity extraction (no injectable seam over HTTP, unlike the C08
+        # planner path) — CI has no Ollama/GPU. Run locally against a real
+        # stack instead (see tests/e2e/test_e2e_ingest_hitl_loop.py).
+        env:
+          PYTHONPATH: src
+          ARYX_TEST_RDB_DSN: postgresql://aryx:aryx@localhost:5432/aryx
+          ARYX_TEST_GRAPH_URL: redis://localhost:6379
+          ARYX_TEST_API_URL: http://localhost:8088
+        run: |
+          pytest -m "e2e and not e2e_llm" tests/e2e/ -v
 
   web-lint:
     name: Web typecheck

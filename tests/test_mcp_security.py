@@ -186,7 +186,16 @@ def test_every_mcp_shim_sends_headers_on_outbound_calls() -> None:
 # --- #2: the SSE transport actually enforces it ---------------------------
 
 def _sse_client(monkeypatch: pytest.MonkeyPatch, *, verify: bool):
-    """A TestClient over the real sse.app, with the token store stubbed."""
+    """A TestClient over the real sse.app, with the token store stubbed.
+
+    Callers pass `timeout=` on each request, and that is load-bearing: when
+    auth rejects, `GET /sse` returns 401 immediately; when it does NOT, the
+    endpoint opens a real event stream and blocks forever. Without a bound,
+    a regression in the middleware turns these tests from "fail with a
+    clear message" into "hang until CI kills the job" — the one failure
+    mode that teaches nobody anything. TestClient takes no constructor
+    timeout in this Starlette version, so it goes on the call.
+    """
     from starlette.testclient import TestClient
     store = MagicMock()
     store.verify.return_value = verify
@@ -209,7 +218,7 @@ def test_sse_app_rejects_unauthenticated_requests(
     monkeypatch.delenv("ARYX_MCP_AUTH_OPTIONAL", raising=False)
     client = _sse_client(monkeypatch, verify=False)
 
-    assert client.get("/sse").status_code == 401
+    assert client.get("/sse", timeout=5).status_code == 401
 
 
 def test_sse_messages_channel_is_also_protected(
@@ -224,7 +233,7 @@ def test_sse_messages_channel_is_also_protected(
     monkeypatch.delenv("ARYX_MCP_AUTH_OPTIONAL", raising=False)
     client = _sse_client(monkeypatch, verify=False)
 
-    resp = client.post("/messages/?session_id=abc", json={})
+    resp = client.post("/messages/?session_id=abc", json={}, timeout=5)
     assert resp.status_code == 401
 
 
@@ -235,7 +244,7 @@ def test_sse_rejection_explains_how_to_authenticate(
     monkeypatch.delenv("ARYX_MCP_AUTH_OPTIONAL", raising=False)
     client = _sse_client(monkeypatch, verify=False)
 
-    body = client.get("/sse").json()
+    body = client.get("/sse", timeout=5).json()
     assert "/admin/mcp/tokens" in body["error"]
 
 
@@ -246,7 +255,8 @@ def test_sse_rejects_a_token_the_store_does_not_recognise(
     monkeypatch.delenv("ARYX_MCP_AUTH_OPTIONAL", raising=False)
     client = _sse_client(monkeypatch, verify=False)
 
-    resp = client.get("/sse", headers={"Authorization": "Bearer nope"})
+    resp = client.get("/sse", headers={"Authorization": "Bearer nope"},
+                      timeout=5)
     assert resp.status_code == 401
 
 

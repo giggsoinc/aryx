@@ -32,3 +32,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+markers = [
+  "e2e: cross-component tests against real Postgres+FalkorDB (tests/e2e/) — see tests/e2e/conftest.py",
+  "e2e_llm: e2e tests that additionally need a real, reachable LLM provider (entity extraction has no stub seam over HTTP) — excluded from CI, run locally against a real Ollama",
+]
