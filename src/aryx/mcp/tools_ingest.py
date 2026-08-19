@@ -7,7 +7,7 @@ ingest done. ingest_status returns counts + job summary.
 """
 from __future__ import annotations
 
-import mcp.types as types
+from mcp import types
 
 
 def ingest_tool_specs() -> list[types.Tool]:

@@ -6,7 +6,7 @@ the URL client-side rather than proxying a call.
 """
 from __future__ import annotations
 
-import mcp.types as types
+from mcp import types
 
 
 def dashboard_tool_specs() -> list[types.Tool]:

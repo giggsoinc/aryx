@@ -9,7 +9,7 @@ and the ask-to-visualize draft/confirm pair.
 """
 from __future__ import annotations
 
-import mcp.types as types
+from mcp import types
 
 from aryx.mcp.tools_chart import chart_tool_specs
 from aryx.mcp.tools_correction import correction_tool_specs

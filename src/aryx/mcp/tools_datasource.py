@@ -7,7 +7,7 @@ return only a non-reversible mask.
 """
 from __future__ import annotations
 
-import mcp.types as types
+from mcp import types
 
 
 def datasource_tool_specs() -> list[types.Tool]:

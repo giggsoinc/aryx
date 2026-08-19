@@ -3,6 +3,82 @@
 All notable changes to **Aryx Lite** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+
+- **Brief-first onboarding restored** (as in 1.5.3) — the customer writes the
+  brief **before** uploading data, so ingestion and the dashboard are both
+  grounded in what the customer asked for rather than in what a model inferred
+  from column names. `/start` now runs intro → **brief** → sources → data →
+  build. Soft gate: the brief step is skippable, and a skipped brief is
+  back-filled from the data and stamped `brief_source: "derived"`.
+- **The customer brief is authoritative and is never overwritten.** What Aryx
+  infers from the uploaded data now lands in a separate
+  `aryx_workspace.data_understanding` column and is surfaced **read-only**.
+  Previously `POST /admin/smart/apply` wrote the model's draft straight over
+  `aryx_workspace.brief`. (`aryx/understanding.py`, migration `0044`)
+- **Smart understand reads samples *through* the brief.** The prompt no longer
+  opens with "You did NOT get a blank brief first"; the customer brief is
+  supplied as authoritative context, and the model reports `divergences` (where
+  the data disagrees with the brief) and `gaps` (what the brief asks for that
+  the data cannot answer). The offline heuristic path keeps the customer's
+  words too. (`pipeline/smart_understand.py`)
+- **The dashboard now sees the whole brief.** `UserIntent` schema `1.0` → `1.1`
+  adds `brief_context`, so `scope`, `objectives`, proof `questions`, and every
+  role reach planning instead of being dropped by the brief→intent adapter.
+  (`intent/models.py`, `intent/from_brief.py`, migration `0045`)
+- `brief.serialize()` now emits proof questions — they were added to the brief
+  after the serialiser was written and had been silently absent from every
+  extraction prompt.
+
+### Added
+
+- **Brief page tabs** — “Your brief” (editable, customer-authored) and
+  “What we understood” (read-only view of Aryx's reading of the data, with
+  divergences, gaps, source files, and generation time).
+- `GET /admin/workspaces/{id}/understanding` — customer brief +
+  `data_understanding` + `brief_source` provenance.
+
+### Fixed
+
+- **Dashboard title no longer renders the whole brief.** `objective` is both
+  a planner prompt input and the persisted `DashboardSpec.objective` that
+  becomes the dashboard title, so grounding it in the full brief printed a
+  wall of text as the heading. The brief now travels to the prompt as its
+  own `brief_context` input and never reaches the spec.
+- **One bad analysis no longer kills the whole dashboard run.** A
+  `histogram` Analysis paired with a `count` KPI compiled to a grouped
+  count; C12 unpacked it as a histogram and raised, aborting every other
+  analysis. Fixed in three layers: C09 rejects the pairing, C11 refuses to
+  degrade the shape silently, and C12 contains an unpack mismatch to the
+  one analysis (run completes `partial` with a named warning).
+- **MCP `fk_links` / `graph_plan` were unusable.** The multipart encoder
+  rejected `"` on field *values*, which land in the body and are never
+  parsed as a header, so any non-empty JSON raised. Split into `_body_safe`
+  (CR/LF) and `_header_safe` (CR/LF + quote, for `filename`, which really
+  is header-embedded).
+- **MCP proof questions were never collected.** The onboarding quiz walked
+  five brief fields and reported "Expert" with `questions` empty, so
+  MCP-onboarded workspaces steered neither extraction nor the dashboard.
+
+### Security
+
+- **MCP transports now fail closed** (DEC-007). The standalone SSE server
+  (`:8765`, the one MCP_QUICKSTART points Claude Desktop at) had no
+  authentication at all, and the mounted `/mcp` allowed both a missing
+  token and an empty token table. Since the tool surface mutates — ingest,
+  corrections, charts — that was unauthenticated write access to the graph.
+  Bearer auth is enforced on both, including the `/messages/` channel that
+  actually carries tool calls. `ARYX_MCP_AUTH=off` opts out for local
+  development only.
+- **MCP → REST calls forward `ARYX_API_KEY`** when set, so hardening the
+  API with `ARYX_API_AUTH=required` no longer 401s every tool.
+- **The customer brief can no longer be lost to a race.** The soft-gate
+  promote was read-then-write; a customer saving their brief mid-ingest had
+  it overwritten by the model's reading. It is now a single guarded
+  `UPDATE` that only writes while the brief is genuinely empty.
+
 ## [1.8.0] — 2026-08-12
 
 ### Added

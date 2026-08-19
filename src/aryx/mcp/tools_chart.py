@@ -6,7 +6,7 @@ gate the feature exists to provide.
 """
 from __future__ import annotations
 
-import mcp.types as types
+from mcp import types
 
 _SPEC_ITEM = {
     "type": "object",

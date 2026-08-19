@@ -8,7 +8,7 @@ follow-up call after the human agrees) applies.
 """
 from __future__ import annotations
 
-import mcp.types as types
+from mcp import types
 
 _KINDS = ["retype", "remove", "link", "unlink", "merge", "rename_type"]
 

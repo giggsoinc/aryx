@@ -5,7 +5,7 @@ import json
 import logging
 from typing import Any
 
-import mcp.types as types
+from mcp import types
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 
@@ -33,7 +33,7 @@ def _dispatch(name: str, a: dict) -> Any:
     if name == "act":
         from aryx.mcp.act import _act
         return _act(a)
-    if name.startswith("workspace_") or name.startswith("brief_"):
+    if name.startswith(("workspace_", "brief_")):
         from aryx.mcp.onboard import dispatch as _onboard
         return _onboard(name, a)
     if name.startswith("datasource_"):
