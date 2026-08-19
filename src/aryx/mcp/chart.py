@@ -10,6 +10,8 @@ import os
 import urllib.request
 from typing import Any
 
+from aryx.mcp.api_headers import json_headers
+
 _API_URL = os.environ.get("ARYX_API_URL", "http://localhost:8088").rstrip("/")
 _TIMEOUT = int(os.environ.get("ARYX_MCP_POST_TIMEOUT", "120"))
 
@@ -17,8 +19,8 @@ _TIMEOUT = int(os.environ.get("ARYX_MCP_POST_TIMEOUT", "120"))
 def _post(path: str, body: dict) -> Any:
     req = urllib.request.Request(
         f"{_API_URL}{path}", data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:  # noqa: S310
+        headers=json_headers())
+    with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:
         return json.loads(r.read().decode())
 
 

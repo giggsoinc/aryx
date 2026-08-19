@@ -13,74 +13,100 @@ for _mod in ("falkordb", "psycopg", "psycopg.types.json"):
     sys.modules.setdefault(_mod, MagicMock())
 
 
-def _bearer_ok_impl(request, *, optional_env: str = "1",
-                    store_raises: bool = False,
-                    tokens: list | None = None,
-                    verify_result: bool = True) -> bool:
-    """Reimplementation of _bearer_ok matching the patched version in main.py."""
-    import os
-    import logging
-    logger = logging.getLogger("aryx.api.main")
-    auth = (request.headers.get("authorization") or "").strip()
-    token = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
-    if not token:
-        return os.environ.get("ARYX_MCP_AUTH_OPTIONAL", "1") == "1"
-    try:
-        if store_raises:
-            raise RuntimeError("db down")
-        if tokens is not None:
-            if not any(not t.get("revoked_at") for t in tokens):
-                return True
-        return verify_result
-    except Exception as exc:
-        logger.error("mcp auth check failed — failing closed: %s", exc)
-        return False
-
-
 def _req(headers: dict) -> MagicMock:
+    """A request stub exposing only `.headers.get`, as _bearer_ok uses."""
     r = MagicMock()
     r.headers.get = lambda k, d="": headers.get(k, d)
     return r
 
 
-def test_bearer_ok_no_token_optional(monkeypatch):
+# --- bearer auth, exercised against the REAL implementation ----------------
+#
+# These previously ran against a `_bearer_ok_impl` copy pasted into this
+# file. A mirror passes whatever the production code does — it stayed green
+# through a change that inverted the auth posture, and would stay green if
+# _bearer_ok were deleted. Import the real thing instead.
+
+def _no_auth_env(monkeypatch) -> None:
+    """Clear both opt-out switches so the default posture is under test."""
+    monkeypatch.delenv("ARYX_MCP_AUTH", raising=False)
+    monkeypatch.delenv("ARYX_MCP_AUTH_OPTIONAL", raising=False)
+
+
+def test_bearer_ok_no_token_is_rejected(monkeypatch):
+    """Default is fail-CLOSED. This asserted True while the old default was
+    'optional' — the single change that made the transport open by default."""
+    from aryx.api.mcp_mount import _bearer_ok
+    _no_auth_env(monkeypatch)
+
+    assert _bearer_ok(_req({})) is False
+
+
+def test_bearer_ok_explicit_off_allows(monkeypatch):
+    """Local development keeps a documented, explicit escape hatch."""
+    from aryx.api.mcp_mount import _bearer_ok
+    monkeypatch.setenv("ARYX_MCP_AUTH", "off")
+
+    assert _bearer_ok(_req({})) is True
+
+
+def test_bearer_ok_legacy_optional_flag_still_honoured(monkeypatch):
+    """Anyone who deliberately set the old flag keeps their behaviour."""
+    from aryx.api.mcp_mount import _bearer_ok
+    monkeypatch.delenv("ARYX_MCP_AUTH", raising=False)
     monkeypatch.setenv("ARYX_MCP_AUTH_OPTIONAL", "1")
-    assert _bearer_ok_impl(_req({})) is True
+
+    assert _bearer_ok(_req({})) is True
 
 
-def test_bearer_ok_no_token_not_optional(monkeypatch):
-    monkeypatch.setenv("ARYX_MCP_AUTH_OPTIONAL", "0")
-    assert _bearer_ok_impl(_req({})) is False
+def test_bearer_ok_store_raises_fails_closed(monkeypatch):
+    """A DB outage must never become open access."""
+    from aryx.mcp import auth
+    _no_auth_env(monkeypatch)
+    monkeypatch.setitem(sys.modules, "aryx.store.mcp_token_store",
+                        MagicMock(McpTokenStore=MagicMock(
+                            side_effect=RuntimeError("db down"))))
+
+    assert auth.is_authorized("tok") is False
 
 
-def test_bearer_ok_store_raises_fails_closed():
-    result = _bearer_ok_impl(_req({"authorization": "Bearer tok"}),
-                             store_raises=True)
-    assert result is False
+def test_bearer_ok_zero_unrevoked_now_rejects(monkeypatch):
+    """Was `test_bearer_ok_zero_unrevoked_allows` and asserted True.
+
+    'No tokens issued' used to mean 'allow everyone', so a fresh deployment
+    served every caller. A store with no live token now verifies to False
+    like any other unrecognised token.
+    """
+    from aryx.mcp import auth
+    _no_auth_env(monkeypatch)
+    store = MagicMock()
+    store.verify.return_value = False
+    monkeypatch.setitem(sys.modules, "aryx.store.mcp_token_store",
+                        MagicMock(McpTokenStore=MagicMock(return_value=store)))
+
+    assert auth.is_authorized("tok") is False
 
 
-def test_bearer_ok_zero_unrevoked_allows():
-    result = _bearer_ok_impl(
-        _req({"authorization": "Bearer tok"}),
-        tokens=[{"revoked_at": "2026-01-01"}],
-    )
-    assert result is True
+def test_bearer_ok_valid_token(monkeypatch):
+    from aryx.api.mcp_mount import _bearer_ok
+    _no_auth_env(monkeypatch)
+    store = MagicMock()
+    store.verify.return_value = True
+    monkeypatch.setitem(sys.modules, "aryx.store.mcp_token_store",
+                        MagicMock(McpTokenStore=MagicMock(return_value=store)))
+
+    assert _bearer_ok(_req({"authorization": "Bearer goodtoken"})) is True
 
 
-def test_bearer_ok_valid_token():
-    result = _bearer_ok_impl(
-        _req({"authorization": "Bearer goodtoken"}),
-        tokens=[{"revoked_at": None}], verify_result=True,
-    )
-    assert result is True
+def test_bearer_ok_invalid_token(monkeypatch):
+    from aryx.api.mcp_mount import _bearer_ok
+    _no_auth_env(monkeypatch)
+    store = MagicMock()
+    store.verify.return_value = False
+    monkeypatch.setitem(sys.modules, "aryx.store.mcp_token_store",
+                        MagicMock(McpTokenStore=MagicMock(return_value=store)))
 
-
-def test_bearer_ok_invalid_token():
-    result = _bearer_ok_impl(
-        _req({"authorization": "Bearer badtoken"}),
-        tokens=[{"revoked_at": None}], verify_result=False,
-    )
-    assert result is False
+    assert _bearer_ok(_req({"authorization": "Bearer badtoken"})) is False
 
 
 def _mini_app(mode: str):

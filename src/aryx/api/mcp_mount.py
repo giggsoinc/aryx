@@ -6,7 +6,6 @@ length cap — bearer-auth and SSE mounting are a self-contained concern.
 from __future__ import annotations
 
 import logging
-import os
 
 from fastapi import FastAPI, HTTPException
 
@@ -14,22 +13,15 @@ logger = logging.getLogger(__name__)
 
 
 def _bearer_ok(request) -> bool:
-    """Verify Authorization: Bearer <token>. Allow-all if no tokens issued."""
-    auth = (request.headers.get("authorization") or "").strip()
-    token = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
-    if not token:
-        return os.environ.get("ARYX_MCP_AUTH_OPTIONAL", "1") == "1"
-    try:
-        from aryx.config import get_settings
-        from aryx.store.mcp_token_store import McpTokenStore
-        store = McpTokenStore(get_settings().rdb_dsn)
-        tokens = store.list_()
-        if not any(not t.get("revoked_at") for t in tokens):
-            return True
-        return store.verify(token)
-    except Exception as exc:  # noqa: BLE001
-        logger.error("mcp auth check failed — failing closed: %s", exc)
-        return False
+    """Verify `Authorization: Bearer <token>` — fails CLOSED.
+
+    Delegates to aryx.mcp.auth so this transport and the standalone SSE
+    server (mcp/sse.py) enforce identical rules. The previous local
+    implementation allowed a request through when no token was supplied
+    and when no tokens had ever been issued; both are now rejections.
+    """
+    from aryx.mcp.auth import authorize_headers
+    return authorize_headers(request.headers.get("authorization"))
 
 
 def mount_mcp(app: FastAPI) -> None:
@@ -45,7 +37,8 @@ def mount_mcp(app: FastAPI) -> None:
         async def handle_sse(request):
             """Authenticate and bridge one MCP client connection over SSE."""
             if not _bearer_ok(request):
-                raise HTTPException(401, "missing or invalid bearer token")
+                from aryx.mcp.auth import DENIED_HINT
+                raise HTTPException(401, DENIED_HINT)
             async with sse.connect_sse(
                 request.scope, request.receive, request._send,
             ) as streams:

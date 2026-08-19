@@ -7,7 +7,7 @@ read ``next_question``, ask the user, call ``brief_set``, loop.
 """
 from __future__ import annotations
 
-import mcp.types as types
+from mcp import types
 
 
 def onboard_tool_specs() -> list[types.Tool]:
@@ -59,6 +59,8 @@ def onboard_tool_specs() -> list[types.Tool]:
             description=(
                 "Return the workspace's current brief, its readiness depth "
                 "(Generic NER → Grounded → Sharp → Expert), and "
+                "— the brief has SIX fields: domain, aim, objectives, "
+                "scope, roles, questions — "
                 "next_question — the prompt for the FIRST EMPTY field. "
                 "next_question = null means the brief is complete; "
                 "otherwise show next_question to the user and pass their "
@@ -73,7 +75,7 @@ def onboard_tool_specs() -> list[types.Tool]:
         types.Tool(
             name="brief_draft",
             description=(
-                "AI-draft the entire 5-field brief from a seed sentence "
+                "AI-draft the entire 6-field brief from a seed sentence "
                 "and/or document text the user supplies. Use this when the "
                 "user uploads a deck / SOW / PDF or gives one-line intent. "
                 "The user then edits a strong draft instead of authoring "
@@ -95,9 +97,10 @@ def onboard_tool_specs() -> list[types.Tool]:
             name="brief_set",
             description=(
                 "Patch ONE field of the brief. field ∈ {domain, aim, "
-                "objectives, scope, roles}. value is a string; for "
-                "objectives and roles, newline-separated lines become list "
-                "items. Returns the updated brief + next_question + depth."
+                "objectives, scope, roles, questions}. value is a string; "
+                "for objectives, roles and questions, newline-separated "
+                "lines become list items. Returns the updated brief + "
+                "next_question + depth."
             ),
             inputSchema={
                 "type": "object",
@@ -105,7 +108,7 @@ def onboard_tool_specs() -> list[types.Tool]:
                     "workspace_id": {"type": "integer"},
                     "field": {"type": "string",
                                "enum": ["domain", "aim", "objectives",
-                                        "scope", "roles"]},
+                                        "scope", "roles", "questions"]},
                     "value": {"type": "string"},
                 },
                 "required": ["workspace_id", "field", "value"],

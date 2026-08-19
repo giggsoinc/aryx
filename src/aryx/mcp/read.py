@@ -10,6 +10,8 @@ import os
 import urllib.request
 from typing import Any
 
+from aryx.mcp.api_headers import api_headers, json_headers
+
 _API_URL = os.environ.get("ARYX_API_URL", "http://localhost:8088").rstrip("/")
 _TIMEOUT = int(os.environ.get("ARYX_MCP_POST_TIMEOUT", "50"))
 _DEFAULT_WS = int(os.environ.get("ARYX_MCP_DEFAULT_WORKSPACE", "1"))
@@ -21,15 +23,17 @@ def _ws(args: dict[str, Any]) -> int:
 
 
 def _get(path: str) -> Any:
-    with urllib.request.urlopen(f"{_API_URL}{path}", timeout=20) as resp:  # noqa: S310
+    with urllib.request.urlopen(
+            urllib.request.Request(f"{_API_URL}{path}", headers=api_headers()),
+            timeout=20) as resp:
         return json.loads(resp.read().decode())
 
 
 def _post(path: str, body: dict) -> Any:
     req = urllib.request.Request(
         f"{_API_URL}{path}", data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:  # noqa: S310
+        headers=json_headers())
+    with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:
         return json.loads(resp.read().decode())
 
 

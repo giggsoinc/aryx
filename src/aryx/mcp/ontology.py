@@ -12,6 +12,7 @@ import os
 import urllib.request
 from typing import Any
 
+from aryx.mcp.api_headers import api_headers
 from aryx.ontology_export_ddl import emit
 
 _API_URL = os.environ.get("ARYX_API_URL", "http://localhost:8088").rstrip("/")
@@ -19,15 +20,19 @@ _API_URL = os.environ.get("ARYX_API_URL", "http://localhost:8088").rstrip("/")
 
 def _get_types(workspace_id: int) -> dict[str, Any]:
     with urllib.request.urlopen(
-        f"{_API_URL}/ontology/types?workspace_id={workspace_id}",
-        timeout=30) as r:  # noqa: S310
+        urllib.request.Request(
+            f"{_API_URL}/ontology/types?workspace_id={workspace_id}",
+            headers=api_headers()),
+        timeout=30) as r:
         return json.loads(r.read().decode()) or {}
 
 
 def _get_rdf(workspace_id: int, fmt: str) -> str:
     with urllib.request.urlopen(
-        f"{_API_URL}/ontology/export?workspace_id={workspace_id}"
-        f"&format={fmt}", timeout=60) as r:  # noqa: S310
+        urllib.request.Request(
+            f"{_API_URL}/ontology/export?workspace_id={workspace_id}"
+            f"&format={fmt}", headers=api_headers()),
+        timeout=60) as r:
         return r.read().decode(errors="replace")
 
 

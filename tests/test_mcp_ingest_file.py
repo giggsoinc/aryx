@@ -12,7 +12,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from aryx.mcp.ingest_hitl import _encode_multipart, dispatch
+from aryx.mcp.ingest_hitl import dispatch
+from aryx.mcp.multipart import encode_multipart as _encode_multipart
 from aryx.mcp.tools_ingest import ingest_tool_specs
 
 

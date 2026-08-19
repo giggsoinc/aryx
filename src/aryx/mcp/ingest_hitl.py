@@ -8,73 +8,40 @@ from __future__ import annotations
 
 import base64
 import json
-import mimetypes
 import os
 import urllib.request
-import uuid
 from typing import Any
+
+from aryx.mcp.api_headers import api_headers, json_headers
+from aryx.mcp.multipart import encode_multipart
 
 _API_URL = os.environ.get("ARYX_API_URL", "http://localhost:8088").rstrip("/")
 _TIMEOUT = int(os.environ.get("ARYX_MCP_POST_TIMEOUT", "60"))
 
 
 def _get(path: str) -> Any:
-    with urllib.request.urlopen(f"{_API_URL}{path}", timeout=30) as r:  # noqa: S310
+    with urllib.request.urlopen(
+            urllib.request.Request(f"{_API_URL}{path}", headers=api_headers()),
+            timeout=30) as r:
         return json.loads(r.read().decode())
 
 
 def _post(path: str, body: dict) -> Any:
     req = urllib.request.Request(
         f"{_API_URL}{path}", data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:  # noqa: S310
+        headers=json_headers())
+    with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:
         return json.loads(r.read().decode())
-
-
-def _header_safe(value: str, what: str) -> str:
-    """Reject a header-bound value carrying CR/LF or a quote.
-
-    A raw multipart body is hand-built below with plain f-strings — any
-    unescaped '\\r'/'\\n' in a field value or filename would let the
-    caller inject extra header lines or a fake boundary, smuggling
-    additional form fields (e.g. a second workspace_id) past whatever the
-    real one was. Rejecting outright is simpler and safer than trying to
-    escape a value that has no real escaping rules in this format.
-    """
-    if any(c in value for c in ("\r", "\n", '"')):
-        raise ValueError(f"{what} contains a control character or quote: {value!r}")
-    return value
-
-
-def _encode_multipart(fields: dict[str, str],
-                      files: list[tuple[str, str, bytes]]) -> tuple[bytes, str]:
-    """Build a multipart/form-data body by hand (stdlib only — no extra
-    HTTP client dependency). Returns (body, boundary)."""
-    boundary = uuid.uuid4().hex
-    parts: list[bytes] = []
-    for key, value in fields.items():
-        value = _header_safe(value, f"field {key!r}")
-        parts.append(
-            f'--{boundary}\r\nContent-Disposition: form-data; name="{key}"'
-            f"\r\n\r\n{value}\r\n".encode())
-    for field_name, filename, data in files:
-        filename = _header_safe(filename, "filename")
-        ctype = mimetypes.guess_type(filename)[0] or "application/octet-stream"
-        parts.append(
-            f'--{boundary}\r\nContent-Disposition: form-data; name="{field_name}"; '
-            f'filename="{filename}"\r\nContent-Type: {ctype}\r\n\r\n'.encode()
-            + data + b"\r\n")
-    parts.append(f"--{boundary}--\r\n".encode())
-    return b"".join(parts), boundary
 
 
 def _post_multipart(path: str, fields: dict[str, str],
                     files: list[tuple[str, str, bytes]]) -> Any:
-    body, boundary = _encode_multipart(fields, files)
+    body, boundary = encode_multipart(fields, files)
     req = urllib.request.Request(
         f"{_API_URL}{path}", data=body,
-        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
-    with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:  # noqa: S310
+        headers=api_headers(
+            {"Content-Type": f"multipart/form-data; boundary={boundary}"}))
+    with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:
         return json.loads(r.read().decode())
 
 
