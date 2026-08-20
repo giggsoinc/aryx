@@ -65,22 +65,33 @@
       "_note": "npm deps for apps/web. CVE-checked at approval time; recheck on version bump.",
       "approved": [
         {
-          "name": "plotly.js-dist-min", "version": "2.35.2",
-          "cve_status": "clean — well above 2.25.2 (CVE-2023-46308, prototype pollution, CVSS 9.8) and 1.16.0 (CVE-2017-1000006, XSS)",
+          "name": "plotly.js-dist-min",
+          "version": "2.35.2",
+          "cve_status": "clean \u2014 well above 2.25.2 (CVE-2023-46308, prototype pollution, CVSS 9.8) and 1.16.0 (CVE-2017-1000006, XSS)",
           "approved": "2026-08-13"
         },
         {
-          "name": "react-plotly.js", "version": "2.6.0",
-          "cve_status": "clean — no known CVEs; note: no release in ~12mo, watch for a maintained fork if that changes",
+          "name": "react-plotly.js",
+          "version": "2.6.0",
+          "cve_status": "clean \u2014 no known CVEs; note: no release in ~12mo, watch for a maintained fork if that changes",
           "approved": "2026-08-13"
         },
-        {"name": "@types/plotly.js", "version": "2.35.5", "cve_status": "dev-only, no runtime surface"},
-        {"name": "@types/react-plotly.js", "version": "2.6.3", "cve_status": "dev-only, no runtime surface"}
+        {
+          "name": "@types/plotly.js",
+          "version": "2.35.5",
+          "cve_status": "dev-only, no runtime surface"
+        },
+        {
+          "name": "@types/react-plotly.js",
+          "version": "2.6.3",
+          "cve_status": "dev-only, no runtime surface"
+        }
       ]
     }
   },
-  "raven_version": "4.4.0",
-  "standards": "raven-v3.0",
+  "raven_version": "5.0.0",
+  "raven_edition": "opensource",
+  "standards": "raven-v5.0",
   "approval_mode": "auto",
   "guard": {
     "enabled": true,
@@ -162,6 +173,15 @@
   "changelog": [
     {
       "version": "1.0",
+      "changed_by": "giggso",
+      "github_id": "",
+      "audit_tag": "Aryx",
+      "changed_at": "2026-08-20T00:00:00Z",
+      "changes": "Confirm Raven open-source 5.0.0 only; retire leftover Enterprise v3/v4.4 CLAUDE.md contract. Aryx product license unchanged.",
+      "pr": "pending"
+    },
+    {
+      "version": "1.0",
       "changed_by": "a.swathi@giggso.com",
       "github_id": "",
       "audit_tag": "Aryx",
@@ -169,6 +189,15 @@
       "changes": "Approved starlette~ (0.52.1) — imported directly by src/aryx/mcp/sse.py for the MCP bearer-auth middleware. Transitive via the already-approved fastapi and mcp; same direct-import precedent as src/aryx/api/security.py. CVE: org-whitelisted Tier 1, auto-approved.",
       "pr": "pending",
       "approved_by": "a.swathi@giggso.com"
+    },
+    {
+      "version": "1.0",
+      "changed_by": "giggso",
+      "github_id": "",
+      "audit_tag": "Aryx",
+      "changed_at": "2026-08-14T17:16:00Z",
+      "changes": "Switch discipline layer Enterprise 4.4.0 → open-source Raven 5.0.0 (giggsoinc/raven). Aryx product license unchanged (BUSL-1.1). Stack fields preserved.",
+      "pr": "pending"
     },
     {
       "version": "1.0",

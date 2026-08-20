@@ -1,9 +1,17 @@
 ---
 name: raven-enterprise
-description: Raven Enterprise v3.0 — governance and intelligence layer for Claude Code at scale. Guards active, signals flowing to Hub (if configured). MCP guard, model routing, Hub telemetry, SAML/OIDC auth.
+description: DISABLED in this repo. Aryx uses Raven open-source 5.0.0 only. Do not invoke this skill.
 ---
 
-# Raven Enterprise v3.0
+# Disabled — Raven OSS project
+
+This skill is **not used**. Manifest `raven_edition` is `opensource`.
+Do not load Hub, SAML, or Enterprise contracts. Use `raven-core` / Andie instead.
+
+The rest of this file is leftover and must be ignored.
+
+<!-- leftover Enterprise body ignored — OSS project -->
+# Raven Enterprise v3.0 (archived, do not follow)
 
 Governance and intelligence layer for Claude Code at scale.
 Guards active on this machine. Signals flowing to Hub (if configured).
