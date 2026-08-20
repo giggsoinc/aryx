@@ -61,6 +61,37 @@ def test_ingest_file_decodes_base64_and_posts_multipart() -> None:
     assert b'filename="contracts.csv"' in req.data
 
 
+def test_ingest_file_forwards_file_types_map_as_json_field() -> None:
+    """The per-file-typing escape hatch (see test_file_ingest_shape_guard.py)
+    must actually reach the multipart body, not just the MCP tool schema."""
+    raw = b"TicketID,Issue\nT1,Radio not booting\n"
+    encoded = base64.b64encode(raw).decode()
+    with patch("urllib.request.urlopen",
+              return_value=_fake_response({"status": "queued", "job_id": "j2"})) as mock_open:
+        dispatch("ingest_file", {
+            "workspace_id": 2,
+            "files": [{"filename": "tickets.csv", "content_base64": encoded}],
+            "ontology_type": "Ticket",
+            "file_types": {"tickets.csv": "Ticket"},
+        })
+    req = mock_open.call_args[0][0]
+    assert b'name="file_types"' in req.data
+    assert b'{"tickets.csv": "Ticket"}' in req.data
+
+
+def test_ingest_file_omits_file_types_field_when_not_given() -> None:
+    raw = b"id,name\n1,Acme\n"
+    encoded = base64.b64encode(raw).decode()
+    with patch("urllib.request.urlopen",
+              return_value=_fake_response({"status": "queued", "job_id": "j3"})) as mock_open:
+        dispatch("ingest_file", {
+            "workspace_id": 2,
+            "files": [{"filename": "contracts.csv", "content_base64": encoded}],
+        })
+    req = mock_open.call_args[0][0]
+    assert b'name="file_types"\r\n\r\n\r\n' in req.data
+
+
 def test_encode_multipart_rejects_crlf_in_filename() -> None:
     """raven-review finding: a crafted filename with embedded CRLF + a fake
     boundary could smuggle an extra form field (e.g. a second workspace_id)

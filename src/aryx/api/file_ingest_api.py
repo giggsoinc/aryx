@@ -78,6 +78,91 @@ def _colvals(data: bytes, suffix: str) -> dict[str, Any]:
         return {"colvals": {}}
 
 
+def _columns(data: bytes, suffix: str) -> set[str]:
+    """Field names present in one data file (header only — no value scan)."""
+    if suffix == ".json":
+        try:
+            loaded = json.loads(data.decode("utf-8-sig"))
+            rows = loaded if isinstance(loaded, list) else [loaded]
+            row = next((r for r in rows if isinstance(r, dict)), {})
+            return set(_flatten(row).keys())
+        except (UnicodeDecodeError, json.JSONDecodeError, TypeError):
+            return set()
+    try:
+        reader = csv.DictReader(io.StringIO(data.decode("utf-8", "ignore")))
+        return set(reader.fieldnames or [])
+    except csv.Error:
+        return set()
+
+
+def _shape_mismatches(
+    items: list[tuple[bytes, str]], file_types: dict[str, str],
+) -> list[str]:
+    """Names of data files whose columns barely overlap the batch's first file.
+
+    A file pinned in `file_types` is excluded from comparison — the caller
+    already resolved its type explicitly, so a shape difference there is
+    intentional, not the silent-collapse bug this guards against.
+    """
+    candidates = [(d, n) for d, n in items
+                  if Path(n).suffix.lower() in _DATA_EXTS and n not in file_types]
+    if len(candidates) < 2:
+        return []
+    col_sets = [(_columns(d, Path(n).suffix.lower()), n) for d, n in candidates]
+    base_cols, base_name = col_sets[0]
+    mismatched = [name for cols, name in col_sets[1:]
+                  if base_cols and cols
+                  and len(base_cols & cols) / len(base_cols | cols) < 0.5]
+    return [base_name, *mismatched] if mismatched else []
+
+
+def _parse_file_types(raw: str) -> dict[str, str]:
+    """Parse the file_types form field into {filename: ontology_type}.
+
+    Raises HTTPException(400) on malformed JSON, a non-object, or any
+    non-string key/value — a wrong type here would otherwise flow silently
+    into the ingest pipeline and only surface as a confusing background-job
+    failure much later, rather than a clear rejection at upload time.
+    """
+    if not raw or not raw.strip():
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        raise HTTPException(400, "file_types must be JSON: {filename: ontology_type}")
+    if not isinstance(parsed, dict) or not all(
+            isinstance(k, str) and isinstance(v, str) for k, v in parsed.items()):
+        raise HTTPException(
+            400, "file_types must be a JSON object of {filename: ontology_type} strings")
+    return parsed
+
+
+def _resolve_batch_ontology_type(
+    items: list[tuple[bytes, str]], ontology_type: str, file_types: dict[str, str],
+) -> str:
+    """Decide whether the caller's shared ontology_type is safe to apply to
+    every un-pinned file in this batch.
+
+    A single type cannot fit files of different shapes (that is exactly what
+    produced the workspace-39 incident: 3 CSVs of 3 real kinds all forced
+    into "Customer"). Rather than rejecting the upload and pushing the
+    caller to work out per-file types themselves, drop the shared type back
+    to "" for a mismatched batch — the empty/'Document' path already infers
+    a type per file from its own columns, which is the classification the
+    caller actually wants here.
+    """
+    if not ontology_type or ontology_type.strip().lower() == "document":
+        return ontology_type
+    mismatched = _shape_mismatches(items, file_types)
+    if mismatched:
+        logger.warning(
+            "ontology_type=%r does not fit every file in this batch "
+            "(mismatched shapes: %s) — auto-detecting a type per file instead",
+            ontology_type, ", ".join(mismatched))
+        return ""
+    return ontology_type
+
+
 def _snapshot_dataset(dsn: str, workspace_id: int, data: bytes, name: str,
                       request_id: str) -> str | None:
     """C02 — register the raw upload as an immutable, versioned dataset.
@@ -146,7 +231,8 @@ def _brief_context(workspace_id: int) -> str:
 def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                match_keys: list[str], fk_links: list[dict], job_id: str,
                workspace_id: int = 1, request_id: str = "",
-               graph_plan: dict | None = None) -> None:
+               graph_plan: dict | None = None,
+               file_types: dict[str, str] | None = None) -> None:
     settings = get_settings()
     jobs = JobStore(settings.rdb_dsn)
     broker = _local_broker()
@@ -196,12 +282,18 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
             # the caller didn't pin a concrete type, infer the row entity and
             # its identifying columns from this file's own header + sample.
             otype, keys = ontology_type, match_keys
+            # A per-file pin (file_types) wins outright — the caller already
+            # resolved this file's type explicitly, so none of the shared-type
+            # or inference fallbacks below should second-guess it.
+            pinned = (file_types or {}).get(name)
+            if pinned:
+                otype = pinned
             # Prefer smart graph_plan (data-first understand) over generic Document.
-            if graph_plan and (not otype or otype.lower() == "document"):
+            if not pinned and graph_plan and (not otype or otype.lower() == "document"):
                 from aryx.pipeline.smart_understand import primary_type_and_keys
                 otype, keys = primary_type_and_keys(graph_plan, name)
                 logger.info("plan %s -> type=%s keys=%s", name, otype, keys)
-            if not otype or otype.lower() == "document":
+            if not pinned and (not otype or otype.lower() == "document"):
                 plan = _infer_type(data[:800].decode("utf-8", "ignore"), name, context)
                 otype, keys = plan["ontology_type"], plan["match_keys"]
                 logger.info("inferred %s -> type=%s keys=%s", name, otype, keys)
@@ -362,6 +454,7 @@ def file_ingest_router() -> APIRouter:
         fk_links: str = Form("[]"),
         workspace_id: int = Form(1),
         graph_plan: str = Form(""),
+        file_types: str = Form(""),
     ) -> dict[str, Any]:
         if len(files) > _MAX_FILES:
             raise HTTPException(400, f"Max {_MAX_FILES} files per upload")
@@ -378,6 +471,8 @@ def file_ingest_router() -> APIRouter:
             if suffix not in _ALL:
                 raise HTTPException(400, f"{f.filename}: unsupported type {suffix}")
             items.append((data, f.filename or f"upload{suffix}"))
+        file_types_map = _parse_file_types(file_types)
+        ontology_type = _resolve_batch_ontology_type(items, ontology_type, file_types_map)
         settings = get_settings()
         apply_migrations(settings.rdb_dsn)
         job_id = uuid.uuid4().hex
@@ -396,7 +491,7 @@ def file_ingest_router() -> APIRouter:
                 plan_obj = None
         background_tasks.add_task(
             _run_files, items, ontology_type, keys, links, job_id, workspace_id,
-            graph_plan=plan_obj)
+            graph_plan=plan_obj, file_types=file_types_map)
         names = [n for _, n in items]
         return {"status": "queued", "job_id": job_id, "files": names, "count": len(items)}
 

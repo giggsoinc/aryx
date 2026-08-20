@@ -49,6 +49,19 @@ def ingest_tool_specs() -> list[types.Tool]:
                                 "description": "Optional foreign-key link plan."},
                     "graph_plan": {"type": "object",
                                   "description": "Optional pre-approved graph plan."},
+                    "file_types": {
+                        "type": "object",
+                        "description": (
+                            "Optional {filename: ontology_type} map — types "
+                            "each file individually instead of forcing one "
+                            "ontology_type on the whole batch. Required when "
+                            "the files have different shapes (e.g. tickets.csv "
+                            "+ customers.csv in one call) and you already know "
+                            "each one's type; otherwise leave ontology_type "
+                            "unset and each file is auto-typed from its own "
+                            "columns."
+                        ),
+                    },
                 },
                 "required": ["workspace_id", "files"],
             },
