@@ -22,7 +22,7 @@ const MAX_PER = 20 * 1024 * 1024;
 const MAX_TOTAL = 50 * 1024 * 1024;
 const MAX_FILES = 50;
 
-/** Files step — drop zone. Default: data-first smart understand (no full ingest yet). */
+/** Files step — drop zone. Samples are read through the customer brief. */
 export function Files({
   workspaceId, mode = "understand", onUnderstood, onUploaded, onBack, onSkip,
 }: Props) {
@@ -71,9 +71,10 @@ export function Files({
         Drop the files you want Aryx to read.
       </h1>
       <p className="mt-3 max-w-lg text-center text-[14px] text-subtle">
-        <b>Step 1 — data first.</b>{" "}
-        Aryx samples a few lines from each file, then proposes the brief and graph
-        plan. Full graph build happens after you approve.
+        <b>Step 2 — your data.</b>{" "}
+        Aryx samples a few lines from each file and reads them against your
+        brief, then proposes the graph plan. Full graph build happens after you
+        approve.
       </p>
 
       <div

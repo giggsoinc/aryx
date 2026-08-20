@@ -58,7 +58,8 @@
       "spacy~",
       "pgvector~",
       "mcp~",
-      "rdflib~"
+      "rdflib~",
+      "starlette~"
     ],
     "frontend_libraries": {
       "_note": "npm deps for apps/web. CVE-checked at approval time; recheck on version bump.",
@@ -159,6 +160,16 @@
     "phase_gated": false
   },
   "changelog": [
+    {
+      "version": "1.0",
+      "changed_by": "a.swathi@giggso.com",
+      "github_id": "",
+      "audit_tag": "Aryx",
+      "changed_at": "2026-08-19T00:00:00Z",
+      "changes": "Approved starlette~ (0.52.1) — imported directly by src/aryx/mcp/sse.py for the MCP bearer-auth middleware. Transitive via the already-approved fastapi and mcp; same direct-import precedent as src/aryx/api/security.py. CVE: org-whitelisted Tier 1, auto-approved.",
+      "pr": "pending",
+      "approved_by": "a.swathi@giggso.com"
+    },
     {
       "version": "1.0",
       "changed_by": "rv@giggso.com",

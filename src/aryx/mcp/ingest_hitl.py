@@ -1,34 +1,64 @@
-"""MCP HITL ingest dispatch — Slice 3.
+"""MCP HITL ingest dispatch — Slice 3/5.
 
-Four tools: ingest_questions / ingest_answer / ingest_status / entities_preview.
-Thin shim over /admin/ingest-questions + /graph + /admin/jobs.
+Five tools: ingest_file starts a run; ingest_questions / ingest_answer /
+ingest_status / entities_preview drive the HITL loop. Thin shim over
+/admin/ingest/file + /admin/ingest-questions + /graph + /admin/jobs.
 """
 from __future__ import annotations
 
+import base64
 import json
 import os
 import urllib.request
 from typing import Any
+
+from aryx.mcp.api_headers import api_headers, json_headers
+from aryx.mcp.multipart import encode_multipart
 
 _API_URL = os.environ.get("ARYX_API_URL", "http://localhost:8088").rstrip("/")
 _TIMEOUT = int(os.environ.get("ARYX_MCP_POST_TIMEOUT", "60"))
 
 
 def _get(path: str) -> Any:
-    with urllib.request.urlopen(f"{_API_URL}{path}", timeout=30) as r:  # noqa: S310
+    with urllib.request.urlopen(
+            urllib.request.Request(f"{_API_URL}{path}", headers=api_headers()),
+            timeout=30) as r:
         return json.loads(r.read().decode())
 
 
 def _post(path: str, body: dict) -> Any:
     req = urllib.request.Request(
         f"{_API_URL}{path}", data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:  # noqa: S310
+        headers=json_headers())
+    with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:
+        return json.loads(r.read().decode())
+
+
+def _post_multipart(path: str, fields: dict[str, str],
+                    files: list[tuple[str, str, bytes]]) -> Any:
+    body, boundary = encode_multipart(fields, files)
+    req = urllib.request.Request(
+        f"{_API_URL}{path}", data=body,
+        headers=api_headers(
+            {"Content-Type": f"multipart/form-data; boundary={boundary}"}))
+    with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:
         return json.loads(r.read().decode())
 
 
 def dispatch(name: str, a: dict) -> Any:
     """Route an ingest_* MCP call to its backing REST endpoint."""
+    if name == "ingest_file":
+        wid = int(a["workspace_id"])
+        files = [("files", f["filename"], base64.b64decode(f["content_base64"]))
+                for f in a["files"]]
+        fields = {
+            "ontology_type": a.get("ontology_type", "Document"),
+            "match_keys": a.get("match_keys", "name"),
+            "fk_links": json.dumps(a.get("fk_links") or []),
+            "workspace_id": str(wid),
+            "graph_plan": json.dumps(a["graph_plan"]) if a.get("graph_plan") else "",
+        }
+        return _post_multipart("/admin/ingest/file", fields, files)
     if name == "ingest_questions":
         wid = int(a["workspace_id"])
         status = a.get("status", "pending")

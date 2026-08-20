@@ -46,9 +46,16 @@ def _preferences_dict(preferences) -> dict:
     return out
 
 
-def _resolve_intent(dsn: str, workspace_id: int, dataset_id: str) -> tuple[str, str, dict]:
-    """Best-effort (objective, target_audience, user_preferences) from the
-    dataset's C01 intent."""
+def _resolve_intent(dsn: str, workspace_id: int,
+                    dataset_id: str) -> tuple[str, str, dict, str]:
+    """Best-effort (objective, target_audience, user_preferences,
+    brief_context) from the dataset's C01 intent.
+
+    `objective` stays the SHORT human line — it is persisted on the spec and
+    rendered as the dashboard title. The rest of the customer brief comes
+    back separately as `brief_context` so it can steer the prompt without
+    ending up in the title.
+    """
     try:
         dstore = DatasetStore(dsn, workspace_id)
         try:
@@ -56,7 +63,7 @@ def _resolve_intent(dsn: str, workspace_id: int, dataset_id: str) -> tuple[str, 
         finally:
             dstore.close()
         if not latest_ds or not latest_ds.request_id:
-            return "", "", {}
+            return "", "", {}, ""
         from aryx.store.intent_store import IntentStore
         istore = IntentStore(dsn, workspace_id)
         try:
@@ -64,10 +71,12 @@ def _resolve_intent(dsn: str, workspace_id: int, dataset_id: str) -> tuple[str, 
         finally:
             istore.close()
         if not intent:
-            return "", "", {}
-        return intent.objective, intent.preferences.target_audience, _preferences_dict(intent.preferences)
+            return "", "", {}, ""
+        return (intent.objective, intent.preferences.target_audience,
+                _preferences_dict(intent.preferences),
+                intent.brief_context_text())
     except Exception:  # noqa: BLE001 — objective/audience are hints only
-        return "", "", {}
+        return "", "", {}, ""
 
 
 def _single_dataset_ctx(planning_context) -> ValidationContext:
@@ -207,9 +216,10 @@ def run_planner(dsn: str, workspace_id: int, dataset_id: str, *,
         return PlannerResult(status="controlled_error", error_code="no_planning_context",
                              error_message=f"no planning context for dataset {dataset_id!r}")
 
-    resolved_obj, resolved_aud, user_preferences = ("", "", {})
+    resolved_obj, resolved_aud, user_preferences, brief_context = ("", "", {}, "")
     if objective is None or target_audience is None:
-        resolved_obj, resolved_aud, user_preferences = _resolve_intent(dsn, workspace_id, dataset_id)
+        (resolved_obj, resolved_aud, user_preferences,
+         brief_context) = _resolve_intent(dsn, workspace_id, dataset_id)
 
     if broker is None:
         from aryx.api.admin_api import _local_broker
@@ -219,14 +229,16 @@ def run_planner(dsn: str, workspace_id: int, dataset_id: str, *,
     final_audience = target_audience if target_audience is not None else resolved_aud
 
     result = assemble_spec(
-        ctx, objective=final_objective, target_audience=final_audience,
+        ctx, objective=final_objective, brief_context=brief_context,
+        target_audience=final_audience,
         broker=broker, tier=tier, complete_json_fn=complete_json,
         user_preferences=user_preferences,
     )
 
     def _retry(constraints: str) -> PlannerResult:
         return assemble_spec(
-            ctx, objective=final_objective, target_audience=final_audience,
+            ctx, objective=final_objective, brief_context=brief_context,
+        target_audience=final_audience,
             broker=broker, tier=tier, complete_json_fn=complete_json,
             repair_constraints=constraints, user_preferences=user_preferences,
         )
@@ -244,9 +256,11 @@ def run_planner(dsn: str, workspace_id: int, dataset_id: str, *,
     return result
 
 
-def _resolve_workspace_intent(dsn: str, workspace_id: int) -> tuple[str, str, dict]:
-    """Best-effort (objective, target_audience, user_preferences) from the
-    workspace's most recent C01 intent — not tied to any single dataset."""
+def _resolve_workspace_intent(dsn: str,
+                              workspace_id: int) -> tuple[str, str, dict, str]:
+    """Best-effort (objective, target_audience, user_preferences,
+    brief_context) from the workspace's most recent C01 intent — not tied to
+    any single dataset. `objective` stays short; see `_resolve_intent`."""
     try:
         from aryx.store.intent_store import IntentStore
         istore = IntentStore(dsn, workspace_id)
@@ -255,10 +269,12 @@ def _resolve_workspace_intent(dsn: str, workspace_id: int) -> tuple[str, str, di
         finally:
             istore.close()
         if not recent:
-            return "", "", {}
-        return recent[0].objective, recent[0].preferences.target_audience, _preferences_dict(recent[0].preferences)
+            return "", "", {}, ""
+        return (recent[0].objective, recent[0].preferences.target_audience,
+                _preferences_dict(recent[0].preferences),
+                recent[0].brief_context_text())
     except Exception:  # noqa: BLE001 — objective/audience are hints only
-        return "", "", {}
+        return "", "", {}, ""
 
 
 def run_planner_workspace(dsn: str, workspace_id: int, *,
@@ -280,9 +296,10 @@ def run_planner_workspace(dsn: str, workspace_id: int, *,
             status="controlled_error", error_code="no_planning_context",
             error_message=f"no workspace-wide planning context for workspace {workspace_id}")
 
-    resolved_obj, resolved_aud, user_preferences = ("", "", {})
+    resolved_obj, resolved_aud, user_preferences, brief_context = ("", "", {}, "")
     if objective is None or target_audience is None:
-        resolved_obj, resolved_aud, user_preferences = _resolve_workspace_intent(dsn, workspace_id)
+        (resolved_obj, resolved_aud, user_preferences,
+         brief_context) = _resolve_workspace_intent(dsn, workspace_id)
 
     if broker is None:
         from aryx.api.admin_api import _local_broker
@@ -292,14 +309,16 @@ def run_planner_workspace(dsn: str, workspace_id: int, *,
     final_audience = target_audience if target_audience is not None else resolved_aud
 
     result = assemble_workspace_spec(
-        ctx, objective=final_objective, target_audience=final_audience,
+        ctx, objective=final_objective, brief_context=brief_context,
+        target_audience=final_audience,
         broker=broker, tier=tier, complete_json_fn=complete_json,
         user_preferences=user_preferences,
     )
 
     def _retry(constraints: str) -> PlannerResult:
         return assemble_workspace_spec(
-            ctx, objective=final_objective, target_audience=final_audience,
+            ctx, objective=final_objective, brief_context=brief_context,
+        target_audience=final_audience,
             broker=broker, tier=tier, complete_json_fn=complete_json,
             repair_constraints=constraints, user_preferences=user_preferences,
         )

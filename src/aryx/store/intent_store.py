@@ -9,7 +9,7 @@ import logging
 
 from psycopg.types.json import Json
 
-from aryx.intent.models import IntentPreferences, UserIntent
+from aryx.intent.models import BriefContext, IntentPreferences, UserIntent
 from aryx.queries import load
 from aryx.store.pool import get_pool
 
@@ -33,6 +33,7 @@ class IntentStore:
                     (
                         self._ws, intent.request_id, intent.schema_version,
                         intent.uploaded_file, intent.domain, intent.objective,
+                        Json(intent.brief_context.model_dump()),
                         Json(intent.preferences.model_dump()),
                         intent.validation_status,
                         Json(intent.warnings), Json(intent.errors),
@@ -86,4 +87,7 @@ def _row_to_intent(row: tuple) -> UserIntent:
         warnings=row[7] or [],
         errors=row[8] or [],
         created_at=row[9],
+        # Appended last so pre-0045 rows (which have no column) still map.
+        brief_context=BriefContext(**(row[10] or {})) if len(row) > 10
+        else BriefContext(),
     )

@@ -1,4 +1,10 @@
-"""Data-first smart understand API — sample files → brief + graph plan."""
+"""Brief-led smart understand API — customer brief + samples → graph plan.
+
+Architecture note (restored from v1.5.3): the customer authors the brief
+BEFORE upload. Nothing in this module may overwrite `aryx_workspace.brief`
+while that brief is populated — the model's reading of the data lands in
+`aryx_workspace.data_understanding` and is surfaced read-only.
+"""
 from __future__ import annotations
 
 import logging
@@ -8,6 +14,7 @@ from typing import Any
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
+from aryx import understanding
 from aryx.config import get_settings
 from aryx.pipeline.smart_understand import sample_bytes, understand_samples
 from aryx.store.migrate import apply_migrations
@@ -48,7 +55,14 @@ def smart_router() -> APIRouter:
             if len(data) > _MAX_FILE:
                 raise HTTPException(400, f"{f.filename}: exceeds 20 MB")
             samples.append(sample_bytes(data, f.filename or "upload"))
-        result = understand_samples(samples, user_hint=user_hint)
+        apply_migrations(get_settings().rdb_dsn)
+        store = WorkspaceStore(get_settings().rdb_dsn)
+        try:
+            brief = understanding.customer_brief(store, workspace_id)
+        finally:
+            store.close()
+        result = understand_samples(samples, user_hint=user_hint,
+                                    customer_brief=brief)
         plan_id = uuid.uuid4().hex
         _PLANS[plan_id] = {
             "workspace_id": workspace_id,
@@ -60,49 +74,30 @@ def smart_router() -> APIRouter:
 
     @router.post("/apply")
     def apply(req: ApplyRequest) -> dict[str, Any]:
-        """Persist drafted brief (and graph_plan) on the workspace."""
+        """Persist the DERIVED reading of the data + the graph plan.
+
+        The customer brief is authoritative and is never overwritten here —
+        see `aryx.understanding` for the one soft-gate exception.
+        """
         apply_migrations(get_settings().rdb_dsn)
         store = WorkspaceStore(get_settings().rdb_dsn)
         try:
-            brief = req.brief or {}
-            # Normalize list fields
-            for key in ("objectives", "roles", "questions"):
-                v = brief.get(key)
-                if isinstance(v, str):
-                    brief[key] = [ln.strip() for ln in v.splitlines() if ln.strip()]
-            ws = store.set_brief(req.workspace_id, brief)
-            # Stash graph_plan inside brief meta-ish: store on workspace context
-            # if API supports it; also return for client to pass into ingest.
-            plan = req.graph_plan
-            if req.plan_id and req.plan_id in _PLANS:
-                cached = _PLANS[req.plan_id]["result"].get("graph_plan") or {}
-                if not plan:
-                    plan = cached
+            cached = (_PLANS.get(req.plan_id or "") or {})
+            result = cached.get("result") or {}
+            plan = req.graph_plan or result.get("graph_plan") or {}
+            outcome = understanding.record(
+                store, req.workspace_id, req.brief or {}, plan, result,
+                cached.get("filenames") or [])
             if plan:
-                try:
-                    # Append plan summary into context for extractors.
-                    ctx_bits = []
-                    b = brief
-                    if b.get("domain"):
-                        ctx_bits.append(f"Domain: {b['domain']}")
-                    outcomes = (plan.get("outcomes") or [])[:6]
-                    if outcomes:
-                        ctx_bits.append("Graph outcomes: " + "; ".join(
-                            str(o) for o in outcomes))
-                    prim = plan.get("primary_types") or []
-                    dims = plan.get("dimension_types") or []
-                    names = [p.get("name") for p in prim if isinstance(p, dict)]
-                    names += [d.get("name") for d in dims if isinstance(d, dict)]
-                    if names:
-                        ctx_bits.append(
-                            "Planned entity types: " + ", ".join(str(n) for n in names))
-                    if ctx_bits:
-                        store.set_context(req.workspace_id, "\n".join(ctx_bits))
-                except Exception:  # noqa: BLE001
-                    logger.debug("context stash skipped", exc_info=True)
+                understanding.stash_plan_context(
+                    store, req.workspace_id, outcome["brief"], plan)
             return {
                 "status": "ok",
-                "workspace": ws,
+                "workspace_id": req.workspace_id,
+                "brief": outcome["brief"],
+                "brief_source": outcome["brief_source"],
+                "data_understanding": understanding.normalize_lists(
+                    req.brief or {}),
                 "graph_plan": plan,
             }
         finally:

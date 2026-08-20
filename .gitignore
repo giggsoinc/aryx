@@ -68,3 +68,7 @@ HANDOVER.md
 
 # AI Auditor workspace — never commit (observe/document only)
 Audit-Postmortem/
+
+# Business/marketing collateral — decks, demo scripts, strategy docs.
+# Never belongs in a code PR; keep local only.
+Claude_Docs/

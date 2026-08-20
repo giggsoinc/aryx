@@ -119,6 +119,16 @@ services:
       # DEBUG-level app logging (overrides ARYX_LOG_LEVEL from .env)
       - ARYX_LOG_LEVEL=DEBUG
       - ARYX_API_URL=http://api:8000
+      # Bearer auth on the MCP transport. Defaults to "required" and fails
+      # CLOSED: this port exposes the full tool surface, which MUTATES (file
+      # ingest, graph corrections, chart persistence), so an unauthenticated
+      # caller would have write access to the graph. Issue a token with
+      # POST /admin/mcp/tokens and send `Authorization: Bearer <token>`.
+      # Set ARYX_MCP_AUTH=off in .env for a single-user local box only.
+      - ARYX_MCP_AUTH=${ARYX_MCP_AUTH:-required}
+      # Forwarded by the MCP shims on every REST call. Only needed when the
+      # api service runs with ARYX_API_AUTH=required.
+      - ARYX_API_KEY=${ARYX_API_KEY:-}
     ports:
       - "8765:8765"
     depends_on:

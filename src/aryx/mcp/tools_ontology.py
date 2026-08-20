@@ -7,7 +7,7 @@ semantic-web tooling. Oracle is intentionally a stub today.
 """
 from __future__ import annotations
 
-import mcp.types as types
+from mcp import types
 
 
 def ontology_tool_specs() -> list[types.Tool]:

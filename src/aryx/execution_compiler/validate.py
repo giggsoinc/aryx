@@ -7,9 +7,14 @@ already guaranteed by the time compile.py runs).
 """
 from __future__ import annotations
 
-from aryx.andie_planner.models import Kpi
+from aryx.andie_planner.models import Analysis, Kpi
 from aryx.execution_compiler.models import CompilationIssue, ExecutionNode
-from aryx.execution_compiler.templates import NUMERIC_TEMPLATES, RATIO_OPERATIONS, TEMPLATES
+from aryx.execution_compiler.templates import (
+    HISTOGRAM_TEMPLATES,
+    NUMERIC_TEMPLATES,
+    RATIO_OPERATIONS,
+    TEMPLATES,
+)
 
 
 def validate_bindings(nodes: list[ExecutionNode]) -> list[CompilationIssue]:
@@ -85,6 +90,42 @@ def check_ratio_operand_operations(kpis: list[Kpi]) -> list[CompilationIssue]:
                     code="unsupported_ratio_operand_operation", node_id=f"kpi:{kpi.kpi_id}",
                     detail=f"{role} operation {operand.operation!r} has no column to bind — "
                           "only 'count' is supported for ratio operands"))
+    return issues
+
+
+def check_analysis_operation_compilable(
+    analyses: list[Analysis], kpis_by_id: dict[str, Kpi],
+) -> list[CompilationIssue]:
+    """An Analysis's declared `operation` is a PROMISE about the shape of its
+    node's result — C12 unpacks strictly on it (analysis_execution.run
+    ._analysis_rows dispatches, never shape-sniffs).
+
+    _compile_analysis can only honour that promise for `histogram` when the
+    referenced metric KPI is itself a histogram (HISTOGRAM_TEMPLATES is keyed
+    by the KPI's operation). Referencing e.g. a `count` KPI makes it fall
+    through to the generic grouped path, which emits grouped_count_rows —
+    a `{group: int}` result that C12 then tries to read as `{group:
+    {"buckets": ...}}`. The node succeeds, so nothing else catches it.
+
+    Reject the mismatch here rather than letting the compiler quietly swap
+    the shape out from under the executor.
+    """
+    issues: list[CompilationIssue] = []
+    for analysis in analyses:
+        if analysis.operation != "histogram":
+            continue
+        metric_kpi = kpis_by_id.get(analysis.metric or "")
+        if metric_kpi is not None and metric_kpi.operation in HISTOGRAM_TEMPLATES:
+            continue
+        found = (f"{metric_kpi.operation!r}" if metric_kpi is not None
+                 else "no such KPI")
+        issues.append(CompilationIssue(
+            code="uncompilable_analysis_operation",
+            node_id=f"analysis:{analysis.analysis_id}",
+            detail=(f"operation 'histogram' needs metric KPI "
+                    f"{analysis.metric!r} to be a histogram KPI with a numeric "
+                    f"measure, but found {found} — the plan would silently "
+                    "compile to a grouped count instead")))
     return issues
 
 

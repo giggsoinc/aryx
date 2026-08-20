@@ -9,6 +9,8 @@ export type SourceKind = "database" | "files" | "manual";
 
 interface Props {
   initial?: SourceKind[];
+  /** True when the customer skipped the brief step — shows an ungrounded warning. */
+  briefSkipped?: boolean;
   onContinue: (picked: SourceKind[]) => void;
   onBack: () => void;
 }
@@ -23,8 +25,10 @@ const CARDS: Array<{ kind: SourceKind; ico: React.ReactNode;
     hint: "Skip loading data now — define entity types later on the Model canvas" },
 ];
 
-/** Screen 3 — multi-select data sources. */
-export function Sources({ initial = ["files"], onContinue, onBack }: Props) {
+/** Step 2 — multi-select data sources, after the brief is captured. */
+export function Sources({
+  initial = ["files"], briefSkipped = false, onContinue, onBack,
+}: Props) {
   const [picked, setPicked] = useState<Set<SourceKind>>(new Set(initial));
 
   const toggle = (k: SourceKind) => {
@@ -41,10 +45,25 @@ export function Sources({ initial = ["files"], onContinue, onBack }: Props) {
         Where is your data?
       </h1>
       <p className="mt-3 max-w-lg text-center text-[14px] text-subtle">
-        <b>Data first.</b> Pick Files and/or Database. Aryx will sample the
-        content and draft your brief + graph plan — you won&apos;t fill six empty
-        questions cold. “Types only” skips data for now (Model canvas).
+        Pick Files and/or Database. Aryx samples the content and plans the
+        graph <b>against the brief you just wrote</b>. “Types only” skips data
+        for now (Model canvas).
       </p>
+
+      {briefSkipped && (
+        <div className="mt-4 w-full max-w-2xl rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
+          <b>No brief captured.</b> Ingestion will run ungrounded and Aryx will
+          infer a brief from your columns instead. You can still go{" "}
+          <button
+            type="button"
+            onClick={onBack}
+            className="focus-ring font-semibold underline"
+          >
+            back and write one
+          </button>
+          .
+        </div>
+      )}
 
       <div className="mt-8 grid w-full max-w-2xl grid-cols-3 gap-4">
         {CARDS.map((c) => {

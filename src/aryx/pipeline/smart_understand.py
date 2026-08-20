@@ -1,4 +1,4 @@
-"""Data-first smart understand: sample sources → brief + graph plan.
+"""Brief-led smart understand: customer brief + samples → graph plan.
 
 Provider-agnostic: uses llm_runtime answer role (whatever Settings configured:
 Gemini, Claude, OpenAI, Grok, Ollama, …). Deterministic fallbacks when the
@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Any
 
 from aryx import llm_runtime
+from aryx.brief import is_populated as brief_is_populated
+from aryx.brief import serialize as serialize_brief
 
 logger = logging.getLogger(__name__)
 
@@ -22,15 +24,23 @@ _SAMPLE_ROWS = 12
 _DOC_CHARS = 2500
 
 _SYSTEM = """You are Aryx's data understanding agent for a knowledge graph product.
-The user already loaded data. You did NOT get a blank brief first.
+The customer stated what they want BEFORE uploading anything. Their brief is
+the goal; the data samples are the evidence. Your job is to read the data
+THROUGH that brief, never to replace it.
 
-Given samples from each file/table, you MUST:
-1) Infer what the data is in plain language.
-2) Draft a full knowledge brief (domain, aim, objectives, scope, roles, questions).
-3) Propose a graph plan that is SMART — not one flat row-type only when columns
-   support dimensions (Merchant, Category, Place, Account, Person, Product, …).
+Given the customer brief and samples from each file/table, you MUST:
+1) Infer what the data actually is, in plain language.
+2) Restate the brief as understood FROM THE DATA — same six fields, but
+   describing what this data can genuinely support. This is a reading, not a
+   replacement: keep the customer's domain and aim unless the data flatly
+   contradicts them, and say so in `divergences` when it does.
+3) Propose a graph plan that SERVES the customer's objectives and proof
+   questions — multi-type when columns support dimensions (Merchant,
+   Category, Place, Account, Person, Product, …), not one flat row-type.
 4) List short follow-up questions only if critical (max 4), easy to answer.
 5) Suggest additional documents/tables that would sharpen the graph.
+6) Name any objective or proof question in the brief that this data CANNOT
+   answer, under `gaps` — an honest gap beats a confident hallucination.
 
 Return ONLY valid JSON with this shape:
 {
@@ -59,7 +69,9 @@ Return ONLY valid JSON with this shape:
   "follow_ups": [{"id": "q1", "question": "...", "why": "..."}],
   "suggested_documents": [
     {"what": "merchant MCC list", "why": "sharper category graph"}
-  ]
+  ],
+  "divergences": ["where the data disagrees with what the customer stated"],
+  "gaps": ["customer objectives / proof questions this data cannot answer"]
 }
 
 Rules:
@@ -69,6 +81,9 @@ Rules:
 - match_keys must be real column names from the sample when possible.
 - Never use generic type names: Table, Row, Record, Data, Document (unless PDF).
 - Be specific to THIS data, not generic enterprise fluff.
+- The customer brief outranks your own reading. When they conflict, follow the
+  brief in `graph_plan` and record the conflict in `divergences`.
+- With no customer brief supplied, draft the six fields cold from the samples.
 """
 
 
@@ -167,8 +182,14 @@ def _sample_json(data: bytes, name: str) -> dict[str, Any]:
 def understand_samples(
     samples: list[dict[str, Any]],
     user_hint: str = "",
+    customer_brief: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Call answer-model to produce brief + graph plan from samples."""
+    """Read the samples through the customer brief → understanding + plan.
+
+    `customer_brief` is the brief the customer authored BEFORE uploading.
+    When present it anchors the graph plan and is echoed back untouched on
+    the result so callers never confuse it with the derived reading.
+    """
     if not samples:
         return _empty_result("No samples provided.")
 
@@ -176,7 +197,9 @@ def understand_samples(
         s.get("sample_text") or s.get("filename") or "" for s in samples
     )
     hint = (user_hint or "").strip()
+    brief_text = serialize_brief(customer_brief)
     user = (
+        f"Customer brief (authoritative):\n{brief_text or '(none supplied)'}\n\n"
         f"User hint (optional): {hint or '(none)'}\n\n"
         f"Data samples:\n{blob[:14000]}"
     )
@@ -184,11 +207,11 @@ def understand_samples(
         text, _, _ = llm_runtime.chat("answer", _SYSTEM, user)
         data = _parse_json(text)
         if data:
-            return _normalize(data, samples)
+            return _normalize(data, samples, customer_brief)
         logger.warning("smart_understand: unparseable model output")
     except Exception as exc:  # noqa: BLE001
         logger.warning("smart_understand LLM failed: %s", exc)
-    return _fallback(samples, user_hint)
+    return _fallback(samples, user_hint, customer_brief)
 
 
 def _parse_json(text: str) -> dict[str, Any] | None:
@@ -219,7 +242,14 @@ def _slist(v: Any) -> list[str]:
     return []
 
 
-def _normalize(data: dict[str, Any], samples: list[dict[str, Any]]) -> dict[str, Any]:
+def _normalize(data: dict[str, Any], samples: list[dict[str, Any]],
+               customer_brief: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Normalise model output.
+
+    `brief` on the result is the DERIVED reading of the data — never the
+    customer's. The customer's own brief rides along untouched under
+    `customer_brief` so no caller can confuse the two.
+    """
     brief_in = data.get("brief") if isinstance(data.get("brief"), dict) else {}
     brief = {
         "domain": str(brief_in.get("domain") or "").strip(),
@@ -251,11 +281,19 @@ def _normalize(data: dict[str, Any], samples: list[dict[str, Any]]) -> dict[str,
         "follow_ups": follow,
         "suggested_documents": docs,
         "source_columns": col_map,
+        "customer_brief": dict(customer_brief or {}),
+        # The server's own verdict — the UI must not re-derive "is this
+        # brief real?", or it can disagree with the promote rule and tell
+        # the user their brief is authoritative while it gets overwritten.
+        "customer_brief_populated": brief_is_populated(customer_brief),
+        "divergences": _slist(data.get("divergences")),
+        "gaps": _slist(data.get("gaps")),
         "fallback": False,
     }
 
 
-def _fallback(samples: list[dict[str, Any]], hint: str) -> dict[str, Any]:
+def _fallback(samples: list[dict[str, Any]], hint: str,
+              customer_brief: dict[str, Any] | None = None) -> dict[str, Any]:
     """Heuristic plan when LLM is offline — still multi-type when columns allow."""
     names = [s.get("filename") or "file" for s in samples]
     tab = next((s for s in samples if s.get("kind") == "tabular"), None)
@@ -287,8 +325,11 @@ def _fallback(samples: list[dict[str, Any]], hint: str) -> dict[str, Any]:
                      "from_type": ptype})
         rels.append({"name": "IN_CATEGORY", "from": ptype, "to": "Category",
                      "via_column": cat})
-    domain = "Personal banking" if "bank" in " ".join(names).lower() or desc else (
-        hint or "Uploaded data")
+    cb = customer_brief or {}
+    # Offline, the customer's own words beat any filename heuristic.
+    domain = str(cb.get("domain") or "").strip() or (
+        "Personal banking" if "bank" in " ".join(names).lower() or desc
+        else (hint or "Uploaded data"))
     brief = {
         "domain": domain,
         "aim": "Build a knowledge graph so questions about entities and links "
@@ -312,6 +353,15 @@ def _fallback(samples: list[dict[str, Any]], hint: str) -> dict[str, Any]:
             "How do transactions distribute by category?",
             "What is the total activity over time?",
         ]
+    # Customer-stated aim / proof questions survive the heuristic path too.
+    if str(cb.get("aim") or "").strip():
+        brief["aim"] = str(cb["aim"]).strip()
+    if cb.get("questions"):
+        brief["questions"] = [str(q).strip() for q in cb["questions"]
+                              if str(q).strip()]
+    if cb.get("objectives"):
+        brief["objectives"] = [str(o).strip() for o in cb["objectives"]
+                               if str(o).strip()]
     return {
         "summary": (
             f"Offline/heuristic understand for {', '.join(names)}. "
@@ -340,6 +390,10 @@ def _fallback(samples: list[dict[str, Any]], hint: str) -> dict[str, Any]:
              "why": "Sharpens links beyond free-text columns"},
         ],
         "source_columns": {s["filename"]: s.get("columns") or [] for s in samples},
+        "customer_brief": dict(cb),
+        "customer_brief_populated": brief_is_populated(cb),
+        "divergences": [],
+        "gaps": [],
         "fallback": True,
     }
 
@@ -354,6 +408,10 @@ def _empty_result(msg: str) -> dict[str, Any]:
         "follow_ups": [],
         "suggested_documents": [],
         "source_columns": {},
+        "customer_brief": {},
+        "customer_brief_populated": False,
+        "divergences": [],
+        "gaps": [],
         "fallback": True,
     }
 

@@ -96,14 +96,37 @@ def workspace_router() -> APIRouter:
         the zero-click auto-chain (context -> planner -> execution ->
         dashboard) — see aryx.pipeline.auto_chain."""
         dsn = get_settings().rdb_dsn
+        # Needed before set_brief_source touches `brief_source` (0044) on a
+        # workspace whose DB has not been migrated yet — this route used to
+        # write only `brief`, which has existed since 0016.
+        apply_migrations(dsn)
         store = WorkspaceStore(dsn)
         try:
             result = store.set_brief(workspace_id, req.model_dump())
+            # A human save always reclaims authorship, even if a derived
+            # brief had been promoted earlier by the soft gate.
+            result["brief_source"] = store.set_brief_source(
+                workspace_id, "customer")
         finally:
             store.close()
         result["chain_job_id"] = trigger_chain_from_brief(
             dsn, workspace_id, req.model_dump(), background_tasks)
         return result
+
+    @router.get("/{workspace_id}/understanding")
+    def get_understanding(workspace_id: int) -> dict[str, Any]:
+        """Read-only: the customer brief + what Aryx understood from the data.
+
+        `brief` is customer-authored and authoritative. `data_understanding`
+        is the pipeline's reading of the uploaded data — informational only,
+        never human-editable, and never fed back over the brief.
+        """
+        apply_migrations(get_settings().rdb_dsn)
+        store = WorkspaceStore(get_settings().rdb_dsn)
+        try:
+            return store.get_understanding(workspace_id)
+        finally:
+            store.close()
 
     @router.post("/{workspace_id}/reset-data")
     def reset_workspace_data(workspace_id: int) -> dict[str, Any]:

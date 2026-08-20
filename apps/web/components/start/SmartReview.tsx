@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, Loader2, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, FileText, Loader2, Sparkles } from "lucide-react";
+import { UnderstandingPanel } from "@/components/understanding/UnderstandingPanel";
 import { api } from "@/lib/api";
 import type { Brief, SmartUnderstandResult } from "@/lib/types";
 import { StepShell } from "./StepShell";
@@ -15,11 +17,25 @@ interface Props {
   onAddMore: () => void;
 }
 
-/** After data is chosen: show AI brief + graph plan; user confirms build. */
+/**
+ * After data is chosen: show what Aryx understood FROM THE DATA, plus the
+ * graph plan, and confirm the build.
+ *
+ * The understanding panel is deliberately READ-ONLY. The editable brief is
+ * the customer's, captured before upload on the Brief step — this panel is
+ * Aryx reporting back what it read, and letting a human retype it here would
+ * blur the two. Divergences and gaps are surfaced instead: if the reading is
+ * wrong, the fix is to correct the brief, not to edit the reading.
+ */
 export function SmartReview({
   workspaceId, files, result, onBuilt, onBack, onAddMore,
 }: Props) {
-  const [brief, setBrief] = useState<Brief>(result.brief || {});
+  const understood: Brief = result.brief || {};
+  const customerBrief: Brief = result.customer_brief || {};
+  // The server decides this, not us. Re-deriving it here drifted from
+  // aryx.brief.is_populated — a brief carrying only `source_docs` read as
+  // populated in the UI while the server promoted the derived one over it.
+  const hasCustomerBrief = result.customer_brief_populated ?? false;
   const [hint, setHint] = useState("");
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -28,19 +44,6 @@ export function SmartReview({
   const primaries = plan.primary_types || [];
   const dims = plan.dimension_types || [];
   const rels = plan.relationships || [];
-
-  const setField = (key: keyof Brief, value: string) => {
-    if (key === "objectives" || key === "roles" || key === "questions") {
-      setBrief((b) => ({
-        ...b,
-        [key]: value.split("\n").map((s) => s.trim()).filter(Boolean),
-      }));
-    } else {
-      setBrief((b) => ({ ...b, [key]: value }));
-    }
-  };
-
-  const listVal = (v: string[] | undefined) => (v || []).join("\n");
 
   const build = async () => {
     setBusy(true);
@@ -53,12 +56,16 @@ export function SmartReview({
           .map(([k, v]) => `${k}: ${v}`),
         ...(hint.trim() ? [`hint: ${hint.trim()}`] : []),
       ].join("; ");
-      const finalBrief: Brief = {
-        ...brief,
-        aim: extra ? `${brief.aim || ""}\nUser notes: ${extra}`.trim() : brief.aim,
+      // Posted as the DERIVED reading — the server stores it in
+      // data_understanding and leaves the customer brief untouched.
+      const derived: Brief = {
+        ...understood,
+        aim: extra
+          ? `${understood.aim || ""}\nUser notes: ${extra}`.trim()
+          : understood.aim,
       };
       await api.smartApply(
-        workspaceId, finalBrief, plan as Record<string, unknown>, result.plan_id,
+        workspaceId, derived, plan as Record<string, unknown>, result.plan_id,
       );
       const primary = primaries[0];
       const otype = primary?.name || "Document";
@@ -79,15 +86,15 @@ export function SmartReview({
       <div className="flex items-center gap-2 text-steel-600">
         <Sparkles size={18} />
         <span className="text-[11px] font-bold uppercase tracking-[0.12em]">
-          Smart review · data first
+          Smart review · read through your brief
         </span>
       </div>
       <h1 className="mt-2 max-w-2xl text-center font-display text-[1.85rem] leading-tight text-navy-900">
-        Here&apos;s what Aryx thinks this data is
+Here&apos;s what Aryx read in this data
       </h1>
       <p className="mt-2 max-w-xl text-center text-[13px] text-subtle">
-        Drafted from samples of your files using your Settings model
-        (Gemini, Ollama, or any provider). Light edits only — then build the graph.
+        Read from samples of your files against your brief, using your Settings
+        model (Gemini, Ollama, or any provider). Review, then build the graph.
         {result.fallback && (
           <span className="mt-1 block text-amber-700">
             Used offline heuristics — set an answer model in Settings for a richer plan.
@@ -141,40 +148,38 @@ export function SmartReview({
           )}
         </section>
 
-        <section className="rounded-xl border border-navy-100 bg-white p-4 shadow-soft space-y-3">
-          <div className="text-[10px] font-bold uppercase tracking-wide text-navy-500">
-            Draft brief (edit if needed)
-          </div>
-          {([
-            ["domain", "Domain"],
-            ["aim", "Aim"],
-            ["scope", "Scope"],
-          ] as const).map(([k, label]) => (
-            <label key={k} className="block text-[11px] font-medium text-navy-700">
-              {label}
-              <input
-                className="focus-ring mt-1 w-full rounded-lg border border-navy-100 px-2.5 py-1.5 text-[13px]"
-                value={(brief[k] as string) || ""}
-                onChange={(e) => setField(k, e.target.value)}
-              />
-            </label>
-          ))}
-          {([
-            ["objectives", "Objectives (one per line)"],
-            ["roles", "Roles (one per line)"],
-            ["questions", "Proof questions (one per line)"],
-          ] as const).map(([k, label]) => (
-            <label key={k} className="block text-[11px] font-medium text-navy-700">
-              {label}
-              <textarea
-                rows={3}
-                className="focus-ring mt-1 w-full rounded-lg border border-navy-100 px-2.5 py-1.5 text-[13px]"
-                value={listVal(brief[k] as string[] | undefined)}
-                onChange={(e) => setField(k, e.target.value)}
-              />
-            </label>
-          ))}
-        </section>
+        {hasCustomerBrief && (
+          <section className="rounded-xl border border-steel-400/50 bg-white p-4 shadow-soft">
+            <div className="flex items-center gap-2">
+              <FileText size={14} className="text-steel-600" />
+              <div className="text-[10px] font-bold uppercase tracking-wide text-navy-500">
+                Your brief — this is what we planned against
+              </div>
+            </div>
+            {customerBrief.aim && (
+              <p className="mt-2 text-[13px] text-navy-800">{customerBrief.aim}</p>
+            )}
+            {(customerBrief.questions || []).length > 0 && (
+              <ul className="mt-2 list-disc space-y-0.5 pl-5 text-[12px] text-navy-800">
+                {(customerBrief.questions || []).map((q, i) => <li key={i}>{q}</li>)}
+              </ul>
+            )}
+            <Link
+              href="/brief"
+              className="focus-ring mt-2 inline-block text-[12px] font-semibold text-steel-600 underline"
+            >
+              Edit brief →
+            </Link>
+          </section>
+        )}
+
+        <UnderstandingPanel
+          understood={understood}
+          divergences={result.divergences || []}
+          gaps={result.gaps || []}
+          fallback={result.fallback}
+          promoted={!hasCustomerBrief}
+        />
 
         {(result.follow_ups || []).length > 0 && (
           <section className="rounded-xl border border-navy-100 bg-white p-4 shadow-soft space-y-2">

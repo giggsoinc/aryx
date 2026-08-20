@@ -106,13 +106,27 @@ def _snapshot_dataset(dsn: str, workspace_id: int, data: bytes, name: str,
 
 
 def _brief_context(workspace_id: int) -> str:
-    """Render the workspace brief as steering context for extraction.
+    """Render the customer brief as steering context for extraction.
 
-    THE foundational contract: everything the user answered in the Brief
-    (domain, aim, scope, roles) steers what the extractors look for. An
-    empty brief returns "" and extraction runs generic.
+    THE foundational contract: the brief the customer wrote BEFORE upload
+    (domain, aim, objectives, scope, roles, proof questions) steers what the
+    extractors look for. Uses the canonical `aryx.brief` serialiser so this
+    matches every other brief consumer, and folds in the free-text workspace
+    context (which carries the planned entity types) as a supplement.
+
+    An empty brief returns "" and extraction runs generic — the soft gate.
+
+    Deliberately reads `brief` off `list_all()` rather than via
+    `get_understanding()`: this endpoint does not run apply_migrations (the
+    MCP `ingest_file` tool calls it directly, and may be the first call a
+    fresh deployment ever sees), and `brief` has existed since migration
+    0016 while `data_understanding`/`brief_source` only arrive in 0044.
+    Depending on the newer columns here would make an un-migrated database
+    fall into the except branch and silently drop brief grounding that this
+    path used to have.
     """
     try:
+        from aryx.brief import merge_with_context
         from aryx.workspaces import WorkspaceStore
         store = WorkspaceStore(get_settings().rdb_dsn)
         try:
@@ -120,20 +134,9 @@ def _brief_context(workspace_id: int) -> str:
                        if w["id"] == workspace_id), None)
         finally:
             store.close()
-        b = (ws or {}).get("brief") or {}
-        parts = []
-        if b.get("domain"):
-            parts.append(f"Domain: {b['domain']}")
-        if b.get("aim"):
-            parts.append(f"Aim: {b['aim']}")
-        if b.get("scope"):
-            parts.append(f"Scope: {b['scope']}")
-        if b.get("objectives"):
-            parts.append("Objectives: " + "; ".join(b["objectives"]))
-        if b.get("questions"):
-            parts.append("Questions the graph must answer: "
-                         + "; ".join(b["questions"]))
-        return "\n".join(parts)
+        ws = ws or {}
+        return merge_with_context(ws.get("brief") or {},
+                                  str(ws.get("context") or ""))
     except Exception as exc:  # noqa: BLE001 — steering is best-effort
         logger.warning("brief context unavailable ws=%s: %s",
                        workspace_id, exc)
@@ -160,6 +163,11 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
     if context:
         logger.info("ingest steered by brief+corrections ws=%s (%d chars)",
                     workspace_id, len(context))
+    else:
+        # Soft gate: the brief step is skippable, so this is a warning, not
+        # a block. Extraction still runs — just without customer grounding.
+        logger.warning("ingest ungrounded ws=%s — no customer brief captured "
+                       "before upload; extraction runs generic", workspace_id)
     try:
         data_files = [(d, n) for d, n in items if Path(n).suffix.lower() in _DATA_EXTS]
         doc_files = [(d, n) for d, n in items if Path(n).suffix.lower() in _DOC_EXTS]

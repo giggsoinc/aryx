@@ -12,6 +12,8 @@ import os
 import urllib.request
 from typing import Any
 
+from aryx.mcp.api_headers import api_headers, json_headers
+
 _API_URL = os.environ.get("ARYX_API_URL", "http://localhost:8088").rstrip("/")
 _TIMEOUT = int(os.environ.get("ARYX_MCP_POST_TIMEOUT", "180"))
 
@@ -23,41 +25,60 @@ _BRIEF_PROMPTS = {
     "objectives": ("Objectives — 3–6 concrete goals, one per line."),
     "scope": ("Scope — what's IN and what's OUT (two short blocks)."),
     "roles": ("Participant roles — 2–5 stakeholder roles, one per line."),
+    "questions": ("Proof questions — 3–5 questions the finished graph MUST "
+                  "be able to answer for this to be worth doing, phrased as "
+                  "a user would ask them, one per line."),
 }
+
+# Every brief field the quiz walks, in ask order. `questions` is last but
+# NOT optional: aryx.brief.serialize emits it into every extraction prompt,
+# and intent.brief_context carries it to the dashboard planner as "proof
+# questions the dashboard must answer". Omitting it here produced briefs the
+# quiz called complete while the sharpest steer in the whole brief was empty.
+_BRIEF_FIELDS = ("domain", "aim", "objectives", "scope", "roles", "questions")
+
+# Readiness label per count of populated fields (index 0..len(_BRIEF_FIELDS)).
+# Re-based for the sixth field: "Expert" now requires ALL six, so a brief
+# missing only its proof questions reads as "Sharp" rather than claiming
+# top readiness. The old five-field table topped out at "Expert" with
+# `questions` empty, which is precisely the false all-clear that let
+# MCP-onboarded workspaces ingest without the sharpest steer in the brief.
+_DEPTH_LABELS = ("Generic NER", "Grounded", "Grounded", "Sharp",
+                 "Sharp", "Sharp", "Expert")
 
 
 def _get(path: str) -> Any:
-    with urllib.request.urlopen(f"{_API_URL}{path}", timeout=30) as r:  # noqa: S310
+    with urllib.request.urlopen(
+            urllib.request.Request(f"{_API_URL}{path}", headers=api_headers()),
+            timeout=30) as r:
         return json.loads(r.read().decode())
 
 
 def _post(path: str, body: dict) -> Any:
     req = urllib.request.Request(
         f"{_API_URL}{path}", data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:  # noqa: S310
+        headers=json_headers())
+    with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:
         return json.loads(r.read().decode())
 
 
 def _patch(path: str, body: dict) -> Any:
     req = urllib.request.Request(
         f"{_API_URL}{path}", data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json"}, method="PATCH")
-    with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:  # noqa: S310
+        headers=json_headers(), method="PATCH")
+    with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:
         return json.loads(r.read().decode())
 
 
 def _depth(brief: dict) -> str:
     """Readiness label from the number of populated fields."""
-    keys = ("domain", "aim", "objectives", "scope", "roles")
-    n = sum(1 for k in keys if (brief.get(k) or ""))
-    return ("Generic NER", "Grounded", "Grounded", "Sharp",
-            "Expert", "Expert")[min(n, 5)]
+    n = sum(1 for k in _BRIEF_FIELDS if (brief.get(k) or ""))
+    return _DEPTH_LABELS[min(n, len(_DEPTH_LABELS) - 1)]
 
 
 def _next_question(brief: dict) -> str | None:
     """Return the prompt for the first empty field, or None when complete."""
-    for key in ("domain", "aim", "objectives", "scope", "roles"):
+    for key in _BRIEF_FIELDS:
         if not (brief.get(key) or ""):
             return f"{key}: {_BRIEF_PROMPTS[key]}"
     return None
@@ -100,7 +121,7 @@ def dispatch(name: str, a: dict) -> Any:
         wid = int(a["workspace_id"])
         brief = dict(_brief_of(wid))
         field, value = a["field"], a["value"]
-        if field in ("objectives", "roles") and isinstance(value, str):
+        if field in ("objectives", "roles", "questions") and isinstance(value, str):
             value = [ln.strip() for ln in value.splitlines() if ln.strip()]
         brief[field] = value
         _patch(f"/admin/workspaces/{wid}/brief", brief)

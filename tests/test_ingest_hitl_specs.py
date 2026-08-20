@@ -5,10 +5,10 @@ from aryx.mcp.ingest_hitl import dispatch
 from aryx.mcp.tools_ingest import ingest_tool_specs
 
 
-def test_specs_cover_four_tools():
-    """The HITL ingest tool surface is exactly 4 tools."""
+def test_specs_cover_five_tools():
+    """The ingest tool surface is exactly 5 tools (1 start + 4 HITL)."""
     names = {t.name for t in ingest_tool_specs()}
-    assert names == {"ingest_questions", "ingest_answer",
+    assert names == {"ingest_file", "ingest_questions", "ingest_answer",
                      "ingest_status", "entities_preview"}
 
 
@@ -19,7 +19,8 @@ def test_dispatch_unknown_returns_error():
 
 
 def test_all_slices_register_under_one_tool_specs():
-    """tool_specs() returns the union of every slice's specs (16 total)."""
+    """tool_specs() returns the union of every slice's specs (27 total as
+    of Slice 7 — see test_mcp_tools_aggregate.py for the full-set check)."""
     from aryx.mcp.tools import tool_specs
     names = {t.name for t in tool_specs()}
     expected_new = {
@@ -27,7 +28,7 @@ def test_all_slices_register_under_one_tool_specs():
         "brief_get", "brief_draft", "brief_set", "brief_save",
         "datasource_quiz", "datasource_add", "datasource_list",
         "datasource_test", "datasource_delete",
-        "ingest_questions", "ingest_answer", "ingest_status",
+        "ingest_file", "ingest_questions", "ingest_answer", "ingest_status",
         "entities_preview",
     }
     assert expected_new <= names

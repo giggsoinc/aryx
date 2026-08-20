@@ -12,26 +12,31 @@ import os
 import urllib.request
 from typing import Any
 
+from aryx.mcp.api_headers import api_headers, json_headers
+
 _API_URL = os.environ.get("ARYX_API_URL", "http://localhost:8088").rstrip("/")
 _TIMEOUT = int(os.environ.get("ARYX_MCP_POST_TIMEOUT", "60"))
 
 
 def _get(path: str) -> Any:
-    with urllib.request.urlopen(f"{_API_URL}{path}", timeout=30) as r:  # noqa: S310
+    with urllib.request.urlopen(
+            urllib.request.Request(f"{_API_URL}{path}", headers=api_headers()),
+            timeout=30) as r:
         return json.loads(r.read().decode())
 
 
 def _post(path: str, body: dict) -> Any:
     req = urllib.request.Request(
         f"{_API_URL}{path}", data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:  # noqa: S310
+        headers=json_headers())
+    with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:
         return json.loads(r.read().decode())
 
 
 def _delete(path: str) -> Any:
-    req = urllib.request.Request(f"{_API_URL}{path}", method="DELETE")
-    with urllib.request.urlopen(req, timeout=20) as r:  # noqa: S310
+    req = urllib.request.Request(f"{_API_URL}{path}", method="DELETE",
+                                 headers=api_headers())
+    with urllib.request.urlopen(req, timeout=20) as r:
         return json.loads(r.read().decode())
 
 

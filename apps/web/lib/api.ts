@@ -6,6 +6,7 @@ import type {
   DashboardModel, RenderTelemetry,
   LlmConfig, LlmConfigUpdate, DeriveEntitiesResult, LinkEntitiesResult, OntologyDoc, QuizSpec, ReasonerCheck, Rule,
   SmartUnderstandResult, SurvivorshipPolicy, UserIntent, UserIntentRequest, Workspace,
+  WorkspaceUnderstanding,
 } from "./types";
 
 // Same-origin relative path. Next.js rewrites /api/* → FastAPI internally
@@ -279,6 +280,12 @@ export const api = {
     fetchJSON<{ id: number; brief: Brief; chain_job_id: string }>(
       `/admin/workspaces/${workspaceId}/brief`,
       { method: "PATCH", body: JSON.stringify(brief) },
+    ),
+
+  /** Read-only: the customer brief + what Aryx understood from the data. */
+  getUnderstanding: (workspaceId: number) =>
+    fetchJSON<WorkspaceUnderstanding>(
+      `/admin/workspaces/${workspaceId}/understanding`,
     ),
 
   listDatasourceKinds: () =>

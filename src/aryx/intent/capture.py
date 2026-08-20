@@ -20,6 +20,7 @@ from datetime import datetime
 
 from aryx.intent.catalogues import AUDIENCES, CHART_TYPES
 from aryx.intent.models import (
+    BriefContext,
     DateRange,
     IntentPreferences,
     UserIntent,
@@ -144,11 +145,22 @@ def capture_intent(
     # Steps 5 + 6 — versioned object + correlation id.
     resolved_id = _norm_text(request_id or request.request_id) or _new_request_id()
 
+    # Step 3 (cont.) — brief context rides through normalized but unvalidated:
+    # it steers planning, it never blocks capture.
+    bc = request.brief_context or BriefContext()
+    brief_context = BriefContext(
+        scope=_norm_text(bc.scope),
+        objectives=_norm_list(bc.objectives),
+        questions=_norm_list(bc.questions),
+        roles=_norm_list(bc.roles),
+    )
+
     intent = UserIntent(
         request_id=resolved_id,
         uploaded_file=uploaded_file,
         domain=domain,
         objective=objective,
+        brief_context=brief_context,
         preferences=IntentPreferences(
             preferred_kpis=kpis,
             preferred_dimensions=dimensions,
