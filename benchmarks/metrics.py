@@ -12,9 +12,8 @@ from aryx.models import ResolutionRecord
 from aryx.resolution.blocking import MultiKeyBlocker
 from aryx.resolution.classical import block_key, score_pair
 
-AUTO_MERGE = 0.92
-ADJUDICATE_FROM = 0.90
-REJECT = 0.60
+AUTO_MERGE = 0.95
+ADJUDICATE_FROM = 0.80
 
 BlockerFn = Callable[[list[ResolutionRecord]], dict[str, list[ResolutionRecord]]]
 

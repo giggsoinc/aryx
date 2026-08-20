@@ -59,7 +59,7 @@ def link_by_attribute(
         for tid in targets.get(ref.lower(), []):
             if tid != sid:
                 rels.append(Relationship(
-                    source_entity_id=tid, target_entity_id=sid,
+                    source_entity_id=sid, target_entity_id=tid,
                     name=name, confidence=1.0,
                 ))
     if rels:

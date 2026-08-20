@@ -1,10 +1,11 @@
 """Entity resolution funnel (stage 7): block -> score -> adjudicate -> cluster.
 
 Thresholds (env-tunable, defaults from the G9 sweep — see DECISIONS.md):
-  ARYX_ER_AUTO_MERGE   >= this -> auto-merge                  (default 0.92)
-  ARYX_ER_ADJUDICATE   [this, AUTO_MERGE) -> LLM adjudicates  (default 0.90)
-  ARYX_ER_REVIEW       [this, ADJUDICATE) -> human queue      (default 0.75)
-  below REVIEW -> auto-reject (never merged, never queued)
+  ARYX_ER_AUTO_MERGE   >= this -> auto-merge                       (default 0.95)
+  ARYX_ER_ADJUDICATE   [ARYX_ER_REVIEW, AUTO_MERGE) -> LLM rescores (band, no threshold of its own)
+                       rescored >= AUTO_MERGE -> merge; else -> human queue
+  ARYX_ER_REVIEW       below this -> human queue directly           (default 0.80)
+  Every pair below AUTO_MERGE ends up merged or queued — nothing is silently dropped.
 
 Pairs routed to the human queue are treated as NON-merge for the current run
 (conservative: a wrong merge is worse than a missed merge in audited domains).
@@ -87,20 +88,19 @@ def _route_pair(left: ResolutionRecord, right: ResolutionRecord, score: float,
     human review instead of auto-merged — bounding wall-clock without ever
     auto-merging on an unverified guess.
 
-    ``thresholds`` is the pre-read (auto, adjudicate, review) triple. This runs
-    once per scored pair, so re-reading os.environ here is pure overhead; the
-    caller reads them once. Omitting it keeps the original behaviour.
+    ``thresholds`` is the pre-read (auto, review) pair. This runs once per
+    scored pair, so re-reading os.environ here is pure overhead; the caller
+    reads them once. Omitting it keeps the original behaviour.
     """
     if thresholds is None:
-        auto = _threshold("ARYX_ER_AUTO_MERGE", 0.92)
-        adj = _threshold("ARYX_ER_ADJUDICATE", 0.90)
-        rev = _threshold("ARYX_ER_REVIEW", 0.75)
+        auto = _threshold("ARYX_ER_AUTO_MERGE", 0.95)
+        rev = _threshold("ARYX_ER_REVIEW", 0.80)
     else:
-        auto, adj, rev = thresholds
+        auto, rev = thresholds
     if score >= auto:
         union.union(left.record_id, right.record_id)
         return
-    if score >= adj:
+    if score >= rev:
         if adj_budget is not None and adj_budget[0] <= 0:
             if review is not None:
                 review.offer(left, right, score, llm_verdict=None,
@@ -110,12 +110,17 @@ def _route_pair(left: ResolutionRecord, right: ResolutionRecord, score: float,
         if adj_budget is not None:
             adj_budget[0] -= 1
         try:
-            same = adjudicate(left, right, broker)
-            if review is not None:
-                review.offer(left, right, score, llm_verdict=same,
-                             llm_reason="llm adjudication", status="auto_llm")
-            if same:
+            rescored = adjudicate(left, right, broker)
+            if rescored >= auto:
+                if review is not None:
+                    review.offer(left, right, score, llm_verdict=rescored,
+                                 llm_reason="llm adjudication", status="auto_llm")
                 union.union(left.record_id, right.record_id)
+            else:
+                if review is not None:
+                    review.offer(left, right, score, llm_verdict=rescored,
+                                 llm_reason="llm rescore below auto-merge threshold",
+                                 status="pending")
         except Exception as exc:  # noqa: BLE001 — LLM down -> human decides
             logger.warning("adjudication failed, queueing for human: %s", exc)
             if review is not None:
@@ -123,7 +128,7 @@ def _route_pair(left: ResolutionRecord, right: ResolutionRecord, score: float,
                              llm_reason=f"llm unavailable: {exc}",
                              status="pending")
         return
-    if score >= rev and review is not None:
+    if review is not None:
         review.offer(left, right, score, llm_verdict=None,
                      llm_reason=None, status="pending")
 
@@ -142,7 +147,7 @@ def _materialize(member_ids: list[int], by_id: dict[int, ResolutionRecord],
     default to None so any existing caller keeps the original behaviour.
     """
     if adjudicate_threshold is None:
-        adjudicate_threshold = _threshold("ARYX_ER_ADJUDICATE", 0.90)
+        adjudicate_threshold = _threshold("ARYX_ER_AUTO_MERGE", 0.95)
 
     records_in = [by_id[mid] for mid in member_ids]
     if policy is not None:
@@ -197,9 +202,8 @@ def resolve(
     # Read once: these are constant for the run and _route_pair is called for
     # every scored pair.
     thresholds = (
-        _threshold("ARYX_ER_AUTO_MERGE", 0.92),
-        _threshold("ARYX_ER_ADJUDICATE", 0.90),
-        _threshold("ARYX_ER_REVIEW", 0.75),
+        _threshold("ARYX_ER_AUTO_MERGE", 0.95),
+        _threshold("ARYX_ER_REVIEW", 0.80),
     )
 
     # Cap total LLM adjudications per run. Each frontier call on a local model
@@ -239,7 +243,7 @@ def resolve(
     results = [
         (_materialize(member_ids, by_id, pair_scores, ontology_type, policy,
                       edge_index=edge_index,
-                      adjudicate_threshold=thresholds[1]),
+                      adjudicate_threshold=thresholds[0]),
          [EntityMember(landed_record_id=mid) for mid in member_ids])
         for member_ids in clusters.values()
     ]
