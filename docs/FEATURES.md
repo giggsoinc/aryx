@@ -1,7 +1,7 @@
 # Feature Matrix
 
 Comprehensive list of **Aryx Lite** capabilities as shipped in this repository
-(**1.8.0**). Enterprise agentic features live on a **separate commercial fork**.
+(**1.9.0**). Enterprise agentic features live on a **separate commercial fork**.
 
 ## Editions
 
