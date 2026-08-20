@@ -147,7 +147,7 @@ def _materialize(member_ids: list[int], by_id: dict[int, ResolutionRecord],
     default to None so any existing caller keeps the original behaviour.
     """
     if adjudicate_threshold is None:
-        adjudicate_threshold = _threshold("ARYX_ER_AUTO_MERGE", 0.95)
+        adjudicate_threshold = _threshold("ARYX_ER_REVIEW", 0.80)
 
     records_in = [by_id[mid] for mid in member_ids]
     if policy is not None:
@@ -209,10 +209,11 @@ def resolve(
     # Cap total LLM adjudications per run. Each frontier call on a local model
     # costs 20-60s, and short/embedding-similar keys can push thousands of
     # pairs into the adjudication band — so per-pair LLM adjudication simply
-    # doesn't scale on a laptop. Default 0 (deterministic threshold-only:
-    # >=auto merges, band pairs queue for review — fast and correct for keyed
-    # data). Set ARYX_ER_MAX_ADJUDICATIONS>0 when a fast model is configured.
-    initial_adj_budget = max(0, int(_threshold("ARYX_ER_MAX_ADJUDICATIONS", 0)))
+    # doesn't scale on a laptop. Default 5: a bounded per-run cost, not
+    # unlimited spend, but enough that genuinely ambiguous pairs get an LLM
+    # opinion by default instead of skipping straight to human review. Set
+    # ARYX_ER_MAX_ADJUDICATIONS=0 to disable LLM adjudication entirely.
+    initial_adj_budget = max(0, int(_threshold("ARYX_ER_MAX_ADJUDICATIONS", 5)))
     adj_budget = [initial_adj_budget]
 
     for group in block(records, max_block_size=get_settings().max_block_size).values():
@@ -243,7 +244,7 @@ def resolve(
     results = [
         (_materialize(member_ids, by_id, pair_scores, ontology_type, policy,
                       edge_index=edge_index,
-                      adjudicate_threshold=thresholds[0]),
+                      adjudicate_threshold=thresholds[1]),
          [EntityMember(landed_record_id=mid) for mid in member_ids])
         for member_ids in clusters.values()
     ]

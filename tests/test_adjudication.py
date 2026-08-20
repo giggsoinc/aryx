@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 from aryx.models import ResolutionRecord
 from aryx.resolution.cluster import UnionFind
 from aryx.resolution.review_queue import apply_decision
-from aryx.resolution.run import _route_pair
+from aryx.resolution.run import _route_pair, resolve
 
 
 class FakeSink:
@@ -109,6 +109,34 @@ def test_no_sink_band_pair_skipped_quietly() -> None:
     left, right, union = _pair()
     _route_pair(left, right, 0.60, MagicMock(), union, None)
     assert not _merged(union)
+
+
+def test_llm_approved_merge_keeps_confidence_signal() -> None:
+    """Regression: an LLM-approved merge must not report the 0.5 floor.
+
+    _materialize's adjudicate_threshold used to be `auto` (0.95, the band's
+    UPPER bound). cluster_edges filters the raw pre-rescore score by
+    `score >= threshold`, so a pair merged via a successful LLM rescore
+    (raw score below 0.95) was filtered out of its own cluster's edge list,
+    flooring cluster_confidence to 0.5 -- indistinguishable from an
+    unconfirmed singleton. Fixed by passing `rev` (0.80, the band's lower
+    bound) instead, restoring the invariant that any pair which caused a
+    union has its raw score counted as an edge.
+    """
+    left = ResolutionRecord(record_id=1, text="Acme Robotics LLC",
+                            payload={"name": "Acme Robotics LLC"})
+    right = ResolutionRecord(record_id=2, text="Acme Robtcs LLC",
+                             payload={"name": "Acme Robtcs LLC"})
+    with patch("aryx.resolution.run.adjudicate", return_value=0.97), \
+         patch.dict("os.environ", {"ARYX_ER_MAX_ADJUDICATIONS": "5"}):
+        results = resolve([left, right], MagicMock(), "Company")
+    assert len(results) == 1
+    entity, members = results[0]
+    assert len(members) == 2
+    assert entity.confidence > 0.5, (
+        f"expected the raw in-band score to count as an edge, got floored "
+        f"confidence={entity.confidence}"
+    )
 
 
 def test_apply_decision_approve_merges_entities() -> None:

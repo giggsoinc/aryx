@@ -198,8 +198,10 @@ ARYX_ER_AUTO_MERGE=0.95
 # [ARYX_ER_REVIEW, ARYX_ER_AUTO_MERGE); an LLM rescore >= AUTO_MERGE merges,
 # otherwise the pair queues for human review.
 ARYX_ER_REVIEW=0.80
-# Max LLM adjudications per resolve run (0 = off; pairs go to review queue)
-ARYX_ER_MAX_ADJUDICATIONS=0
+# Max LLM adjudications per resolve run (0 = off; pairs go to review queue).
+# Even at 5, this throttles the review queue on large runs, it doesn't
+# eliminate it — a 40k-pair run still queues ~39,995 pairs to human review.
+ARYX_ER_MAX_ADJUDICATIONS=5
 # Skip embedding scoring when match text is shorter than this many chars
 ARYX_ER_EMBED_MIN_CHARS=40
 ARYX_ER_CHUNK_THRESHOLD=100000
@@ -370,7 +372,7 @@ docker compose exec ollama ollama list
 
 ### Resolve takes too long
 
-Confirm `ARYX_ER_MAX_ADJUDICATIONS=0` (default). Check match keys are real columns (upload path repairs bad keys). See User guide / Features for ER behaviour.
+Confirm `ARYX_ER_MAX_ADJUDICATIONS` isn't set well above the default (`5`) — each LLM adjudication costs 20-60s, so a high value directly adds wall-clock time; set it to `0` to disable LLM adjudication entirely if you don't need it. Check match keys are real columns (upload path repairs bad keys). See User guide / Features for ER behaviour.
 
 ---
 
