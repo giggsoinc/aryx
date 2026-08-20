@@ -36,22 +36,51 @@ def _merged(union: UnionFind) -> bool:
 
 
 def test_above_auto_merge_merges_without_queue() -> None:
-    """score >= 0.92 -> merge, nothing queued."""
+    """score >= 0.95 -> merge, nothing queued."""
+    left, right, union = _pair()
+    sink = FakeSink()
+    _route_pair(left, right, 0.97, MagicMock(), union, sink)
+    assert _merged(union) and sink.offers == []
+
+
+def test_score_exactly_at_auto_merge_boundary_merges() -> None:
+    """score == 0.95 (inclusive lower bound) -> auto-merge, no LLM call."""
     left, right, union = _pair()
     sink = FakeSink()
     _route_pair(left, right, 0.95, MagicMock(), union, sink)
     assert _merged(union) and sink.offers == []
 
 
-def test_band_llm_accept_merges_and_logs_auto_llm() -> None:
-    """[0.90, 0.92) with LLM yes -> merge + auto_llm labeled row."""
+def test_score_exactly_at_review_boundary_enters_adjudicate_band() -> None:
+    """score == 0.80 (inclusive lower bound) -> LLM adjudicate, not direct queue."""
     left, right, union = _pair()
     sink = FakeSink()
-    with patch("aryx.resolution.run.adjudicate", return_value=True):
-        _route_pair(left, right, 0.91, MagicMock(), union, sink)
+    with patch("aryx.resolution.run.adjudicate", return_value=0.97):
+        _route_pair(left, right, 0.80, MagicMock(), union, sink)
     assert _merged(union)
     assert sink.offers[0]["status"] == "auto_llm"
-    assert sink.offers[0]["llm_verdict"] is True
+
+
+def test_band_llm_rescore_above_auto_merge_merges() -> None:
+    """[0.80, 0.95) with LLM rescore >= 0.95 -> merge + auto_llm labeled row."""
+    left, right, union = _pair()
+    sink = FakeSink()
+    with patch("aryx.resolution.run.adjudicate", return_value=0.97):
+        _route_pair(left, right, 0.90, MagicMock(), union, sink)
+    assert _merged(union)
+    assert sink.offers[0]["status"] == "auto_llm"
+    assert sink.offers[0]["llm_verdict"] == 0.97
+
+
+def test_band_llm_rescore_below_auto_merge_queues_pending() -> None:
+    """[0.80, 0.95) with LLM rescore < 0.95 -> queue for human, no merge."""
+    left, right, union = _pair()
+    sink = FakeSink()
+    with patch("aryx.resolution.run.adjudicate", return_value=0.85):
+        _route_pair(left, right, 0.90, MagicMock(), union, sink)
+    assert not _merged(union)
+    assert sink.offers[0]["status"] == "pending"
+    assert sink.offers[0]["llm_verdict"] == 0.85
 
 
 def test_band_llm_failure_queues_pending_no_merge() -> None:
@@ -60,33 +89,25 @@ def test_band_llm_failure_queues_pending_no_merge() -> None:
     sink = FakeSink()
     with patch("aryx.resolution.run.adjudicate",
                side_effect=RuntimeError("llm down")):
-        _route_pair(left, right, 0.91, MagicMock(), union, sink)
+        _route_pair(left, right, 0.90, MagicMock(), union, sink)
     assert not _merged(union)
     assert sink.offers[0]["status"] == "pending"
 
 
-def test_review_band_queues_pending() -> None:
-    """[0.75, 0.90) -> human queue, treated as non-merge for this run."""
+def test_below_review_queues_pending_directly() -> None:
+    """score < 0.80 -> straight to human queue, no LLM call, no merge."""
     left, right, union = _pair()
     sink = FakeSink()
-    _route_pair(left, right, 0.80, MagicMock(), union, sink)
+    _route_pair(left, right, 0.60, MagicMock(), union, sink)
     assert not _merged(union)
     assert sink.offers[0]["status"] == "pending"
     assert sink.offers[0]["llm_verdict"] is None
 
 
-def test_below_review_rejected_silently() -> None:
-    """score < 0.75 -> auto-reject: no merge, no queue row."""
-    left, right, union = _pair()
-    sink = FakeSink()
-    _route_pair(left, right, 0.60, MagicMock(), union, sink)
-    assert not _merged(union) and sink.offers == []
-
-
 def test_no_sink_band_pair_skipped_quietly() -> None:
     """review=None (queue not wired) keeps the funnel working."""
     left, right, union = _pair()
-    _route_pair(left, right, 0.80, MagicMock(), union, None)
+    _route_pair(left, right, 0.60, MagicMock(), union, None)
     assert not _merged(union)
 
 

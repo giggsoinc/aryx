@@ -81,12 +81,13 @@ The ER pipeline is the core differentiator. Records flow through five stages:
   └────┬──────────────────────────────────────────────┘
        │ scored pairs
   ┌────▼──────────────────────────────────────────────┐
-  │ 3. ROUTE — four-band adjudication                  │
-  │    >=0.92  AUTO_MERGE (no human needed)             │
-  │    0.90-0.92  ADJUDICATE (frontier LLM decides)    │
-  │    0.75-0.90  REVIEW (queued for human steward)    │
-  │    <0.75  REJECT                                    │
-  │    Thresholds from measured sweep (DEC-003)         │
+  │ 3. ROUTE — three-band adjudication                 │
+  │    >=0.95  AUTO_MERGE (no human needed)             │
+  │    0.80-0.95  ADJUDICATE (LLM rescores; merge if    │
+  │               rescore >= 0.95, else human queue)    │
+  │    <0.80  REVIEW (queued for human steward)         │
+  │    No REJECT band — every pair merges or queues     │
+  │    Thresholds are spec-driven (DEC-007)              │
   └────┬──────────────────────────────────────────────┘
        │ merge decisions
   ┌────▼──────────────────────────────────────────────┐
@@ -256,6 +257,7 @@ All entity tables LIST-partitioned by workspace_id for isolation and physical pu
 | DEC-006 | Auth fail-closed; _bearer_ok returns False on exception | Security over availability for auth path | 2026-06-11 |
 | DEC-007 | Next.js web app is HTTP-only, isolated deploy unit | UI scales/deploys independently; no Python coupling | 2026-06-14 |
 | DEC-008 | Ports & adapters seam over direct substrate calls | Oracle ADB later = adapter swap, not rewrite | 2026-06-14 |
+| DEC-009 | Supersedes DEC-003: three-band thresholds (AUTO_MERGE 0.95, REVIEW 0.80), no REJECT band | Spec-driven, not a re-sweep — old 0.92/0.90/0.75 no longer reflects live code; see docs/wiki/DECISIONS.md DEC-007 | 2026-08-19 |
 
 ## Next Steps
 

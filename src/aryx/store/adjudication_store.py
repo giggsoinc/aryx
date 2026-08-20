@@ -7,6 +7,7 @@ approves a pair after the run already materialized separate entities.
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 from aryx.queries import load
@@ -28,7 +29,7 @@ class AdjudicationStore:
         self._ws = workspace_id
 
     def enqueue(self, run_id: int, left_id: int, right_id: int, score: float,
-                llm_verdict: bool | None, llm_reason: str | None,
+                llm_verdict: float | None, llm_reason: str | None,
                 status: str) -> int:
         """Insert one band pair; returns the queue row id."""
         with self._pool.connection() as conn:
@@ -71,9 +72,13 @@ class AdjudicationStore:
 
     def stats(self) -> dict[str, Any]:
         """Queue stats incl. human/LLM agreement rate (the sales number)."""
+        try:
+            auto_merge = float(os.environ.get("ARYX_ER_AUTO_MERGE", 0.95))
+        except ValueError:
+            auto_merge = 0.95
         with self._pool.connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(load("adjudication_stats"), (self._ws,))
+                cur.execute(load("adjudication_stats"), (auto_merge, self._ws))
                 row = cur.fetchone()
         pending, approved, rejected, auto_llm, agree, overlap = row
         decided = approved + rejected

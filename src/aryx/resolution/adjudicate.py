@@ -11,24 +11,25 @@ from aryx.models import ResolutionRecord
 logger = logging.getLogger(__name__)
 
 _SYSTEM = (
-    "You decide whether two records describe the SAME real-world entity. "
+    "You rescore whether two records describe the SAME real-world entity. "
     "Account for abbreviations, casing, legal suffixes, and typos. "
-    "Answer strictly with the schema."
+    "Answer strictly with the schema: a confidence score in [0, 1] that the "
+    "two records are the same entity, and a short reason."
 )
 
 _SCHEMA = {
     "type": "object",
     "properties": {
-        "same": {"type": "boolean"},
+        "score": {"type": "number", "minimum": 0, "maximum": 1},
         "reason": {"type": "string"},
     },
-    "required": ["same", "reason"],
+    "required": ["score", "reason"],
     "additionalProperties": False,
 }
 
 
-def adjudicate(left: ResolutionRecord, right: ResolutionRecord, broker: Broker) -> bool:
-    """Ask the frontier model whether two records are the same entity.
+def adjudicate(left: ResolutionRecord, right: ResolutionRecord, broker: Broker) -> float:
+    """Ask the frontier model to rescore two records' match confidence.
 
     Args:
         left: First candidate record.
@@ -36,10 +37,10 @@ def adjudicate(left: ResolutionRecord, right: ResolutionRecord, broker: Broker) 
         broker: Model broker; adjudication runs on the frontier tier.
 
     Returns:
-        True if the model judges them the same entity.
+        Rescored confidence in [0, 1].
     """
     user = json.dumps({"a": left.payload, "b": right.payload})
     result = complete_json(broker, "frontier", _SYSTEM, user, _SCHEMA)
-    same = bool(result.get("same"))
-    logger.info("adjudicate same=%s a=%s b=%s", same, left.record_id, right.record_id)
-    return same
+    score = float(result.get("confidence", 0.0))
+    logger.info("adjudicate rescored=%.3f a=%s b=%s", score, left.record_id, right.record_id)
+    return score
