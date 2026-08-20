@@ -90,7 +90,7 @@ export const MCP_TOOLS: McpToolDoc[] = [
   {
     name: "brief_set",
     group: "Workspace & brief",
-    summary: "Patch one brief field (domain, aim, objectives, scope, roles).",
+    summary: "Patch one brief field (domain, aim, objectives, scope, roles, questions).",
     params: "workspace_id, field, value",
     example: `{"workspace_id": 1, "field": "domain", "value": "Customer support"}`,
     sayInClaude: "Set the domain of workspace 1 to Customer support.",
@@ -147,9 +147,9 @@ export const MCP_TOOLS: McpToolDoc[] = [
     name: "ingest_file",
     group: "Ingest",
     summary: "Start an ingest run from raw file bytes (async — returns job_id).",
-    params: "workspace_id, files [{filename, content_base64}], ontology_type?, match_keys?, fk_links?, graph_plan?",
+    params: "workspace_id, files [{filename, content_base64}], ontology_type?, match_keys?, fk_links?, graph_plan?, file_types?",
     example: `{"workspace_id": 1, "files": [{"filename": "contracts.csv", "content_base64": "…"}]}`,
-    sayInClaude: "Ingest this CSV into workspace 1 as Document.",
+    sayInClaude: "Ingest this CSV into workspace 1 as Document. For a mixed batch of differently-shaped files, pass file_types: {\"tickets.csv\": \"Ticket\", \"customers.csv\": \"Customer\"} instead of one ontology_type.",
   },
   {
     name: "ingest_questions",

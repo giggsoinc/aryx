@@ -57,6 +57,7 @@ def dispatch(name: str, a: dict) -> Any:
             "fk_links": json.dumps(a.get("fk_links") or []),
             "workspace_id": str(wid),
             "graph_plan": json.dumps(a["graph_plan"]) if a.get("graph_plan") else "",
+            "file_types": json.dumps(a["file_types"]) if a.get("file_types") else "",
         }
         return _post_multipart("/admin/ingest/file", fields, files)
     if name == "ingest_questions":
