@@ -22,6 +22,10 @@ from __future__ import annotations
 import logging
 import os
 
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
 logger = logging.getLogger(__name__)
 
 _UNSET = object()
@@ -89,3 +93,28 @@ def is_authorized(token: str) -> bool:
 def authorize_headers(authorization: str | None) -> bool:
     """Convenience: extract a bearer token from a header and verify it."""
     return is_authorized(token_from_header(authorization))
+
+
+class BearerAuthMiddleware(BaseHTTPMiddleware):
+    """Reject unauthenticated requests to every route on the ASGI app it wraps.
+
+    Applied as Starlette middleware — at the APP level, not per-route — so
+    every route mounted under it is covered, including a `Mount(...)` for a
+    sub-ASGI-app like the MCP SDK's `handle_post_message`. A per-route check
+    (an `if not authorize_headers(...)` inside one handler) only ever
+    guards that one route; a sibling Mount registered alongside it gets
+    none of that protection — exactly the gap that once left the mounted
+    MCP transport's tool-call channel (api/mcp_mount.py's `/mcp/messages/`)
+    completely unauthenticated while its SSE handshake route was not.
+
+    Shared by both MCP transports (the standalone SSE server in mcp/sse.py
+    and the one mounted into the main app in api/mcp_mount.py) so there is
+    one auth gate to reason about, not two that can drift apart.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        """Verify the bearer token before anything reaches the transport."""
+        if not authorize_headers(request.headers.get("authorization")):
+            logger.warning("mcp request rejected path=%s", request.url.path)
+            return JSONResponse({"error": DENIED_HINT}, status_code=401)
+        return await call_next(request)

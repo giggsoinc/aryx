@@ -14,7 +14,7 @@ for _mod in ("falkordb", "psycopg", "psycopg.types.json"):
 
 
 def _req(headers: dict) -> MagicMock:
-    """A request stub exposing only `.headers.get`, as _bearer_ok uses."""
+    """A request stub exposing only `.headers.get`, as authorize_headers uses."""
     r = MagicMock()
     r.headers.get = lambda k, d="": headers.get(k, d)
     return r
@@ -25,7 +25,10 @@ def _req(headers: dict) -> MagicMock:
 # These previously ran against a `_bearer_ok_impl` copy pasted into this
 # file. A mirror passes whatever the production code does — it stayed green
 # through a change that inverted the auth posture, and would stay green if
-# _bearer_ok were deleted. Import the real thing instead.
+# the real function were deleted. Import the real thing instead:
+# aryx.mcp.auth.authorize_headers is what BOTH MCP transports call now
+# (mcp_mount.py's BearerAuthMiddleware and sse.py's), so testing it here
+# covers both call sites at once.
 
 def _no_auth_env(monkeypatch) -> None:
     """Clear both opt-out switches so the default posture is under test."""
@@ -36,27 +39,27 @@ def _no_auth_env(monkeypatch) -> None:
 def test_bearer_ok_no_token_is_rejected(monkeypatch):
     """Default is fail-CLOSED. This asserted True while the old default was
     'optional' — the single change that made the transport open by default."""
-    from aryx.api.mcp_mount import _bearer_ok
+    from aryx.mcp.auth import authorize_headers
     _no_auth_env(monkeypatch)
 
-    assert _bearer_ok(_req({})) is False
+    assert authorize_headers(_req({}).headers.get("authorization")) is False
 
 
 def test_bearer_ok_explicit_off_allows(monkeypatch):
     """Local development keeps a documented, explicit escape hatch."""
-    from aryx.api.mcp_mount import _bearer_ok
+    from aryx.mcp.auth import authorize_headers
     monkeypatch.setenv("ARYX_MCP_AUTH", "off")
 
-    assert _bearer_ok(_req({})) is True
+    assert authorize_headers(_req({}).headers.get("authorization")) is True
 
 
 def test_bearer_ok_legacy_optional_flag_still_honoured(monkeypatch):
     """Anyone who deliberately set the old flag keeps their behaviour."""
-    from aryx.api.mcp_mount import _bearer_ok
+    from aryx.mcp.auth import authorize_headers
     monkeypatch.delenv("ARYX_MCP_AUTH", raising=False)
     monkeypatch.setenv("ARYX_MCP_AUTH_OPTIONAL", "1")
 
-    assert _bearer_ok(_req({})) is True
+    assert authorize_headers(_req({}).headers.get("authorization")) is True
 
 
 def test_bearer_ok_store_raises_fails_closed(monkeypatch):
@@ -88,30 +91,31 @@ def test_bearer_ok_zero_unrevoked_now_rejects(monkeypatch):
 
 
 def test_bearer_ok_valid_token(monkeypatch):
-    from aryx.api.mcp_mount import _bearer_ok
+    from aryx.mcp.auth import authorize_headers
     _no_auth_env(monkeypatch)
     store = MagicMock()
     store.verify.return_value = True
     monkeypatch.setitem(sys.modules, "aryx.store.mcp_token_store",
                         MagicMock(McpTokenStore=MagicMock(return_value=store)))
 
-    assert _bearer_ok(_req({"authorization": "Bearer goodtoken"})) is True
+    assert authorize_headers("Bearer goodtoken") is True
 
 
 def test_bearer_ok_invalid_token(monkeypatch):
-    from aryx.api.mcp_mount import _bearer_ok
+    from aryx.mcp.auth import authorize_headers
     _no_auth_env(monkeypatch)
     store = MagicMock()
     store.verify.return_value = False
     monkeypatch.setitem(sys.modules, "aryx.store.mcp_token_store",
                         MagicMock(McpTokenStore=MagicMock(return_value=store)))
 
-    assert _bearer_ok(_req({"authorization": "Bearer badtoken"})) is False
+    assert authorize_headers("Bearer badtoken") is False
 
 
 def _mini_app(mode: str):
     os.environ["ARYX_API_AUTH"] = mode
     from fastapi import FastAPI
+
     from aryx.api.security import ApiKeyMiddleware
     app = FastAPI()
     app.add_middleware(ApiKeyMiddleware)
@@ -167,3 +171,74 @@ def test_verify_key_fails_closed_on_store_exception():
     with patch("aryx.config.get_settings", side_effect=RuntimeError("no db")):
         result = _verify_key("anykey")
     assert result is False
+
+
+# --- mount_mcp: the Mount, not just the SSE handshake, must be gated ------
+#
+# The regression this section exists to catch: mount_mcp() used to append
+# two routes directly to the parent app's router — a Route("/mcp",
+# handle_sse) that checked auth inline, and a sibling
+# Mount("/mcp/messages/", app=sse.handle_post_message) that checked
+# nothing. GET /mcp correctly 401'd; POST /mcp/messages/?session_id=<any>
+# reached the raw MCP transport with zero auth — confirmed live during
+# review (400 "unknown session", never 401). Fixed by building mount_mcp's
+# routes as a Starlette sub-app carrying its own `middleware=[...]`, then
+# mounting that whole sub-app, so BearerAuthMiddleware runs for every
+# route inside it — including the Mount.
+
+def _mcp_client(monkeypatch: pytest.MonkeyPatch, *, verify: bool):
+    """A TestClient over a real FastAPI app with mount_mcp() applied."""
+    monkeypatch.delenv("ARYX_MCP_AUTH", raising=False)
+    monkeypatch.delenv("ARYX_MCP_AUTH_OPTIONAL", raising=False)
+    store = MagicMock()
+    store.verify.return_value = verify
+    monkeypatch.setitem(sys.modules, "aryx.store.mcp_token_store",
+                        MagicMock(McpTokenStore=MagicMock(return_value=store)))
+
+    from fastapi import FastAPI
+
+    from aryx.api.mcp_mount import mount_mcp
+    app = FastAPI()
+    mount_mcp(app)
+    return TestClient(app)
+
+
+def test_mount_mcp_sse_handshake_rejects_no_token(monkeypatch):
+    client = _mcp_client(monkeypatch, verify=False)
+
+    assert client.get("/mcp", timeout=5).status_code == 401
+
+
+def test_mount_mcp_messages_channel_rejects_no_token(monkeypatch):
+    """This is the exact request that used to reach the transport unchecked."""
+    client = _mcp_client(monkeypatch, verify=False)
+
+    resp = client.post("/mcp/messages/?session_id=guessed", json={}, timeout=5)
+
+    assert resp.status_code == 401
+
+
+def test_mount_mcp_messages_channel_rejects_a_bad_token(monkeypatch):
+    client = _mcp_client(monkeypatch, verify=False)
+
+    resp = client.post("/mcp/messages/?session_id=guessed", json={},
+                       headers={"Authorization": "Bearer nope"}, timeout=5)
+
+    assert resp.status_code == 401
+
+
+def test_mount_mcp_wires_the_shared_bearer_middleware(monkeypatch):
+    """Structural guard — fails fast if the middleware is ever unwired,
+    rather than the behavioural tests above hanging on a live SSE stream."""
+    monkeypatch.delenv("ARYX_MCP_AUTH", raising=False)
+    from fastapi import FastAPI
+
+    from aryx.api.mcp_mount import mount_mcp
+    from aryx.mcp.auth import BearerAuthMiddleware
+    app = FastAPI()
+    mount_mcp(app)
+
+    mcp_route = next(r for r in app.router.routes if getattr(r, "path", "") == "/mcp")
+    mounted_names = [m.cls.__name__ for m in mcp_route.app.user_middleware]
+
+    assert BearerAuthMiddleware.__name__ in mounted_names

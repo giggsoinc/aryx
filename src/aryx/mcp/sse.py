@@ -24,35 +24,18 @@ import uvicorn
 from mcp.server.sse import SseServerTransport
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
 
 from aryx.config import get_settings
 from aryx.logging_setup import configure_logging
-from aryx.mcp.auth import DENIED_HINT, authorize_headers
+from aryx.mcp.auth import BearerAuthMiddleware
 from aryx.mcp.server import server
 
 configure_logging(get_settings().log_level)
 logger = logging.getLogger(__name__)
 
 sse = SseServerTransport("/messages/")
-
-
-class BearerAuthMiddleware(BaseHTTPMiddleware):
-    """Reject unauthenticated requests to every MCP route.
-
-    Applied as middleware rather than per-route so the /messages/ Mount is
-    covered too — that is the channel tool calls actually travel on.
-    """
-
-    async def dispatch(self, request: Request, call_next):
-        """Verify the bearer token before anything reaches the transport."""
-        if not authorize_headers(request.headers.get("authorization")):
-            logger.warning("mcp sse request rejected path=%s", request.url.path)
-            return JSONResponse({"error": DENIED_HINT}, status_code=401)
-        return await call_next(request)
 
 
 async def handle_sse(request: Request) -> None:
