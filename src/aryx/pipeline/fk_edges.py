@@ -58,6 +58,10 @@ def link_by_attribute(
             continue
         for tid in targets.get(ref.lower(), []):
             if tid != sid:
+                # sid is the source_type entity, tid the target_type entity —
+                # the edge must point sid -> tid to match this function's own
+                # parameter naming and the caller's own log line ("linked %s
+                # -[%s]-> %s", src, name, tgt in dimension_materialize.py).
                 rels.append(Relationship(
                     source_entity_id=sid, target_entity_id=tid,
                     name=name, confidence=1.0,
