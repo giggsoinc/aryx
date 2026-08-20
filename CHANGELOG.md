@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.0] — 2026-08-20
+
+### Added (this release)
+
+- MCP dashboard tools (#41): `dashboard_link`, `ingest_file`, `correction_propose`/`correction_apply`, `chart_draft`/`chart_confirm` (21 → 27 tools).
+- ER two-cutoff policy (#42): auto-merge ≥ 0.95, LLM rescore in [0.80, 0.95), human queue below 0.80; no silent reject. Review queue wired on ingest.
+
+
 ### Changed
 
 - **Brief-first onboarding restored** (as in 1.5.3) — the customer writes the

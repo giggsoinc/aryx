@@ -1,6 +1,6 @@
 [project]
 name = "aryx"
-version = "1.8.0"
+version = "1.9.0"
 description = "Aryx — self-building context layer for AI agents (discover, resolve, graph, serve)"
 readme = "README.md"
 requires-python = ">=3.11"

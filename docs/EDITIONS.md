@@ -17,7 +17,7 @@ first) — made possible because the core is built behind swappable ports.
 
 ## Aryx Lite (v1.7) — what it is today
 
-The currently shipped app (**1.8.0**): Home workspaces, **data-first** guided
+The currently shipped app (**1.9.0**): Home workspaces, **data-first** guided
 setup (`/start` — smart brief + graph plan), Brief edit page, Ask with
 grounded answers + citations, Model canvas, Data explorer with **Correct data**
 coach, Accuracy Lab, Observe, Settings, MCP, ingest from DB + files, dimension
