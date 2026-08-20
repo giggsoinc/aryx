@@ -62,7 +62,7 @@ def _key_pass(run_id: int, records: Iterable[ResolutionRecord],
 
 def _score_pass(run_id: int, backend: ChunkBackend) -> None:
     """Pass 2: score each not-yet-done block; auto-merge edges persist."""
-    auto = _threshold("ARYX_ER_AUTO_MERGE", 0.92)
+    auto = _threshold("ARYX_ER_AUTO_MERGE", 0.95)
     for key in backend.todo_blocks(run_id):
         ids = backend.block_record_ids(run_id, key)
         if len(ids) > MAX_BLOCK:
