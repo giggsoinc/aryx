@@ -17,7 +17,7 @@ def rec(rid: int, text: str, payload: dict | None = None) -> ResolutionRecord:
 
 def run_funnel(recs: list[ResolutionRecord],
                blocker_fn=None,
-               auto_merge: float = 0.92) -> dict[int, list[int]]:
+               auto_merge: float = 0.95) -> dict[int, list[int]]:
     """Run block -> score -> auto-merge -> cluster; no broker required.
 
     Returns:
