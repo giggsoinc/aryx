@@ -187,7 +187,7 @@ def run_pipeline(
             with runner.stage("resolve_cluster", meta):
                 with _heartbeat(on_progress, "Resolve", 50, detail):
                     entities = resolve_run(run_id, ontology_type, match_keys,
-                                           estore, broker, dsn, workspace_id)
+                                           estore, broker)
         if relate and not runner.skip("relate"):
             _emit(on_progress, "Relate", 75, "Inferring relationships between entities")
             with runner.stage("relate"):

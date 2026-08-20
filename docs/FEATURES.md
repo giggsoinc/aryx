@@ -35,9 +35,9 @@ See [EDITIONS.md](EDITIONS.md) for the full edition matrix.
 | Multi-key blocking (prefix + token-set + Soundex) | Done (G2) | `resolution/blocking.py` |
 | Block-size cap (prevents cartesian explosion) | Done (G2) | `resolution/blocking.py` |
 | Pairwise scoring (cheap LLM) | Done | `resolution/run.py` |
-| Three-band adjudication routing | Done (G3/G10) | `resolution/run.py` |
-| LLM adjudication (frontier tier, rescores 0.80-0.95 band) | Done | `resolution/run.py` |
-| Human review queue (<0.80, or adjudicate-band rescore <0.95) | Done (G10) | `resolution/review_queue.py`, `api/adjudication_api.py` |
+| Four-band adjudication routing | Done (G3/G10) | `resolution/run.py` |
+| LLM adjudication (frontier tier, 0.90-0.92 band) | Done | `resolution/run.py` |
+| Human review queue (0.75-0.90 band) | Done (G10) | `resolution/review_queue.py`, `api/adjudication_api.py` |
 | Labeled training data persistence | Done (G10) | `store/adjudication_store.py` |
 | Survivorship policies (5 strategies) | Done (G3) | `resolution/survivorship.py` |
 | Per-attribute strategy overrides | Done (G3) | `resolution/golden.py` |

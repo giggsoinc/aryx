@@ -193,11 +193,9 @@ MCP bearer tokens: issue tokens when you leave open “no tokens issued” allow
 Defaults are tuned for **fast local** runs (LLM adjudication off by default):
 
 ```bash
-ARYX_ER_AUTO_MERGE=0.95
-# ARYX_ER_ADJUDICATE has no threshold of its own — the adjudicate band is
-# [ARYX_ER_REVIEW, ARYX_ER_AUTO_MERGE); an LLM rescore >= AUTO_MERGE merges,
-# otherwise the pair queues for human review.
-ARYX_ER_REVIEW=0.80
+ARYX_ER_AUTO_MERGE=0.92
+ARYX_ER_ADJUDICATE=0.90
+ARYX_ER_REVIEW=0.75
 # Max LLM adjudications per resolve run (0 = off; pairs go to review queue)
 ARYX_ER_MAX_ADJUDICATIONS=0
 # Skip embedding scoring when match text is shorter than this many chars

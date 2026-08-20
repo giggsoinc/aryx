@@ -22,7 +22,7 @@ class ReviewSink(Protocol):
     """Anything that can accept a band pair for review (store or test fake)."""
 
     def offer(self, left: ResolutionRecord, right: ResolutionRecord,
-              score: float, llm_verdict: float | None,
+              score: float, llm_verdict: bool | None,
               llm_reason: str | None, status: str) -> None:
         """Queue one scored pair with its (optional) LLM verdict."""
         ...
@@ -37,7 +37,7 @@ class StoreReviewSink:
         self._run_id = run_id
 
     def offer(self, left: ResolutionRecord, right: ResolutionRecord,
-              score: float, llm_verdict: float | None,
+              score: float, llm_verdict: bool | None,
               llm_reason: str | None, status: str) -> None:
         """Persist one band pair (labeled-data row + optional human work item)."""
         self._store.enqueue(self._run_id, left.record_id, right.record_id,
