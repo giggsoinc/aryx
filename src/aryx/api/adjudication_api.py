@@ -60,17 +60,18 @@ def _reproject(workspace_id: int) -> dict[str, int]:
 
 
 def _side_preview(store: AdjudicationStore, entities: list, provenance: list,
-                  relationships: list, record_id: int) -> dict[str, Any]:
+                  relationships: list, record_id: int,
+                  entity_id: int | None,
+                  match_keys_by_type: dict[str, list[str]]) -> dict[str, Any]:
     """Human-readable view of one adjudication side.
 
     Prefers the resolved entity's golden-record attributes; falls back to
     the raw landed-record payload when the record hasn't been clustered
     into an entity yet (e.g. adjudication ran ahead of a later ingest pass).
     """
-    entity_id = store.entity_of_record(record_id)
     if entity_id is not None:
         detail = explore.entity_detail(entities, provenance, relationships,
-                                       entity_id)
+                                       entity_id, match_keys_by_type)
         if detail:
             return {"record_id": record_id, "entity_id": entity_id, **detail}
     payload = store.raw_records([record_id]).get(record_id, {})
@@ -98,18 +99,29 @@ def adjudication_router() -> APIRouter:
             raise HTTPException(
                 status_code=404,
                 detail=f"adjudication {adjudication_id} not found")
+        left_entity = store.entity_of_record(row["left_record_id"])
+        right_entity = store.entity_of_record(row["right_record_id"])
+        focal_ids = [eid for eid in (left_entity, right_entity) if eid is not None]
+
         estore = EntityStore(get_settings().rdb_dsn, workspace_id)
-        entities = estore.list_entities()
-        provenance = estore.list_members_provenance()
-        relationships = estore.list_relationships()
+        # Scoped to the two entities being previewed (+ their direct graph
+        # neighbours, needed for entity_detail's relationship names) instead
+        # of a full workspace scan for a single pending-pair preview.
+        relationships = estore.relationships_for_entities(focal_ids)
+        neighbour_ids = {eid for src, tgt, _ in relationships for eid in (src, tgt)}
+        entities = estore.entities_by_ids(list(set(focal_ids) | neighbour_ids))
+        provenance = estore.members_provenance_for_entities(focal_ids)
+        match_keys_by_type = estore.match_keys_by_type()
         return {
             "id": row["id"], "score": row["score"],
             "llm_verdict": row["llm_verdict"], "llm_reason": row["llm_reason"],
             "status": row["status"],
             "left": _side_preview(store, entities, provenance, relationships,
-                                  row["left_record_id"]),
+                                  row["left_record_id"], left_entity,
+                                  match_keys_by_type),
             "right": _side_preview(store, entities, provenance, relationships,
-                                   row["right_record_id"]),
+                                   row["right_record_id"], right_entity,
+                                   match_keys_by_type),
         }
 
     @router.post("/{adjudication_id}/decide")

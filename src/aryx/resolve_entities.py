@@ -57,11 +57,15 @@ def materialize_one_per_record(
     "maybe duplicate" candidate is wrong by construction, not just noisy —
     two orders sharing a company and status are still two different orders.
     See field_shape.is_row_identifier for the (narrow) trigger condition.
+
+    Confidence is 0.5 (DEC-006's singleton floor), not 1.0 — skipping the
+    resolution funnel means no evidence was ever gathered for this row, and
+    DEC-006 reserves 1.0 for a claim of certainty this bypass never makes.
     """
     records = store.landed_records(run_id, key_attrs)
     results = [
         (ResolvedEntity(ontology_type=ontology_type, attributes=dict(r.payload),
-                        confidence=1.0,
+                        confidence=0.5,
                         provenance={k: r.record_id for k in r.payload}),
          [EntityMember(landed_record_id=r.record_id)])
         for r in records

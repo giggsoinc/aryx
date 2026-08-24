@@ -79,6 +79,55 @@ def _block_embeddings(
     return {r.record_id: v for r, v in zip(records, vectors)} if vectors else {}
 
 
+def _route_decision(
+    left: ResolutionRecord, right: ResolutionRecord, score: float,
+    broker: Broker, thresholds: tuple[float, float, float],
+    adj_budget: list[int] | None = None,
+) -> tuple[str, float | None, str | None]:
+    """Pure threshold routing for one scored pair — no union/review side
+    effects, so both the in-memory resolver (``_route_pair`` below) and the
+    chunked resolver (``resolution/chunked.py``) share one threshold
+    implementation instead of drifting (the chunked path used to hard-code
+    only the auto-merge cutoff and silently drop every other pair).
+
+    ``adj_budget`` is a one-element mutable counter of remaining LLM
+    adjudications for the run; decremented here when an LLM call is made.
+
+    Returns:
+        (action, llm_verdict, llm_reason). ``action`` is one of "merge"
+        (score alone clears AUTO_MERGE), "auto_llm" (LLM rescore cleared
+        AUTO_MERGE), "auto_reject" (DEC-010: confident LLM non-match), or
+        "pending" (needs human review).
+    """
+    auto, rev, reject = thresholds
+    if score >= auto:
+        return "merge", None, None
+    if score < rev:
+        return "pending", None, None
+    if adj_budget is not None and adj_budget[0] <= 0:
+        return "pending", None, "adjudication budget exhausted"
+    if adj_budget is not None:
+        adj_budget[0] -= 1
+    try:
+        rescored = adjudicate(left, right, broker)
+    except Exception as exc:  # noqa: BLE001 — LLM down -> human decides
+        # The raw exception (network error, malformed provider JSON, etc.)
+        # is for the log, not the reviewer — it's an internal failure
+        # detail, not something that helps a human decide the pair.
+        logger.warning("adjudication failed, queueing for human: %s", exc)
+        return "pending", None, "llm unavailable — queued for human review"
+    if rescored >= auto:
+        return "auto_llm", rescored, "llm adjudication"
+    if rescored < reject:
+        # The LLM already gave a confident verdict here — "not the same
+        # thing" — so asking a human to re-confirm it adds no value.
+        # Distinct status from "rejected" (DEC-010) so the human/LLM
+        # agreement stat isn't credited with a decision no human actually
+        # made, same reason auto_llm is split from a human's "approved".
+        return "auto_reject", rescored, "llm rescore below reject threshold"
+    return "pending", rescored, "llm rescore below auto-merge threshold"
+
+
 def _route_pair(left: ResolutionRecord, right: ResolutionRecord, score: float,
                 broker: Broker, union: UnionFind,
                 review: ReviewSink | None,
@@ -86,72 +135,24 @@ def _route_pair(left: ResolutionRecord, right: ResolutionRecord, score: float,
                 thresholds: tuple[float, float, float] | None = None) -> None:
     """Apply the four-way threshold routing to one scored pair.
 
-    ``adj_budget`` is a one-element mutable counter of remaining LLM
-    adjudications for the run. Each frontier call on a local model costs
-    seconds, so a large source can spawn thousands of band pairs and make
-    resolve run for hours. Once the budget is spent, band pairs are queued for
-    human review instead of auto-merged — bounding wall-clock without ever
-    auto-merging on an unverified guess.
-
     ``thresholds`` is the pre-read (auto, review, auto_reject) triple. This
     runs once per scored pair, so re-reading os.environ here is pure
     overhead; the caller reads them once. Omitting it keeps the original
     behaviour.
     """
     if thresholds is None:
-        auto = _threshold("ARYX_ER_AUTO_MERGE", 0.95)
-        rev = _threshold("ARYX_ER_REVIEW", 0.80)
-        reject = _threshold("ARYX_ER_AUTO_REJECT", 0.05)
-    else:
-        auto, rev, reject = thresholds
-    if score >= auto:
+        thresholds = (_threshold("ARYX_ER_AUTO_MERGE", 0.95),
+                      _threshold("ARYX_ER_REVIEW", 0.80),
+                      _threshold("ARYX_ER_AUTO_REJECT", 0.05))
+    action, llm_verdict, llm_reason = _route_decision(
+        left, right, score, broker, thresholds, adj_budget)
+    if action in ("merge", "auto_llm"):
         union.union(left.record_id, right.record_id)
-        return
-    if score >= rev:
-        if adj_budget is not None and adj_budget[0] <= 0:
-            if review is not None:
-                review.offer(left, right, score, llm_verdict=None,
-                             llm_reason="adjudication budget exhausted",
-                             status="pending")
-            return
-        if adj_budget is not None:
-            adj_budget[0] -= 1
-        try:
-            rescored = adjudicate(left, right, broker)
-            if rescored >= auto:
-                if review is not None:
-                    review.offer(left, right, score, llm_verdict=rescored,
-                                 llm_reason="llm adjudication", status="auto_llm")
-                union.union(left.record_id, right.record_id)
-            elif rescored < reject:
-                # The LLM already gave a confident verdict here — "not the
-                # same thing" — so asking a human to re-confirm it adds no
-                # value. Distinct status from "rejected" (DEC-010) so the
-                # human/LLM agreement stat isn't credited with a decision no
-                # human actually made, same reason auto_llm is split from
-                # a human's "approved".
-                if review is not None:
-                    review.offer(left, right, score, llm_verdict=rescored,
-                                 llm_reason="llm rescore below reject threshold",
-                                 status="auto_reject")
-            else:
-                if review is not None:
-                    review.offer(left, right, score, llm_verdict=rescored,
-                                 llm_reason="llm rescore below auto-merge threshold",
-                                 status="pending")
-        except Exception as exc:  # noqa: BLE001 — LLM down -> human decides
-            # The raw exception (network error, malformed provider JSON, etc.)
-            # is for the log, not the reviewer — it's an internal failure
-            # detail, not something that helps a human decide the pair.
-            logger.warning("adjudication failed, queueing for human: %s", exc)
-            if review is not None:
-                review.offer(left, right, score, llm_verdict=None,
-                             llm_reason="llm unavailable — queued for human review",
-                             status="pending")
+    if action == "merge":
         return
     if review is not None:
-        review.offer(left, right, score, llm_verdict=None,
-                     llm_reason=None, status="pending")
+        review.offer(left, right, score, llm_verdict=llm_verdict,
+                     llm_reason=llm_reason, status=action)
 
 
 def _materialize(member_ids: list[int], by_id: dict[int, ResolutionRecord],

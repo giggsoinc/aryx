@@ -55,3 +55,26 @@ class SqlConnector(Connector):
         finally:
             engine.dispose()
         logger.info("sql extracted table=%s records=%d", self._table, count)
+
+
+def sample_colvals(url: str, table: str, limit: int = 200) -> dict[str, list[str]]:
+    """Column -> stringified sample values, for field_shape.resolve_match_keys.
+
+    Used by the DB-connect multi-table ingest path to classify each table's
+    match key as transactional before running the resolution funnel — the
+    same check file-upload ingest already applies via its own in-memory
+    sample.
+    """
+    engine = create_engine(url)
+    cols: dict[str, list[str]] = {}
+    try:
+        tbl = Table(table, MetaData(), autoload_with=engine)
+        with engine.connect() as conn:
+            result = conn.execute(select(tbl).limit(limit))
+            for row in result.mappings():
+                for name, value in row.items():
+                    if value is not None:
+                        cols.setdefault(name, []).append(str(value))
+    finally:
+        engine.dispose()
+    return cols

@@ -222,9 +222,12 @@ resolution (see [Entity resolution & survivorship](#entity-resolution--survivors
    decided closes automatically; you'll never be asked the same question twice.
 
 Note: transactional/fact-type rows (an Order, a Ticket keyed by its own
-id) never appear here at all — every row of those types is kept as its
-own entity by design, since two orders sharing a company or status are
-still two different orders, not a naming variant to merge.
+id) never appear here at all when ingested via file upload, DB connect,
+admin single-table ingest, or the CLI — every row of those types is kept
+as its own entity by design, since two orders sharing a company or status
+are still two different orders, not a naming variant to merge. Document
+ingestion (`aryx docs`) doesn't have a column shape to classify and isn't
+covered by this check.
 
 ---
 

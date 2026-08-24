@@ -158,6 +158,7 @@ def run_pipeline(
         "workspace_id": workspace_id,
         "system": system,
         "dataset": dataset,
+        "skip_resolution": skip_resolution,
     }
     if resume_run_id is not None:
         run_id = resume_run_id

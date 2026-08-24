@@ -153,6 +153,46 @@ def test_page_collapses_pending_rows_for_the_same_entity_pair(workspace, e2e_dsn
     assert result["duplicates_closed"] == [id2]
 
 
+def test_page_dedup_does_not_shrink_pages_or_leak_across_boundaries(
+    workspace, e2e_dsn,
+) -> None:
+    """Regression: dedup must happen BEFORE pagination, not after.
+
+    Found via raven-review: the SQL query applied LIMIT/OFFSET first, then
+    Python deduped duplicate-entity-pair rows out of the already-limited
+    result — so a page could silently return fewer rows than `limit`, and a
+    duplicate pushed past a page boundary was never reconciled with its
+    twin on an earlier page. Seeds a duplicate pair as the FIRST two rows
+    (guaranteeing the old bug would shrink page 1 to 1 row instead of 3) and
+    proves every distinct pair appears exactly once across all pages, with
+    no page returning short of `limit` while pairs remain.
+    """
+    from aryx.store.adjudication_store import AdjudicationStore
+
+    wid = workspace["id"]
+    store = AdjudicationStore(e2e_dsn, wid)
+
+    # Duplicate pair first (2 rows -> 1 distinct pair), then 4 more distinct
+    # pairs — 6 total rows, 5 distinct pairs.
+    _, dup_a = _seed_entity(e2e_dsn, wid, "Dup A")
+    _, dup_b = _seed_entity(e2e_dsn, wid, "Dup B")
+    store.enqueue(1, dup_a, dup_b, 0.86, 0.85, "first", "pending")
+    store.enqueue(1, dup_a, dup_b, 0.80, None, "duplicate of the first", "pending")
+    for i in range(4):
+        _, ra = _seed_entity(e2e_dsn, wid, f"Solo A{i}")
+        _, rb = _seed_entity(e2e_dsn, wid, f"Solo B{i}")
+        store.enqueue(1, ra, rb, 0.6, None, None, "pending")
+
+    page1 = store.page("pending", limit=3, offset=0)
+    page2 = store.page("pending", limit=3, offset=3)
+
+    assert len(page1) == 3, "page 1 must be full, not shrunk by the duplicate"
+    assert len(page2) == 2, "5 distinct pairs total: page 2 holds the remainder"
+
+    all_ids = [row["id"] for row in page1] + [row["id"] for row in page2]
+    assert len(all_ids) == len(set(all_ids)), "no id must appear on two pages"
+
+
 def test_workspace_delete_also_removes_adjudication_rows(e2e_dsn) -> None:
     """Deleting a workspace must not leave orphaned adjudication rows
     behind — aryx_adjudication isn't in WorkspaceStore's partitioned-table

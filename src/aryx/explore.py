@@ -17,23 +17,44 @@ _NAME_KEYS = ("name", "full_name", "title", "label", "ticket_ref", "ref",
               "sku", "code", "email", "username")
 
 
-def display_name(attributes: dict[str, Any] | None, entity_id: int) -> str:
+def display_name(attributes: dict[str, Any] | None, entity_id: int,
+                 ontology_type: str = "",
+                 match_keys: list[str] | None = None) -> str:
     """Pick a human label for an entity, falling back to #id.
 
-    Three tiers: an exact _NAME_KEYS match; failing that, any column whose
-    *name* ends in "_name" (employee_name, customer_name, product_name, ...
-    — a generic pattern, not a per-type hardcoded list, so it covers any
-    dataset's own naming convention); only then the blind "first short
-    string" fallback, which picks whatever happens to be first in
-    insertion order — usually just CSV column order, not meaning. Without
-    the middle tier, an Employee row's `manager` field (first key, pure
-    coincidence) would win over its own `employee_name`.
+    Priority: (1) an exact _NAME_KEYS match; (2) the type's actual declared
+    ``match_keys`` from ingest — the real schema/plan decision, not a guess,
+    so a SupportTicket ingested with ``match_keys=["ticket_id"]`` shows
+    "TK101" even though no column-name convention could have inferred that
+    (previously ``customer_name``, a FOREIGN reference to the ticket's
+    customer, won by default — see the orders_new/microsft_new incidents);
+    (3) failing that, a column matching THIS type's own name prefix
+    (``order_id`` for ``Order``) as a fallback guess when match_keys is
+    unavailable (e.g. dimension-materialized or pre-this-fix entities);
+    (4) any column ending in "_name" generically; (5) the blind "first
+    short string" fallback (insertion order, usually just CSV column order).
+
+    Within ``match_keys``, a name-shaped key (containing "name") is tried
+    before an id-shaped one, so a type with both still shows the
+    human-readable name.
     """
     attrs = attributes or {}
     for key in _NAME_KEYS:
         val = attrs.get(key)
         if val:
             return str(val)
+    if match_keys:
+        ordered = sorted(match_keys, key=lambda k: "name" not in k.lower())
+        for key in ordered:
+            val = attrs.get(key)
+            if val:
+                return str(val)
+    if ontology_type:
+        prefix = ontology_type.lower()
+        for suffix in ("_name", "_id"):
+            val = attrs.get(f"{prefix}{suffix}")
+            if val:
+                return str(val)
     for key, val in attrs.items():
         if key.endswith("_name") and isinstance(val, str) and val:
             return val
@@ -75,12 +96,15 @@ def summarize(entities: list[tuple[int, str, dict]],
 def entities_view(entities: list[tuple[int, str, dict]],
                   provenance: list[tuple[int, str, str, str]],
                   ontology_type: str | None = None,
-                  limit: int = 50, offset: int = 0) -> dict[str, Any]:
+                  limit: int = 50, offset: int = 0,
+                  match_keys_by_type: dict[str, list[str]] | None = None,
+                  ) -> dict[str, Any]:
     """Entities (optionally filtered by type) with attributes + provenance.
 
     Returns the page plus the unfiltered count for that type so the UI can
     paginate without a second call.
     """
+    match_keys_by_type = match_keys_by_type or {}
     by_entity = _prov_by_entity(provenance)
     rows = [e for e in entities
             if not ontology_type or e[1] == ontology_type]
@@ -91,7 +115,7 @@ def entities_view(entities: list[tuple[int, str, dict]],
     items = [{
         "id": eid,
         "type": etype,
-        "name": display_name(attrs, eid),
+        "name": display_name(attrs, eid, etype, match_keys_by_type.get(etype)),
         "attributes": attrs or {},
         "sources": by_entity.get(eid, []),
     } for eid, etype, attrs in page]
@@ -124,15 +148,19 @@ def graph_view(entities: list[tuple[int, str, dict]],
 
 
 def entity_graph_view(entities: list[tuple[int, str, dict]],
-                      relationships: list[tuple[int, int, str]]) -> dict[str, Any]:
+                      relationships: list[tuple[int, int, str]],
+                      match_keys_by_type: dict[str, list[str]] | None = None,
+                      ) -> dict[str, Any]:
     """Entity-level graph: one node per resolved entity, one edge per link.
 
     The detail companion to ``graph_view`` — shows the specific mappings
     (which Company each Customer belongs to) rather than the aggregated shape.
     Intended for small/scoped graphs; the UI offers it as an opt-in toggle.
     """
+    match_keys_by_type = match_keys_by_type or {}
     id_type = {eid: etype for eid, etype, _ in entities}
-    nodes = [{"id": eid, "type": etype, "name": display_name(attrs, eid)}
+    nodes = [{"id": eid, "type": etype,
+             "name": display_name(attrs, eid, etype, match_keys_by_type.get(etype))}
              for eid, etype, attrs in entities]
     edges = [{"source": src, "target": tgt, "name": name}
              for src, tgt, name in relationships
@@ -148,17 +176,21 @@ def entity_graph_view(entities: list[tuple[int, str, dict]],
 def entity_detail(entities: list[tuple[int, str, dict]],
                   provenance: list[tuple[int, str, str, str]],
                   relationships: list[tuple[int, int, str]],
-                  entity_id: int) -> dict[str, Any] | None:
+                  entity_id: int,
+                  match_keys_by_type: dict[str, list[str]] | None = None,
+                  ) -> dict[str, Any] | None:
     """One entity's full record: attributes, source provenance, and neighbours.
 
     Powers the graph side panel — clicking a node shows what it is, where it
     came from, and everything it connects to (with edge label + direction).
     Returns None when the id is not in this workspace.
     """
+    match_keys_by_type = match_keys_by_type or {}
     meta = {eid: (etype, attrs) for eid, etype, attrs in entities}
     if entity_id not in meta:
         return None
-    name_of = {eid: display_name(a, eid) for eid, _, a in entities}
+    name_of = {eid: display_name(a, eid, t, match_keys_by_type.get(t))
+              for eid, t, a in entities}
     type_of = {eid: t for eid, t, _ in entities}
     rels: list[dict[str, Any]] = []
     for src, tgt, name in relationships:
@@ -172,7 +204,7 @@ def entity_detail(entities: list[tuple[int, str, dict]],
     return {
         "id": entity_id,
         "type": etype,
-        "name": display_name(attrs, entity_id),
+        "name": display_name(attrs, entity_id, etype, match_keys_by_type.get(etype)),
         "attributes": attrs or {},
         "sources": _prov_by_entity(provenance).get(entity_id, []),
         "relationships": rels,

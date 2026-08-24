@@ -148,3 +148,58 @@ def test_run_pipeline_skip_resolution_flag_takes_the_bypass_branch(
     assert len(entities) == len(_ORDERS), (
         "skip_resolution=True must materialize one entity per record via "
         "run_pipeline, the same as calling materialize_one_per_record directly")
+
+
+def test_admin_db_ingest_classifies_a_real_orders_table_as_transactional(
+    workspace, e2e_dsn, e2e_graph_url, monkeypatch,
+) -> None:
+    """Live end-to-end for the DEC-011 gap raven-review flagged: the
+    connect/admin/CLI ingest wiring (sample_colvals -> resolve_match_keys
+    -> run_pipeline skip_resolution) had only ever been unit-tested with
+    every DB call mocked away. Creates a REAL Postgres table shaped like
+    the Order fixture above and drives it through admin_api._run_db exactly
+    as the /admin/ingest/db endpoint does, proving the real SQL sample_colvals
+    reads is enough to trigger the bypass — not just a hand-built dict."""
+    import uuid
+
+    import psycopg
+
+    from aryx.api import admin_api
+    from aryx.store.adjudication_store import AdjudicationStore
+    from aryx.store.entity_store import EntityStore
+
+    wid = workspace["id"]
+    table = f"e2e_admin_orders_{uuid.uuid4().hex[:8]}"
+    with psycopg.connect(e2e_dsn, autocommit=True) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                f'CREATE TABLE "{table}" (order_id TEXT, company_name TEXT, '
+                "order_status TEXT, product_name TEXT)")
+            cur.executemany(
+                f'INSERT INTO "{table}" (order_id, company_name, order_status, '
+                "product_name) VALUES (%s, %s, %s, %s)",
+                [(o["order_id"], o["company_name"], o["order_status"],
+                 o["product_name"]) for o in _ORDERS],
+            )
+    try:
+        monkeypatch.setattr(admin_api, "_local_broker", lambda: MagicMock())
+        monkeypatch.setattr(admin_api, "get_settings", lambda: type(
+            "S", (), {"rdb_dsn": e2e_dsn, "graph_url": e2e_graph_url,
+                     "batch_size": 500})())
+
+        req = admin_api.IngestDbRequest(
+            table=table, ontology_type="Order", match_keys="order_id",
+            key_column="order_id", workspace_id=wid)
+        admin_api._run_db(req, job_id=f"job-{uuid.uuid4().hex[:8]}")
+
+        estore = EntityStore(e2e_dsn, wid)
+        entities = [e for e in estore.list_entities() if e[1] == "Order"]
+        assert len(entities) == len(_ORDERS), (
+            "a real Orders table ingested via admin_api must still bypass ER "
+            "and materialize one entity per row")
+        assert AdjudicationStore(e2e_dsn, wid).stats()["pending"] == 0, (
+            "the bypass must apply on the DB-connect path too, not just file upload")
+    finally:
+        with psycopg.connect(e2e_dsn, autocommit=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute(f'DROP TABLE IF EXISTS "{table}"')
