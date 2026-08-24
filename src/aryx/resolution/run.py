@@ -132,13 +132,19 @@ def _route_pair(left: ResolutionRecord, right: ResolutionRecord, score: float,
                 broker: Broker, union: UnionFind,
                 review: ReviewSink | None,
                 adj_budget: list[int] | None = None,
-                thresholds: tuple[float, float, float] | None = None) -> None:
+                thresholds: tuple[float, float, float] | None = None) -> str:
     """Apply the four-way threshold routing to one scored pair.
 
     ``thresholds`` is the pre-read (auto, review, auto_reject) triple. This
     runs once per scored pair, so re-reading os.environ here is pure
     overhead; the caller reads them once. Omitting it keeps the original
     behaviour.
+
+    Returns:
+        The routing action ("merge", "auto_llm", "auto_reject", or
+        "pending") — callers use this to track which pairs were explicitly
+        rejected, so they're never counted as a merge-edge for some other
+        cluster they transitively end up in (DEC-010 + confidence.py).
     """
     if thresholds is None:
         thresholds = (_threshold("ARYX_ER_AUTO_MERGE", 0.95),
@@ -149,10 +155,11 @@ def _route_pair(left: ResolutionRecord, right: ResolutionRecord, score: float,
     if action in ("merge", "auto_llm"):
         union.union(left.record_id, right.record_id)
     if action == "merge":
-        return
+        return action
     if review is not None:
         review.offer(left, right, score, llm_verdict=llm_verdict,
                      llm_reason=llm_reason, status=action)
+    return action
 
 
 def _materialize(member_ids: list[int], by_id: dict[int, ResolutionRecord],
@@ -160,13 +167,21 @@ def _materialize(member_ids: list[int], by_id: dict[int, ResolutionRecord],
                  ontology_type: str,
                  policy: SurvivorshipPolicy | None,
                  edge_index: dict[int, list[tuple[int, float]]] | None = None,
-                 adjudicate_threshold: float | None = None) -> ResolvedEntity:
+                 adjudicate_threshold: float | None = None,
+                 rejected_pairs: set[tuple[int, int]] | None = None,
+                 ) -> ResolvedEntity:
     """Build one golden-record entity from a cluster's members.
 
     ``edge_index`` and ``adjudicate_threshold`` are hoisted out of this function
     because it runs once per cluster: the index would otherwise be rebuilt (or
     the full pair dict rescanned) and the env var re-read every time. Both
     default to None so any existing caller keeps the original behaviour.
+
+    ``rejected_pairs`` excludes DEC-010 auto_reject pairs from the cluster's
+    confidence calculation — see ``confidence.cluster_edges``'s ``excluded``
+    param for why a pair explicitly routed as a non-match must never count
+    as a merge-edge, even if both records end up in this cluster via some
+    other pair's transitive closure.
     """
     if adjudicate_threshold is None:
         adjudicate_threshold = _threshold("ARYX_ER_REVIEW", 0.80)
@@ -185,9 +200,11 @@ def _materialize(member_ids: list[int], by_id: dict[int, ResolutionRecord],
         conflicts = None
 
     if edge_index is None:
-        edges = cluster_edges(member_ids, pair_scores, adjudicate_threshold)
+        edges = cluster_edges(member_ids, pair_scores, adjudicate_threshold,
+                              excluded=rejected_pairs)
     else:
-        edges = cluster_edges_indexed(member_ids, edge_index, adjudicate_threshold)
+        edges = cluster_edges_indexed(member_ids, edge_index, adjudicate_threshold,
+                                      excluded=rejected_pairs)
 
     return ResolvedEntity(
         ontology_type=ontology_type, attributes=merged,
@@ -225,6 +242,7 @@ def resolve(
     # key family instead of once. Sorted so the same pair is recognized
     # regardless of which side lands at the lower list index in each block.
     seen_pairs: set[tuple[int, int]] = set()
+    rejected_pairs: set[tuple[int, int]] = set()
     for record in records:
         union.add(record.record_id)
 
@@ -260,8 +278,10 @@ def resolve(
                                    embeddings.get(left.record_id),
                                    embeddings.get(right.record_id))
                 pair_scores[(left.record_id, right.record_id)] = score
-                _route_pair(left, right, score, broker, union, review,
-                            adj_budget, thresholds)
+                action = _route_pair(left, right, score, broker, union, review,
+                                     adj_budget, thresholds)
+                if action == "auto_reject":
+                    rejected_pairs.add((left.record_id, right.record_id))
     if initial_adj_budget > 0 and adj_budget[0] <= 0:
         logger.warning("adjudication budget exhausted — remaining band pairs "
                        "queued for review, not auto-merged")
@@ -279,7 +299,8 @@ def resolve(
     results = [
         (_materialize(member_ids, by_id, pair_scores, ontology_type, policy,
                       edge_index=edge_index,
-                      adjudicate_threshold=thresholds[1]),
+                      adjudicate_threshold=thresholds[1],
+                      rejected_pairs=rejected_pairs),
          [EntityMember(landed_record_id=mid) for mid in member_ids])
         for member_ids in clusters.values()
     ]

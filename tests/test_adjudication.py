@@ -178,6 +178,37 @@ def test_apply_decision_reject_leaves_separate() -> None:
     store.merge_entities_of.assert_not_called()
 
 
+def test_resolve_excludes_auto_rejected_pair_from_cluster_confidence() -> None:
+    """End-to-end regression (raven-review finding): A-C auto-merges by
+    score alone, B-C is LLM-approved, A-B is LLM auto-rejected (never
+    unioned) — but A/B/C still land in ONE cluster via the A-C/B-C chain.
+    A-B's raw score (0.82, the LOWEST of the three) must not be an eligible
+    merge-edge just because it was never excluded: without the fix,
+    confidence wrongly floors to 0.82; with the fix, it's 0.85 (the
+    genuine weakest APPROVED edge)."""
+    a = ResolutionRecord(record_id=1, text="A", payload={"name": "A"})
+    b = ResolutionRecord(record_id=2, text="B", payload={"name": "B"})
+    c = ResolutionRecord(record_id=3, text="C", payload={"name": "C"})
+
+    def fake_score_pair(left_text, right_text, *_args, **_kwargs):
+        return {"AC": 0.96, "BC": 0.85, "AB": 0.82}["".join(sorted((left_text, right_text)))]
+
+    def fake_adjudicate(left, right, _broker):
+        pair = frozenset((left.record_id, right.record_id))
+        return 0.97 if pair == {2, 3} else 0.02  # B-C approved, A-B rejected
+
+    with patch("aryx.resolution.run.block", return_value={"blk": [a, b, c]}), \
+         patch("aryx.resolution.run.score_pair", side_effect=fake_score_pair), \
+         patch("aryx.resolution.run.adjudicate", side_effect=fake_adjudicate):
+        results = resolve([a, b, c], MagicMock(), "Thing")
+
+    assert len(results) == 1, "A/B/C must land in one cluster via the A-C/B-C chain"
+    entity, members = results[0]
+    assert {m.landed_record_id for m in members} == {1, 2, 3}
+    assert entity.confidence == 0.85, (
+        "A-B's rejected 0.82 must be excluded — the real floor is B-C's 0.85")
+
+
 def test_apply_decision_closes_duplicate_pending_rows() -> None:
     """A pair that already collapsed to the same entities as another
     pending row must get that row auto-resolved too, not left dangling."""

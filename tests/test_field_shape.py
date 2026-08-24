@@ -143,6 +143,24 @@ def test_too_few_samples_is_not_a_row_identifier() -> None:
     assert is_row_identifier(["O101"]) is False
 
 
+def test_bare_numeric_values_are_not_row_identifiers() -> None:
+    """Regression: a plain numeric column (age, year, quantity) is NOT
+    code-shaped just because a small sample happens to be all-distinct.
+    Before the fix, _ID_SHAPE's optional letter prefix let "34"/"42" match
+    as a structured code, tripping the DEC-011 transactional bypass for an
+    ordinary numeric dimension column."""
+    assert is_row_identifier(["34", "42"]) is False
+    assert is_row_identifier(["2021", "2022", "2023"]) is False
+
+
+def test_resolve_match_keys_does_not_bypass_a_plain_numeric_column() -> None:
+    """The actual ingest decision for the bare-digit bug: a lone numeric
+    match key over a small all-distinct sample must NOT skip resolution."""
+    colvals = {"age": ["34", "42"], "name": ["Asha Corp", "Byte Cafe"]}
+    keys, transactional = resolve_match_keys(["age"], colvals)
+    assert transactional is False
+
+
 def test_resolve_match_keys_triggers_bypass_for_a_lone_order_id() -> None:
     """The actual ingest decision, not just its building blocks: exactly
     one proposed key, and it's a real per-row identifier -> bypass."""

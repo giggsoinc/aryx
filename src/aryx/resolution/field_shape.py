@@ -22,7 +22,12 @@ from __future__ import annotations
 
 import re
 
-_ID_SHAPE = re.compile(r"^[A-Za-z]{0,6}[-_]?\d{2,}[A-Za-z0-9]*$")
+_ID_SHAPE = re.compile(r"^[A-Za-z]{1,6}[-_]?\d{2,}[A-Za-z0-9]*$")
+# Prefix requires >=1 letter: a bare digit run ("34", "42") is a plain
+# numeric value (age, year, quantity), not a structured code — allowing
+# zero letters let is_row_identifier misclassify a small, momentarily
+# all-distinct sample of an ordinary numeric column as transactional,
+# silently skipping entity resolution for the whole type (DEC-011).
 
 
 def is_identifier_like(values: list[str], min_samples: int = 2,
