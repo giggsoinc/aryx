@@ -1,5 +1,6 @@
 import type {
-  AbResult, AskResponse, Axiom, Brief, DataEntitiesPage, DataSummary,
+  AbResult, AdjudicationPreview, AdjudicationRow, AdjudicationStats,
+  AskResponse, Axiom, Brief, DataEntitiesPage, DataSummary,
   Datasource, EntityDetail, EntityGraphView, GraphView, IngestQuestion,
   DatasetIngestResult, DatasetProfile, SemanticProfile, GraphIntakeResult, GraphProfile,
   PlanningContext, PlannerResult, DeltaDraftResult, DeltaSpecItems, ExecutionPlan, ExecutionRun,
@@ -84,6 +85,31 @@ export const api = {
   dataEntityDetail: (workspaceId: number, entityId: number) =>
     fetchJSON<EntityDetail & { error?: string }>(
       `/data/entity/${entityId}?workspace_id=${workspaceId}`,
+    ),
+
+  // ── Adjudication (entity-merge review queue) ────────────────────────────
+  listAdjudications: (workspaceId: number, status = "pending",
+                     limit = 50, offset = 0) =>
+    fetchJSON<AdjudicationRow[]>(
+      `/adjudication?workspace_id=${workspaceId}&status=${status}` +
+      `&limit=${limit}&offset=${offset}`,
+    ),
+
+  adjudicationStats: (workspaceId: number) =>
+    fetchJSON<AdjudicationStats>(`/adjudication/stats?workspace_id=${workspaceId}`),
+
+  adjudicationPreview: (workspaceId: number, adjudicationId: number) =>
+    fetchJSON<AdjudicationPreview>(
+      `/adjudication/${adjudicationId}/preview?workspace_id=${workspaceId}`,
+    ),
+
+  decideAdjudication: (workspaceId: number, adjudicationId: number,
+                      approve: boolean, decidedBy: string) =>
+    fetchJSON<AdjudicationRow & {
+      merged: boolean; graph?: Record<string, number>; duplicates_closed: number[];
+    }>(
+      `/adjudication/${adjudicationId}/decide?workspace_id=${workspaceId}`,
+      { method: "POST", body: JSON.stringify({ approve, decided_by: decidedBy }) },
     ),
 
   // ── Ontology / modelling ──────────────────────────────────────────────

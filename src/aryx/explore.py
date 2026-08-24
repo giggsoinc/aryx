@@ -18,12 +18,25 @@ _NAME_KEYS = ("name", "full_name", "title", "label", "ticket_ref", "ref",
 
 
 def display_name(attributes: dict[str, Any] | None, entity_id: int) -> str:
-    """Pick a human label for an entity, falling back to #id."""
+    """Pick a human label for an entity, falling back to #id.
+
+    Three tiers: an exact _NAME_KEYS match; failing that, any column whose
+    *name* ends in "_name" (employee_name, customer_name, product_name, ...
+    — a generic pattern, not a per-type hardcoded list, so it covers any
+    dataset's own naming convention); only then the blind "first short
+    string" fallback, which picks whatever happens to be first in
+    insertion order — usually just CSV column order, not meaning. Without
+    the middle tier, an Employee row's `manager` field (first key, pure
+    coincidence) would win over its own `employee_name`.
+    """
     attrs = attributes or {}
     for key in _NAME_KEYS:
         val = attrs.get(key)
         if val:
             return str(val)
+    for key, val in attrs.items():
+        if key.endswith("_name") and isinstance(val, str) and val:
+            return val
     for val in attrs.values():
         if isinstance(val, str) and 0 < len(val) <= 80:
             return val

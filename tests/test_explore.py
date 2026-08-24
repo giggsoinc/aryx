@@ -27,6 +27,20 @@ def test_display_name_prefers_known_keys_then_falls_back() -> None:
     assert display_name({}, 9) == "#9"
 
 
+def test_display_name_prefers_name_suffixed_column_over_first_key() -> None:
+    """Regression: an Employee row's `manager` field (first key, pure CSV
+    column order) must not win over its own `employee_name` just because
+    neither is in the exact _NAME_KEYS list."""
+    attrs = {"manager": "Arun Kumar", "department": "Engineering",
+            "employee_id": "EMP101", "employee_name": "Riya Shah"}
+    assert display_name(attrs, 1997) == "Riya Shah"
+
+
+def test_display_name_name_suffix_generalizes_to_any_dataset() -> None:
+    assert display_name({"widget": "gizmo", "customer_name": "Aisha Bello"},
+                        1) == "Aisha Bello"
+
+
 def test_summary_counts_types_sources_and_dedup() -> None:
     s = summarize(ENTITIES, PROV)
     assert s["total_entities"] == 3

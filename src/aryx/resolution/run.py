@@ -3,9 +3,14 @@
 Thresholds (env-tunable, defaults from the G9 sweep — see DECISIONS.md):
   ARYX_ER_AUTO_MERGE   >= this -> auto-merge                       (default 0.95)
   ARYX_ER_ADJUDICATE   [ARYX_ER_REVIEW, AUTO_MERGE) -> LLM rescores (band, no threshold of its own)
-                       rescored >= AUTO_MERGE -> merge; else -> human queue
+                       rescored >= AUTO_MERGE -> merge;
+                       rescored <  AUTO_REJECT -> auto-reject (DEC-010);
+                       else -> human queue
   ARYX_ER_REVIEW       below this -> human queue directly           (default 0.80)
-  Every pair below AUTO_MERGE ends up merged or queued — nothing is silently dropped.
+  ARYX_ER_AUTO_REJECT  LLM rescore below this -> auto-reject, no human queue (default 0.05, DEC-010)
+  Every pair below AUTO_MERGE and at/above AUTO_REJECT ends up merged or queued;
+  nothing ambiguous is silently dropped — only a confidently-non-matching LLM
+  verdict is.
 
 Pairs routed to the human queue are treated as NON-merge for the current run
 (conservative: a wrong merge is worse than a missed merge in audited domains).
@@ -88,15 +93,17 @@ def _route_pair(left: ResolutionRecord, right: ResolutionRecord, score: float,
     human review instead of auto-merged — bounding wall-clock without ever
     auto-merging on an unverified guess.
 
-    ``thresholds`` is the pre-read (auto, review) pair. This runs once per
-    scored pair, so re-reading os.environ here is pure overhead; the caller
-    reads them once. Omitting it keeps the original behaviour.
+    ``thresholds`` is the pre-read (auto, review, auto_reject) triple. This
+    runs once per scored pair, so re-reading os.environ here is pure
+    overhead; the caller reads them once. Omitting it keeps the original
+    behaviour.
     """
     if thresholds is None:
         auto = _threshold("ARYX_ER_AUTO_MERGE", 0.95)
         rev = _threshold("ARYX_ER_REVIEW", 0.80)
+        reject = _threshold("ARYX_ER_AUTO_REJECT", 0.05)
     else:
-        auto, rev = thresholds
+        auto, rev, reject = thresholds
     if score >= auto:
         union.union(left.record_id, right.record_id)
         return
@@ -116,16 +123,30 @@ def _route_pair(left: ResolutionRecord, right: ResolutionRecord, score: float,
                     review.offer(left, right, score, llm_verdict=rescored,
                                  llm_reason="llm adjudication", status="auto_llm")
                 union.union(left.record_id, right.record_id)
+            elif rescored < reject:
+                # The LLM already gave a confident verdict here — "not the
+                # same thing" — so asking a human to re-confirm it adds no
+                # value. Distinct status from "rejected" (DEC-010) so the
+                # human/LLM agreement stat isn't credited with a decision no
+                # human actually made, same reason auto_llm is split from
+                # a human's "approved".
+                if review is not None:
+                    review.offer(left, right, score, llm_verdict=rescored,
+                                 llm_reason="llm rescore below reject threshold",
+                                 status="auto_reject")
             else:
                 if review is not None:
                     review.offer(left, right, score, llm_verdict=rescored,
                                  llm_reason="llm rescore below auto-merge threshold",
                                  status="pending")
         except Exception as exc:  # noqa: BLE001 — LLM down -> human decides
+            # The raw exception (network error, malformed provider JSON, etc.)
+            # is for the log, not the reviewer — it's an internal failure
+            # detail, not something that helps a human decide the pair.
             logger.warning("adjudication failed, queueing for human: %s", exc)
             if review is not None:
                 review.offer(left, right, score, llm_verdict=None,
-                             llm_reason=f"llm unavailable: {exc}",
+                             llm_reason="llm unavailable — queued for human review",
                              status="pending")
         return
     if review is not None:
@@ -196,6 +217,13 @@ def resolve(
     by_id = {r.record_id: r for r in records}
     union = UnionFind()
     pair_scores: dict[tuple[int, int], float] = {}
+    # MultiKeyBlocker puts each record in every block whose key it produces
+    # (prefix, token-set, Soundex) — good for recall, but it means the same
+    # two records can co-occur in more than one block. Without this guard,
+    # such a pair gets scored and offered to adjudication once per shared
+    # key family instead of once. Sorted so the same pair is recognized
+    # regardless of which side lands at the lower list index in each block.
+    seen_pairs: set[tuple[int, int]] = set()
     for record in records:
         union.add(record.record_id)
 
@@ -204,6 +232,7 @@ def resolve(
     thresholds = (
         _threshold("ARYX_ER_AUTO_MERGE", 0.95),
         _threshold("ARYX_ER_REVIEW", 0.80),
+        _threshold("ARYX_ER_AUTO_REJECT", 0.05),
     )
 
     # Cap total LLM adjudications per run. Each frontier call on a local model
@@ -221,6 +250,11 @@ def resolve(
         for i in range(len(group)):
             for j in range(i + 1, len(group)):
                 left, right = group[i], group[j]
+                pair_key = (min(left.record_id, right.record_id),
+                            max(left.record_id, right.record_id))
+                if pair_key in seen_pairs:
+                    continue
+                seen_pairs.add(pair_key)
                 score = score_pair(left.text, right.text,
                                    embeddings.get(left.record_id),
                                    embeddings.get(right.record_id))

@@ -17,12 +17,15 @@ Two structural changes define the current generation:
    | `/` | **Home** | Workspaces, model gate, create / open / reset / delete |
    | `/start` | **Setup** | **Data first** → smart review (brief + graph plan) → build |
    | `/brief` | **Brief** | Edit grounding questions anytime (usually drafted after data) |
-   | `/data` | **Data** | Data Explorer + Correct data coach |
+   | `/data` | **Data** | Data Explorer + Correct data coach + embedded Adjudication Review (human merge/reject queue) |
    | `/model` | **Model** | Ontology canvas (types seeded from plan) |
    | `/lab` | **Lab** | Accuracy Lab — ontology-on vs ontology-off A/B |
    | `/ask` | **Ask** | NL Q&A with grounded, cited answers |
    | `/observe` | **Observe** | Jobs and system status |
    | `/settings` | **Settings** | LLM provider (powers smart understand + Ask) |
+   | `/mcp` | **MCP** | In-app MCP hub — connection setup, full tool catalog, dev notes |
+   | `/dashboard` | **Dashboard** | Rendered dashboard viewer — ask-to-visualize panel + final `DashboardRenderer` (C08 ext + C15) |
+   | `/dashboard-observability` | **Analytics Pipeline** | C01-C14 build flow — intent → datasets → graph intake → planning context → execution plan/run → dashboard composition |
 
    The Streamlit app was **removed**; use Next.js (`apps/web`) only.  
    **Lite 1.8.x** ships data-first smart setup + linear pipeline (ingest → resolve → project)
@@ -63,11 +66,22 @@ Two structural changes define the current generation:
 
 ## Resolution Funnel
 
-The ER pipeline is the core differentiator. Records flow through five stages:
+The ER pipeline is the core differentiator. Records flow through five stages —
+unless the type is transactional (DEC-011), in which case the whole funnel is
+skipped:
 
 ```
   LANDED RECORDS
        │
+  ┌────▼──────────────────────────────────────────────┐
+  │ 0. BYPASS CHECK — is_row_identifier (DEC-011)      │
+  │    A single proposed key, every value distinct AND  │
+  │    code-shaped (order_id, ticket_id) -> one entity   │
+  │    per record, funnel skipped entirely. Anything     │
+  │    else (dimension types: Company, Employee name,    │
+  │    free text) proceeds to stage 1 as normal.         │
+  └────┬──────────────────────────────────────────────┘
+       │ non-transactional records
   ┌────▼──────────────────────────────────────────────┐
   │ 1. BLOCK — MultiKeyBlocker                        │
   │    Prefix + token-set + Soundex keys               │
@@ -84,10 +98,10 @@ The ER pipeline is the core differentiator. Records flow through five stages:
   │ 3. ROUTE — three-band adjudication                 │
   │    >=0.95  AUTO_MERGE (no human needed)             │
   │    0.80-0.95  ADJUDICATE (LLM rescores; merge if    │
-  │               rescore >= 0.95, else human queue)    │
+  │               rescore >= 0.95; auto-reject if       │
+  │               rescore < 0.05 (DEC-010); else human) │
   │    <0.80  REVIEW (queued for human steward)         │
-  │    No REJECT band — every pair merges or queues     │
-  │    Thresholds are spec-driven (DEC-009)              │
+  │    Thresholds are spec-driven (DEC-009, DEC-010)     │
   └────┬──────────────────────────────────────────────┘
        │ merge decisions
   ┌────▼──────────────────────────────────────────────┐
@@ -104,7 +118,7 @@ The ER pipeline is the core differentiator. Records flow through five stages:
   └───────────────────────────────────────────────────┘
 ```
 
-**Key files:** `resolution/run.py`, `resolution/blocking.py`, `resolution/survivorship.py`, `resolution/golden.py`, `resolution/confidence.py`, `resolution/chunked.py`, `resolution/review_queue.py`
+**Key files:** `resolution/run.py`, `resolution/blocking.py`, `resolution/survivorship.py`, `resolution/golden.py`, `resolution/confidence.py`, `resolution/chunked.py`, `resolution/review_queue.py`, `resolution/field_shape.py` (bypass detection), `resolve_entities.py` (`materialize_one_per_record`)
 
 ## Pipeline Stages (7-stage ingest)
 
@@ -150,7 +164,7 @@ FalkorDB is never the source of truth — it is a projection of Postgres state.
 
 ## API Layer
 
-The real app is `api/main.py:create_app()`, which registers **27 routers**. (A legacy `create_app()` / module-level `app` at the bottom of `graph_api.py` is dead code — it is not the app that runs.)
+The real app is `api/main.py:create_app()`, which registers **44 routers**. (A legacy `create_app()` / module-level `app` at the bottom of `graph_api.py` is dead code — it is not the app that runs.)
 
 | Router | Prefix | Purpose |
 |--------|--------|---------|
@@ -181,6 +195,23 @@ The real app is `api/main.py:create_app()`, which registers **27 routers**. (A l
 | mcp_tokens | /mcp | MCP token management |
 | adjudication | /adjudication | Human review queue |
 | actions | /actions | Kinetic action CRUD + execute |
+| system | /admin | System status (`aryx_stat` — is Postgres alive, what's physically stored) |
+| corrections | /admin | Human corrections, applied atomically |
+| smart | /admin/smart | Brief-led smart understand — brief + samples → graph plan |
+| intent | /intent | User intent capture (C01) |
+| dataset | /dataset | Dataset upload & ingestion, read surface (C02) |
+| profile | /profile | Deterministic dataset profiler (C03) |
+| semantic | /semantic | Semantic field interpreter (C04) |
+| graph_intake | /graph-intake | Knowledge graph intake & validation (C05) |
+| graph_profile | /graph-profile | Knowledge graph profiler (C06) |
+| planning_context | /planning-context | Context & resource retrieval for planning (C07) |
+| andie_planner | /andie-planner | Andie Jr planning orchestrator, on-demand (C08) |
+| execution_plan | /execution-plan | Execution compiler, read-only (C11) |
+| execution_run | /execution-run | Deterministic analysis execution, on-demand (C12) |
+| dashboard_model | /dashboard-model | Dashboard composition, on-demand (C14) |
+| render_telemetry | /render-telemetry | Frontend dashboard renderer telemetry (C15) |
+| pipeline_link | /pipeline | Explicit post-ingest entity linking |
+| pipeline_derive | /pipeline | Derive a new type by dedup |
 
 `security` remains a middleware, not a router.
 
@@ -202,7 +233,7 @@ The remaining tools cover datasource management, ingest Q&A, ontology, and the o
 
 ### Postgres (source of truth)
 
-27 idempotent migrations (0001-0027), auto-applied on API startup.
+46 idempotent migrations (0001-0046), auto-applied on API startup.
 
 Key tables:
 - `aryx_entity` — canonical entities with confidence score
@@ -227,7 +258,7 @@ All entity tables LIST-partitioned by workspace_id for isolation and physical pu
 
 ### Connection Pooling
 
-`psycopg3` shared pool singleton per DSN (`store/pool.py`). All 10 stores borrow from the pool instead of opening individual connections.
+`psycopg3` shared pool singleton per DSN (`store/pool.py`). 33 of 37 store classes borrow from the pool instead of opening individual connections.
 
 ## Technology Stack
 
@@ -258,6 +289,8 @@ All entity tables LIST-partitioned by workspace_id for isolation and physical pu
 | DEC-007 | Next.js web app is HTTP-only, isolated deploy unit | UI scales/deploys independently; no Python coupling | 2026-06-14 |
 | DEC-008 | Ports & adapters seam over direct substrate calls | Oracle ADB later = adapter swap, not rewrite | 2026-06-14 |
 | DEC-009 | Supersedes DEC-003: two-cutoff ER bands (0.95/0.80), no REJECT band | Spec-driven, not a re-sweep — see wiki DEC-009 | 2026-08-19 |
+| DEC-010 | Narrow amendment to DEC-009: auto-reject when the LLM's own adjudicate rescore is < 0.05 (`ARYX_ER_AUTO_REJECT`) | A confident LLM "not a match" verdict was still queued identically to a genuine close call, forcing humans to re-confirm decisions the LLM already made; this is a rescore-confidence floor, not a new raw-score cutoff — pairs that never reach the LLM still queue per DEC-009 | 2026-08-21 |
+| DEC-011 | Transactional/fact types (a single proposed match key that is a genuine per-row identifier — `field_shape.is_row_identifier`: every sampled value distinct AND code-shaped) skip the resolution funnel entirely; `materialize_one_per_record` creates one entity per landed record | Fuzzy multi-column matching (the DEC-009/010-era fallback) correctly avoided the id itself but still offered genuinely distinct Orders as merge candidates on partial field overlap (same company + status, different product) — a human approved one, permanently collapsing several real, distinct orders into one entity. For a transactional record every row IS a distinct real-world thing by construction; no similarity heuristic should ever suggest otherwise. Dimension types (Company, Employee's own name field, any free text) are unaffected — narrow trigger, not a blanket "skip ER for ids" rule | 2026-08-24 |
 
 ## Next Steps
 

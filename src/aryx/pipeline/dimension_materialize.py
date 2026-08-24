@@ -21,6 +21,32 @@ from aryx.workspaces import ws_graph
 logger = logging.getLogger(__name__)
 
 
+def _relationship_direction(
+    rel: dict[str, Any], dim_by_name: dict[str, dict[str, Any]],
+) -> tuple[str, str, str, str]:
+    """The (source_type, target_type, via_column, edge_name) to link on.
+
+    The LLM sometimes states a relationship in causal/semantic order
+    ("Company placed Order") rather than FK-carrier order ("Order.
+    company_name points at Company") — that produces a from/to pair where
+    neither side actually owns via_column, so link_by_attribute finds zero
+    matches regardless of the data. dimension_types is generated
+    deterministically from column ownership (from_type is always the
+    row-entity that actually carries source_column), so it's the authority
+    on direction — use it to correct src/tgt whenever a dimension agrees
+    on the same column; otherwise trust the relationship as stated.
+    """
+    src = str(rel.get("from") or "")
+    tgt = str(rel.get("to") or "")
+    via = str(rel.get("via_column") or "")
+    name = str(rel.get("name") or f"{src}_{tgt}").upper()
+    dim = dim_by_name.get(src) or dim_by_name.get(tgt)
+    if dim and dim.get("source_column") == via:
+        src = str(dim.get("from_type") or src)
+        tgt = str(dim.get("name") or tgt)
+    return src, tgt, via, name
+
+
 def materialize_dimensions(
     *,
     dsn: str,
@@ -48,25 +74,37 @@ def materialize_dimensions(
     for dim in dims:
         if not isinstance(dim, dict):
             continue
-        dname = str(dim.get("name") or "").strip()
-        scol = str(dim.get("source_column") or "").strip()
-        if not dname or not scol:
+        dim_name = str(dim.get("name") or "").strip()
+        source_col = str(dim.get("source_column") or "").strip()
+        if not dim_name or not source_col:
             continue
-        vals = merged.get(scol) or []
+        vals = merged.get(source_col) or []
         # case-insensitive column match
         if not vals:
             for k, v in merged.items():
-                if k.lower() == scol.lower():
+                if k.lower() == source_col.lower():
                     vals = v
-                    scol = k
+                    source_col = k
                     break
-        unique = sorted({(v or "").strip() for v in vals if (v or "").strip()})
+        # First-seen order, not alphabetical: dimension record_id assignment
+        # (Company:0, Company:1, ...) becomes the "landed first" signal the
+        # default first_non_empty survivorship strategy relies on. Sorting
+        # alphabetically here would make that choice depend on the alphabet
+        # instead of the source file — the exact non-determinism DEC-004
+        # ("order-independent merge") was written to rule out.
+        seen: set[str] = set()
+        unique: list[str] = []
+        for v in vals:
+            v = (v or "").strip()
+            if v and v not in seen:
+                seen.add(v)
+                unique.append(v)
         if not unique:
-            logger.info("dimension %s: no values for column %s", dname, scol)
+            logger.info("dimension %s: no values for column %s", dim_name, source_col)
             continue
         try:
             ontology_browse.add_type(
-                dname, ["name", "source_column"], "approved",
+                dim_name, ["name", "source_column"], "approved",
                 source="smart-plan", workspace_id=workspace_id,
             )
         except Exception:  # noqa: BLE001
@@ -74,35 +112,34 @@ def materialize_dimensions(
         recs = [
             RawRecord(
                 source=SourceRef(
-                    system="dimension", dataset=dname, record_id=f"{dname}:{i}",
+                    system="dimension", dataset=dim_name, record_id=f"{dim_name}:{i}",
                 ),
-                payload={"name": u, "source_column": scol, "type": dname},
+                payload={"name": u, "source_column": source_col, "type": dim_name},
             )
             for i, u in enumerate(unique)
         ]
-        logger.info("materializing %d × %s from column %s", len(recs), dname, scol)
+        logger.info("materializing %d × %s from column %s", len(recs), dim_name, source_col)
         run_pipeline(
             connector=RecordsConnector(recs),
             dsn=dsn,
             system="dimension",
-            dataset=dname,
-            ontology_type=dname,
+            dataset=dim_name,
+            ontology_type=dim_name,
             match_keys=["name"],
             graph_url=graph_url,
             broker=broker,
             workspace_id=workspace_id,
         )
 
-    # Links from relationships in plan
+    # Links from relationships in plan.
+    dim_by_name = {str(d.get("name") or "").strip(): d
+                   for d in dims if isinstance(d, dict)}
     estore = EntityStore(dsn, workspace_id)
     try:
         for rel in rels:
             if not isinstance(rel, dict):
                 continue
-            src = str(rel.get("from") or "")
-            tgt = str(rel.get("to") or "")
-            via = str(rel.get("via_column") or "")
-            name = str(rel.get("name") or f"{src}_{tgt}").upper()
+            src, tgt, via, name = _relationship_direction(rel, dim_by_name)
             if not (src and tgt and via):
                 continue
             n = link_by_attribute(estore, src, via, tgt, "name", name)

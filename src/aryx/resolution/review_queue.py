@@ -45,29 +45,46 @@ class StoreReviewSink:
 
 
 def apply_decision(store: Any, adjudication_id: int, approve: bool,
-                   decided_by: str) -> dict[str, Any]:
+                   decided_by: str, policy: Any = None) -> dict[str, Any]:
     """Apply a human verdict to a queued pair.
 
     Approval merges the two records' entities: the surviving entity absorbs
-    the other's members and golden records re-merge (first-non-empty across
-    the two attribute dicts; policy-aware re-survivorship runs on the next
-    full re-resolution). Rejection just records the label.
+    the other's members, and the golden record is recomputed under the
+    workspace's real SurvivorshipPolicy (same engine full ingest uses).
+    Rejection just records the label.
 
     Args:
         store: AdjudicationStore (also exposes the entity-merge helpers).
         adjudication_id: Queue row id.
         approve: True merges, False keeps entities separate.
         decided_by: Reviewer identity for the audit trail.
+        policy: The workspace's SurvivorshipPolicy (defaults inside the
+            store when None — see AdjudicationStore.merge_entities_of).
 
     Returns:
-        The updated queue row.
+        The updated queue row, plus a ``merged`` flag the caller uses to
+        decide whether the workspace graph needs re-projecting, and a
+        ``duplicates_closed`` list of other pending ids auto-resolved
+        alongside this one (same underlying entity pair — see
+        AdjudicationStore.pending_duplicates_of).
     """
     row = store.decide(adjudication_id, approve, decided_by)
+    # Must run before merge_entities_of: it needs both sides' PRE-merge
+    # entity ids to recognize other pending rows asking the same question.
+    duplicate_ids = store.pending_duplicates_of(
+        adjudication_id, row["left_record_id"], row["right_record_id"])
+    merged = False
     if approve:
         merged = store.merge_entities_of(row["left_record_id"],
-                                         row["right_record_id"])
+                                         row["right_record_id"], policy)
         logger.info("adjudication %s approved by %s -> merged=%s",
                     adjudication_id, decided_by, merged)
     else:
         logger.info("adjudication %s rejected by %s", adjudication_id, decided_by)
+    for dup_id in duplicate_ids:
+        store.decide(dup_id, approve, f"{decided_by} (duplicate of #{adjudication_id})")
+        logger.info("closed duplicate pending adjudication %s alongside %s",
+                    dup_id, adjudication_id)
+    row["merged"] = merged
+    row["duplicates_closed"] = duplicate_ids
     return row

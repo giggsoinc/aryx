@@ -1,7 +1,7 @@
 """G10: band routing, queue offers, apply_decision merge/reject."""
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 from aryx.models import ResolutionRecord
 from aryx.resolution.cluster import UnionFind
@@ -83,6 +83,23 @@ def test_band_llm_rescore_below_auto_merge_queues_pending() -> None:
     assert sink.offers[0]["llm_verdict"] == 0.85
 
 
+def test_band_llm_confident_reject_auto_rejects_no_human_queue() -> None:
+    """DEC-010: LLM rescore < AUTO_REJECT (0.05) -> auto_reject, not pending.
+
+    Regression: microsoft.com vs amazon.com-style pairs where the LLM
+    itself says "not a match" (rescore ~0.00) used to land in the human
+    queue exactly like a genuine 0.90 close call — no floor distinguished
+    "ambiguous" from "confidently wrong".
+    """
+    left, right, union = _pair()
+    sink = FakeSink()
+    with patch("aryx.resolution.run.adjudicate", return_value=0.0):
+        _route_pair(left, right, 0.90, MagicMock(), union, sink)
+    assert not _merged(union)
+    assert sink.offers[0]["status"] == "auto_reject"
+    assert sink.offers[0]["llm_verdict"] == 0.0
+
+
 def test_band_llm_failure_queues_pending_no_merge() -> None:
     """LLM down -> fail-to-human: pending row, conservative non-merge."""
     left, right, union = _pair()
@@ -144,9 +161,10 @@ def test_apply_decision_approve_merges_entities() -> None:
     store = MagicMock()
     store.decide.return_value = {"id": 7, "left_record_id": 1,
                                  "right_record_id": 2}
+    store.pending_duplicates_of.return_value = []
     row = apply_decision(store, 7, approve=True, decided_by="ravi")
     store.decide.assert_called_once_with(7, True, "ravi")
-    store.merge_entities_of.assert_called_once_with(1, 2)
+    store.merge_entities_of.assert_called_once_with(1, 2, None)
     assert row["id"] == 7
 
 
@@ -155,5 +173,22 @@ def test_apply_decision_reject_leaves_separate() -> None:
     store = MagicMock()
     store.decide.return_value = {"id": 8, "left_record_id": 1,
                                  "right_record_id": 2}
+    store.pending_duplicates_of.return_value = []
     apply_decision(store, 8, approve=False, decided_by="ravi")
     store.merge_entities_of.assert_not_called()
+
+
+def test_apply_decision_closes_duplicate_pending_rows() -> None:
+    """A pair that already collapsed to the same entities as another
+    pending row must get that row auto-resolved too, not left dangling."""
+    store = MagicMock()
+    store.decide.return_value = {"id": 7, "left_record_id": 1,
+                                 "right_record_id": 2}
+    store.pending_duplicates_of.return_value = [9, 10]
+    row = apply_decision(store, 7, approve=True, decided_by="ravi")
+    store.pending_duplicates_of.assert_called_once_with(7, 1, 2)
+    assert store.decide.call_args_list[1:] == [
+        call(9, True, "ravi (duplicate of #7)"),
+        call(10, True, "ravi (duplicate of #7)"),
+    ]
+    assert row["duplicates_closed"] == [9, 10]
