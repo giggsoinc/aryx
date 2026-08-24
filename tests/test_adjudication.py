@@ -1,7 +1,7 @@
 """G10: band routing, queue offers, apply_decision merge/reject."""
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 from aryx.models import ResolutionRecord
 from aryx.resolution.cluster import UnionFind
@@ -83,6 +83,23 @@ def test_band_llm_rescore_below_auto_merge_queues_pending() -> None:
     assert sink.offers[0]["llm_verdict"] == 0.85
 
 
+def test_band_llm_confident_reject_auto_rejects_no_human_queue() -> None:
+    """DEC-010: LLM rescore < AUTO_REJECT (0.05) -> auto_reject, not pending.
+
+    Regression: microsoft.com vs amazon.com-style pairs where the LLM
+    itself says "not a match" (rescore ~0.00) used to land in the human
+    queue exactly like a genuine 0.90 close call — no floor distinguished
+    "ambiguous" from "confidently wrong".
+    """
+    left, right, union = _pair()
+    sink = FakeSink()
+    with patch("aryx.resolution.run.adjudicate", return_value=0.0):
+        _route_pair(left, right, 0.90, MagicMock(), union, sink)
+    assert not _merged(union)
+    assert sink.offers[0]["status"] == "auto_reject"
+    assert sink.offers[0]["llm_verdict"] == 0.0
+
+
 def test_band_llm_failure_queues_pending_no_merge() -> None:
     """LLM down -> fail-to-human: pending row, conservative non-merge."""
     left, right, union = _pair()
@@ -144,9 +161,10 @@ def test_apply_decision_approve_merges_entities() -> None:
     store = MagicMock()
     store.decide.return_value = {"id": 7, "left_record_id": 1,
                                  "right_record_id": 2}
+    store.pending_duplicates_of.return_value = []
     row = apply_decision(store, 7, approve=True, decided_by="ravi")
     store.decide.assert_called_once_with(7, True, "ravi")
-    store.merge_entities_of.assert_called_once_with(1, 2)
+    store.merge_entities_of.assert_called_once_with(1, 2, None)
     assert row["id"] == 7
 
 
@@ -155,5 +173,53 @@ def test_apply_decision_reject_leaves_separate() -> None:
     store = MagicMock()
     store.decide.return_value = {"id": 8, "left_record_id": 1,
                                  "right_record_id": 2}
+    store.pending_duplicates_of.return_value = []
     apply_decision(store, 8, approve=False, decided_by="ravi")
     store.merge_entities_of.assert_not_called()
+
+
+def test_resolve_excludes_auto_rejected_pair_from_cluster_confidence() -> None:
+    """End-to-end regression (raven-review finding): A-C auto-merges by
+    score alone, B-C is LLM-approved, A-B is LLM auto-rejected (never
+    unioned) — but A/B/C still land in ONE cluster via the A-C/B-C chain.
+    A-B's raw score (0.82, the LOWEST of the three) must not be an eligible
+    merge-edge just because it was never excluded: without the fix,
+    confidence wrongly floors to 0.82; with the fix, it's 0.85 (the
+    genuine weakest APPROVED edge)."""
+    a = ResolutionRecord(record_id=1, text="A", payload={"name": "A"})
+    b = ResolutionRecord(record_id=2, text="B", payload={"name": "B"})
+    c = ResolutionRecord(record_id=3, text="C", payload={"name": "C"})
+
+    def fake_score_pair(left_text, right_text, *_args, **_kwargs):
+        return {"AC": 0.96, "BC": 0.85, "AB": 0.82}["".join(sorted((left_text, right_text)))]
+
+    def fake_adjudicate(left, right, _broker):
+        pair = frozenset((left.record_id, right.record_id))
+        return 0.97 if pair == {2, 3} else 0.02  # B-C approved, A-B rejected
+
+    with patch("aryx.resolution.run.block", return_value={"blk": [a, b, c]}), \
+         patch("aryx.resolution.run.score_pair", side_effect=fake_score_pair), \
+         patch("aryx.resolution.run.adjudicate", side_effect=fake_adjudicate):
+        results = resolve([a, b, c], MagicMock(), "Thing")
+
+    assert len(results) == 1, "A/B/C must land in one cluster via the A-C/B-C chain"
+    entity, members = results[0]
+    assert {m.landed_record_id for m in members} == {1, 2, 3}
+    assert entity.confidence == 0.85, (
+        "A-B's rejected 0.82 must be excluded — the real floor is B-C's 0.85")
+
+
+def test_apply_decision_closes_duplicate_pending_rows() -> None:
+    """A pair that already collapsed to the same entities as another
+    pending row must get that row auto-resolved too, not left dangling."""
+    store = MagicMock()
+    store.decide.return_value = {"id": 7, "left_record_id": 1,
+                                 "right_record_id": 2}
+    store.pending_duplicates_of.return_value = [9, 10]
+    row = apply_decision(store, 7, approve=True, decided_by="ravi")
+    store.pending_duplicates_of.assert_called_once_with(7, 1, 2)
+    assert store.decide.call_args_list[1:] == [
+        call(9, True, "ravi (duplicate of #7)"),
+        call(10, True, "ravi (duplicate of #7)"),
+    ]
+    assert row["duplicates_closed"] == [9, 10]

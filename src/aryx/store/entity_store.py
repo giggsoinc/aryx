@@ -118,6 +118,20 @@ class EntityStore:
                 cur.execute(load("select_entities"), (self._ws,))
                 return [(r[0], r[1], r[2]) for r in cur.fetchall()]
 
+    def match_keys_by_type(self) -> dict[str, list[str]]:
+        """Most recent ingest's declared match_keys, per ontology_type.
+
+        The authoritative identity signal for ``explore.display_name`` — the
+        keys a human/pipeline actually chose to identify this type at ingest
+        time, not a guess from column-name conventions. One query for every
+        type in the workspace, since a single view (entities list, graph)
+        typically spans several types.
+        """
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(load("select_match_keys_by_type"), (self._ws,))
+                return {otype: list(keys or []) for otype, keys in cur.fetchall()}
+
     def member_landed_ids(self, entity_ids: list[int]) -> dict[int, list[int]]:
         """Return entity_id -> [landed_record_id, ...] for the given entities.
 
@@ -150,6 +164,37 @@ class EntityStore:
             with conn.cursor() as cur:
                 cur.execute(load("select_relationships"), (self._ws,))
                 return [(r[0], r[1], r[2]) for r in cur.fetchall()]
+
+    def entities_by_ids(self, entity_ids: list[int]) -> list[tuple[int, str, dict]]:
+        """Scoped ``list_entities``: just the given ids, not the workspace."""
+        if not entity_ids:
+            return []
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(load("select_entities_by_ids"), (self._ws, entity_ids))
+                return [(r[0], r[1], r[2]) for r in cur.fetchall()]
+
+    def relationships_for_entities(self, entity_ids: list[int]) -> list[tuple[int, int, str]]:
+        """Scoped ``list_relationships``: edges touching any of the given ids."""
+        if not entity_ids:
+            return []
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(load("select_relationships_for_entities"),
+                            (self._ws, entity_ids, entity_ids))
+                return [(r[0], r[1], r[2]) for r in cur.fetchall()]
+
+    def members_provenance_for_entities(
+        self, entity_ids: list[int],
+    ) -> list[tuple[int, str, str, str]]:
+        """Scoped ``list_members_provenance``: just the given entities."""
+        if not entity_ids:
+            return []
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(load("select_members_provenance_for_entities"),
+                            (self._ws, entity_ids))
+                return [(r[0], r[1], r[2], r[3]) for r in cur.fetchall()]
 
     def clear_relationships(self) -> int:
         """Delete all relationships for this workspace; return rows removed.

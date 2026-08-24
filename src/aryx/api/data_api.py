@@ -59,7 +59,8 @@ def data_router() -> APIRouter:
         try:
             return explore.entities_view(
                 store.list_entities(), store.list_members_provenance(),
-                ontology_type=type, limit=limit, offset=offset)
+                ontology_type=type, limit=limit, offset=offset,
+                match_keys_by_type=store.match_keys_by_type())
         except Exception as exc:  # noqa: BLE001
             logger.warning("data entities failed: %s", exc)
             return {"error": f"data unavailable: {exc}", "items": []}
@@ -71,7 +72,8 @@ def data_router() -> APIRouter:
         try:
             detail = explore.entity_detail(
                 store.list_entities(), store.list_members_provenance(),
-                store.list_relationships(), entity_id)
+                store.list_relationships(), entity_id,
+                match_keys_by_type=store.match_keys_by_type())
             return detail or {"error": "entity not found"}
         except Exception as exc:  # noqa: BLE001
             logger.warning("data entity detail failed: %s", exc)
@@ -83,8 +85,9 @@ def data_router() -> APIRouter:
         store = _store(workspace_id)
         try:
             if level == "entity":
-                return explore.entity_graph_view(store.list_entities(),
-                                                 store.list_relationships())
+                return explore.entity_graph_view(
+                    store.list_entities(), store.list_relationships(),
+                    match_keys_by_type=store.match_keys_by_type())
             return explore.graph_view(store.list_entities(),
                                       store.list_relationships())
         except Exception as exc:  # noqa: BLE001

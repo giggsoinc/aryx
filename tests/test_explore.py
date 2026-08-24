@@ -27,6 +27,91 @@ def test_display_name_prefers_known_keys_then_falls_back() -> None:
     assert display_name({}, 9) == "#9"
 
 
+def test_display_name_prefers_name_suffixed_column_over_first_key() -> None:
+    """Regression: an Employee row's `manager` field (first key, pure CSV
+    column order) must not win over its own `employee_name` just because
+    neither is in the exact _NAME_KEYS list."""
+    attrs = {"manager": "Arun Kumar", "department": "Engineering",
+            "employee_id": "EMP101", "employee_name": "Riya Shah"}
+    assert display_name(attrs, 1997) == "Riya Shah"
+
+
+def test_display_name_name_suffix_generalizes_to_any_dataset() -> None:
+    assert display_name({"widget": "gizmo", "customer_name": "Aisha Bello"},
+                        1) == "Aisha Bello"
+
+
+def test_display_name_prefers_own_type_id_over_a_foreign_name_column() -> None:
+    """Regression: an Order's own order_id must win over company_name — a
+    FOREIGN reference to the Company it belongs to, not this entity's own
+    identity. Live bug in workspace orders_new: entities showed "Asha Labs"
+    (the company) instead of "O103" (the order's own id)."""
+    attrs = {"order_id": "O103", "company_name": "Asha Labs",
+            "order_status": "Open", "product_name": "Receipt Printer"}
+    assert display_name(attrs, 2764, "Order") == "O103"
+
+
+def test_display_name_own_type_name_column_still_wins_via_new_tier() -> None:
+    """Same Employee case as above, but now WITH ontology_type passed —
+    proves the new type-prefixed tier finds employee_name directly rather
+    than relying on the generic *_name fallback tier below it."""
+    attrs = {"manager": "Arun Kumar", "department": "Engineering",
+            "employee_id": "EMP101", "employee_name": "Riya Shah"}
+    assert display_name(attrs, 1997, "Employee") == "Riya Shah"
+
+
+def test_display_name_type_prefixed_name_beats_type_prefixed_id() -> None:
+    """When a type has both its own _name and _id column, the human-readable
+    name wins — an id is preferred only when no type-owned name exists."""
+    attrs = {"widget_id": "W1", "widget_name": "Gizmo"}
+    assert display_name(attrs, 1, "Widget") == "Gizmo"
+
+
+def test_display_name_no_ontology_type_falls_back_to_generic_tier() -> None:
+    """Callers that don't pass ontology_type keep the pre-fix behaviour —
+    the type-prefixed tier is skipped, not an error."""
+    attrs = {"order_id": "O103", "company_name": "Asha Labs"}
+    assert display_name(attrs, 2764) == "Asha Labs"
+
+
+def test_display_name_prefers_declared_match_keys_over_type_prefix_guess() -> None:
+    """The actual bug: a SupportTicket ingested with match_keys=["ticket_id"]
+    showed "customer_name" (a FOREIGN reference to the ticket's customer)
+    because the type-prefix guess (supportticket_id) never matches the real
+    column (ticket_id) — no column-naming convention could infer that.
+    match_keys is the real ingest-time decision, not a guess, so it must
+    win before the type-prefix guess or the generic *_name scan even run."""
+    attrs = {"subject": "Azure login failure", "ticket_id": "TK101",
+            "company_ref": "Microsoft", "customer_name": "Riya Shah"}
+    assert display_name(attrs, 2871, "SupportTicket",
+                        match_keys=["ticket_id"]) == "TK101"
+
+
+def test_display_name_match_keys_prefers_name_shaped_key_over_id_shaped() -> None:
+    """A type declared with both a name and an id match key still shows the
+    human-readable one — same "prefer name over id" rule as the type-prefix
+    tier, just applied within match_keys."""
+    attrs = {"employee_id": "EMP101", "employee_name": "Riya Shah",
+            "manager": "Arun Kumar"}
+    assert display_name(attrs, 1997, "Employee",
+                        match_keys=["employee_id", "employee_name"]) == "Riya Shah"
+
+
+def test_display_name_falls_back_to_type_prefix_when_match_keys_absent() -> None:
+    """No stored match_keys (e.g. a dimension-materialized or pre-fix
+    entity) — the type-prefix guess still applies as a fallback, unchanged."""
+    attrs = {"order_id": "O103", "company_name": "Asha Labs"}
+    assert display_name(attrs, 2764, "Order", match_keys=None) == "O103"
+
+
+def test_display_name_falls_back_to_type_prefix_when_match_key_column_missing() -> None:
+    """Declared match_keys that don't actually exist on this record (stale
+    metadata, or a record predating a schema change) fall through to the
+    type-prefix guess rather than returning nothing."""
+    attrs = {"order_id": "O103", "company_name": "Asha Labs"}
+    assert display_name(attrs, 2764, "Order", match_keys=["nonexistent_key"]) == "O103"
+
+
 def test_summary_counts_types_sources_and_dedup() -> None:
     s = summarize(ENTITIES, PROV)
     assert s["total_entities"] == 3

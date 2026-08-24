@@ -126,3 +126,84 @@ def test_oversized_block_skipped_with_done_marker() -> None:
     list(resolve_chunked(1, records, [r.record_id for r in records],
                          backend, "Thing"))
     assert "prefix:huge" in backend.done
+
+
+class _CapturingReview:
+    """ReviewSink stand-in that records every offer() call."""
+
+    def __init__(self) -> None:
+        self.offers: list[dict] = []
+
+    def offer(self, left, right, score, llm_verdict, llm_reason, status) -> None:
+        self.offers.append({
+            "pair": frozenset((left.record_id, right.record_id)),
+            "score": score, "llm_verdict": llm_verdict,
+            "llm_reason": llm_reason, "status": status,
+        })
+
+
+def _paired_backend(records: list[ResolutionRecord]) -> InMemoryBackend:
+    """A backend with both records pre-seeded into one block — bypasses
+    real blocking-key derivation so band tests control the pair directly."""
+    backend = InMemoryBackend(records)
+    backend.add_members(1, [("block", r.record_id) for r in records])
+    return backend
+
+
+def test_score_pass_without_broker_drops_band_pairs_unchanged(monkeypatch) -> None:
+    """Backward compatibility: omitting broker/review keeps the pre-fix
+    behaviour — a pair that doesn't clear AUTO_MERGE is simply dropped,
+    no edge, no review offer."""
+    from aryx.resolution import chunked as chunked_mod
+
+    monkeypatch.setattr(chunked_mod, "score_pair", lambda a, b: 0.85)
+    records = [ResolutionRecord(record_id=1, text="a", payload={}),
+               ResolutionRecord(record_id=2, text="b", payload={})]
+    backend = _paired_backend(records)
+
+    list(resolve_chunked(1, records, [1, 2], backend, "Thing"))
+
+    assert backend.match_edges == []
+
+
+def test_resolve_chunked_auto_rejects_confident_llm_non_match(monkeypatch) -> None:
+    """Regression: the chunked resolver had NO DEC-009/DEC-010 band routing
+    at all — every non-auto-merge pair was silently dropped, not even
+    queued for human review. With broker+review supplied, a band pair whose
+    LLM rescore is confidently below AUTO_REJECT now reaches review as
+    auto_reject, exactly like the in-memory resolver."""
+    from aryx.resolution import chunked as chunked_mod
+
+    monkeypatch.setattr(chunked_mod, "score_pair", lambda a, b: 0.85)
+    monkeypatch.setattr("aryx.resolution.run.adjudicate", lambda l, r, b: 0.02)
+    records = [ResolutionRecord(record_id=1, text="a", payload={}),
+               ResolutionRecord(record_id=2, text="b", payload={})]
+    backend = _paired_backend(records)
+    review = _CapturingReview()
+
+    list(resolve_chunked(1, records, [1, 2], backend, "Thing",
+                         broker=MagicMock(), review=review))
+
+    assert backend.match_edges == []
+    assert len(review.offers) == 1
+    assert review.offers[0]["status"] == "auto_reject"
+    assert review.offers[0]["llm_verdict"] == 0.02
+
+
+def test_resolve_chunked_merges_via_llm_rescore(monkeypatch) -> None:
+    """A band pair whose LLM rescore clears AUTO_MERGE becomes an edge, same
+    as the in-memory resolver's auto_llm outcome — and is NOT also queued."""
+    from aryx.resolution import chunked as chunked_mod
+
+    monkeypatch.setattr(chunked_mod, "score_pair", lambda a, b: 0.85)
+    monkeypatch.setattr("aryx.resolution.run.adjudicate", lambda l, r, b: 0.97)
+    records = [ResolutionRecord(record_id=1, text="a", payload={}),
+               ResolutionRecord(record_id=2, text="b", payload={})]
+    backend = _paired_backend(records)
+    review = _CapturingReview()
+
+    list(resolve_chunked(1, records, [1, 2], backend, "Thing",
+                         broker=MagicMock(), review=review))
+
+    assert backend.match_edges == [(1, 2, 0.97)]
+    assert review.offers == []

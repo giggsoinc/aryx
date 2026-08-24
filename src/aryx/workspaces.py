@@ -143,6 +143,12 @@ class WorkspaceStore(WorkspaceUnderstandingMixin):
         with self._conn.cursor() as cur:
             cur.execute(load("delete_profiles_by_workspace"), (wid,))
             cur.execute(load("delete_tags_by_workspace"), (wid,))
+            # Before runs/jobs: adjudication rows aren't partitioned with
+            # landed_record/entity, so _drop_partitions above never touches
+            # them — left alone, they survive workspace deletion and later
+            # resurface as "pending" cards pointing at ids that belong to
+            # nothing once a new workspace happens to reuse this same id.
+            cur.execute(load("delete_adjudication_by_workspace"), (wid,))
             cur.execute(load("delete_runs_by_workspace"), (wid,))
             cur.execute(load("delete_jobs_by_workspace"), (wid,))
             cur.execute(load("delete_workspace_row"), (wid,))

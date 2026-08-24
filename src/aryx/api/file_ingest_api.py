@@ -27,6 +27,7 @@ from aryx.pipeline.chain_jobs import run_chain_now
 from aryx.pipeline.doc_discovery import _infer_type, infer_fk_links
 from aryx.pipeline.downstream import intent_ready
 from aryx.pipeline.orchestrate import link_entities, run_pipeline
+from aryx.resolution.field_shape import resolve_match_keys
 from aryx.store.chunk_store import ChunkStore
 from aryx.store.dataset_store import DatasetStore
 from aryx.store.job_store import JobStore
@@ -310,17 +311,17 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
             # invents one, or wrong casing) forces the whole-row fallback in
             # landed_records — which makes every row's match text huge and
             # similar, exploding pairwise scoring + adjudication into hours.
-            # Repair deterministically: use the most-unique column (the natural
-            # key) so matching is both fast and correct.
-            cols = list(cv["colvals"].keys())
-            valid = [k for k in keys if k in cols]
-            if valid:
-                keys = valid
-            elif cols:
-                best = max(cols, key=lambda c: len({v for v in cv["colvals"][c] if v}))
-                logger.info("match_keys %s not columns of %s; using key '%s'",
-                            keys, name, best)
-                keys = [best]
+            # Also deprioritizes identifier-shaped columns (EMP101, TK103,
+            # CO101, ...) and, narrowly, skips entity resolution entirely for
+            # genuinely transactional types (a single proposed key that's a
+            # true per-row identifier — order_id, ticket_id) since every row
+            # of those is a distinct real-world thing by construction. See
+            # field_shape.resolve_match_keys.
+            keys, transactional = resolve_match_keys(keys, cv["colvals"])
+            if transactional:
+                logger.info("match_keys %s is a per-row identifier for %s; "
+                           "skipping entity resolution (one entity per record)",
+                           keys, name)
             plans.append({"ontology_type": otype, **cv})
             jobs.update_stage(job_id, "Ingest", 20, f"Processing {name}")
 
@@ -339,6 +340,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 on_progress=_progress,
                 on_run_id=lambda rid, _jid=job_id: jobs.attach_run(_jid, rid),
                 fk_links=fk_links, workspace_id=workspace_id,
+                skip_resolution=transactional,
             )
             total_entities += int(summary.get("entities") or 0)
         # Cross-file relationships. The UI sends no fk_links, so with every

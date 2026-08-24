@@ -17,9 +17,10 @@ from aryx import connections
 from aryx.api.admin_api import _local_broker
 from aryx.config import get_settings
 from aryx.connectors.schema_inspect import introspect, test_connection
-from aryx.connectors.sql_source import SqlConnector
+from aryx.connectors.sql_source import SqlConnector, sample_colvals
 from aryx.pipeline.orchestrate import run_pipeline
 from aryx.pipeline.schema_agent import discover_mappings
+from aryx.resolution.field_shape import resolve_match_keys
 from aryx.store.job_store import JobStore
 from aryx.store.migrate import apply_migrations
 
@@ -68,6 +69,7 @@ def _build_url(req: ConnectRequest) -> str:
 
 def _run_multi(url: str, tables: list[dict], edges: list[dict], job_id: str,
                workspace_id: int = 1) -> None:
+    """Background: ingest every confirmed table, then link them by ``edges``."""
     settings = get_settings()
     jobs = JobStore(settings.rdb_dsn)
     broker = _local_broker()
@@ -77,6 +79,8 @@ def _run_multi(url: str, tables: list[dict], edges: list[dict], job_id: str,
             pct = int(10 + i * 80 / max(total, 1))
             jobs.update_stage(job_id, f"Table {i + 1}/{total}", pct, f"Ingesting {t['table']}")
             keys = t.get("match_keys") or ["id"]
+            colvals = sample_colvals(url, t["table"])
+            keys, transactional = resolve_match_keys(keys, colvals)
             run_pipeline(
                 connector=SqlConnector(url, t["table"], keys[0], system="rdb"),
                 dsn=settings.rdb_dsn, system="rdb", dataset=t["table"],
@@ -84,6 +88,7 @@ def _run_multi(url: str, tables: list[dict], edges: list[dict], job_id: str,
                 graph_url=settings.graph_url, broker=broker,
                 workspace_id=workspace_id,
                 fk_links=edges if i == total - 1 else [],
+                skip_resolution=transactional,
             )
         jobs.finish(job_id, run_id=None, status="complete")
     except Exception as exc:  # noqa: BLE001

@@ -3,9 +3,14 @@
 Thresholds (env-tunable, defaults from the G9 sweep — see DECISIONS.md):
   ARYX_ER_AUTO_MERGE   >= this -> auto-merge                       (default 0.95)
   ARYX_ER_ADJUDICATE   [ARYX_ER_REVIEW, AUTO_MERGE) -> LLM rescores (band, no threshold of its own)
-                       rescored >= AUTO_MERGE -> merge; else -> human queue
+                       rescored >= AUTO_MERGE -> merge;
+                       rescored <  AUTO_REJECT -> auto-reject (DEC-010);
+                       else -> human queue
   ARYX_ER_REVIEW       below this -> human queue directly           (default 0.80)
-  Every pair below AUTO_MERGE ends up merged or queued — nothing is silently dropped.
+  ARYX_ER_AUTO_REJECT  LLM rescore below this -> auto-reject, no human queue (default 0.05, DEC-010)
+  Every pair below AUTO_MERGE and at/above AUTO_REJECT ends up merged or queued;
+  nothing ambiguous is silently dropped — only a confidently-non-matching LLM
+  verdict is.
 
 Pairs routed to the human queue are treated as NON-merge for the current run
 (conservative: a wrong merge is worse than a missed merge in audited domains).
@@ -74,63 +79,87 @@ def _block_embeddings(
     return {r.record_id: v for r, v in zip(records, vectors)} if vectors else {}
 
 
+def _route_decision(
+    left: ResolutionRecord, right: ResolutionRecord, score: float,
+    broker: Broker, thresholds: tuple[float, float, float],
+    adj_budget: list[int] | None = None,
+) -> tuple[str, float | None, str | None]:
+    """Pure threshold routing for one scored pair — no union/review side
+    effects, so both the in-memory resolver (``_route_pair`` below) and the
+    chunked resolver (``resolution/chunked.py``) share one threshold
+    implementation instead of drifting (the chunked path used to hard-code
+    only the auto-merge cutoff and silently drop every other pair).
+
+    ``adj_budget`` is a one-element mutable counter of remaining LLM
+    adjudications for the run; decremented here when an LLM call is made.
+
+    Returns:
+        (action, llm_verdict, llm_reason). ``action`` is one of "merge"
+        (score alone clears AUTO_MERGE), "auto_llm" (LLM rescore cleared
+        AUTO_MERGE), "auto_reject" (DEC-010: confident LLM non-match), or
+        "pending" (needs human review).
+    """
+    auto, rev, reject = thresholds
+    if score >= auto:
+        return "merge", None, None
+    if score < rev:
+        return "pending", None, None
+    if adj_budget is not None and adj_budget[0] <= 0:
+        return "pending", None, "adjudication budget exhausted"
+    if adj_budget is not None:
+        adj_budget[0] -= 1
+    try:
+        rescored = adjudicate(left, right, broker)
+    except Exception as exc:  # noqa: BLE001 — LLM down -> human decides
+        # The raw exception (network error, malformed provider JSON, etc.)
+        # is for the log, not the reviewer — it's an internal failure
+        # detail, not something that helps a human decide the pair.
+        logger.warning("adjudication failed, queueing for human: %s", exc)
+        return "pending", None, "llm unavailable — queued for human review"
+    if rescored >= auto:
+        return "auto_llm", rescored, "llm adjudication"
+    if rescored < reject:
+        # The LLM already gave a confident verdict here — "not the same
+        # thing" — so asking a human to re-confirm it adds no value.
+        # Distinct status from "rejected" (DEC-010) so the human/LLM
+        # agreement stat isn't credited with a decision no human actually
+        # made, same reason auto_llm is split from a human's "approved".
+        return "auto_reject", rescored, "llm rescore below reject threshold"
+    return "pending", rescored, "llm rescore below auto-merge threshold"
+
+
 def _route_pair(left: ResolutionRecord, right: ResolutionRecord, score: float,
                 broker: Broker, union: UnionFind,
                 review: ReviewSink | None,
                 adj_budget: list[int] | None = None,
-                thresholds: tuple[float, float, float] | None = None) -> None:
+                thresholds: tuple[float, float, float] | None = None) -> str:
     """Apply the four-way threshold routing to one scored pair.
 
-    ``adj_budget`` is a one-element mutable counter of remaining LLM
-    adjudications for the run. Each frontier call on a local model costs
-    seconds, so a large source can spawn thousands of band pairs and make
-    resolve run for hours. Once the budget is spent, band pairs are queued for
-    human review instead of auto-merged — bounding wall-clock without ever
-    auto-merging on an unverified guess.
+    ``thresholds`` is the pre-read (auto, review, auto_reject) triple. This
+    runs once per scored pair, so re-reading os.environ here is pure
+    overhead; the caller reads them once. Omitting it keeps the original
+    behaviour.
 
-    ``thresholds`` is the pre-read (auto, review) pair. This runs once per
-    scored pair, so re-reading os.environ here is pure overhead; the caller
-    reads them once. Omitting it keeps the original behaviour.
+    Returns:
+        The routing action ("merge", "auto_llm", "auto_reject", or
+        "pending") — callers use this to track which pairs were explicitly
+        rejected, so they're never counted as a merge-edge for some other
+        cluster they transitively end up in (DEC-010 + confidence.py).
     """
     if thresholds is None:
-        auto = _threshold("ARYX_ER_AUTO_MERGE", 0.95)
-        rev = _threshold("ARYX_ER_REVIEW", 0.80)
-    else:
-        auto, rev = thresholds
-    if score >= auto:
+        thresholds = (_threshold("ARYX_ER_AUTO_MERGE", 0.95),
+                      _threshold("ARYX_ER_REVIEW", 0.80),
+                      _threshold("ARYX_ER_AUTO_REJECT", 0.05))
+    action, llm_verdict, llm_reason = _route_decision(
+        left, right, score, broker, thresholds, adj_budget)
+    if action in ("merge", "auto_llm"):
         union.union(left.record_id, right.record_id)
-        return
-    if score >= rev:
-        if adj_budget is not None and adj_budget[0] <= 0:
-            if review is not None:
-                review.offer(left, right, score, llm_verdict=None,
-                             llm_reason="adjudication budget exhausted",
-                             status="pending")
-            return
-        if adj_budget is not None:
-            adj_budget[0] -= 1
-        try:
-            rescored = adjudicate(left, right, broker)
-            if rescored >= auto:
-                if review is not None:
-                    review.offer(left, right, score, llm_verdict=rescored,
-                                 llm_reason="llm adjudication", status="auto_llm")
-                union.union(left.record_id, right.record_id)
-            else:
-                if review is not None:
-                    review.offer(left, right, score, llm_verdict=rescored,
-                                 llm_reason="llm rescore below auto-merge threshold",
-                                 status="pending")
-        except Exception as exc:  # noqa: BLE001 — LLM down -> human decides
-            logger.warning("adjudication failed, queueing for human: %s", exc)
-            if review is not None:
-                review.offer(left, right, score, llm_verdict=None,
-                             llm_reason=f"llm unavailable: {exc}",
-                             status="pending")
-        return
+    if action == "merge":
+        return action
     if review is not None:
-        review.offer(left, right, score, llm_verdict=None,
-                     llm_reason=None, status="pending")
+        review.offer(left, right, score, llm_verdict=llm_verdict,
+                     llm_reason=llm_reason, status=action)
+    return action
 
 
 def _materialize(member_ids: list[int], by_id: dict[int, ResolutionRecord],
@@ -138,13 +167,21 @@ def _materialize(member_ids: list[int], by_id: dict[int, ResolutionRecord],
                  ontology_type: str,
                  policy: SurvivorshipPolicy | None,
                  edge_index: dict[int, list[tuple[int, float]]] | None = None,
-                 adjudicate_threshold: float | None = None) -> ResolvedEntity:
+                 adjudicate_threshold: float | None = None,
+                 rejected_pairs: set[tuple[int, int]] | None = None,
+                 ) -> ResolvedEntity:
     """Build one golden-record entity from a cluster's members.
 
     ``edge_index`` and ``adjudicate_threshold`` are hoisted out of this function
     because it runs once per cluster: the index would otherwise be rebuilt (or
     the full pair dict rescanned) and the env var re-read every time. Both
     default to None so any existing caller keeps the original behaviour.
+
+    ``rejected_pairs`` excludes DEC-010 auto_reject pairs from the cluster's
+    confidence calculation — see ``confidence.cluster_edges``'s ``excluded``
+    param for why a pair explicitly routed as a non-match must never count
+    as a merge-edge, even if both records end up in this cluster via some
+    other pair's transitive closure.
     """
     if adjudicate_threshold is None:
         adjudicate_threshold = _threshold("ARYX_ER_REVIEW", 0.80)
@@ -163,9 +200,11 @@ def _materialize(member_ids: list[int], by_id: dict[int, ResolutionRecord],
         conflicts = None
 
     if edge_index is None:
-        edges = cluster_edges(member_ids, pair_scores, adjudicate_threshold)
+        edges = cluster_edges(member_ids, pair_scores, adjudicate_threshold,
+                              excluded=rejected_pairs)
     else:
-        edges = cluster_edges_indexed(member_ids, edge_index, adjudicate_threshold)
+        edges = cluster_edges_indexed(member_ids, edge_index, adjudicate_threshold,
+                                      excluded=rejected_pairs)
 
     return ResolvedEntity(
         ontology_type=ontology_type, attributes=merged,
@@ -196,6 +235,14 @@ def resolve(
     by_id = {r.record_id: r for r in records}
     union = UnionFind()
     pair_scores: dict[tuple[int, int], float] = {}
+    # MultiKeyBlocker puts each record in every block whose key it produces
+    # (prefix, token-set, Soundex) — good for recall, but it means the same
+    # two records can co-occur in more than one block. Without this guard,
+    # such a pair gets scored and offered to adjudication once per shared
+    # key family instead of once. Sorted so the same pair is recognized
+    # regardless of which side lands at the lower list index in each block.
+    seen_pairs: set[tuple[int, int]] = set()
+    rejected_pairs: set[tuple[int, int]] = set()
     for record in records:
         union.add(record.record_id)
 
@@ -204,6 +251,7 @@ def resolve(
     thresholds = (
         _threshold("ARYX_ER_AUTO_MERGE", 0.95),
         _threshold("ARYX_ER_REVIEW", 0.80),
+        _threshold("ARYX_ER_AUTO_REJECT", 0.05),
     )
 
     # Cap total LLM adjudications per run. Each frontier call on a local model
@@ -221,12 +269,19 @@ def resolve(
         for i in range(len(group)):
             for j in range(i + 1, len(group)):
                 left, right = group[i], group[j]
+                pair_key = (min(left.record_id, right.record_id),
+                            max(left.record_id, right.record_id))
+                if pair_key in seen_pairs:
+                    continue
+                seen_pairs.add(pair_key)
                 score = score_pair(left.text, right.text,
                                    embeddings.get(left.record_id),
                                    embeddings.get(right.record_id))
                 pair_scores[(left.record_id, right.record_id)] = score
-                _route_pair(left, right, score, broker, union, review,
-                            adj_budget, thresholds)
+                action = _route_pair(left, right, score, broker, union, review,
+                                     adj_budget, thresholds)
+                if action == "auto_reject":
+                    rejected_pairs.add((left.record_id, right.record_id))
     if initial_adj_budget > 0 and adj_budget[0] <= 0:
         logger.warning("adjudication budget exhausted — remaining band pairs "
                        "queued for review, not auto-merged")
@@ -244,7 +299,8 @@ def resolve(
     results = [
         (_materialize(member_ids, by_id, pair_scores, ontology_type, policy,
                       edge_index=edge_index,
-                      adjudicate_threshold=thresholds[1]),
+                      adjudicate_threshold=thresholds[1],
+                      rejected_pairs=rejected_pairs),
          [EntityMember(landed_record_id=mid) for mid in member_ids])
         for member_ids in clusters.values()
     ]
