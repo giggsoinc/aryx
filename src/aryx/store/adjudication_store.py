@@ -3,24 +3,25 @@
 Every queued pair — human-decided or LLM-decided — is a labeled training
 example. ``merge_entities_of`` is the post-hoc union applied when a human
 approves a pair after the run already materialized separate entities.
+
+Split across three files to stay under the size cap: this module owns
+construction, writes (enqueue/decide), and stats; reads (page/lookups) live
+in ``adjudication_queue_reads.py`` and the merge logic in
+``adjudication_merge.py`` — both mixed in below so ``AdjudicationStore``
+stays the single public entry point every caller already uses.
 """
 from __future__ import annotations
 
-import logging
 import os
 from typing import Any
 
 from aryx.queries import load
+from aryx.store.adjudication_merge import AdjudicationMerge
+from aryx.store.adjudication_queue_reads import AdjudicationQueueReads
 from aryx.store.pool import get_pool
 
-logger = logging.getLogger(__name__)
 
-_COLS = ("id", "run_id", "left_record_id", "right_record_id", "score",
-         "llm_verdict", "llm_reason", "status", "decided_by", "decided_at",
-         "created_at")
-
-
-class AdjudicationStore:
+class AdjudicationStore(AdjudicationQueueReads, AdjudicationMerge):
     """Reads and writes adjudication queue rows + applies entity merges."""
 
     def __init__(self, dsn: str, workspace_id: int = 1) -> None:
@@ -39,16 +40,6 @@ class AdjudicationStore:
                              llm_verdict, llm_reason, status))
                 row = cur.fetchone()
         return int(row[0]) if row else 0
-
-    def page(self, status: str = "pending", limit: int = 50,
-             offset: int = 0) -> list[dict[str, Any]]:
-        """Return one page of queue rows with the given status."""
-        with self._pool.connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(load("select_adjudication_page"),
-                            (self._ws, status, limit, offset))
-                rows = cur.fetchall()
-        return [dict(zip(_COLS, r)) for r in rows]
 
     def decide(self, adjudication_id: int, approve: bool,
                decided_by: str) -> dict[str, Any]:
@@ -80,47 +71,14 @@ class AdjudicationStore:
             with conn.cursor() as cur:
                 cur.execute(load("adjudication_stats"), (auto_merge, self._ws))
                 row = cur.fetchone()
-        pending, approved, rejected, auto_llm, agree, overlap = row
+        pending, approved, rejected, auto_llm, auto_reject, agree, overlap = row
         decided = approved + rejected
         return {
             "pending": pending, "approved": approved, "rejected": rejected,
-            "auto_llm": auto_llm,
+            "auto_llm": auto_llm, "auto_reject": auto_reject,
             "approval_rate": approved / decided if decided else None,
             "human_llm_agreement": agree / overlap if overlap else None,
         }
-
-    def merge_entities_of(self, left_record_id: int,
-                          right_record_id: int) -> bool:
-        """Union the entities containing two landed records (post-hoc merge).
-
-        The lower-id entity survives: it absorbs the other's members and the
-        attribute dicts merge (survivor's values win on key collisions). The
-        losing entity row is removed. Re-projection of the workspace graph is
-        wipe-rebuild until G8 lands.
-
-        Returns:
-            True when a merge happened; False when already same entity or
-            either record has no entity yet.
-        """
-        with self._pool.connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(load("select_entity_of_record"),
-                            (self._ws, left_record_id))
-                left = cur.fetchone()
-                cur.execute(load("select_entity_of_record"),
-                            (self._ws, right_record_id))
-                right = cur.fetchone()
-                if not left or not right or left[0] == right[0]:
-                    return False
-                keep, drop = sorted((int(left[0]), int(right[0])))
-                cur.execute(load("merge_entity_attributes"),
-                            (keep, self._ws, drop, self._ws))
-                cur.execute(load("move_entity_members"),
-                            (keep, self._ws, drop))
-                cur.execute(load("delete_entity_row"), (drop, self._ws))
-        logger.info("entities merged keep=%s drop=%s ws=%s",
-                    keep, drop, self._ws)
-        return True
 
     def close(self) -> None:
         """No-op: connections are managed by the shared pool (G12)."""

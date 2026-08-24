@@ -37,7 +37,9 @@ See [EDITIONS.md](EDITIONS.md) for the full edition matrix.
 | Pairwise scoring (cheap LLM) | Done | `resolution/run.py` |
 | Three-band adjudication routing | Done (G3/G10) | `resolution/run.py` |
 | LLM adjudication (frontier tier, rescores 0.80-0.95 band) | Done | `resolution/run.py` |
-| Human review queue (<0.80, or adjudicate-band rescore <0.95) | Done (G10) | `resolution/review_queue.py`, `api/adjudication_api.py` |
+| Human review queue (<0.80, or adjudicate-band rescore <0.95), with a Data-page UI to approve/reject and readable side-by-side context | Done (G10) | `resolution/review_queue.py`, `api/adjudication_api.py`, `apps/web/components/adjudication/AdjudicationReview.tsx` |
+| Auto-reject on a confident LLM "not a match" rescore (DEC-010) | Done | `resolution/run.py` |
+| Transactional/fact types skip resolution entirely — one entity per record (DEC-011) | Done | `resolution/field_shape.py`, `resolve_entities.py` |
 | Labeled training data persistence | Done (G10) | `store/adjudication_store.py` |
 | Survivorship policies (5 strategies) | Done (G3) | `resolution/survivorship.py` |
 | Per-attribute strategy overrides | Done (G3) | `resolution/golden.py` |
