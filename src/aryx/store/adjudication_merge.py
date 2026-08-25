@@ -17,6 +17,7 @@ from aryx.queries import load
 from aryx.resolution.golden import golden_record_with_policy
 from aryx.resolution.survivorship import SurvivorshipPolicy
 from aryx.store.entity_store import _dumps
+from aryx.store.relationship_repoint import repoint_relationships_safely
 
 logger = logging.getLogger(__name__)
 
@@ -65,11 +66,13 @@ class AdjudicationMerge:
         of the survivor's pre-existing values winning unconditionally.
         Conflicts are logged to ``aryx_attribute_conflict`` exactly as they
         are during normal resolution. Relationships that named the dropped
-        entity are repointed to the survivor first (``repoint_relationships``
-        — the same query ``corrections_api``'s own entity-merge path already
-        uses), so a merge never leaves another entity's edge dangling on a
-        row that's about to be deleted. Re-projection of the workspace graph
-        is wipe-rebuild until G8 lands.
+        entity are repointed to the survivor first (shared with
+        ``corrections_api``'s own entity-merge path — see
+        ``relationship_repoint.repoint_relationships_safely``), so a merge
+        never leaves another entity's edge dangling on a row that's about to
+        be deleted, and never leaves behind a self-loop or a duplicate edge
+        either. Re-projection of the workspace graph is wipe-rebuild until
+        G8 lands.
 
         Returns:
             True when a merge happened; False when already same entity or
@@ -96,8 +99,7 @@ class AdjudicationMerge:
                             (Jsonb(merged, dumps=_dumps), keep, self._ws))
                 cur.execute(load("move_entity_members"),
                             (keep, self._ws, drop))
-                cur.execute(load("repoint_relationships"),
-                            (drop, keep, drop, keep, self._ws, drop, drop))
+                repoint_relationships_safely(cur, self._ws, drop, keep)
                 cur.execute(load("delete_entity_row"), (drop, self._ws))
                 self._save_conflicts(cur, keep, conflicts)
         logger.info("entities merged keep=%s drop=%s ws=%s conflicts=%d",

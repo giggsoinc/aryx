@@ -23,6 +23,7 @@ from aryx.pipeline.enrich import _build_type_ancestors
 from aryx.project import project_graph
 from aryx.queries import load
 from aryx.store.entity_store import EntityStore
+from aryx.store.relationship_repoint import repoint_relationships_safely
 from aryx.workspaces import ws_graph
 
 logger = logging.getLogger(__name__)
@@ -332,10 +333,8 @@ def _apply_correction(workspace_id: int,
                                      req.target_id, req.entity_id))
                         detail = "forbidden — never relate again"
                     else:  # merge: entity_id absorbed INTO target_id
-                        cur.execute(load("repoint_relationships"),
-                                    (req.entity_id, req.target_id,
-                                     req.entity_id, req.target_id,
-                                     workspace_id, req.entity_id, req.entity_id))
+                        repoint_relationships_safely(
+                            cur, workspace_id, req.entity_id, req.target_id)
                         cur.execute(load("repoint_members"),
                                     (req.target_id, workspace_id, req.entity_id))
                         cur.execute(load("delete_entity_by_id"),
