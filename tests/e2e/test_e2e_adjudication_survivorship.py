@@ -123,6 +123,114 @@ def test_merge_entities_of_honors_configured_survivorship_policy(workspace, e2e_
     assert conflict == ("most_recent", "Asha Labs")
 
 
+def _add_relationship(dsn: str, workspace_id: int, src: int, tgt: int, name: str) -> None:
+    import psycopg
+    with psycopg.connect(dsn, autocommit=True) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO aryx_relationship (workspace_id, source_entity_id, "
+                "target_entity_id, name, confidence) VALUES (%s, %s, %s, %s, 1)",
+                (workspace_id, src, tgt, name))
+
+
+def test_merge_entities_of_repoints_relationships_to_the_survivor(workspace, e2e_dsn) -> None:
+    """Regression (orders-new incident): an Order's PLACED_BY edge to a
+    Company that later gets merged away must repoint to the surviving
+    Company, not stay dangling on the deleted entity id — confirmed live:
+    O103/O107 silently disconnected from "Asha L." after merging "Asha
+    Labs"/"Asha" into it, because relationships were never repointed."""
+    import psycopg
+    from aryx.store.adjudication_store import AdjudicationStore
+
+    wid = workspace["id"]
+    survivor_entity, survivor_record = _seed_entity(e2e_dsn, wid, "Asha L.")
+    dropped_entity, dropped_record = _seed_entity(e2e_dsn, wid, "Asha Labs")
+    assert survivor_entity < dropped_entity, "test assumes the older name has the lower id"
+
+    order_entity, _order_record = _seed_entity(e2e_dsn, wid, "O103")
+    _add_relationship(e2e_dsn, wid, order_entity, dropped_entity, "PLACED_BY")
+
+    store = AdjudicationStore(e2e_dsn, wid)
+    merged = store.merge_entities_of(survivor_record, dropped_record)
+    assert merged is True
+
+    with psycopg.connect(e2e_dsn, autocommit=True) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT target_entity_id FROM aryx_relationship "
+                "WHERE workspace_id = %s AND source_entity_id = %s AND name = 'PLACED_BY'",
+                (wid, order_entity))
+            rows = cur.fetchall()
+
+    assert rows == [(survivor_entity,)], (
+        "the Order's PLACED_BY edge must repoint to the surviving Company, "
+        "not stay dangling on the deleted entity id")
+
+
+def _relationships(dsn: str, workspace_id: int) -> list[tuple[int, int, str]]:
+    import psycopg
+    with psycopg.connect(dsn, autocommit=True) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT source_entity_id, target_entity_id, name "
+                "FROM aryx_relationship WHERE workspace_id = %s", (workspace_id,))
+            return cur.fetchall()
+
+
+def test_merge_entities_of_drops_a_self_loop_instead_of_creating_one(
+    workspace, e2e_dsn,
+) -> None:
+    """Raven-review finding on the repoint fix: a pre-existing direct edge
+    BETWEEN the two entities being merged would become a nonsense self-loop
+    ("keep relates to keep") once naively repointed — it must be dropped
+    entirely instead, since both sides are now the same entity."""
+    from aryx.store.adjudication_store import AdjudicationStore
+
+    wid = workspace["id"]
+    survivor_entity, survivor_record = _seed_entity(e2e_dsn, wid, "Asha L.")
+    dropped_entity, dropped_record = _seed_entity(e2e_dsn, wid, "Asha Labs")
+    assert survivor_entity < dropped_entity, "test assumes the older name has the lower id"
+
+    _add_relationship(e2e_dsn, wid, dropped_entity, survivor_entity, "DUP_OF")
+
+    store = AdjudicationStore(e2e_dsn, wid)
+    assert store.merge_entities_of(survivor_record, dropped_record) is True
+
+    rels = _relationships(e2e_dsn, wid)
+    assert (survivor_entity, survivor_entity, "DUP_OF") not in rels, (
+        "a direct edge between the two merging entities must be dropped, "
+        "not repointed into a self-loop")
+    assert not any(src == tgt for src, tgt, _ in rels), (
+        "no self-loop of any kind should survive a merge")
+
+
+def test_merge_entities_of_dedupes_an_edge_to_a_shared_third_entity(
+    workspace, e2e_dsn,
+) -> None:
+    """Raven-review finding: if both merging entities already relate to the
+    same third entity the same way, a naive repoint creates an exact
+    duplicate row instead of collapsing to one — the dropped entity's copy
+    must be removed, keeping only the survivor's original edge."""
+    from aryx.store.adjudication_store import AdjudicationStore
+
+    wid = workspace["id"]
+    survivor_entity, survivor_record = _seed_entity(e2e_dsn, wid, "Asha L.")
+    dropped_entity, dropped_record = _seed_entity(e2e_dsn, wid, "Asha Labs")
+    third_entity, _third_record = _seed_entity(e2e_dsn, wid, "Tech Sector")
+    assert survivor_entity < dropped_entity, "test assumes the older name has the lower id"
+
+    _add_relationship(e2e_dsn, wid, survivor_entity, third_entity, "INDUSTRY")
+    _add_relationship(e2e_dsn, wid, dropped_entity, third_entity, "INDUSTRY")
+
+    store = AdjudicationStore(e2e_dsn, wid)
+    assert store.merge_entities_of(survivor_record, dropped_record) is True
+
+    rels = [r for r in _relationships(e2e_dsn, wid) if r[2] == "INDUSTRY"]
+    assert rels == [(survivor_entity, third_entity, "INDUSTRY")], (
+        "only one INDUSTRY edge to the third entity must survive — "
+        "the dropped entity's duplicate must not repoint into a second copy")
+
+
 def test_page_collapses_pending_rows_for_the_same_entity_pair(workspace, e2e_dsn) -> None:
     """Two adjudication rows already resolving to the same two entities
     must show up once in the pending list, not twice."""
