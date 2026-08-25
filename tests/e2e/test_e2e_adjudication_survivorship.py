@@ -123,6 +123,50 @@ def test_merge_entities_of_honors_configured_survivorship_policy(workspace, e2e_
     assert conflict == ("most_recent", "Asha Labs")
 
 
+def _add_relationship(dsn: str, workspace_id: int, src: int, tgt: int, name: str) -> None:
+    import psycopg
+    with psycopg.connect(dsn, autocommit=True) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO aryx_relationship (workspace_id, source_entity_id, "
+                "target_entity_id, name, confidence) VALUES (%s, %s, %s, %s, 1)",
+                (workspace_id, src, tgt, name))
+
+
+def test_merge_entities_of_repoints_relationships_to_the_survivor(workspace, e2e_dsn) -> None:
+    """Regression (orders-new incident): an Order's PLACED_BY edge to a
+    Company that later gets merged away must repoint to the surviving
+    Company, not stay dangling on the deleted entity id — confirmed live:
+    O103/O107 silently disconnected from "Asha L." after merging "Asha
+    Labs"/"Asha" into it, because relationships were never repointed."""
+    import psycopg
+    from aryx.store.adjudication_store import AdjudicationStore
+
+    wid = workspace["id"]
+    survivor_entity, survivor_record = _seed_entity(e2e_dsn, wid, "Asha L.")
+    dropped_entity, dropped_record = _seed_entity(e2e_dsn, wid, "Asha Labs")
+    assert survivor_entity < dropped_entity, "test assumes the older name has the lower id"
+
+    order_entity, _order_record = _seed_entity(e2e_dsn, wid, "O103")
+    _add_relationship(e2e_dsn, wid, order_entity, dropped_entity, "PLACED_BY")
+
+    store = AdjudicationStore(e2e_dsn, wid)
+    merged = store.merge_entities_of(survivor_record, dropped_record)
+    assert merged is True
+
+    with psycopg.connect(e2e_dsn, autocommit=True) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT target_entity_id FROM aryx_relationship "
+                "WHERE workspace_id = %s AND source_entity_id = %s AND name = 'PLACED_BY'",
+                (wid, order_entity))
+            rows = cur.fetchall()
+
+    assert rows == [(survivor_entity,)], (
+        "the Order's PLACED_BY edge must repoint to the surviving Company, "
+        "not stay dangling on the deleted entity id")
+
+
 def test_page_collapses_pending_rows_for_the_same_entity_pair(workspace, e2e_dsn) -> None:
     """Two adjudication rows already resolving to the same two entities
     must show up once in the pending list, not twice."""

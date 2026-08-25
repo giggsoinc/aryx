@@ -64,7 +64,11 @@ class AdjudicationMerge:
         e.g. "most_recent" or "most_complete" is honored here too, instead
         of the survivor's pre-existing values winning unconditionally.
         Conflicts are logged to ``aryx_attribute_conflict`` exactly as they
-        are during normal resolution. Re-projection of the workspace graph
+        are during normal resolution. Relationships that named the dropped
+        entity are repointed to the survivor first (``repoint_relationships``
+        — the same query ``corrections_api``'s own entity-merge path already
+        uses), so a merge never leaves another entity's edge dangling on a
+        row that's about to be deleted. Re-projection of the workspace graph
         is wipe-rebuild until G8 lands.
 
         Returns:
@@ -92,6 +96,8 @@ class AdjudicationMerge:
                             (Jsonb(merged, dumps=_dumps), keep, self._ws))
                 cur.execute(load("move_entity_members"),
                             (keep, self._ws, drop))
+                cur.execute(load("repoint_relationships"),
+                            (drop, keep, drop, keep, self._ws, drop, drop))
                 cur.execute(load("delete_entity_row"), (drop, self._ws))
                 self._save_conflicts(cur, keep, conflicts)
         logger.info("entities merged keep=%s drop=%s ws=%s conflicts=%d",
