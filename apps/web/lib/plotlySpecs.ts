@@ -109,6 +109,13 @@ function buildLineLikeSpec(
     layout: {
       hovermode: "x unified",
       xaxis: {
+        // "category", never left to Plotly's date auto-detection: a
+        // date-like label (e.g. "2026-09-10") with too few points to infer
+        // a sensible range collapses into a garbage sub-millisecond tick
+        // scale ("23:59:59.999" / "00:00:00.0005") instead of the real
+        // date — reproduced with a single-point timeline. Category axis
+        // renders every label as typed, always, regardless of point count.
+        type: "category",
         tickfont: { size: 10 }, showspikes: true, spikemode: "across",
         spikedash: "dot", spikecolor: "#94a3b8", spikethickness: 1,
       },
