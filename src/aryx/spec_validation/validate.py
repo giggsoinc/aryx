@@ -104,6 +104,16 @@ def _render_repair_line(err: RepairErrorConstraint) -> str:
         return (f"- [{err.code}] at {err.path}. KPI {err.invalid_value!r} has a sum/average/median "
                "operation but no measure field. Add a measure field naming the ONE real numeric "
                "column to aggregate — source_columns alone is not enough, measure is required.")
+    if err.code == "histogram_metric_mismatch":
+        return (f"- [{err.code}] at {err.path}.{wrote} A histogram Analysis's "
+               'metric must reference a KPI whose own operation is EXACTLY '
+               '"histogram" (with a measure naming the real numeric column to '
+               "bucket) — an aggregate KPI like sum/average/ratio has no "
+               "per-row distribution to chart. Either change that KPI's "
+               'operation to "histogram" and add a measure field, point '
+               'metric at a different KPI that already has operation='
+               '"histogram", or remove this histogram analysis entirely if no '
+               "numeric column needs a distribution chart.")
     if err.code == "missing_filter_value":
         return (f"- [{err.code}] at {err.path}. The filter on column {err.invalid_value!r} has no "
                '"value" (or "values") — a filter with only a column name matches nothing. Add the '
