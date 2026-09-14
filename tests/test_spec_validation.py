@@ -565,6 +565,41 @@ def test_repair_text_explains_missing_measure() -> None:
     assert "measure" in text and "kpi_bad" in text
 
 
+def test_histogram_analysis_bound_to_aggregate_kpi_fails() -> None:
+    """A histogram Analysis's metric must point at a KPI whose own operation
+    is "histogram" — pointing it at an aggregate (sum/average/ratio) KPI has
+    no per-row distribution to bucket (checks.py::_histogram_metric_errors)."""
+    raw = dict(GOOD_RAW, analyses=[
+        *GOOD_RAW["analyses"],
+        {"analysis_id": "analysis_value_distribution", "operation": "histogram",
+         "metric": "kpi_renewed_value"},  # kpi_renewed_value's operation is "sum", not "histogram"
+    ])
+    spec = _ground(raw)
+    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert any(e.code == "histogram_metric_mismatch"
+              and e.path == "analysis:analysis_value_distribution.metric"
+              for e in report.errors)
+
+
+def test_repair_text_explains_histogram_metric_mismatch() -> None:
+    """Regression: this error code previously fell through to the generic
+    "Remove this item — it has no valid replacement" branch in
+    _render_repair_line, giving the one-shot repair no real guidance — the
+    actual rule (bind to a histogram-operation KPI, or convert/remove one)
+    must be spelled out so the retry can plausibly succeed."""
+    raw = dict(GOOD_RAW, analyses=[
+        *GOOD_RAW["analyses"],
+        {"analysis_id": "analysis_value_distribution", "operation": "histogram",
+         "metric": "kpi_renewed_value"},
+    ])
+    spec = _ground(raw)
+    report, repair = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert repair is not None
+    text = repair_constraints_text(repair)
+    assert "histogram" in text and "kpi_renewed_value" in text
+    assert "no valid replacement" not in text
+
+
 # ── workspace (multi-dataset) mode ───────────────────────────────────────
 
 WORKSPACE_DATASETS = [
