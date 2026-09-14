@@ -4,7 +4,7 @@ import type {
   Datasource, EntityDetail, EntityGraphView, GraphView, IngestQuestion,
   DatasetIngestResult, DatasetProfile, SemanticProfile, GraphIntakeResult, GraphProfile,
   PlanningContext, PlannerResult, DeltaDraftResult, DeltaSpecItems, ExecutionPlan, ExecutionRun,
-  DashboardModel, RenderTelemetry,
+  DashboardModel, RenderTelemetry, WordCloudResponse, ExcerptsResponse,
   LlmConfig, LlmConfigUpdate, DeriveEntitiesResult, LinkEntitiesResult, OntologyDoc, QuizSpec, ReasonerCheck, Rule,
   SmartUnderstandResult, SurvivorshipPolicy, UserIntent, UserIntentRequest, Workspace,
   WorkspaceUnderstanding,
@@ -528,6 +528,27 @@ export const api = {
 
   getWorkspaceDashboardModel: (workspaceId: number) =>
     fetchJSON<DashboardModel | null>(`/dashboard-model/workspace?workspace_id=${workspaceId}`),
+
+  // ── Unstructured dashboard section — outside the governed spec pipeline ──
+  getHasUnstructuredData: (workspaceId: number) =>
+    fetchJSON<{ has_documents: boolean }>(
+      `/dashboard-unstructured/exists?workspace_id=${workspaceId}`,
+    ),
+
+  getDocumentWordCloud: (workspaceId: number, limit = 40, minCount = 2) =>
+    fetchJSON<WordCloudResponse>(
+      `/dashboard-unstructured/word-cloud?workspace_id=${workspaceId}` +
+      `&limit=${limit}&min_count=${minCount}`,
+    ),
+
+  // Fetched on click, never polled eagerly — span text is verbose and this
+  // is per-entity, unlike the aggregate word-cloud/donut/bar/timeline above.
+  getEntityExcerpts: (workspaceId: number, ontologyType: string, name: string) =>
+    fetchJSON<ExcerptsResponse>(
+      `/dashboard-unstructured/excerpts?workspace_id=${workspaceId}` +
+      `&ontology_type=${encodeURIComponent(ontologyType)}` +
+      `&name=${encodeURIComponent(name)}`,
+    ),
 
   // ── Frontend Dashboard Renderer (C15) — telemetry only, no compute ─────
   getWorkspacePlannerResult: (workspaceId: number) =>

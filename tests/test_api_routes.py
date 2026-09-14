@@ -442,3 +442,75 @@ def test_datasource_delete():
                    DatasourceStore=store_cls).delete("/admin/datasources/1")
     assert resp.status_code == 200 and resp.json()["status"] == "deleted"
     store_cls.return_value.delete.assert_called_once_with(1)
+
+
+def test_dashboard_unstructured_exists_true():
+    from aryx.api.unstructured_dashboard_api import unstructured_dashboard_router
+    store_cls = MagicMock()
+    store_cls.return_value.has_document_data.return_value = True
+    resp = _client(unstructured_dashboard_router, "aryx.api.unstructured_dashboard_api",
+                   UnstructuredDashboardStore=store_cls).get(
+        "/dashboard-unstructured/exists?workspace_id=7")
+    assert resp.status_code == 200 and resp.json() == {"has_documents": True}
+
+
+def test_dashboard_unstructured_word_cloud_empty_when_no_data():
+    from aryx.api.unstructured_dashboard_api import unstructured_dashboard_router
+    store_cls = MagicMock()
+    store_cls.return_value.top_document_entities.return_value = []
+    store_cls.return_value.entity_timeline.return_value = []
+    resp = _client(unstructured_dashboard_router, "aryx.api.unstructured_dashboard_api",
+                   UnstructuredDashboardStore=store_cls).get(
+        "/dashboard-unstructured/word-cloud?workspace_id=7")
+    assert resp.status_code == 200
+    assert resp.json() == {"entities": [], "timeline": []}
+
+
+def test_dashboard_unstructured_word_cloud_maps_rows():
+    from aryx.api.unstructured_dashboard_api import unstructured_dashboard_router
+    store_cls = MagicMock()
+    store_cls.return_value.top_document_entities.return_value = [
+        {"ontology_type": "Person", "name": "Jane Doe", "count": 12},
+    ]
+    store_cls.return_value.entity_timeline.return_value = [
+        {"date": "2026-09-01", "count": 3},
+    ]
+    resp = _client(unstructured_dashboard_router, "aryx.api.unstructured_dashboard_api",
+                   UnstructuredDashboardStore=store_cls).get(
+        "/dashboard-unstructured/word-cloud?workspace_id=7&limit=5&min_count=3")
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "entities": [{"ontology_type": "Person", "name": "Jane Doe", "count": 12}],
+        "timeline": [{"date": "2026-09-01", "count": 3}],
+    }
+    store_cls.return_value.top_document_entities.assert_called_once_with(limit=5, min_count=3)
+    store_cls.return_value.entity_timeline.assert_called_once_with()
+
+
+def test_dashboard_unstructured_excerpts_maps_rows():
+    from aryx.api.unstructured_dashboard_api import unstructured_dashboard_router
+    store_cls = MagicMock()
+    store_cls.return_value.entity_excerpts.return_value = ["Sample quote one.", "Sample quote two."]
+    resp = _client(unstructured_dashboard_router, "aryx.api.unstructured_dashboard_api",
+                   UnstructuredDashboardStore=store_cls).get(
+        "/dashboard-unstructured/excerpts?workspace_id=7&ontology_type=Person&name=Jane+Doe")
+    assert resp.status_code == 200
+    assert resp.json() == {"excerpts": ["Sample quote one.", "Sample quote two."]}
+    store_cls.return_value.entity_excerpts.assert_called_once_with("Person", "Jane Doe", limit=3)
+
+
+def test_dashboard_unstructured_excerpts_requires_ontology_type_and_name():
+    from aryx.api.unstructured_dashboard_api import unstructured_dashboard_router
+    resp = _client(unstructured_dashboard_router, "aryx.api.unstructured_dashboard_api").get(
+        "/dashboard-unstructured/excerpts?workspace_id=7")
+    assert resp.status_code == 422
+
+
+def test_dashboard_unstructured_excerpts_empty_when_no_data():
+    from aryx.api.unstructured_dashboard_api import unstructured_dashboard_router
+    store_cls = MagicMock()
+    store_cls.return_value.entity_excerpts.return_value = []
+    resp = _client(unstructured_dashboard_router, "aryx.api.unstructured_dashboard_api",
+                   UnstructuredDashboardStore=store_cls).get(
+        "/dashboard-unstructured/excerpts?workspace_id=7&ontology_type=Person&name=Nobody")
+    assert resp.status_code == 200 and resp.json() == {"excerpts": []}
