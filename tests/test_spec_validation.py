@@ -584,9 +584,10 @@ def test_histogram_analysis_bound_to_aggregate_kpi_fails() -> None:
 def test_repair_text_explains_histogram_metric_mismatch() -> None:
     """Regression: this error code previously fell through to the generic
     "Remove this item — it has no valid replacement" branch in
-    _render_repair_line, giving the one-shot repair no real guidance — the
-    actual rule (bind to a histogram-operation KPI, or convert/remove one)
-    must be spelled out so the retry can plausibly succeed."""
+    repair_messages.render_repair_line, giving the one-shot repair no real
+    guidance — the actual rule (bind to a histogram-operation KPI, or
+    convert/remove one) must be spelled out so the retry can plausibly
+    succeed."""
     raw = dict(GOOD_RAW, analyses=[
         *GOOD_RAW["analyses"],
         {"analysis_id": "analysis_value_distribution", "operation": "histogram",
