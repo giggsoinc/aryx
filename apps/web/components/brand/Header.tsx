@@ -52,10 +52,10 @@ export function Header(props: HeaderProps) {
                       active={pathname?.startsWith("/model") || false} />
             <NavLink href="/lab" icon={<FlaskConical size={14} />} label="Lab"
                       active={pathname?.startsWith("/lab") || false} />
-            <NavLink href="/ask" icon={<MessageCircle size={14} />} label="Ask"
-                      active={pathname?.startsWith("/ask") || false} />
             <NavLink href="/dashboard" icon={<ClipboardList size={14} />} label="Dashboard"
                       active={pathname === "/dashboard"} />
+            <NavLink href="/ask" icon={<MessageCircle size={14} />} label="Ask"
+                      active={pathname?.startsWith("/ask") || false} />
             <NavLink href="/dashboard-observability" icon={<Gauge size={14} />} label="Pipeline"
                       active={pathname?.startsWith("/dashboard-observability") || false} />
             <NavLink href="/mcp" icon={<Plug size={14} />} label="MCP"
