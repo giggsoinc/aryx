@@ -7,6 +7,7 @@ import {
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { PlotlyChart } from "@/components/planner/PlotlyChart";
+import { DocumentInsightsSection } from "@/components/planner/DocumentInsightsSection";
 import {
   buildAreaSpec, buildBarSpec, buildBoxPlotSpec, buildBubbleSpec, buildCalendarHeatmapSpec,
   buildDonutSpec, buildGanttSpec, buildGroupedBarSpec, buildHeatmapMatrixSpec, buildHistogramSpec,
@@ -16,7 +17,7 @@ import {
 } from "@/lib/plotlySpecs";
 import type {
   DashboardModel, DashboardComponent, ExecutionRun, PlannerResult, Kpi, Analysis,
-  AccessibilityChecks, KpiResult, AnalysisResultRow,
+  AccessibilityChecks, KpiResult, AnalysisResultRow, DocumentEntity, TimelinePoint,
 } from "@/lib/types";
 
 interface Props {
@@ -81,6 +82,14 @@ export function DashboardRenderer({ workspaceId }: Props) {
   const [chainJob, setChainJob] = useState<Awaited<ReturnType<typeof api.listJobs>>[number] | null>(null);
   const loggedFor = useRef<string | null>(null);
 
+  // Unstructured section state — independent of the structured model above;
+  // outside the C07-C14 governed pipeline (see WordCloudChart.tsx), so it
+  // is fetched and rendered as its own section, never as a DashboardModel
+  // component.
+  const [hasUnstructured, setHasUnstructured] = useState<boolean | null>(null);
+  const [wordCloud, setWordCloud] = useState<DocumentEntity[] | null>(null);
+  const [timeline, setTimeline] = useState<TimelinePoint[] | null>(null);
+
   useEffect(() => {
     let alive = true;
     // This panel has no trigger of its own — its data (DashboardModel) is
@@ -96,12 +105,20 @@ export function DashboardRenderer({ workspaceId }: Props) {
         // zero-click auto-chain (aryx.pipeline.auto_chain) is still moving
         // instead of leaving them staring at a bare empty state.
         api.listJobs(workspaceId).catch(() => []),
-      ]).then(([m, r, p, jobs]) => {
+        // Each call already catches its own failure above, so one slow or
+        // broken unstructured-section fetch can never stall or blank the
+        // structured dashboard's own render below.
+        api.getHasUnstructuredData(workspaceId).catch(() => null),
+        api.getDocumentWordCloud(workspaceId).catch(() => null),
+      ]).then(([m, r, p, jobs, hu, wc]) => {
         if (!alive) return;
         setModel(m);
         setRun(r);
         setPlanner(p);
         setChainJob(jobs.find((j) => j.source_system === "auto_chain") ?? null);
+        setHasUnstructured(hu?.has_documents ?? false);
+        setWordCloud(wc?.entities ?? null);
+        setTimeline(wc?.timeline ?? null);
       }).finally(() => { if (alive) setLoading(false); });
     };
     load();
@@ -177,6 +194,13 @@ export function DashboardRenderer({ workspaceId }: Props) {
                             showWarnings={showWarnings} />
         )}
       </section>
+
+      <DocumentInsightsSection
+        workspaceId={workspaceId}
+        hasUnstructured={hasUnstructured}
+        wordCloud={wordCloud}
+        timeline={timeline}
+      />
     </div>
   );
 }

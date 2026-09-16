@@ -850,6 +850,28 @@ export interface DashboardModel {
   created_at: string;
 }
 
+// ── Unstructured dashboard section — outside the C07-C14 governed spec
+//    pipeline; a plain frequency count, not an LLM-drafted claim. ────────
+export interface DocumentEntity {
+  ontology_type: string;
+  name: string;
+  count: number;
+}
+
+export interface TimelinePoint {
+  date: string;
+  count: number;
+}
+
+export interface WordCloudResponse {
+  entities: DocumentEntity[];
+  timeline: TimelinePoint[];
+}
+
+export interface ExcerptsResponse {
+  excerpts: string[];
+}
+
 // ── Frontend Dashboard Renderer (C15) — telemetry only, no compute ───────
 export interface AccessibilityChecks {
   keyboard_navigation: "passed" | "failed";
