@@ -16,32 +16,20 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable, Iterator
-from typing import Protocol
 
+from aryx.broker import Broker
 from aryx.models import EntityMember, ResolutionRecord, ResolvedEntity
 from aryx.resolution.blocking import _keys_for
+from aryx.resolution.chunk_backend import ChunkBackend
 from aryx.resolution.classical import score_pair
 from aryx.resolution.cluster import UnionFind
-from aryx.resolution.run import _materialize, _threshold
+from aryx.resolution.review_queue import ReviewSink
+from aryx.resolution.run import _materialize, _route_decision, _threshold
 from aryx.resolution.survivorship import SurvivorshipPolicy
 
 logger = logging.getLogger(__name__)
 
 MAX_BLOCK = 5000
-
-
-class ChunkBackend(Protocol):
-    """Persistence the chunked resolver needs (Postgres in prod, dict in tests)."""
-
-    def has_keys(self, run_id: int) -> bool: ...
-    def add_members(self, run_id: int, rows: list[tuple[str, int]]) -> None: ...
-    def todo_blocks(self, run_id: int) -> Iterator[str]: ...
-    def block_record_ids(self, run_id: int, key: str) -> list[int]: ...
-    def load_records(self, ids: list[int]) -> list[ResolutionRecord]: ...
-    def add_edges(self, run_id: int,
-                  edges: list[tuple[int, int, float]]) -> None: ...
-    def mark_done(self, run_id: int, key: str) -> None: ...
-    def edges(self, run_id: int) -> list[tuple[int, int, float]]: ...
 
 
 def _key_pass(run_id: int, records: Iterable[ResolutionRecord],
@@ -60,9 +48,23 @@ def _key_pass(run_id: int, records: Iterable[ResolutionRecord],
         backend.add_members(run_id, batch)
 
 
-def _score_pass(run_id: int, backend: ChunkBackend) -> None:
-    """Pass 2: score each not-yet-done block; auto-merge edges persist."""
-    auto = _threshold("ARYX_ER_AUTO_MERGE", 0.95)
+def _score_pass(run_id: int, backend: ChunkBackend,
+                broker: Broker | None = None,
+                review: ReviewSink | None = None,
+                adj_budget: list[int] | None = None) -> None:
+    """Pass 2: score each not-yet-done block; auto-merge edges persist.
+
+    Without ``broker``, a pair below AUTO_MERGE is simply dropped (no human
+    queue, no LLM). With ``broker``, every non-auto-merge pair routes through
+    the same ``_route_decision`` the in-memory resolver uses (DEC-009/010) —
+    an LLM-confirmed match adds an edge like a pure-score auto-merge, and
+    everything else reaches ``review`` instead of being discarded.
+    """
+    thresholds = (
+        _threshold("ARYX_ER_AUTO_MERGE", 0.95),
+        _threshold("ARYX_ER_REVIEW", 0.80),
+        _threshold("ARYX_ER_AUTO_REJECT", 0.05),
+    )
     for key in backend.todo_blocks(run_id):
         ids = backend.block_record_ids(run_id, key)
         if len(ids) > MAX_BLOCK:
@@ -76,8 +78,17 @@ def _score_pass(run_id: int, backend: ChunkBackend) -> None:
             for j in range(i + 1, len(members)):
                 left, right = members[i], members[j]
                 score = score_pair(left.text, right.text)
-                if score >= auto:
+                if score >= thresholds[0]:
                     edges.append((left.record_id, right.record_id, score))
+                elif broker is not None:
+                    action, llm_verdict, llm_reason = _route_decision(
+                        left, right, score, broker, thresholds, adj_budget)
+                    if action == "auto_llm":
+                        edges.append((left.record_id, right.record_id,
+                                     llm_verdict if llm_verdict is not None else score))
+                    elif review is not None:
+                        review.offer(left, right, score, llm_verdict=llm_verdict,
+                                     llm_reason=llm_reason, status=action)
         if edges:
             backend.add_edges(run_id, edges)
         backend.mark_done(run_id, key)
@@ -112,6 +123,8 @@ def resolve_chunked(
     backend: ChunkBackend,
     ontology_type: str,
     policy: SurvivorshipPolicy | None = None,
+    broker: Broker | None = None,
+    review: ReviewSink | None = None,
 ) -> Iterator[tuple[ResolvedEntity, list[EntityMember]]]:
     """Resolve a run block-wise with crash-resume via the backend.
 
@@ -122,11 +135,15 @@ def resolve_chunked(
         backend: Persistent chunk state (Postgres in production).
         ontology_type: Canonical type the records resolve into.
         policy: Optional survivorship policy (G3).
+        broker: Model broker for the middle band; omitted -> those pairs drop.
+        review: Adjudication queue sink (G10); ignored without ``broker``.
 
     Yields:
         (entity, members) per cluster — callers persist and release each.
     """
+    adj_budget = ([max(0, int(_threshold("ARYX_ER_MAX_ADJUDICATIONS", 5)))]
+                 if broker is not None else None)
     _key_pass(run_id, records, backend)
-    _score_pass(run_id, backend)
+    _score_pass(run_id, backend, broker=broker, review=review, adj_budget=adj_budget)
     yield from _cluster_pass(run_id, backend, all_record_ids,
                              ontology_type, policy)

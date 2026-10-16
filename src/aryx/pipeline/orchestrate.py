@@ -23,7 +23,7 @@ from aryx.pipeline.fk_edges import link_by_attribute
 from aryx.pipeline.stages import StageRunner
 from aryx.store.checkpoint_store import StageTracker
 from aryx.project import project_graph
-from aryx.resolve_entities import resolve_run
+from aryx.resolve_entities import materialize_one_per_record, resolve_run
 from aryx.store.entity_store import EntityStore
 from aryx.store.ontology_store import OntologyStore
 from aryx.store.postgres_store import PostgresStore
@@ -124,6 +124,7 @@ def run_pipeline(
     workspace_id: int = 1,
     resume_run_id: int | None = None,
     on_run_id: RunIdCb | None = None,
+    skip_resolution: bool = False,
 ) -> dict[str, int]:
     """Run a source from extraction through to the FalkorDB projection.
 
@@ -142,6 +143,11 @@ def run_pipeline(
         resume_run_id: Resume a crashed run — done stages skip, the landed
             data of that run is reused (no re-extract).
         on_run_id: Called with run_id as soon as discover completes (or on resume).
+        skip_resolution: True for transactional/fact types whose match key is
+            a genuine per-row identifier (field_shape.is_row_identifier) —
+            materializes one entity per landed record directly instead of
+            running blocking/scoring/adjudication, since every row is a
+            distinct real-world thing by construction.
 
     Returns:
         Summary of {run_id, entities, relationships} plus graph projection counts.
@@ -152,6 +158,7 @@ def run_pipeline(
         "workspace_id": workspace_id,
         "system": system,
         "dataset": dataset,
+        "skip_resolution": skip_resolution,
     }
     if resume_run_id is not None:
         run_id = resume_run_id
@@ -186,8 +193,12 @@ def run_pipeline(
             _emit(on_progress, "Resolve", 50, detail)
             with runner.stage("resolve_cluster", meta):
                 with _heartbeat(on_progress, "Resolve", 50, detail):
-                    entities = resolve_run(run_id, ontology_type, match_keys,
-                                           estore, broker, dsn, workspace_id)
+                    if skip_resolution:
+                        entities = materialize_one_per_record(
+                            run_id, ontology_type, match_keys, estore)
+                    else:
+                        entities = resolve_run(run_id, ontology_type, match_keys,
+                                               estore, broker, dsn, workspace_id)
         if relate and not runner.skip("relate"):
             _emit(on_progress, "Relate", 75, "Inferring relationships between entities")
             with runner.stage("relate"):

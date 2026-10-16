@@ -14,8 +14,9 @@ from pydantic import BaseModel
 from aryx import llm_runtime
 from aryx.broker import Broker, ModelSpec, Registry, TokenGovernor
 from aryx.config import get_settings
-from aryx.connectors.postgres import PostgresConnector
+from aryx.connectors.postgres import PostgresConnector, sample_colvals
 from aryx.pipeline.orchestrate import run_pipeline
+from aryx.resolution.field_shape import resolve_match_keys
 from aryx.store.job_store import JobStore
 from aryx.store.migrate import apply_migrations
 
@@ -73,6 +74,7 @@ class IngestDbRequest(BaseModel):
 
 
 def _run_db(req: IngestDbRequest, job_id: str) -> None:
+    """Background: ingest one Postgres table end-to-end into the graph."""
     settings = get_settings()
     jobs = JobStore(settings.rdb_dsn)
     try:
@@ -80,15 +82,19 @@ def _run_db(req: IngestDbRequest, job_id: str) -> None:
             dsn=settings.rdb_dsn, table=req.table,
             key_column=req.key_column, batch_size=settings.batch_size,
         )
+        keys = [k.strip() for k in req.match_keys.split(",") if k.strip()]
+        colvals = sample_colvals(settings.rdb_dsn, req.table)
+        keys, transactional = resolve_match_keys(keys, colvals)
         summary = run_pipeline(
             connector=connector, dsn=settings.rdb_dsn,
             system=req.system, dataset=req.table,
             ontology_type=req.ontology_type,
-            match_keys=[k.strip() for k in req.match_keys.split(",") if k.strip()],
+            match_keys=keys,
             graph_url=settings.graph_url, broker=_local_broker(),
             on_progress=lambda stage, pct, detail: jobs.update_stage(job_id, stage, pct, detail),
             fk_links=[link.model_dump() for link in req.fk_links],
             workspace_id=req.workspace_id,
+            skip_resolution=transactional,
         )
         jobs.finish(job_id, run_id=summary.get("run_id"), status="complete")
     except Exception as exc:  # noqa: BLE001 — record failure for the dashboard

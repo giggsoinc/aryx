@@ -1,0 +1,26 @@
+"""Persistence contract for the chunked resolver (G1).
+
+Split out of ``chunked.py`` so the interface and its passes don't compete
+for the same file's line budget — Postgres backs this in production,
+a plain dict backs it in tests.
+"""
+from __future__ import annotations
+
+from collections.abc import Iterator
+from typing import Protocol
+
+from aryx.models import ResolutionRecord
+
+
+class ChunkBackend(Protocol):
+    """Persistence the chunked resolver needs (Postgres in prod, dict in tests)."""
+
+    def has_keys(self, run_id: int) -> bool: ...
+    def add_members(self, run_id: int, rows: list[tuple[str, int]]) -> None: ...
+    def todo_blocks(self, run_id: int) -> Iterator[str]: ...
+    def block_record_ids(self, run_id: int, key: str) -> list[int]: ...
+    def load_records(self, ids: list[int]) -> list[ResolutionRecord]: ...
+    def add_edges(self, run_id: int,
+                  edges: list[tuple[int, int, float]]) -> None: ...
+    def mark_done(self, run_id: int, key: str) -> None: ...
+    def edges(self, run_id: int) -> list[tuple[int, int, float]]: ...

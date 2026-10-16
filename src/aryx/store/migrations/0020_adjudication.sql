@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS aryx_adjudication (
     score           REAL NOT NULL,
     llm_verdict     BOOLEAN,
     llm_reason      TEXT,
-    status          TEXT NOT NULL DEFAULT 'pending',  -- pending|approved|rejected|auto_llm
+    status          TEXT NOT NULL DEFAULT 'pending',  -- pending|approved|rejected|auto_llm|auto_reject (DEC-010)
     decided_by      TEXT,
     decided_at      TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()

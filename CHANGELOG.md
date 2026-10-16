@@ -5,6 +5,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Adjudication review UI** — a Data-page panel (`AdjudicationReview.tsx`) to fetch pending entity-merge pairs, see full readable context on both sides, and approve/reject; approving merges immediately and re-projects the graph live. New `GET /adjudication/{id}/preview` endpoint.
+- **DEC-010: LLM-confidence auto-reject.** Inside the adjudicate band, a rescore below `ARYX_ER_AUTO_REJECT` (default 0.05) auto-rejects instead of queuing an obviously-wrong pair for human review; new `auto_reject` status, excluded from the human/LLM agreement stat.
+- **DEC-011: transactional-type resolution bypass.** A type whose only proposed match key is a genuine per-row identifier (`field_shape.is_row_identifier` — every value distinct and code-shaped, e.g. `order_id`, `ticket_id`) skips blocking/scoring/adjudication entirely; `resolve_entities.materialize_one_per_record` creates one entity per landed record. Fixes a real incident where partial-field similarity (same company + status, different product) got two genuinely distinct Orders merged.
+- `field_shape.py`: `is_identifier_like`, `is_row_identifier`, `best_match_columns`, `resolve_match_keys` — statistical (value-shape, not column-name) detection of identifier-shaped columns, used to keep low-signal ids out of match text and to drive the DEC-011 bypass.
+
+### Fixed
+
+- **Survivorship policy now actually applies to adjudication-approved merges.** `AdjudicationStore.merge_entities_of` previously kept the survivor's pre-existing attribute values unconditionally; it now recomputes the golden record via the workspace's real `SurvivorshipPolicy` (the same engine full ingest uses) and logs conflicts to `aryx_attribute_conflict`.
+- **Duplicate pending-review rows.** Two record-level pairs that collapse to the same two entities (e.g. because a third pair auto-merged them mid-run) no longer both stay visible in the pending list or both need deciding — `AdjudicationStore.page()`/`pending_duplicates_of` collapse and auto-close them.
+- **Orphaned adjudication rows survived workspace deletion.** `WorkspaceStore.delete()` never touched `aryx_adjudication` (it isn't one of the partitioned tables); deleting a workspace now also deletes its adjudication rows, so a later workspace reusing the same numeric id doesn't inherit ghost "pending" cards pointing at nothing.
+- **Wrong relationship direction silently produced zero graph edges.** `dimension_materialize.py`'s LLM-authored relationships sometimes stated a relationship in causal order (`{"from": "Company", "to": "Order"}`) rather than FK-carrier order; corrected against `dimension_types` (the deterministic source of truth for column ownership) before linking.
+- **DEC-004 violation:** dimension values were deduplicated in alphabetical order before landing, making the default `first_non_empty` survivorship strategy depend on the alphabet instead of the source file's row order. Now preserves first-seen order.
+- **Wrong entity display label.** `explore.display_name()` had no entry for `*_name`-suffixed columns (e.g. `employee_name`), so it fell back to "first short string in the record" — coincidentally picking an unrelated field like `manager` on some datasets. Added a pattern-based middle tier before that fallback.
+- Raw exceptions (a JSON parse failure, a stale "already decided" 404) no longer leak to the reviewer as technical text — replaced with clean messages, and stale cards are dropped quietly instead of showing a persistent error banner.
+
+### Known issue (not yet fixed)
+
+- **Blocking recall gap:** `MultiKeyBlocker`'s token-set key requires the *entire* combined multi-token string to match rather than blocking on individual shared tokens, so two genuine near-duplicates (e.g. "Daniel Kim" / "Dan Kim") can share zero blocking keys and never even reach scoring. Root-caused; fix location identified (`resolution/blocking.py::_keys_for`), not yet implemented.
+
 ## [1.9.0] — 2026-08-20
 
 ### Added (this release)

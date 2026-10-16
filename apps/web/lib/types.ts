@@ -175,6 +175,55 @@ export interface EntityDetail {
   relationships: EntityRelationship[];
 }
 
+export interface AdjudicationRow {
+  id: number;
+  run_id: number;
+  left_record_id: number;
+  right_record_id: number;
+  score: number;
+  // NUMERIC(4,3) in Postgres -> serialized as a decimal string, not a
+  // JSON number (avoids float-precision loss) — coerce with Number()
+  // before any arithmetic/toFixed.
+  llm_verdict: string | null;
+  llm_reason: string | null;
+  status: "pending" | "approved" | "rejected" | "auto_llm" | "auto_reject";
+  decided_by: string | null;
+  decided_at: string | null;
+  created_at: string;
+}
+
+export interface AdjudicationStats {
+  pending: number;
+  approved: number;
+  rejected: number;
+  auto_llm: number;
+  auto_reject: number;
+  approval_rate: number | null;
+  human_llm_agreement: number | null;
+}
+
+export interface AdjudicationSide {
+  record_id: number;
+  entity_id: number | null;
+  name: string | null;
+  attributes: Record<string, unknown>;
+  sources: { system: string; dataset: string; record_id: string }[];
+  relationships: EntityRelationship[];
+}
+
+export interface AdjudicationPreview {
+  id: number;
+  score: number;
+  // NUMERIC(4,3) in Postgres -> serialized as a decimal string, not a
+  // JSON number (avoids float-precision loss) — coerce with Number()
+  // before any arithmetic/toFixed.
+  llm_verdict: string | null;
+  llm_reason: string | null;
+  status: string;
+  left: AdjudicationSide;
+  right: AdjudicationSide;
+}
+
 export interface Workspace {
   id: number;
   name: string;

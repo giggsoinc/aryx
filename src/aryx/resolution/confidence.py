@@ -73,7 +73,8 @@ def build_edge_index(
 
 def cluster_edges(member_ids: list[int],
                   pair_scores: dict[tuple[int, int], float],
-                  threshold: float) -> list[float]:
+                  threshold: float,
+                  excluded: set[tuple[int, int]] | None = None) -> list[float]:
     """Extract the within-cluster merge-edge scores from scored pairs.
 
     Scans all of ``pair_scores``. Kept for callers that have no index; prefer
@@ -83,18 +84,28 @@ def cluster_edges(member_ids: list[int],
         member_ids: The cluster's record ids.
         pair_scores: All scored pairs from the funnel.
         threshold: Minimum score that constituted a merge edge.
+        excluded: Pairs (either order) that were explicitly routed as a
+            non-match (DEC-010 auto_reject) and must never count as a merge
+            edge for ANY cluster, however high their raw score — the two
+            records can still land in the same final cluster via a THIRD
+            pair's transitive closure, and a rejected pair is not evidence
+            of a match just because a chain elsewhere joined them anyway.
 
     Returns:
-        Scores of pairs inside the cluster at/above the threshold.
+        Scores of pairs inside the cluster at/above the threshold, minus
+        any excluded pair.
     """
     members = set(member_ids)
+    excluded = excluded or set()
     return [score for (left, right), score in pair_scores.items()
-            if left in members and right in members and score >= threshold]
+            if left in members and right in members and score >= threshold
+            and (left, right) not in excluded and (right, left) not in excluded]
 
 
 def cluster_edges_indexed(member_ids: list[int],
                           edge_index: dict[int, list[tuple[int, float]]],
-                          threshold: float) -> list[float]:
+                          threshold: float,
+                          excluded: set[tuple[int, int]] | None = None) -> list[float]:
     """Indexed equivalent of ``cluster_edges`` — same multiset of scores.
 
     Touches only the members' own edges instead of the full pair dict. Each
@@ -107,16 +118,21 @@ def cluster_edges_indexed(member_ids: list[int],
         member_ids: The cluster's record ids.
         edge_index: Output of ``build_edge_index`` for this run's pair_scores.
         threshold: Minimum score that constituted a merge edge.
+        excluded: See ``cluster_edges`` — auto_reject pairs to drop.
 
     Returns:
-        Scores of pairs inside the cluster at/above the threshold.
+        Scores of pairs inside the cluster at/above the threshold, minus
+        any excluded pair.
     """
     members = set(member_ids)
+    excluded = excluded or set()
     seen: set[tuple[int, int]] = set()
     out: list[float] = []
     for member in members:
         for other, score in edge_index.get(member, ()):
             if other not in members or score < threshold:
+                continue
+            if (member, other) in excluded or (other, member) in excluded:
                 continue
             key = (member, other) if member <= other else (other, member)
             if key in seen:

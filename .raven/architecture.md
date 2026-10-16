@@ -40,6 +40,10 @@ ingestion side — the LLM proposes, code disposes.
 - **Resolution funnel** (`resolution/`) — `classical.block`+`score_pair` (cheap),
   `adjudicate` (frontier, ambiguous middle only), `cluster` (UnionFind transitive
   closure + golden record); `run.resolve` wires them into entities + members.
+  `chunked.resolve_chunked` is a memory-bounded, crash-resumable variant for
+  runs over `ARYX_ER_CHUNK_THRESHOLD` records (block-wise passes over a
+  persistent `ChunkBackend`, sharing `run._route_decision` for band routing);
+  not yet wired into `orchestrate.run_pipeline` — built and tested standalone.
 - **Relationships** (`relationships.py`) — infers entity→entity edges from foreign
   keys and co-occurrence (deterministic) plus LLM for implied links.
 - **Derive entities** (`pipeline/derive_entities.py`, `api/pipeline_derive_api.py`)

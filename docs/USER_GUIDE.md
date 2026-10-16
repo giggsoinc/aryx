@@ -207,6 +207,28 @@ Floating control bottom-right on **Data** (and Model):
 
 Use **Ask** for questions about the graph — not Correct data.
 
+### Review merges (pending entity merges)
+
+Floating control bottom-left on **Data** — the human step in entity
+resolution (see [Entity resolution & survivorship](#entity-resolution--survivorship-what-you-feel-in-the-product) below):
+
+1. Click **Review merges** (badge shows the pending count) to open the panel.
+2. Each card shows both sides of an uncertain pair — full attributes, the
+   match score, and the LLM's rescore/reason when one exists.
+3. **Approve & merge** unions the two entities immediately (under your
+   workspace's survivorship policy) and refreshes the graph live;
+   **Reject** just records the decision — nothing merges.
+4. A pair that turns out to be a duplicate of another one you already
+   decided closes automatically; you'll never be asked the same question twice.
+
+Note: transactional/fact-type rows (an Order, a Ticket keyed by its own
+id) never appear here at all when ingested via file upload, DB connect,
+admin single-table ingest, or the CLI — every row of those types is kept
+as its own entity by design, since two orders sharing a company or status
+are still two different orders, not a naming variant to merge. Document
+ingestion (`aryx docs`) doesn't have a column shape to classify and isn't
+covered by this check.
+
 ---
 
 ## 6. Model (`/model`) — ontology canvas

@@ -15,9 +15,10 @@ from pathlib import Path
 
 from aryx.broker import default_broker
 from aryx.config import get_settings
-from aryx.connectors.postgres import PostgresConnector
+from aryx.connectors.postgres import PostgresConnector, sample_colvals
 from aryx.logging_setup import configure_logging
 from aryx.pipeline.orchestrate import run_pipeline
+from aryx.resolution.field_shape import resolve_match_keys
 from aryx.store.migrate import apply_migrations
 
 logger = logging.getLogger(__name__)
@@ -31,12 +32,16 @@ def _run(args: argparse.Namespace) -> None:
         dsn=settings.rdb_dsn, table=args.table,
         key_column=args.key_column, batch_size=settings.batch_size,
     )
+    keys = [k.strip() for k in args.match_keys.split(",") if k.strip()]
+    colvals = sample_colvals(settings.rdb_dsn, args.table)
+    keys, transactional = resolve_match_keys(keys, colvals)
     summary = run_pipeline(
         connector=connector, dsn=settings.rdb_dsn, system=args.system,
         dataset=args.table, ontology_type=args.type,
-        match_keys=[k.strip() for k in args.match_keys.split(",") if k.strip()],
+        match_keys=keys,
         graph_url=settings.graph_url, broker=default_broker(),
         tag=args.tag, relate=args.relate,
+        skip_resolution=transactional,
     )
     logger.info("E2E summary %s", summary)
 

@@ -34,6 +34,20 @@ def _resume_meta(run_id: int) -> dict[str, Any]:
     return meta
 
 
+def _resume_args(meta: dict[str, Any], run_id: int) -> tuple[str, list[str], str, str, bool]:
+    """Unpack (ontology_type, match_keys, system, dataset, skip_resolution)
+    from a checkpoint's persisted detail, with pre-fix-era defaults for
+    checkpoints written before a given key existed."""
+    otype = str(meta.get("ontology_type") or "Record")
+    keys = meta.get("match_keys") or ["name"]
+    if isinstance(keys, str):
+        keys = [k.strip() for k in keys.split(",") if k.strip()]
+    system = str(meta.get("system") or "resume")
+    dataset = str(meta.get("dataset") or f"run-{run_id}")
+    skip_resolution = bool(meta.get("skip_resolution", False))
+    return otype, list(keys), system, dataset, skip_resolution
+
+
 def _do_resume(old_job_id: str, new_job_id: str, run_id: int,
                workspace_id: int, meta: dict[str, Any]) -> None:
     """Background: continue pipeline from stage checkpoints for run_id."""
@@ -43,12 +57,7 @@ def _do_resume(old_job_id: str, new_job_id: str, run_id: int,
 
     settings = get_settings()
     jobs = JobStore(settings.rdb_dsn)
-    otype = str(meta.get("ontology_type") or "Record")
-    keys = meta.get("match_keys") or ["name"]
-    if isinstance(keys, str):
-        keys = [k.strip() for k in keys.split(",") if k.strip()]
-    system = str(meta.get("system") or "resume")
-    dataset = str(meta.get("dataset") or f"run-{run_id}")
+    otype, keys, system, dataset, skip_resolution = _resume_args(meta, run_id)
     try:
         jobs.update_stage(
             new_job_id, "Resume", 40,
@@ -73,6 +82,7 @@ def _do_resume(old_job_id: str, new_job_id: str, run_id: int,
             broker=_local_broker(),
             workspace_id=workspace_id,
             resume_run_id=run_id,
+            skip_resolution=skip_resolution,
             on_progress=_progress,
             on_run_id=lambda rid: jobs.attach_run(new_job_id, rid),
         )
