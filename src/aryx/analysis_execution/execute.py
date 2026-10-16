@@ -12,6 +12,7 @@ import time
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+from aryx.analysis_execution.models import RowFilter
 from aryx.execution_compiler.models import ExecutionNode, ExecutionPlan
 from aryx.store.graph_profile_store import GraphProfileStore
 
@@ -39,8 +40,47 @@ class RuntimeLimitExceeded(Exception):
     """Raised internally when maximum_runtime_seconds is hit mid-execution."""
 
 
+# Same boolean-token vocabulary the profiler/preprocess pipeline already
+# uses to decide a column IS boolean and to convert it (aryx.profiler.profile
+# and aryx.preprocess.transform._to_boolean) — kept in sync deliberately.
+_BOOL_TRUE_TOKENS = {"true", "yes", "y", "1", "t"}
+_BOOL_FALSE_TOKENS = {"false", "no", "n", "0", "f"}
+
+
 def _is_null(v: Any) -> bool:
     return v is None or (isinstance(v, str) and v.strip() == "")
+
+
+def _loose_equals(row_value: Any, filter_value: Any) -> bool:
+    """Compare a TYPED row value against a filter value the planner always
+    writes as a bare JSON string (copied verbatim from a column's
+    sample_values — see planning.models.ApprovedColumn — which are always
+    strings regardless of the column's real type).
+
+    C10 (aryx.preprocess.transform, via load_typed_rows) converts a
+    boolean/numeric/date column's raw "1"/"42"/"2024-01-01" strings into a
+    real Python bool/float/datetime before C12 ever executes a filter. Plain
+    `==` then silently fails for every one of those columns — `True == "1"`
+    and `1.0 == "1"` are both False in Python — so a filter that is
+    correctly specified matches zero rows: a wrong ZERO that looks like a
+    real result, never a loud failure. This is the single place that
+    reconciles the two representations for every filter/ratio comparison.
+    """
+    if row_value == filter_value:
+        return True
+    if isinstance(row_value, bool):
+        token = str(filter_value).strip().lower()
+        return token in (_BOOL_TRUE_TOKENS if row_value else _BOOL_FALSE_TOKENS)
+    if isinstance(row_value, (int, float)):
+        fv = _numeric(filter_value)
+        return fv is not None and fv == row_value
+    if isinstance(row_value, datetime):
+        return str(row_value)[:10] == str(filter_value).strip()[:10]
+    return False
+
+
+def _loose_in(row_value: Any, filter_values: Any) -> bool:
+    return any(_loose_equals(row_value, v) for v in filter_values)
 
 
 def _numeric(v: Any) -> float | None:
@@ -100,6 +140,38 @@ def _parse_date(v: Any) -> datetime | None:
         return None
 
 
+def apply_row_filters(rows: list[dict[str, Any]], filters: list[RowFilter]) -> list[dict[str, Any]]:
+    """Narrow `rows` to those matching every ad-hoc dashboard-level filter,
+    reusing the exact same typed-value comparison (_loose_equals/_loose_in/
+    _parse_date) the compiled plan's own filter_equals/filter_in nodes use —
+    so an ad-hoc filter's notion of "matches" never diverges from a KPI
+    filter's. This runs BEFORE the compiled plan sees `rows`; the plan and
+    every formula in it are untouched, only the row population shrinks."""
+    if not filters:
+        return rows
+
+    def matches(row: dict[str, Any]) -> bool:
+        for f in filters:
+            row_value = row.get(f.column)
+            if f.op == "eq":
+                if not _loose_equals(row_value, f.value):
+                    return False
+            elif f.op == "in":
+                if not _loose_in(row_value, f.values or []):
+                    return False
+            elif f.op == "date_range":
+                parsed = _parse_date(row_value)
+                if parsed is None:
+                    return False
+                if f.start and parsed < _parse_date(f.start):
+                    return False
+                if f.end and parsed > _parse_date(f.end):
+                    return False
+        return True
+
+    return [r for r in rows if matches(r)]
+
+
 def _histogram_buckets(values: list[float], bucket_count: int = DEFAULT_HISTOGRAM_BUCKETS) -> list[dict[str, float]]:
     """Equal-width bins between the observed min/max — `values` must already
     be null-filtered by the caller."""
@@ -115,6 +187,62 @@ def _histogram_buckets(values: list[float], bucket_count: int = DEFAULT_HISTOGRA
         counts[idx] += 1
     return [{"bucket_start": lo + i * width, "bucket_end": lo + (i + 1) * width, "count": float(counts[i])}
            for i in range(bucket_count)]
+
+
+def _bucket_label(value: float, buckets: list[dict[str, Any]]) -> str | None:
+    """First bucket (in the given, ascending order) whose `max` the value
+    falls at or under; a bucket with `max=None` is open-ended and matches
+    anything reaching it. None only if `buckets` is malformed (no open-ended
+    last bucket) — never a fabricated label."""
+    for b in buckets:
+        m = b.get("max")
+        if m is None or value <= m:
+            return b.get("label")
+    return None
+
+
+def _named_buckets(rows: list[dict[str, Any]], idx: Any, column: str, date_diff_from: str,
+                   buckets: list[dict[str, Any]], value_column: str) -> dict[str, Any]:
+    """named_buckets_numeric: assign each (optionally pre-filtered) row to a
+    named threshold bucket — either by an existing numeric column, or by
+    days between a date column and today (`date_diff_from`) — then count
+    rows per bucket, or sum `value_column` per bucket when given.
+
+    Buckets are seeded up front in the declared order (not just the ones
+    that end up with data) so an empty bucket still renders as zero rather
+    than vanishing from the chart, and so the chart's category order matches
+    the declared severity/lapsed-time order rather than sorting alphabetically.
+    """
+    counting = not value_column
+    seeded: dict[str, Any] = {
+        b["label"]: (0 if counting else {"value": 0.0, "sample_size": 0}) for b in buckets
+    }
+    sample_size = 0
+    excluded = 0
+    for i in idx:
+        r = rows[i]
+        if date_diff_from:
+            d = _parse_date(r.get(date_diff_from))
+            bucket_value = (datetime.now() - d).days if d is not None else None
+        else:
+            bucket_value = _numeric(r.get(column))
+        if bucket_value is None:
+            excluded += 1
+            continue
+        label = _bucket_label(bucket_value, buckets)
+        if label is None or label not in seeded:
+            excluded += 1
+            continue
+        sample_size += 1
+        if counting:
+            seeded[label] += 1
+        else:
+            v = _numeric(r.get(value_column))
+            if v is None:
+                continue
+            seeded[label]["value"] += v
+            seeded[label]["sample_size"] += 1
+    return {"named_buckets": seeded, "sample_size": sample_size, "excluded_null_rows": excluded}
 
 
 def _survival_curve(rows: list[dict[str, Any]], group_column: str,
@@ -183,6 +311,8 @@ def _kpi_result_from_node(result: Any) -> tuple[float | None, float | None, floa
     if isinstance(result, dict) and "q1" in result:  # quartiles — median stands in as "value"
         return result["median"], None, None, result["sample_size"], result.get("excluded_null_rows", 0)
     if isinstance(result, dict) and "buckets" in result:  # histogram — no single scalar, never fabricated
+        return None, None, None, result["sample_size"], result.get("excluded_null_rows", 0)
+    if isinstance(result, dict) and "named_buckets" in result:  # same "no single scalar" contract
         return None, None, None, result["sample_size"], result.get("excluded_null_rows", 0)
     if isinstance(result, dict):  # *_numeric aggregate
         return result["value"], None, None, result["sample_size"], result.get("excluded_null_rows", 0)
@@ -253,11 +383,6 @@ def _exec_node(node: ExecutionNode, rows: list[dict[str, Any]],
     p = node.parameters
     t = node.template
 
-    if t == "filter_equals":
-        return [i for i, r in enumerate(rows) if r.get(p["column"]) == p["value"]]
-    if t == "filter_in":
-        values = set(p["values"])
-        return [i for i, r in enumerate(rows) if r.get(p["column"]) in values]
     if t == "graph_relation_count":
         if graph_reader is None or "source_type" not in p:
             raise RuntimeError(
@@ -266,8 +391,20 @@ def _exec_node(node: ExecutionNode, rows: list[dict[str, Any]],
         return graph_reader.count_by_relationship(
             p["source_type"], p["relationship"], p["target_type"], p.get("direction", "out"))
 
+    # Computed BEFORE the filter branches (not after, as originally) so a
+    # filter_equals/filter_in node can itself depend on an upstream filter
+    # and narrow WITHIN it — e.g. a ratio KPI scoped by a base "kpi.filter"
+    # (renewal_type=MANUAL) whose numerator/denominator must each further
+    # narrow to that base scope, not silently re-scan every row in the
+    # dataset. A filter node with no depends_on behaves exactly as before
+    # (idx defaults to every row).
     upstream = results.get(node.depends_on[0]) if node.depends_on else None
     idx = upstream if upstream is not None else range(len(rows))
+
+    if t == "filter_equals":
+        return [i for i in idx if _loose_equals(rows[i].get(p["column"]), p["value"])]
+    if t == "filter_in":
+        return [i for i in idx if _loose_in(rows[i].get(p["column"]), p["values"])]
 
     if t == "count_rows":
         return len(list(idx))
@@ -288,33 +425,43 @@ def _exec_node(node: ExecutionNode, rows: list[dict[str, Any]],
 
     if t == "grouped_count_rows":
         counts: dict[str, int] = {}
-        for r in rows:
-            g = str(r.get(p["group_column"]))
+        for i in idx:
+            g = str(rows[i].get(p["group_column"]))
             counts[g] = counts.get(g, 0) + 1
         return counts
     if t in _GROUPED_NUMERIC_TEMPLATES:
         op = _GROUPED_NUMERIC_TEMPLATES[t]
         buckets: dict[str, list[float]] = {}
-        for r in rows:
-            v = _numeric(r.get(p["column"]))
+        for i in idx:
+            v = _numeric(rows[i].get(p["column"]))
             if v is not None:
-                g = str(r.get(p["group_column"]))
+                g = str(rows[i].get(p["group_column"]))
                 buckets.setdefault(g, []).append(v)
         return {g: {"value": _central_tendency(op, vals), "sample_size": len(vals)}
                for g, vals in buckets.items()}
     if t == "grouped_safe_ratio":
-        num_values = set(p["numerator_values"])
-        den_values = set(p["denominator_values"])
+        num_values = p["numerator_values"]
+        den_values = p["denominator_values"]
         num_counts: dict[str, int] = {}
         den_counts: dict[str, int] = {}
-        for r in rows:
+        for i in idx:
+            r = rows[i]
             status = r.get(p["status_column"])
-            if status not in den_values and status not in num_values:
+            # An empty values list means that operand had NO filter at all
+            # (compile._filter_values(None) == []) — "count every row", not
+            # "count no row". Before this, a KPI shaped exactly like the
+            # component doc's own worked example — numerator "is_renewed=1",
+            # denominator a plain unfiltered count — silently reported
+            # denominator=0 for every single group the moment it was
+            # charted grouped, live.
+            in_den = _loose_in(status, den_values) if den_values else True
+            in_num = _loose_in(status, num_values) if num_values else True
+            if not in_den and not in_num:
                 continue
             g = str(r.get(p["group_column"]))
-            if status in den_values:
+            if in_den:
                 den_counts[g] = den_counts.get(g, 0) + 1
-            if status in num_values:
+            if in_num:
                 num_counts[g] = num_counts.get(g, 0) + 1
         # Iterate the UNION of groups seen by either filter, not just
         # den_counts — numerator_values isn't guaranteed to be a subset of
@@ -330,43 +477,50 @@ def _exec_node(node: ExecutionNode, rows: list[dict[str, Any]],
         }
     if t == "grouped_quartiles_numeric":
         buckets: dict[str, list[float]] = {}
-        for r in rows:
-            v = _numeric(r.get(p["column"]))
+        for i in idx:
+            v = _numeric(rows[i].get(p["column"]))
             if v is not None:
-                g = str(r.get(p["group_column"]))
+                g = str(rows[i].get(p["group_column"]))
                 buckets.setdefault(g, []).append(v)
         return {g: {**_quartile_stats(vals), "sample_size": len(vals)}
                for g, vals in buckets.items()}
 
     if t == "grouped2d_count_rows":
         counts2: dict[tuple[str, str], int] = {}
-        for r in rows:
+        for i in idx:
+            r = rows[i]
             key = (str(r.get(p["group_column"])), str(r.get(p["group_column_2"])))
             counts2[key] = counts2.get(key, 0) + 1
         return counts2
     if t in _GROUPED_2D_NUMERIC_TEMPLATES:
         op = _GROUPED_2D_NUMERIC_TEMPLATES[t]
         buckets2: dict[tuple[str, str], list[float]] = {}
-        for r in rows:
-            v = _numeric(r.get(p["column"]))
+        for i in idx:
+            v = _numeric(rows[i].get(p["column"]))
             if v is not None:
+                r = rows[i]
                 key = (str(r.get(p["group_column"])), str(r.get(p["group_column_2"])))
                 buckets2.setdefault(key, []).append(v)
         return {k: {"value": _central_tendency(op, vals), "sample_size": len(vals)}
                for k, vals in buckets2.items()}
     if t == "grouped2d_safe_ratio":
-        num_values2 = set(p["numerator_values"])
-        den_values2 = set(p["denominator_values"])
+        num_values2 = p["numerator_values"]
+        den_values2 = p["denominator_values"]
         num_counts2: dict[tuple[str, str], int] = {}
         den_counts2: dict[tuple[str, str], int] = {}
-        for r in rows:
+        for i in idx:
+            r = rows[i]
             status = r.get(p["status_column"])
-            if status not in den_values2 and status not in num_values2:
+            # See grouped_safe_ratio above — an empty values list means "no
+            # filter, count every row", not "count no row".
+            in_den2 = _loose_in(status, den_values2) if den_values2 else True
+            in_num2 = _loose_in(status, num_values2) if num_values2 else True
+            if not in_den2 and not in_num2:
                 continue
             key = (str(r.get(p["group_column"])), str(r.get(p["group_column_2"])))
-            if status in den_values2:
+            if in_den2:
                 den_counts2[key] = den_counts2.get(key, 0) + 1
-            if status in num_values2:
+            if in_num2:
                 num_counts2[key] = num_counts2.get(key, 0) + 1
         all_cells = set(num_counts2) | set(den_counts2)
         return {
@@ -414,13 +568,17 @@ def _exec_node(node: ExecutionNode, rows: list[dict[str, Any]],
                "excluded_null_rows": len(values) - len(non_null)}
     if t == "grouped_histogram_buckets_numeric":
         hist_buckets: dict[str, list[float]] = {}
-        for r in rows:
-            v = _numeric(r.get(p["column"]))
+        for i in idx:
+            v = _numeric(rows[i].get(p["column"]))
             if v is not None:
-                g = str(r.get(p["group_column"]))
+                g = str(rows[i].get(p["group_column"]))
                 hist_buckets.setdefault(g, []).append(v)
         return {g: {"buckets": _histogram_buckets(vals), "sample_size": len(vals)}
                for g, vals in hist_buckets.items()}
+
+    if t == "named_buckets_numeric":
+        return _named_buckets(rows, idx, p["column"], p["date_diff_from"],
+                              p["buckets"], p["value_column"])
 
     raise ValueError(f"unknown template {t!r}")
 

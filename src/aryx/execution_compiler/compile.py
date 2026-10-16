@@ -18,8 +18,8 @@ from aryx.andie_planner.models import Analysis, DashboardSpec, Kpi, KpiFilter, K
 from aryx.execution_compiler.models import CompilationIssue, ExecutionNode, ExecutionPlan
 from aryx.execution_compiler.templates import (
     GROUPED_2D_NUMERIC_TEMPLATES, GROUPED_HISTOGRAM_TEMPLATES, GROUPED_NUMERIC_TEMPLATES,
-    GROUPED_QUARTILE_TEMPLATES, HISTOGRAM_TEMPLATES, NUMERIC_TEMPLATES, QUARTILE_TEMPLATES,
-    RATIO_OPERATIONS,
+    GROUPED_QUARTILE_TEMPLATES, HISTOGRAM_TEMPLATES, NAMED_BUCKET_TEMPLATES, NUMERIC_TEMPLATES,
+    QUARTILE_TEMPLATES, RATIO_OPERATIONS,
 )
 from aryx.execution_compiler.validate import (
     check_analysis_operation_compilable, check_ratio_operand_operations,
@@ -42,13 +42,23 @@ _HARD_FAILURE_CODES = frozenset({
 })
 
 
-def _filter_node(node_id: str, dataset_id: str, filt: KpiFilter) -> ExecutionNode:
-    """Step 2/3: map one KpiFilter to its vetted filter template."""
+def _filter_node(node_id: str, dataset_id: str, filt: KpiFilter,
+                 depends_on: list[str] | None = None) -> ExecutionNode:
+    """Step 2/3: map one KpiFilter to its vetted filter template.
+
+    `depends_on` chains this filter onto an upstream one (both AND
+    together — C12's filter_equals/filter_in narrow WITHIN their upstream
+    idx when given one) — used to layer a ratio KPI's own base `.filter`
+    under its numerator/denominator filters. Omit for a plain, top-level
+    filter (evaluated against every row, as always).
+    """
     if filt.values is not None:
         return ExecutionNode(node_id=node_id, template="filter_in", dataset_id=dataset_id,
-                             parameters={"column": filt.column, "values": filt.values})
+                             parameters={"column": filt.column, "values": filt.values},
+                             depends_on=depends_on or [])
     return ExecutionNode(node_id=node_id, template="filter_equals", dataset_id=dataset_id,
-                         parameters={"column": filt.column, "value": filt.value})
+                         parameters={"column": filt.column, "value": filt.value},
+                         depends_on=depends_on or [])
 
 
 def _filter_values(filt: KpiFilter | None) -> list:
@@ -61,17 +71,30 @@ def _filter_values(filt: KpiFilter | None) -> list:
 
 
 def _compile_operand(kpi_id: str, dataset_id: str, role: str,
-                     operand: KpiOperand | None) -> tuple[list[ExecutionNode], str]:
+                     operand: KpiOperand | None,
+                     base_depends_on: list[str] | None = None) -> tuple[list[ExecutionNode], str]:
     """Compile one side (numerator/denominator) of a ratio KPI.
 
     C09's formula_validity check already guarantees a ratio/percentage KPI
     has both operands, but a component built for defense-in-depth degrades
     to a bare count_rows rather than crashing if one is somehow missing.
+
+    `base_depends_on` is the ratio KPI's own top-level `.filter` node (if
+    any) — e.g. "Manual Renewal Rate" scoped to renewal_type=MANUAL. Every
+    operand must narrow WITHIN that base scope, including one with no
+    filter of its own (a denominator counting "all MANUAL contracts" still
+    needs the MANUAL scoping, not literally every contract in the table).
+    Before this existed, a ratio KPI's own `.filter` was silently ignored
+    entirely — a numerator counting "is_renewed=1" over the WHOLE dataset
+    against a denominator counting "renewal_type=MANUAL" produced a
+    mathematically impossible rate above 100%, since the numerator was
+    never actually confined to MANUAL rows.
     """
     nodes: list[ExecutionNode] = []
-    depends_on: list[str] = []
+    depends_on: list[str] = list(base_depends_on or [])
     if operand is not None and operand.filter is not None:
-        filt = _filter_node(f"op_{kpi_id}_{role}_filter", dataset_id, operand.filter)
+        filt = _filter_node(f"op_{kpi_id}_{role}_filter", dataset_id, operand.filter,
+                            depends_on=depends_on)
         nodes.append(filt)
         depends_on = [filt.node_id]
     op = operand.operation if operand is not None else "count"
@@ -86,14 +109,31 @@ def _compile_operand(kpi_id: str, dataset_id: str, role: str,
     return nodes, node_id
 
 
+def _bucket_params(kpi: Kpi) -> dict:
+    """Shared named_buckets_numeric parameter binding — used by both the
+    bare-KPI path (_compile_kpi) and the Analysis path (_compile_analysis),
+    which otherwise duplicate every other numeric-op branch's parameters."""
+    return {
+        "column": kpi.measure or "", "date_diff_from": kpi.date_diff_from or "",
+        "buckets": [b.model_dump() for b in kpi.buckets],
+        "value_column": kpi.bucket_value_column or "", "null_policy": "exclude",
+    }
+
+
 def _compile_kpi(kpi: Kpi) -> tuple[list[ExecutionNode], str]:
     """Steps 2-4 for one KPI: filter -> measure/count -> (for ratios)
     safe_ratio. Returns (nodes, final_node_id) — the node whose result IS
     this KPI's value."""
     did = kpi.dataset_id
     if kpi.operation in RATIO_OPERATIONS:
-        num_nodes, num_id = _compile_operand(kpi.kpi_id, did, "numerator", kpi.numerator)
-        den_nodes, den_id = _compile_operand(kpi.kpi_id, did, "denominator", kpi.denominator)
+        base_nodes: list[ExecutionNode] = []
+        base_depends_on: list[str] = []
+        if kpi.filter is not None:
+            base_filt = _filter_node(f"op_{kpi.kpi_id}_base_filter", did, kpi.filter)
+            base_nodes.append(base_filt)
+            base_depends_on = [base_filt.node_id]
+        num_nodes, num_id = _compile_operand(kpi.kpi_id, did, "numerator", kpi.numerator, base_depends_on)
+        den_nodes, den_id = _compile_operand(kpi.kpi_id, did, "denominator", kpi.denominator, base_depends_on)
         ratio_id = f"op_{kpi.kpi_id}_ratio"
         ratio_node = ExecutionNode(
             node_id=ratio_id, template="safe_ratio", dataset_id=did,
@@ -101,7 +141,7 @@ def _compile_kpi(kpi: Kpi) -> tuple[list[ExecutionNode], str]:
                        "zero_policy": kpi.zero_denominator_policy or "return_null_with_warning"},
             depends_on=[num_id, den_id],
         )
-        return [*num_nodes, *den_nodes, ratio_node], ratio_id
+        return [*base_nodes, *num_nodes, *den_nodes, ratio_node], ratio_id
 
     nodes: list[ExecutionNode] = []
     depends_on: list[str] = []
@@ -125,6 +165,11 @@ def _compile_kpi(kpi: Kpi) -> tuple[list[ExecutionNode], str]:
         nodes.append(ExecutionNode(
             node_id=final_id, template=HISTOGRAM_TEMPLATES[kpi.operation], dataset_id=did,
             parameters={"column": kpi.measure or "", "null_policy": "exclude"}, depends_on=depends_on))
+    elif kpi.operation in NAMED_BUCKET_TEMPLATES:
+        final_id = f"op_{kpi.kpi_id}_{kpi.operation}"
+        nodes.append(ExecutionNode(
+            node_id=final_id, template=NAMED_BUCKET_TEMPLATES[kpi.operation], dataset_id=did,
+            parameters=_bucket_params(kpi), depends_on=depends_on))
     else:
         # "count" and any other whitelisted-but-non-numeric op reduce to a
         # row count over the (optionally filtered) rows.
@@ -133,6 +178,28 @@ def _compile_kpi(kpi: Kpi) -> tuple[list[ExecutionNode], str]:
             node_id=final_id, template="count_rows", dataset_id=did,
             parameters={}, depends_on=depends_on))
     return nodes, final_id
+
+
+def _metric_filter_nodes(analysis_id: str, dataset_id: str,
+                         metric_kpi: Kpi | None) -> tuple[list[ExecutionNode], list[str]]:
+    """(nodes, depends_on) so a grouped Analysis inherits its metric KPI's
+    own `.filter` — the module docstring below claims every grouped template
+    "re-derives the per-group breakdown ... using the SAME filter values the
+    ungrouped KPI would use", but that was only ever true for ratio KPIs
+    (whose numerator/denominator filters are threaded via
+    numerator_values/denominator_values) and, since it was added,
+    named_buckets. grouped_count_rows/grouped_sum_numeric/
+    grouped_quartiles_numeric and crosstab's non-ratio variants silently
+    aggregated over EVERY row, ignoring a plain `Kpi.filter` entirely — e.g.
+    a KPI correctly defined as "sum(estimated_amount) WHERE is_at_risk=1"
+    would chart as total contract value by category, not at-risk value, the
+    moment an Analysis grouped it by anything. Empty when there is no filter
+    to inherit, so a plain unfiltered KPI compiles exactly as before.
+    """
+    if metric_kpi is None or metric_kpi.filter is None:
+        return [], []
+    filt = _filter_node(f"op_{analysis_id}_filter", dataset_id, metric_kpi.filter)
+    return [filt], [filt.node_id]
 
 
 def _operand_status_column(kpi: Kpi) -> str:
@@ -199,7 +266,9 @@ def _compile_analysis(analysis: Analysis, kpis_by_id: dict[str, Kpi]) -> tuple[l
         group_column_2 = analysis.group_by[1]
         base_params = {"group_column": group_column, "group_column_2": group_column_2}
         if metric_kpi is not None and metric_kpi.operation in RATIO_OPERATIONS:
-            return [ExecutionNode(
+            ratio_filter_nodes, ratio_filter_deps = _metric_filter_nodes(
+                analysis.analysis_id, did, metric_kpi)
+            return [*ratio_filter_nodes, ExecutionNode(
                 node_id=node_id, template="grouped2d_safe_ratio", dataset_id=did,
                 parameters={
                     **base_params, "status_column": _operand_status_column(metric_kpi),
@@ -208,35 +277,60 @@ def _compile_analysis(analysis: Analysis, kpis_by_id: dict[str, Kpi]) -> tuple[l
                     "denominator_values": _filter_values(
                         metric_kpi.denominator.filter if metric_kpi.denominator else None),
                     "zero_policy": metric_kpi.zero_denominator_policy or "return_null_with_warning",
-                })], node_id
+                }, depends_on=ratio_filter_deps)], node_id
+        filter_nodes, filter_deps = _metric_filter_nodes(analysis.analysis_id, did, metric_kpi)
         if metric_kpi is not None and metric_kpi.operation in GROUPED_2D_NUMERIC_TEMPLATES:
-            return [ExecutionNode(
+            return [*filter_nodes, ExecutionNode(
                 node_id=node_id, template=GROUPED_2D_NUMERIC_TEMPLATES[metric_kpi.operation],
                 dataset_id=did,
                 parameters={**base_params, "column": metric_kpi.measure or "", "null_policy": "exclude"},
+                depends_on=filter_deps,
             )], node_id
-        return [ExecutionNode(node_id=node_id, template="grouped2d_count_rows", dataset_id=did,
-                              parameters=base_params)], node_id
+        return [*filter_nodes, ExecutionNode(
+            node_id=node_id, template="grouped2d_count_rows", dataset_id=did,
+            parameters=base_params, depends_on=filter_deps)], node_id
 
     # histogram: mirrors quartiles — the KPI carries the measure column, the
     # Analysis carries the (optional) grouping.
     if analysis.operation == "histogram" and metric_kpi is not None \
             and metric_kpi.operation in HISTOGRAM_TEMPLATES:
+        filter_nodes, filter_deps = _metric_filter_nodes(analysis.analysis_id, did, metric_kpi)
         if group_column:
-            return [ExecutionNode(
+            return [*filter_nodes, ExecutionNode(
                 node_id=node_id, template=GROUPED_HISTOGRAM_TEMPLATES[metric_kpi.operation],
                 dataset_id=did,
                 parameters={"group_column": group_column, "column": metric_kpi.measure or "",
-                           "null_policy": "exclude"})], node_id
-        return [ExecutionNode(
+                           "null_policy": "exclude"}, depends_on=filter_deps)], node_id
+        return [*filter_nodes, ExecutionNode(
             node_id=node_id, template="histogram_buckets_numeric", dataset_id=did,
-            parameters={"column": metric_kpi.measure or "", "null_policy": "exclude"})], node_id
+            parameters={"column": metric_kpi.measure or "", "null_policy": "exclude"},
+            depends_on=filter_deps)], node_id
+
+    # named_buckets: same "KPI carries the measure, Analysis just points at
+    # it" convention as histogram — but unlike histogram's dispatch above,
+    # the KPI's own filter (e.g. renewal_status=DRAFT) IS threaded through
+    # here, since a severity/lapsed-bucket breakdown is meaningless over the
+    # WHOLE table (see Kpi.filter on the metric KPI).
+    if analysis.operation == "named_buckets" and metric_kpi is not None \
+            and metric_kpi.operation in NAMED_BUCKET_TEMPLATES:
+        bucket_nodes: list[ExecutionNode] = []
+        bucket_depends_on: list[str] = []
+        if metric_kpi.filter is not None:
+            filt = _filter_node(f"op_{analysis.analysis_id}_filter", did, metric_kpi.filter)
+            bucket_nodes.append(filt)
+            bucket_depends_on = [filt.node_id]
+        bucket_nodes.append(ExecutionNode(
+            node_id=node_id, template=NAMED_BUCKET_TEMPLATES[metric_kpi.operation], dataset_id=did,
+            parameters=_bucket_params(metric_kpi), depends_on=bucket_depends_on))
+        return bucket_nodes, node_id
 
     if metric_kpi is None:
         return [ExecutionNode(node_id=node_id, template="grouped_count_rows", dataset_id=did,
                               parameters={"group_column": group_column})], node_id
     if metric_kpi.operation in RATIO_OPERATIONS:
-        return [ExecutionNode(
+        ratio_filter_nodes, ratio_filter_deps = _metric_filter_nodes(
+            analysis.analysis_id, did, metric_kpi)
+        return [*ratio_filter_nodes, ExecutionNode(
             node_id=node_id, template="grouped_safe_ratio", dataset_id=did,
             parameters={
                 "group_column": group_column,
@@ -246,19 +340,21 @@ def _compile_analysis(analysis: Analysis, kpis_by_id: dict[str, Kpi]) -> tuple[l
                 "denominator_values": _filter_values(
                     metric_kpi.denominator.filter if metric_kpi.denominator else None),
                 "zero_policy": metric_kpi.zero_denominator_policy or "return_null_with_warning",
-            })], node_id
+            }, depends_on=ratio_filter_deps)], node_id
+    filter_nodes, filter_deps = _metric_filter_nodes(analysis.analysis_id, did, metric_kpi)
     if metric_kpi.operation in NUMERIC_TEMPLATES:
-        return [ExecutionNode(
+        return [*filter_nodes, ExecutionNode(
             node_id=node_id, template=GROUPED_NUMERIC_TEMPLATES[metric_kpi.operation], dataset_id=did,
             parameters={"group_column": group_column, "column": metric_kpi.measure or "",
-                       "null_policy": "exclude"})], node_id
+                       "null_policy": "exclude"}, depends_on=filter_deps)], node_id
     if metric_kpi.operation in GROUPED_QUARTILE_TEMPLATES:
-        return [ExecutionNode(
+        return [*filter_nodes, ExecutionNode(
             node_id=node_id, template=GROUPED_QUARTILE_TEMPLATES[metric_kpi.operation], dataset_id=did,
             parameters={"group_column": group_column, "column": metric_kpi.measure or "",
-                       "null_policy": "exclude"})], node_id
-    return [ExecutionNode(node_id=node_id, template="grouped_count_rows", dataset_id=did,
-                          parameters={"group_column": group_column})], node_id
+                       "null_policy": "exclude"}, depends_on=filter_deps)], node_id
+    return [*filter_nodes, ExecutionNode(
+        node_id=node_id, template="grouped_count_rows", dataset_id=did,
+        parameters={"group_column": group_column}, depends_on=filter_deps)], node_id
 
 
 def compile_plan(

@@ -136,8 +136,50 @@ def check_type_compatibility(spec: DashboardSpec, ctx: ValidationContext) -> tup
             errors.append(ValidationError(code="type_mismatch", path=f"kpi:{kpi.kpi_id}.measure",
                                           reference=kpi.measure))
     errors.extend(_histogram_metric_errors(spec))
+    errors.extend(_named_buckets_errors(spec))
     status = "failed" if errors else "passed"
     return CheckResult(check="type_compatibility", status=status), errors, []
+
+
+def _named_buckets_errors(spec: DashboardSpec) -> list[ValidationError]:
+    """named_buckets KPIs/analyses (severity/lapsed-time breakdowns, C08
+    addendum) — the dual-mode sibling of the numeric-measure check above,
+    kept separate because a named_buckets KPI may bucket by `date_diff_from`
+    (a date column) instead of `measure` (a numeric one), which
+    check_type_compatibility's blanket "must have a numeric measure" rule
+    would wrongly reject."""
+    kpis_by_id = {k.kpi_id: k for k in spec.kpis}
+    errors: list[ValidationError] = []
+    for kpi in spec.kpis:
+        if kpi.operation != "named_buckets":
+            continue
+        if not kpi.measure and not kpi.date_diff_from:
+            errors.append(ValidationError(code="missing_measure", path=f"kpi:{kpi.kpi_id}.measure",
+                                          reference=kpi.kpi_id))
+            continue
+        if kpi.measure and kpi.date_diff_from:
+            errors.append(ValidationError(
+                code="ambiguous_bucket_source", path=f"kpi:{kpi.kpi_id}",
+                reference=kpi.kpi_id))
+            continue
+        if not kpi.buckets:
+            errors.append(ValidationError(code="missing_buckets", path=f"kpi:{kpi.kpi_id}.buckets",
+                                          reference=kpi.kpi_id))
+            continue
+        if kpi.buckets[-1].max is not None:
+            errors.append(ValidationError(
+                code="unbounded_bucket_missing", path=f"kpi:{kpi.kpi_id}.buckets",
+                reference=kpi.kpi_id))
+    for analysis in spec.analyses:
+        if analysis.operation != "named_buckets":
+            continue
+        metric_kpi = kpis_by_id.get(analysis.metric or "")
+        if metric_kpi is None or metric_kpi.operation != "named_buckets":
+            errors.append(ValidationError(
+                code="named_buckets_metric_mismatch",
+                path=f"analysis:{analysis.analysis_id}.metric",
+                reference=analysis.metric or ""))
+    return errors
 
 
 def _histogram_metric_errors(spec: DashboardSpec) -> list[ValidationError]:
@@ -362,6 +404,30 @@ def check_claim_safety(spec: DashboardSpec, ctx: ValidationContext) -> tuple[Che
     return CheckResult(check="unsupported_claims", status=status), errors, []
 
 
+def check_redundant_group_by(spec: DashboardSpec, ctx: ValidationContext) -> tuple[CheckResult, list[ValidationError], list[ValidationWarning]]:
+    """11. An Analysis must not group by the exact column its own metric
+    KPI's filter already pins to one value with `equals` — every row that
+    KPI's filter admits already shares that one value, so grouping by it
+    can only ever produce a single group. The resulting chart is always one
+    lone bar restating the same number the KPI card already shows (e.g. a
+    KPI filtered to renewal_status=DRAFT, then an analysis on that KPI
+    grouped by renewal_status)."""
+    errors: list[ValidationError] = []
+    kpis = {k.kpi_id: k for k in spec.kpis}
+    for a in spec.analyses:
+        if len(a.group_by) != 1:
+            continue
+        metric_kpi = kpis.get(a.metric or "")
+        if metric_kpi is None or metric_kpi.filter is None:
+            continue
+        if metric_kpi.filter.operator == "equals" and metric_kpi.filter.column == a.group_by[0]:
+            errors.append(ValidationError(code="redundant_group_by",
+                                          path=f"analysis:{a.analysis_id}.group_by",
+                                          reference=a.analysis_id))
+    status = "failed" if errors else "passed"
+    return CheckResult(check="redundant_group_by", status=status), errors, []
+
+
 ALL_CHECKS = (
     check_json_schema,
     check_column_existence,
@@ -373,4 +439,5 @@ ALL_CHECKS = (
     check_chart_axis_compatibility,
     check_lineage_declaration,
     check_claim_safety,
+    check_redundant_group_by,
 )

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import logging
 
-from aryx.analysis_execution.models import ExecutionRun
+from aryx.analysis_execution.models import ExecutionRun, RowFilter
 from aryx.andie_planner.models import DashboardSpec
 from aryx.execution_compiler.models import ExecutionPlan
 from aryx.post_execution_validation.models import PostExecutionReport, ValidationError
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 def run_post_execution_validation(
     dsn: str, workspace_id: int, plan: ExecutionPlan, spec: DashboardSpec,
-    run: ExecutionRun, *, row_cap: int = 1_000_000,
+    run: ExecutionRun, *, row_cap: int = 1_000_000, filters: list[RowFilter] | None = None,
 ) -> PostExecutionReport:
     """Recompute `plan` fresh and validate `run` against it.
 
@@ -40,7 +40,8 @@ def run_post_execution_validation(
             profile_by_dataset[did] = profile
 
     try:
-        recomputed_nodes, recompute_errors = recompute(dsn, workspace_id, plan, spec, row_cap)
+        recomputed_nodes, recompute_errors = recompute(
+            dsn, workspace_id, plan, spec, row_cap, filters)
     except Exception:  # noqa: BLE001 — must still yield a typed, rejected report
         logger.warning("C13 recompute failed ws=%s run=%s", workspace_id, run.execution_run_id,
                        exc_info=True)

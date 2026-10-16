@@ -38,6 +38,32 @@ def render_repair_line(err: RepairErrorConstraint) -> str:
                'metric at a different KPI that already has operation='
                '"histogram", or remove this histogram analysis entirely if no '
                "numeric column needs a distribution chart.")
+    if err.code == "ambiguous_bucket_source":
+        return (f"- [{err.code}] at {err.path}.{wrote} A named_buckets KPI must set EXACTLY ONE "
+               "of measure/date_diff_from, not both — remove whichever one is not what you want "
+               "to bucket by.")
+    if err.code == "missing_buckets":
+        return (f"- [{err.code}] at {err.path}.{wrote} A named_buckets KPI needs a non-empty "
+               '"buckets" array — e.g. [{"label": "Low (<=60d)", "max": 60}, {"label": '
+               '"Medium (60-180d)", "max": 180}, {"label": "Critical (>365d)"}] (last bucket '
+               "omits max — open-ended).")
+    if err.code == "unbounded_bucket_missing":
+        return (f"- [{err.code}] at {err.path}.{wrote} The LAST bucket in a named_buckets KPI's "
+               '"buckets" array must omit "max" (or set it to null) so every value has somewhere '
+               "to land — add one more bucket at the end with a label and no max.")
+    if err.code == "named_buckets_metric_mismatch":
+        return (f"- [{err.code}] at {err.path}.{wrote} A named_buckets Analysis's metric must "
+               'reference a KPI whose own operation is EXACTLY "named_buckets" (with buckets and '
+               "a measure or date_diff_from) — either change that KPI's operation, point metric "
+               "at a different named_buckets KPI, or remove this analysis.")
+    if err.code == "redundant_group_by":
+        return (f"- [{err.code}] at {err.path}.{wrote} This analysis groups by the exact column "
+               "its own metric KPI's filter already pins to one value with an equals filter — "
+               "every row that filter admits already shares that value, so the group_by can only "
+               "ever produce a single group, and the chart is always one lone bar restating the "
+               "KPI's own number. Either change group_by to a column the filter does NOT already "
+               "fix (e.g. a time period or another dimension), or remove this analysis entirely if "
+               "the KPI card alone already covers it.")
     if err.code == "missing_filter_value":
         return (f"- [{err.code}] at {err.path}. The filter on column {err.invalid_value!r} has no "
                '"value" (or "values") — a filter with only a column name matches nothing. Add the '

@@ -15,6 +15,7 @@ from typing import Any
 from aryx.andie_planner.models import (
     Analysis,
     Assumption,
+    BucketDef,
     BusinessQuestion,
     DashboardSpec,
     DeltaSpecItems,
@@ -80,6 +81,37 @@ def _as_operand(raw: Any, approved_cols: set[str], approved_ops: set[str],
                       filter=_as_filter(raw.get("filter"), approved_cols, warnings, where))
 
 
+def _as_buckets(raw: Any, warnings: list[SpecWarning], where: str) -> list[BucketDef]:
+    """Parse named_buckets threshold defs. Not column references (no
+    approved_cols check applies) — just type-safe structural parsing; label
+    ordering/open-endedness is checked later by
+    spec_validation.checks._named_buckets_errors, which has the full KPI in
+    view.
+
+    Reads the "name" key (see schema._BUCKETS_SCHEMA for why that's the one
+    actually requested), falling back to "label" only for a raw dict that
+    bypassed llm_normalize entirely (e.g. a hand-built test fixture, or a
+    provider that for some reason didn't get normalized) — never the other
+    way around, since "label" is exactly the key llm_normalize's synonym
+    table renames away before a live response ever reaches here.
+    """
+    if not isinstance(raw, list):
+        return []
+    out: list[BucketDef] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        label = _as_str(item.get("name")) or _as_str(item.get("label"))
+        if label is None:
+            continue
+        max_val = item.get("max")
+        if max_val is not None and not isinstance(max_val, (int, float)):
+            warnings.append(SpecWarning(code="bad_field_type", detail=f"{where}.buckets[].max"))
+            continue
+        out.append(BucketDef(label=label, max=float(max_val) if max_val is not None else None))
+    return out
+
+
 def _ground_kpi(raw: dict, approved_cols: set[str], approved_ops: set[str],
                warnings: list[SpecWarning], dataset_id: str = "") -> Kpi | None:
     kid = _as_str(raw.get("kpi_id"))
@@ -111,6 +143,18 @@ def _ground_kpi(raw: dict, approved_cols: set[str], approved_ops: set[str],
         warnings.append(SpecWarning(code="bad_field_type",
                                     detail=f"kpi {kid}.zero_denominator_policy"))
 
+    date_diff_from = _as_str(raw.get("date_diff_from"))
+    if date_diff_from is not None and date_diff_from not in approved_cols:
+        warnings.append(SpecWarning(code="unapproved_column", column=date_diff_from,
+                                    detail=f"kpi {kid}.date_diff_from"))
+        date_diff_from = None
+
+    bucket_value_column = _as_str(raw.get("bucket_value_column"))
+    if bucket_value_column is not None and bucket_value_column not in approved_cols:
+        warnings.append(SpecWarning(code="unapproved_column", column=bucket_value_column,
+                                    detail=f"kpi {kid}.bucket_value_column"))
+        bucket_value_column = None
+
     return Kpi(
         kpi_id=kid, name=_as_str(raw.get("name")) or kid, dataset_id=dataset_id,
         source_columns=good_cols, operation=op, measure=measure,
@@ -121,6 +165,9 @@ def _ground_kpi(raw: dict, approved_cols: set[str], approved_ops: set[str],
                                 warnings, f"kpi {kid}.denominator"),
         zero_denominator_policy=zero_policy,
         format=_as_str(raw.get("format")) or "number",
+        buckets=_as_buckets(raw.get("buckets"), warnings, f"kpi {kid}"),
+        date_diff_from=date_diff_from,
+        bucket_value_column=bucket_value_column,
     )
 
 

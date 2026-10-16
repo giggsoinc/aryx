@@ -49,6 +49,17 @@ def link_by_attribute(
         if key:
             targets.setdefault(key.lower(), []).append(tid)
 
+    # Self-typed AND self-attributed (source_type == target_type, source_attr
+    # == target_attr) means the match condition is symmetric: A's value ==
+    # B's value implies B's value == A's value. The loop below visits every
+    # entity as a candidate sid, so a symmetric match gets discovered from
+    # BOTH sides — (A,B) when sid=A, (B,A) when sid=B — producing two edges
+    # for one logical relationship. Only dedupe in this exact case: a
+    # self-typed link with DIFFERENT attrs (e.g. manager_id vs employee_id)
+    # is directional by construction and pairs are not naturally doubled, so
+    # deduping there would silently drop a legitimate directed edge.
+    symmetric_self_link = source_type == target_type and source_attr == target_attr
+
     rels: list[Relationship] = []
     for sid, stype, payload in entities:
         if stype != source_type:
@@ -58,6 +69,8 @@ def link_by_attribute(
             continue
         for tid in targets.get(ref.lower(), []):
             if tid != sid:
+                if symmetric_self_link and sid > tid:
+                    continue  # the sid < tid pass already emitted this pair
                 # sid is the source_type entity, tid the target_type entity —
                 # the edge must point sid -> tid to match this function's own
                 # parameter naming and the caller's own log line ("linked %s

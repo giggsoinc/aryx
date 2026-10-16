@@ -15,7 +15,7 @@ import logging
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
-from aryx.analysis_execution.models import ExecutionRun
+from aryx.analysis_execution.models import ExecutionRun, RowFilter
 from aryx.analysis_execution.run import run_analysis_execution
 from aryx.config import get_settings
 from aryx.store.execution_run_store import ExecutionRunStore
@@ -29,11 +29,18 @@ logger = logging.getLogger(__name__)
 _MAX_RUNTIME_SECONDS_CEILING = 30.0
 _MAX_ROWS_CEILING = 50_000
 
+# A dashboard filter picker offering unlimited dimensions/values would let a
+# caller force an arbitrarily expensive per-row scan; this stays generous
+# enough for any real filter UI (a handful of dimension+value pickers) while
+# still bounding the work per request.
+_MAX_FILTERS = 10
+
 
 class ExecutionRunRequest(BaseModel):
     dataset_id: str
     maximum_runtime_seconds: float = Field(default=30.0, gt=0, le=_MAX_RUNTIME_SECONDS_CEILING)
     maximum_rows: int = Field(default=50_000, gt=0, le=_MAX_ROWS_CEILING)
+    filters: list[RowFilter] = Field(default_factory=list, max_length=_MAX_FILTERS)
 
 
 def execution_run_router() -> APIRouter:
@@ -49,6 +56,7 @@ def execution_run_router() -> APIRouter:
             get_settings().rdb_dsn, workspace_id, req.dataset_id,
             maximum_runtime_seconds=req.maximum_runtime_seconds,
             maximum_rows=req.maximum_rows,
+            filters=req.filters,
         )
         if result.status != "completed":
             logger.warning("execution-run finished ws=%s dataset=%s status=%s errors=%s",

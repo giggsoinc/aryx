@@ -1,7 +1,7 @@
 """Tests for the Execution Compiler (C11) — pure, no DB, no LLM."""
 from __future__ import annotations
 
-from aryx.andie_planner.models import Analysis, Kpi, KpiFilter, KpiOperand
+from aryx.andie_planner.models import Analysis, BucketDef, Kpi, KpiFilter, KpiOperand
 from aryx.execution_compiler.compile import compile_plan, compile_plan_for_spec
 from aryx.execution_compiler.models import ExecutionNode
 from aryx.execution_compiler.validate import check_resource_limits, is_acyclic, validate_bindings
@@ -74,6 +74,50 @@ def test_ratio_kpi_builds_full_numerator_denominator_dag() -> None:
         "op_kpi_renewal_rate_numerator_count", "op_kpi_renewal_rate_denominator_count",
     }
     assert len(plan.nodes) == 5  # numerator filter+count, denominator filter+count, ratio
+
+
+def test_ratio_kpi_with_a_top_level_filter_scopes_both_operands() -> None:
+    # Regression, found live building a real dashboard: a ratio KPI's own
+    # top-level `.filter` (e.g. "Manual Renewal Rate" scoped to
+    # renewal_type=MANUAL) was silently ignored by compilation — the
+    # numerator (is_renewed=1) counted EVERY row in the dataset, not just
+    # MANUAL ones, against a denominator correctly scoped to MANUAL via its
+    # own operand filter. That produced a mathematically impossible rate
+    # above 100% live. Both operands — including one with NO filter of its
+    # own — must narrow within the KPI's base filter.
+    kpi = Kpi(
+        kpi_id="kpi_manual_rate", dataset_id="ds1", operation="ratio",
+        filter=KpiFilter(column="renewal_type", value="MANUAL"),
+        zero_denominator_policy="return_null_with_warning",
+        numerator=KpiOperand(operation="count",
+                             filter=KpiFilter(column="is_renewed", value="1")),
+        denominator=KpiOperand(operation="count"),  # no filter of its own
+    )
+    plan = compile_plan("spec_1", "ds1", "v1", [kpi], [])
+    base_filter = _by_id(plan.nodes, "op_kpi_manual_rate_base_filter")
+    assert base_filter.template == "filter_equals"
+    assert base_filter.parameters == {"column": "renewal_type", "value": "MANUAL"}
+    assert base_filter.depends_on == []
+
+    num_filter = _by_id(plan.nodes, "op_kpi_manual_rate_numerator_filter")
+    assert num_filter.depends_on == ["op_kpi_manual_rate_base_filter"]
+    num_count = _by_id(plan.nodes, "op_kpi_manual_rate_numerator_count")
+    assert num_count.depends_on == ["op_kpi_manual_rate_numerator_filter"]
+
+    # Denominator has no operand-level filter — it must depend on the BASE
+    # filter directly, not compile to an unfiltered count_rows.
+    den_count = _by_id(plan.nodes, "op_kpi_manual_rate_denominator_count")
+    assert den_count.depends_on == ["op_kpi_manual_rate_base_filter"]
+
+
+def test_ratio_kpi_without_a_top_level_filter_is_unaffected() -> None:
+    kpi = Kpi(kpi_id="kpi_r", dataset_id="ds1", operation="ratio",
+             zero_denominator_policy="return_null_with_warning",
+             numerator=KpiOperand(operation="count"), denominator=KpiOperand(operation="count"))
+    plan = compile_plan("spec_1", "ds1", "v1", [kpi], [])
+    assert not any(n.node_id == "op_kpi_r_base_filter" for n in plan.nodes)
+    num_count = _by_id(plan.nodes, "op_kpi_r_numerator_count")
+    assert num_count.depends_on == []
 
 
 def test_ratio_kpi_defaults_zero_policy_when_unset() -> None:
@@ -149,6 +193,47 @@ def test_grouped_analysis_referencing_sum_kpi() -> None:
     assert grouped.template == "grouped_sum_numeric"
     assert grouped.parameters == {"group_column": "region", "column": "contract_value",
                                   "null_policy": "exclude"}
+
+
+def test_grouped_analysis_threads_the_metric_kpis_own_filter() -> None:
+    # Regression: grouped_count_rows/grouped_sum_numeric/grouped_quartiles_numeric
+    # and crosstab's non-ratio variants used to ignore metric_kpi.filter
+    # entirely — a KPI correctly defined as "sum(estimated_amount) WHERE
+    # is_at_risk=1" charted as total value by category, not at-risk value,
+    # the moment an Analysis grouped it by anything.
+    kpi = Kpi(kpi_id="kpi_at_risk_value", dataset_id="ds1", operation="sum",
+             measure="estimated_amount", filter=KpiFilter(column="is_at_risk", value="1"))
+    analysis = Analysis(analysis_id="an_risk_by_type", operation="group_by",
+                        dataset_id="ds1", group_by=["contract_type"], metric="kpi_at_risk_value")
+    plan = compile_plan("spec_1", "ds1", "v1", [kpi], [analysis])
+    filt = _by_id(plan.nodes, "op_an_risk_by_type_filter")
+    assert filt.template == "filter_equals"
+    assert filt.parameters == {"column": "is_at_risk", "value": "1"}
+    node = _by_id(plan.nodes, "op_an_risk_by_type_grouped")
+    assert node.template == "grouped_sum_numeric"
+    assert node.depends_on == ["op_an_risk_by_type_filter"]
+
+
+def test_grouped_analysis_without_a_kpi_filter_has_no_filter_dependency() -> None:
+    kpi = Kpi(kpi_id="kpi_value", dataset_id="ds1", operation="sum", measure="contract_value")
+    analysis = Analysis(analysis_id="an_value_by_region", operation="group_by",
+                        dataset_id="ds1", group_by=["region"], metric="kpi_value")
+    plan = compile_plan("spec_1", "ds1", "v1", [kpi], [analysis])
+    node = _by_id(plan.nodes, "op_an_value_by_region_grouped")
+    assert node.depends_on == []
+
+
+def test_crosstab_analysis_threads_the_metric_kpis_own_filter() -> None:
+    kpi = Kpi(kpi_id="kpi_at_risk_value", dataset_id="ds1", operation="sum",
+             measure="estimated_amount", filter=KpiFilter(column="is_at_risk", value="1"))
+    analysis = Analysis(analysis_id="an_risk_crosstab", operation="crosstab", dataset_id="ds1",
+                        group_by=["contract_type", "renewal_type"], metric="kpi_at_risk_value")
+    plan = compile_plan("spec_1", "ds1", "v1", [kpi], [analysis])
+    filt = _by_id(plan.nodes, "op_an_risk_crosstab_filter")
+    assert filt.parameters == {"column": "is_at_risk", "value": "1"}
+    node = _by_id(plan.nodes, "op_an_risk_crosstab_grouped")
+    assert node.template == "grouped2d_sum_numeric"
+    assert node.depends_on == ["op_an_risk_crosstab_filter"]
 
 
 def test_grouped_analysis_with_unknown_metric_falls_back_to_count() -> None:
@@ -250,6 +335,81 @@ def test_ungrouped_histogram_analysis_compiles_to_ungrouped_template() -> None:
     node = _by_id(plan.nodes, "op_analysis_hist_all_grouped")
     assert node.template == "histogram_buckets_numeric"
     assert node.parameters == {"column": "deal_value", "null_policy": "exclude"}
+
+
+_SEVERITY_BUCKETS = [
+    BucketDef(label="Low (<=60d)", max=60), BucketDef(label="Medium (60-180d)", max=180),
+    BucketDef(label="High (180-365d)", max=365), BucketDef(label="Critical (>365d)"),
+]
+
+
+def test_named_buckets_kpi_compiles_to_named_buckets_numeric() -> None:
+    kpi = Kpi(kpi_id="kpi_draft_severity", dataset_id="ds1", operation="named_buckets",
+             measure="draft_age_days", buckets=_SEVERITY_BUCKETS,
+             filter=KpiFilter(column="renewal_status", value="DRAFT"))
+    plan = compile_plan("spec_1", "ds1", "v1", [kpi], [])
+    filt = _by_id(plan.nodes, "op_kpi_draft_severity_filter")
+    assert filt.template == "filter_equals"
+    node = _by_id(plan.nodes, "op_kpi_draft_severity_named_buckets")
+    assert node.template == "named_buckets_numeric"
+    assert node.depends_on == ["op_kpi_draft_severity_filter"]
+    assert node.parameters == {
+        "column": "draft_age_days", "date_diff_from": "", "value_column": "",
+        "null_policy": "exclude",
+        "buckets": [
+            {"label": "Low (<=60d)", "max": 60.0}, {"label": "Medium (60-180d)", "max": 180.0},
+            {"label": "High (180-365d)", "max": 365.0}, {"label": "Critical (>365d)", "max": None},
+        ],
+    }
+
+
+def test_named_buckets_kpi_with_date_diff_from_and_no_measure() -> None:
+    kpi = Kpi(kpi_id="kpi_lapsed", dataset_id="ds1", operation="named_buckets",
+             date_diff_from="end_date", bucket_value_column="estimated_amount",
+             buckets=[BucketDef(label="Lapsed <=30d", max=30), BucketDef(label="Lapsed >30d")],
+             filter=KpiFilter(column="is_at_risk", value="1"))
+    plan = compile_plan("spec_1", "ds1", "v1", [kpi], [])
+    node = _by_id(plan.nodes, "op_kpi_lapsed_named_buckets")
+    assert node.parameters["column"] == ""
+    assert node.parameters["date_diff_from"] == "end_date"
+    assert node.parameters["value_column"] == "estimated_amount"
+
+
+def test_named_buckets_analysis_threads_the_metric_kpis_own_filter() -> None:
+    # Unlike the (pre-existing) histogram analysis dispatch, named_buckets
+    # must apply the metric KPI's own filter — a severity/lapsed-bucket
+    # breakdown is meaningless over the whole unfiltered table.
+    kpi = Kpi(kpi_id="kpi_draft_severity", dataset_id="ds1", operation="named_buckets",
+             measure="draft_age_days", buckets=_SEVERITY_BUCKETS,
+             filter=KpiFilter(column="renewal_status", value="DRAFT"))
+    analysis = Analysis(analysis_id="an_draft_severity", operation="named_buckets",
+                        dataset_id="ds1", metric="kpi_draft_severity")
+    plan = compile_plan("spec_1", "ds1", "v1", [kpi], [analysis])
+    filt = _by_id(plan.nodes, "op_an_draft_severity_filter")
+    assert filt.template == "filter_equals"
+    assert filt.parameters == {"column": "renewal_status", "value": "DRAFT"}
+    node = _by_id(plan.nodes, "op_an_draft_severity_grouped")
+    assert node.template == "named_buckets_numeric"
+    assert node.depends_on == ["op_an_draft_severity_filter"]
+
+
+def test_named_buckets_analysis_without_filter_has_no_dependency() -> None:
+    kpi = Kpi(kpi_id="kpi_lapsed", dataset_id="ds1", operation="named_buckets",
+             date_diff_from="end_date", buckets=[BucketDef(label="Any")])
+    analysis = Analysis(analysis_id="an_lapsed", operation="named_buckets",
+                        dataset_id="ds1", metric="kpi_lapsed")
+    plan = compile_plan("spec_1", "ds1", "v1", [kpi], [analysis])
+    node = _by_id(plan.nodes, "op_an_lapsed_grouped")
+    assert node.depends_on == []
+
+
+def test_named_buckets_analysis_with_mismatched_metric_falls_back_to_count() -> None:
+    kpi = Kpi(kpi_id="kpi_a", dataset_id="ds1", operation="count")
+    analysis = Analysis(analysis_id="an_a", operation="named_buckets",
+                        dataset_id="ds1", group_by=["region"], metric="kpi_a")
+    plan = compile_plan("spec_1", "ds1", "v1", [kpi], [analysis])
+    node = _by_id(plan.nodes, "op_an_a_grouped")
+    assert node.template == "grouped_count_rows"
 
 
 # ── determinism + limits ─────────────────────────────────────────────────

@@ -35,6 +35,8 @@ TEMPLATES: dict[str, frozenset[str]] = {
     "survival_curve": frozenset({"group_column", "start_column", "end_column"}),
     "histogram_buckets_numeric": frozenset({"column", "null_policy"}),
     "grouped_histogram_buckets_numeric": frozenset({"group_column", "column", "null_policy"}),
+    "named_buckets_numeric": frozenset(
+        {"column", "date_diff_from", "buckets", "value_column", "null_policy"}),
     "graph_relation_count": frozenset({"path_id"}),
 }
 
@@ -69,6 +71,12 @@ RATIO_OPERATIONS = frozenset({"ratio", "percentage"})
 # measure column, the Analysis carries the (optional) grouping.
 HISTOGRAM_TEMPLATES: dict[str, str] = {"histogram": "histogram_buckets_numeric"}
 GROUPED_HISTOGRAM_TEMPLATES: dict[str, str] = {"histogram": "grouped_histogram_buckets_numeric"}
+
+# Analysis.operation == "named_buckets" mirrors "histogram" (ungrouped case
+# only — a bucketed breakdown has no secondary group_by dimension of its
+# own): the KPI carries the measure/date_diff_from/buckets/bucket_value_column,
+# the Analysis just points at it.
+NAMED_BUCKET_TEMPLATES: dict[str, str] = {"named_buckets": "named_buckets_numeric"}
 
 # Analysis.operation == "crosstab" (group_by has exactly 2 columns) dispatches
 # on the referenced KPI's own operation, same convention as

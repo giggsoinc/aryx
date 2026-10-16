@@ -27,6 +27,26 @@ _RATIO_OPERAND_SCHEMA: dict = {
     },
 }
 _ZERO_DENOMINATOR_POLICY_SCHEMA: dict = {"type": "string", "enum": ["return_null_with_warning"]}
+_BUCKETS_SCHEMA: dict = {
+    "type": "array",
+    "description": "named_buckets only: ordered ascending thresholds. Last "
+    "bucket's max must be omitted/null (open-ended).",
+    "items": {
+        "type": "object",
+        # "name" (not "label"): aryx.llm_normalize's shared synonym table
+        # renames "label" -> canonical "name" for every provider (it exists
+        # for entity-extraction schemas, but complete_json applies it to
+        # EVERY schema, this one included) — declaring "label" here would
+        # have every provider's answer silently arrive as "name" instead,
+        # exactly as it did live before this was caught (see
+        # tests/test_adjudicate.py for the same class of bug with
+        # "score" -> "confidence"). ground._as_buckets also accepts "label"
+        # as a defensive fallback, but "name" is what the model is actually
+        # asked for so it never needs to.
+        "properties": {"name": {"type": "string"}, "max": {"type": ["number", "null"]}},
+        "required": ["name"],
+    },
+}
 
 DASHBOARD_SPEC_SCHEMA: dict = {
     "type": "object",
@@ -57,6 +77,9 @@ DASHBOARD_SPEC_SCHEMA: dict = {
                     "denominator": _RATIO_OPERAND_SCHEMA,
                     "zero_denominator_policy": _ZERO_DENOMINATOR_POLICY_SCHEMA,
                     "format": {"type": "string"},
+                    "buckets": _BUCKETS_SCHEMA,
+                    "date_diff_from": {"type": "string"},
+                    "bucket_value_column": {"type": "string"},
                 },
                 "required": ["kpi_id", "operation"],
             },
@@ -131,6 +154,9 @@ DELTA_SPEC_SCHEMA: dict = {
                 "denominator": _RATIO_OPERAND_SCHEMA,
                 "zero_denominator_policy": _ZERO_DENOMINATOR_POLICY_SCHEMA,
                 "format": {"type": "string"},
+                "buckets": _BUCKETS_SCHEMA,
+                "date_diff_from": {"type": "string"},
+                "bucket_value_column": {"type": "string"},
             },
         },
         "new_analysis": {
@@ -191,7 +217,15 @@ FILTER_REPAIR_SCHEMA: dict = {
                     "field": {"type": "string"},
                     "value": {"type": ["string", "null"]},
                 },
-                "required": ["kpi_id", "field"],
+                # "value" is required (not just optional) and no other key
+                # is allowed on the item: live models (confirmed with
+                # gemini-flash-latest) satisfy a schema where "value" is
+                # merely optional by omitting it and adding an unlisted
+                # "name" key instead — schema-valid, but every fill then
+                # reads as a silent decline. Forcing "value" (nullable) and
+                # locking the item shape makes that no longer schema-valid.
+                "required": ["kpi_id", "field", "value"],
+                "additionalProperties": False,
             },
         },
     },

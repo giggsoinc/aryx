@@ -12,7 +12,9 @@ from aryx.analysis_execution.models import (
     AnalysisResult, AnalysisResultRow, ExecutionMetrics, ExecutionRun, KpiLineage, KpiResult,
 )
 from aryx.analysis_execution.run import _analysis_rows
-from aryx.andie_planner.models import Analysis, DashboardSpec, Kpi, KpiFilter, KpiOperand
+from aryx.andie_planner.models import (
+    Analysis, BucketDef, DashboardSpec, Kpi, KpiFilter, KpiOperand,
+)
 from aryx.execution_compiler.compile import compile_plan
 from aryx.post_execution_validation.checks import (
     check_aggregation_correctness, check_evidence_lineage, check_no_invented_columns,
@@ -315,6 +317,44 @@ def test_ungrouped_histogram_matches_recompute_not_falsely_rejected() -> None:
     node_results, _errors, _c, _f = run_plan(plan, {DATASET: rows})
     result, errors = check_aggregation_correctness(spec, run, node_results, plan)
     assert result.status == "passed", errors
+
+
+def test_named_buckets_row_matches_recompute_not_falsely_rejected() -> None:
+    # Regression, found live building a real dashboard: named_buckets'
+    # result is wrapped ({"named_buckets": {label: value}, ...}), the same
+    # shape family as histogram's {"buckets": [...], ...} — before this
+    # existed, the default 1D-grouped comparator looked for each bucket
+    # label as a top-level key of the WRAPPER and found none, rejecting
+    # C13 on a correctly-computed severity/lapsed-time breakdown.
+    kpi = Kpi(kpi_id="kpi_draft_severity", dataset_id=DATASET, operation="named_buckets",
+             measure="draft_age_days",
+             buckets=[BucketDef(label="Low", max=60), BucketDef(label="High")])
+    analysis = Analysis(analysis_id="an_severity", operation="named_buckets",
+                        dataset_id=DATASET, metric="kpi_draft_severity")
+    spec, plan = _spec_and_plan([kpi], [analysis])
+    rows = [{"draft_age_days": 10}, {"draft_age_days": 400}, {"draft_age_days": 20}]
+    run = _analysis_run(spec, plan, rows, analysis)
+    node_results, _errors, _c, _f = run_plan(plan, {DATASET: rows})
+    result, errors = check_aggregation_correctness(spec, run, node_results, plan)
+    assert result.status == "passed", errors
+
+
+def test_named_buckets_row_tampered_is_still_caught() -> None:
+    kpi = Kpi(kpi_id="kpi_draft_severity", dataset_id=DATASET, operation="named_buckets",
+             measure="draft_age_days",
+             buckets=[BucketDef(label="Low", max=60), BucketDef(label="High")])
+    analysis = Analysis(analysis_id="an_severity", operation="named_buckets",
+                        dataset_id=DATASET, metric="kpi_draft_severity")
+    spec, plan = _spec_and_plan([kpi], [analysis])
+    rows = [{"draft_age_days": 10}, {"draft_age_days": 400}, {"draft_age_days": 20}]
+    run = _analysis_run(spec, plan, rows, analysis)
+    node_results, _errors, _c, _f = run_plan(plan, {DATASET: rows})
+    run.analysis_results[0].rows[0].value = 99999.0  # tamper
+    result, errors = check_aggregation_correctness(spec, run, node_results, plan)
+    assert result.status == "failed"
+    assert any(e.code == "result_formula_mismatch"
+              and e.details["explanation_code"] == "computed_value_does_not_match_lineage"
+              for e in errors)
 
 
 class _FakeGraphReader:

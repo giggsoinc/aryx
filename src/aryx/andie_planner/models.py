@@ -33,6 +33,18 @@ class KpiOperand(BaseModel):
     filter: KpiFilter | None = None
 
 
+class BucketDef(BaseModel):
+    """One named threshold bucket for a `named_buckets` KPI (e.g. severity
+    or a lapsed-time range). Buckets are ordered ascending by `max`; a row's
+    bucketed value is assigned to the first bucket whose `max` it falls at
+    or under. The LAST bucket in the list must have `max=None` (open-ended)
+    so every value has somewhere to land — see
+    spec_validation.checks._named_buckets_errors, which enforces this."""
+
+    label: str
+    max: float | None = None
+
+
 class Kpi(BaseModel):
     kpi_id: str
     name: str = ""
@@ -47,6 +59,18 @@ class Kpi(BaseModel):
     denominator: KpiOperand | None = None
     zero_denominator_policy: str | None = None
     format: str = "number"
+    buckets: list[BucketDef] = Field(
+        default_factory=list, description="named_buckets only: ordered threshold "
+        "buckets (see BucketDef). Ignored by every other operation.")
+    date_diff_from: str | None = Field(
+        default=None, description="named_buckets only: a date column to bucket by "
+        "(days between it and today) INSTEAD of `measure` — e.g. bucketing "
+        "contracts by days-lapsed-since end_date. Set at most one of "
+        "`measure`/`date_diff_from`.")
+    bucket_value_column: str | None = Field(
+        default=None, description="named_buckets only: sum this numeric column "
+        "per bucket instead of counting rows (e.g. estimated_amount for a "
+        "revenue-at-risk-by-lapsed-bucket chart).")
 
 
 class Analysis(BaseModel):

@@ -136,6 +136,20 @@ def ollama_json(spec: ModelSpec, system: str,
     return data, int(out.get("prompt_eval_count", 0)), int(out.get("eval_count", 0))
 
 
+def _rejects_reasoning_effort(exc: RuntimeError, body: dict[str, Any]) -> bool:
+    """True if this error is the provider refusing our reasoning_effort value.
+
+    Narrow on purpose: only a 400 (a validation refusal, not a server fault or
+    an auth/quota problem) that actually names the reasoning/thinking knob
+    qualifies, and only when we set one. Anything else re-raises untouched so
+    a real failure never gets silently retried into a different shape.
+    """
+    if "reasoning_effort" not in body:
+        return False
+    msg = str(exc).lower()
+    return "http 400" in msg and ("thinking level" in msg or "reasoning_effort" in msg)
+
+
 def openai_json(
     spec: ModelSpec, system: str, user: str, key: str | None,
 ) -> tuple[dict[str, Any], int, int]:
@@ -149,9 +163,21 @@ def openai_json(
     for the caller to choke on. reasoning_effort is capped too, but only for
     models actually in a hidden-reasoning family — many OpenAI-compatible
     providers reject unknown fields, and each family's sweet spot differs
-    (confirmed live: gpt-oss wants "low"; Gemini's "low" barely helps —
-    completion_tokens stayed near 1 out of a 100-token budget — "minimal" is
-    what actually leaves the completion budget mostly for visible content).
+    (confirmed live: gpt-oss wants "low"; Gemini takes "low" — the older
+    "minimal" was a Gemini 2.5-era thinking level and is now rejected
+    outright with HTTP 400 "Thinking level MINIMAL is not supported for this
+    model" by whatever gemini-flash-latest currently resolves to. "low"
+    measures identically on the live endpoint: a trivial JSON call totals 17
+    tokens under both "low" and no reasoning_effort at all, vs 102 at
+    "medium" and 156 at "high" — so the hidden-reasoning budget really is
+    near zero, which is all the cap was ever after).
+
+    Because those caps are literals pinned against rolling "-latest" aliases,
+    a provider re-pointing an alias can invalidate the value at any time.
+    Rather than fail the whole job on that, a 400 that names the
+    reasoning/thinking parameter retries once with the field dropped —
+    confirmed live the same call succeeds unconstrained, so a future alias
+    roll degrades to slightly-more-reasoning instead of llm_call_failed.
 
     8192 (not 4096): a full dashboard spec now targets 10-12 visualizations
     (up from 6-10) plus their KPIs/analyses/assumptions/warnings — 4096
@@ -178,15 +204,18 @@ def openai_json(
         "messages": [{"role": "system", "content": system},
                      {"role": "user", "content": user}],
     }
-    if "gpt-oss" in spec.name:
+    if "gpt-oss" in spec.name or "gemini" in spec.name:
         body["reasoning_effort"] = "low"
-    elif "gemini" in spec.name:
-        body["reasoning_effort"] = "minimal"
-    out = post_json(
-        (spec.endpoint or "").rstrip("/") + "/chat/completions",
-        body,
-        headers,
-    )
+    url = (spec.endpoint or "").rstrip("/") + "/chat/completions"
+    try:
+        out = post_json(url, body, headers)
+    except RuntimeError as exc:
+        if not _rejects_reasoning_effort(exc, body):
+            raise
+        logger.warning("provider rejected reasoning_effort=%s for %s — "
+                       "retrying without it: %s",
+                       body.pop("reasoning_effort"), spec.name, exc)
+        out = post_json(url, body, headers)
     data = json.loads(out["choices"][0]["message"]["content"])
     usage = out.get("usage", {})
     return data, int(usage.get("prompt_tokens", 0)), int(usage.get("completion_tokens", 0))

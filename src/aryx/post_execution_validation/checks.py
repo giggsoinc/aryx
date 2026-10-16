@@ -150,6 +150,32 @@ def _check_survival_rows(analysis_id: str, rows: list, recomputed_curves: Any) -
     return errors
 
 
+def _check_named_buckets_rows(analysis_id: str, rows: list, recomputed: Any) -> list[ValidationError]:
+    """named_buckets: recomputed is {"named_buckets": {label: value_or_dict},
+    "sample_size": ..., "excluded_null_rows": ...} — the same wrapped shape
+    _analysis_rows._named_buckets_rows unwraps, and for the same reason:
+    _kpi_result_from_node's "no single scalar" contract needs a marker key
+    to tell a bucket breakdown apart from a plain grouped aggregate whose
+    keys ARE the group values. Before this existed, named_buckets fell
+    through to _check_1d_grouped_rows, which looked for each bucket label as
+    a top-level key of this wrapper (finding only "named_buckets"/
+    "sample_size"/"excluded_null_rows") and reported every real bucket as
+    unrecomputable — rejecting C13 on a correct result, live."""
+    errors: list[ValidationError] = []
+    recomputed_groups = recomputed.get("named_buckets") if isinstance(recomputed, dict) else None
+    for row in rows:
+        reference = f"{analysis_id}:{row.group_value}"
+        recomputed_raw = (recomputed_groups.get(row.group_value)
+                          if isinstance(recomputed_groups, dict) else None)
+        if recomputed_raw is None:
+            errors.append(_no_recomputed_group(reference, row.value))
+            continue
+        recomputed_value, *_ = _kpi_result_from_node(recomputed_raw)
+        if _mismatch(row.value, recomputed_value):
+            errors.append(_mismatch_error(reference, row.value, recomputed_value))
+    return errors
+
+
 def _check_histogram_rows(analysis_id: str, rows: list, recomputed: Any) -> list[ValidationError]:
     """histogram: recomputed is either the single ungrouped
     {"buckets": [...], ...} dict (row.group_value == "_all_"), or a
@@ -180,6 +206,7 @@ _ANALYSIS_ROW_CHECKS = {
     "date_span": _check_date_span_rows,
     "survival": _check_survival_rows,
     "histogram": _check_histogram_rows,
+    "named_buckets": _check_named_buckets_rows,
 }
 
 

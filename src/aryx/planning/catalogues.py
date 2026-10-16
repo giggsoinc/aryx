@@ -27,6 +27,7 @@ OPERATIONS: list[str] = [
     "date_span",
     "survival",
     "histogram",
+    "named_buckets",
     "graph_relation",
 ]
 

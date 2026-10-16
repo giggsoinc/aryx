@@ -2,7 +2,7 @@ import type {
   AbResult, AskResponse, Axiom, Brief, DataEntitiesPage, DataSummary,
   Datasource, EntityDetail, EntityGraphView, GraphView, IngestQuestion,
   DatasetIngestResult, DatasetProfile, SemanticProfile, GraphIntakeResult, GraphProfile,
-  PlanningContext, PlannerResult, DeltaDraftResult, DeltaSpecItems, ExecutionPlan, ExecutionRun,
+  PlanningContext, PlannerResult, DeltaDraftResult, DeltaSpecItems, ExecutionPlan, ExecutionRun, RowFilter,
   DashboardModel, RenderTelemetry, WordCloudResponse, ExcerptsResponse,
   LlmConfig, LlmConfigUpdate, DeriveEntitiesResult, LinkEntitiesResult, OntologyDoc, QuizSpec, ReasonerCheck, Rule,
   SmartUnderstandResult, SurvivorshipPolicy, UserIntent, UserIntentRequest, Workspace,
@@ -475,10 +475,10 @@ export const api = {
     ),
 
   // ── Deterministic Analysis Execution (C12) — on-demand; no LLM ────────
-  runExecutionForWorkspace: (workspaceId: number) =>
+  runExecutionForWorkspace: (workspaceId: number, filters: RowFilter[] = []) =>
     fetchJSON<ExecutionRun>(`/execution-run/run?workspace_id=${workspaceId}`, {
       method: "POST",
-      body: JSON.stringify({ dataset_id: `workspace_${workspaceId}` }),
+      body: JSON.stringify({ dataset_id: `workspace_${workspaceId}`, filters }),
     }),
 
   getWorkspaceExecutionRun: (workspaceId: number) =>

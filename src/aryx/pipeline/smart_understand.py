@@ -418,7 +418,21 @@ def _empty_result(msg: str) -> dict[str, Any]:
 
 def primary_type_and_keys(plan: dict[str, Any] | None,
                           filename: str = "") -> tuple[str, list[str]]:
-    """Pick ontology_type + match_keys for a file from graph_plan."""
+    """Pick ontology_type + match_keys for a file from graph_plan.
+
+    Returns ("", []) when `filename` is given but no primary_types entry's
+    source_file matches it — the caller (file_ingest_api._run_files) must
+    treat that as "no plan for this file" and fall through to its own
+    per-file inference (_infer_type from the file's own header), never
+    silently reuse an unrelated file's type. Before this fix, the code below
+    fell back to primary_types[0] for ANY unmatched file: a real multi-file
+    ingest whose LLM-drafted plan only explicitly covered its first couple
+    of files dumped every later, unmatched file into primary_types[0]'s type
+    purely because of batch position — contract-line rows, product-transition
+    rows, and answer-key test fixtures all misclassified as the first file's
+    type ("GoldenParty" in that run) despite sharing no real resemblance to
+    it, producing a disconnected 21,000+-entity garbage-collection bucket.
+    """
     plan = plan or {}
     primaries = plan.get("primary_types") or []
     if filename:
@@ -430,6 +444,7 @@ def primary_type_and_keys(plan: dict[str, Any] | None,
                 name = str(p.get("name") or "Record")
                 keys = [str(k) for k in (p.get("match_keys") or []) if k]
                 return name, keys or ["name"]
+        return "", []
     if primaries and isinstance(primaries[0], dict):
         p = primaries[0]
         name = str(p.get("name") or "Record")

@@ -39,6 +39,41 @@ CompleteJsonFn = Callable[[Any, str, str, str, dict], dict]
 
 _FIELDS = ("filter", "numerator", "denominator")
 
+# Same boolean-token vocabulary as the profiler's own is_bool check
+# (aryx.profiler.profile._BOOL_TRUE/_BOOL_FALSE) — the two must agree on what
+# counts as "boolean" or a column the profiler labels boolean could fail to
+# normalize here.
+_BOOL_TRUE = {"true", "yes", "y", "1", "t"}
+_BOOL_FALSE = {"false", "no", "n", "0", "f"}
+
+
+def _normalize_boolean_fill(value: str, samples: list[str]) -> str:
+    """Map a true/false synonym the model returned onto the REAL sample
+    value that means the same thing, when the column is a boolean flag.
+
+    A derived flag column (is_renewed, is_at_risk, ...) is profiled with
+    bare sample_values like ["0", "1"] — nothing in those two characters
+    tells the model which one means "true". Asked to fill a filter for a
+    KPI named "Overall Renewal Rate", a model reasons in true/false and
+    often answers "true" even though the real data encodes that as "1": a
+    correct answer in substance, rejected by a verbatim string match. This
+    only fires when EVERY sample_value for the column is itself a
+    recognized boolean token (so a genuine categorical column like
+    status=DRAFT/ACTIVE/EXPIRED is never touched), and it only ever
+    substitutes one real sample_value for another — never invents one.
+    """
+    samples_lower = [s.lower() for s in samples]
+    if not samples or any(s not in _BOOL_TRUE | _BOOL_FALSE for s in samples_lower):
+        return value
+    value_lower = str(value).lower()
+    if value_lower in _BOOL_TRUE:
+        target = next((s for s in samples if s.lower() in _BOOL_TRUE), None)
+    elif value_lower in _BOOL_FALSE:
+        target = next((s for s in samples if s.lower() in _BOOL_FALSE), None)
+    else:
+        target = None
+    return target if target is not None else value
+
 
 def _parse_detail(detail: str) -> tuple[str, str] | None:
     """"kpi {kid}.filter" -> (kid, "filter"); "kpi {kid}.numerator.filter"
@@ -127,12 +162,23 @@ def repair_missing_filters(
     for fill in fills:
         if not isinstance(fill, dict):
             continue
-        kid, field, value = fill.get("kpi_id"), fill.get("field"), fill.get("value")
+        kid, field = fill.get("kpi_id"), fill.get("field")
+        # Schema now requires "value" (see FILTER_REPAIR_SCHEMA), but a
+        # provider that doesn't enforce it strictly has been observed
+        # (live, gemini-flash-latest) substituting an unlisted "name" key
+        # for the same answer — fall back to it rather than reading that
+        # as a decline.
+        value = fill.get("value")
+        if value is None and "name" in fill:
+            value = fill.get("name")
         if value is None or not isinstance(kid, str) or field not in _FIELDS:
             continue
         ref = (kid, field)
         samples = samples_by_ref.get(ref)
-        if not samples or str(value) not in [str(v) for v in samples]:
+        if not samples:
+            continue
+        value = _normalize_boolean_fill(str(value), samples)
+        if str(value) not in [str(v) for v in samples]:
             continue  # not a real sample value — never invent, skip
         idx = next((i for i, k in enumerate(patched_kpis) if k.kpi_id == kid), None)
         if idx is None:
@@ -158,6 +204,42 @@ def repair_missing_filters(
 
     patched_kpis = [k for k in patched_kpis if k.kpi_id not in kpi_ids_to_drop]
 
+    # Cascade: dropping a KPI leaves any Analysis whose `metric` pointed at
+    # it dangling, and in turn any Visualization whose `source_ref` pointed
+    # at either the dropped KPI directly (a kpi_card) or one of those now-
+    # dropped Analyses (a bar/donut/etc.). Before this cascade existed, the
+    # KPI vanished here but its dependents survived unchanged, silently
+    # reappearing several stages later — live, as C14 dashboard composition
+    # rejecting a kpi_card with "chart_type_mismatch: kpi_card must bind to
+    # a kpi_id" — a confusing symptom pointing nowhere near the real cause.
+    # An Analysis is DROPPED outright, not left with metric=None: falling
+    # back to a bare grouped_count_rows would silently swap "renewal rate by
+    # region" for "contract count by region" under the same chart, the exact
+    # wrong-number-that-looks-legitimate failure this whole module exists to
+    # prevent for KPIs.
+    patched_analyses = list(spec.analyses)
+    dropped_analysis_ids: set[str] = set()
+    if kpi_ids_to_drop:
+        kept_analyses = []
+        for a in patched_analyses:
+            if a.metric in kpi_ids_to_drop:
+                dropped_analysis_ids.add(a.analysis_id)
+            else:
+                kept_analyses.append(a)
+        patched_analyses = kept_analyses
+
+    dangling_refs = kpi_ids_to_drop | dropped_analysis_ids
+    patched_visualizations = list(spec.visualizations)
+    dropped_chart_ids: set[str] = set()
+    if dangling_refs:
+        kept_viz = []
+        for v in patched_visualizations:
+            if v.source_ref in dangling_refs:
+                dropped_chart_ids.add(v.chart_id)
+            else:
+                kept_viz.append(v)
+        patched_visualizations = kept_viz
+
     remaining_warnings: list[SpecWarning] = []
     for w in spec.warnings:
         if w.code == "missing_filter_value":
@@ -174,5 +256,16 @@ def repair_missing_filters(
                                "could not safely resolve it"))
                     continue
         remaining_warnings.append(w)
+    for aid in dropped_analysis_ids:
+        remaining_warnings.append(SpecWarning(
+            code="dropped_dangling_analysis", column="",
+            detail=f"analysis {aid} dropped — its metric KPI was dropped above"))
+    for cid in dropped_chart_ids:
+        remaining_warnings.append(SpecWarning(
+            code="dropped_dangling_visualization", column="",
+            detail=f"visualization {cid} dropped — its source_ref was dropped above"))
 
-    return spec.model_copy(update={"kpis": patched_kpis, "warnings": remaining_warnings})
+    return spec.model_copy(update={
+        "kpis": patched_kpis, "analyses": patched_analyses,
+        "visualizations": patched_visualizations, "warnings": remaining_warnings,
+    })

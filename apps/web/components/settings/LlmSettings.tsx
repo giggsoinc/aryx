@@ -104,10 +104,12 @@ export function LlmSettings() {
     setCustomAnswer(false);
     if (id === "ollama") {
       setEndpoint(preset?.endpoint || "http://ollama:11434");
-      if (localModels[0]) {
-        setMenial(localModels[0]);
-        setAnswer(localModels[0]);
-      }
+      // Clear rather than leave the previous provider's model name sitting
+      // here — otherwise a slow/empty local-model fetch lets a stale cloud
+      // model (e.g. gemini-flash-latest) ride along into Save and get sent
+      // to the Ollama endpoint, which 404s with "model not found".
+      setMenial(localModels[0] || "");
+      setAnswer(localModels[0] || "");
       fetchModels();
     } else {
       const sample = defaultSampleFor(id);
@@ -119,6 +121,14 @@ export function LlmSettings() {
   };
 
   const save = async () => {
+    if (!menial.trim() || !answer.trim()) {
+      setError(
+        provider === "ollama"
+          ? "Pick a local model first — still listing installed models."
+          : "Fast model and Answer model are required.",
+      );
+      return;
+    }
     setSaving(true);
     setError(null);
     setOk(null);

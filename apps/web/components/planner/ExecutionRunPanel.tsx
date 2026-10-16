@@ -49,6 +49,7 @@ export function ExecutionRunPanel({ workspaceId }: Props) {
         status: "failed", kpi_results: [], analysis_results: [],
         execution_metrics: { runtime_ms: 0, nodes_completed: 0, nodes_failed: 0 },
         errors: [e instanceof Error ? e.message : String(e)], validation: null,
+        applied_filters: [],
         created_at: new Date().toISOString(),
       });
     } finally {

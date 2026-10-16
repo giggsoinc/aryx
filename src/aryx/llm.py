@@ -78,7 +78,18 @@ def _fallback_spec(spec: Any, exc: Exception) -> Any:
                  or "Connection" in msg or "timed out" in msg.lower())
     if not transient:
         return None
-    endpoint = os.environ.get("ARYX_LLM_BASE_URL", "http://ollama:11434")
+    # ARYX_LLM_BASE_URL is the *primary* provider's endpoint (Gemini, Grok,
+    # ...) — reusing it here when it's set sends the fallback call to the
+    # same cloud host with an Ollama-shaped path (.../api/chat), producing
+    # an HTTP 404 instead of an actual fallback. Only trust it as the Ollama
+    # base when it actually looks like one; otherwise use the real default.
+    raw_endpoint = os.environ.get("ARYX_LLM_BASE_URL", "")
+    e = raw_endpoint.lower()
+    looks_like_ollama = bool(raw_endpoint) and not any(
+        x in e for x in ("googleapis", "openai.com", "anthropic.com",
+                          "api.x.ai", "generativelanguage", "openrouter")
+    ) and ("ollama" in e or e.endswith(":11434") or "localhost" in e or "127.0.0.1" in e)
+    endpoint = raw_endpoint if looks_like_ollama else "http://ollama:11434"
     model = os.environ.get("ARYX_LLM_REASON_MODEL", "lfm2.5-thinking:latest")
     return ModelSpec(name=model, provider="ollama", tier="cheap",
                      local=True, endpoint=endpoint, api_key_ref=None)

@@ -62,6 +62,38 @@ def test_status_role_detected() -> None:
     assert c.candidate_role == "status"
 
 
+def test_high_cardinality_text_with_real_repeats_is_still_a_dimension() -> None:
+    # Regression: a column like "account_name_clean" or "end_quarter" can
+    # easily exceed the _CATEGORICAL_MAX distinct-value cutoff (e.g. 60
+    # fiscal quarters, or hundreds of real account names) while still being
+    # a perfectly legitimate group-by/top-N dimension — every value repeats
+    # across many rows. Before this fix such a column fell all the way
+    # through to canonical_type "text" and role "attribute", making it
+    # invisible to dashboard planning even though nothing about it is
+    # actually high-cardinality free text.
+    rows = [f"account_{i % 80}" for i in range(400)]  # 80 distinct, 5x repeat each
+    csv = b"id,account_name_clean\n" + b"".join(
+        f"{i},{rows[i]}\n".encode() for i in range(400)
+    )
+    p = profile_dataset(csv, "csv", "dataset_contracts", "v1")
+    c = _col(p, "account_name_clean")
+    assert c.canonical_type == "text"  # still too many distinct values for "categorical"
+    assert c.candidate_role == "dimension"  # but real repetition makes it groupable
+    assert c.unique_count == 80
+
+
+def test_near_unique_free_text_stays_an_unapproved_attribute() -> None:
+    # Contrast case: genuinely high-cardinality free text (a comments/notes
+    # field where almost every value is distinct) must NOT be promoted to
+    # "dimension" — grouping by it would produce ~one bucket per row.
+    rows = [f"note about ticket {i} needs review" for i in range(200)]
+    csv = b"id,notes\n" + b"".join(f"{i},{rows[i]}\n".encode() for i in range(200))
+    p = profile_dataset(csv, "csv", "dataset_contracts", "v1")
+    c = _col(p, "notes")
+    assert c.canonical_type == "text"
+    assert c.candidate_role == "attribute"
+
+
 def test_quality_flag_missing_values() -> None:
     p = _profile()
     flags = [f for f in p.quality_flags if f.column == "contract_value"]

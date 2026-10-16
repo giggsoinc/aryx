@@ -67,7 +67,13 @@ export function buildBarSpec(rows: AnalysisResultRow[], fmt: Fmt, title: string)
     type: "bar", x: labels, y: values, marker: { color: SERIES_PRIMARY },
   }];
   return {
-    data, layout: { xaxis: { tickfont: { size: 10 } }, yaxis: { gridcolor: "#e5e9f2" } },
+    // "category", never left to Plotly's numeric auto-detection — a
+    // group_value that happens to look numeric (an account/contract number,
+    // a golden_id) makes Plotly treat x as a continuous number line instead
+    // of one evenly-spaced bar per row, collapsing most bars into invisible
+    // slivers scattered across the value's own range (see the same fix's
+    // rationale on buildLineLikeSpec's xaxis, below).
+    data, layout: { xaxis: { type: "category", tickfont: { size: 10 } }, yaxis: { gridcolor: "#e5e9f2" } },
     summary: `Bar chart: ${title}. ` + rows.map((r) => `${labelOf(r)} ${fmt(r.value)}`).join(", ") + ".",
     rows: rows.map((r) => ({ key: labelOf(r), label: labelOf(r), text: fmt(r.value) })),
   };
@@ -179,7 +185,7 @@ export function buildBoxPlotSpec(rows: AnalysisResultRow[], fmt: Fmt, title: str
     marker: { color: SERIES_PRIMARY },
   } as Data];
   return {
-    data, layout: { yaxis: { gridcolor: "#e5e9f2" } },
+    data, layout: { xaxis: { type: "category" }, yaxis: { gridcolor: "#e5e9f2" } },
     summary: `Box plot: ${title}. ` +
       rows.map((r) => `${labelOf(r)}: median ${fmt(r.value)}, range ${r.min} to ${r.max}`).join(", ") + ".",
     rows: rows.map((r) => ({
@@ -209,7 +215,10 @@ export function buildGroupedBarSpec(
   ];
   return {
     data,
-    layout: { barmode: "group", showlegend: true, hovermode: "x unified", yaxis: { gridcolor: "#e5e9f2" } },
+    layout: {
+      barmode: "group", showlegend: true, hovermode: "x unified",
+      xaxis: { type: "category" }, yaxis: { gridcolor: "#e5e9f2" },
+    },
     summary: `Grouped bar chart: ${title}. ` +
       merged.map((m) => `${m.label}: ${primaryLabel} ${fmt(m.primary)}, ${compareLabel} ${fmt(m.compare)}`).join(", ") + ".",
     rows: merged.map((m) => ({
@@ -384,7 +393,7 @@ export function buildWaterfallSpec(rows: AnalysisResultRow[], fmt: Fmt, title: s
     totals: { marker: { color: "#334155" } },
   } as Data];
   return {
-    data, layout: { yaxis: { gridcolor: "#e5e9f2" } },
+    data, layout: { xaxis: { type: "category" }, yaxis: { gridcolor: "#e5e9f2" } },
     summary: `Waterfall chart: ${title}. ` + rows.map((r) => `${labelOf(r)} ${fmt(r.value)}`).join(", ") + ".",
     rows: rows.map((r) => ({ key: labelOf(r), label: labelOf(r), text: fmt(r.value) })),
   };
@@ -408,6 +417,7 @@ export function buildParetoSpec(rows: AnalysisResultRow[], fmt: Fmt, title: stri
   return {
     data,
     layout: {
+      xaxis: { type: "category" },
       yaxis: { title: { text: "Value" }, gridcolor: "#e5e9f2" },
       yaxis2: { title: { text: "Cumulative %" }, overlaying: "y", side: "right", range: [0, 100] },
     },
