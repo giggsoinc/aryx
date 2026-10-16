@@ -11,10 +11,21 @@ from aryx.andie_planner.models import Analysis, Kpi
 from aryx.execution_compiler.models import CompilationIssue, ExecutionNode
 from aryx.execution_compiler.templates import (
     HISTOGRAM_TEMPLATES,
+    NAMED_BUCKET_TEMPLATES,
     NUMERIC_TEMPLATES,
     RATIO_OPERATIONS,
     TEMPLATES,
 )
+
+# operation -> (the templates dict keyed by that operation, human label) —
+# both "histogram" and "named_buckets" share the exact same compile-time
+# risk: the Analysis's declared shape is only honoured when its metric KPI
+# has a matching operation; anything else silently falls through to a plain
+# grouped count. See check_analysis_operation_compilable.
+_SHAPE_PROMISING_OPERATIONS: dict[str, dict[str, str]] = {
+    "histogram": HISTOGRAM_TEMPLATES,
+    "named_buckets": NAMED_BUCKET_TEMPLATES,
+}
 
 
 def validate_bindings(nodes: list[ExecutionNode]) -> list[CompilationIssue]:
@@ -100,31 +111,34 @@ def check_analysis_operation_compilable(
     node's result — C12 unpacks strictly on it (analysis_execution.run
     ._analysis_rows dispatches, never shape-sniffs).
 
-    _compile_analysis can only honour that promise for `histogram` when the
-    referenced metric KPI is itself a histogram (HISTOGRAM_TEMPLATES is keyed
-    by the KPI's operation). Referencing e.g. a `count` KPI makes it fall
-    through to the generic grouped path, which emits grouped_count_rows —
-    a `{group: int}` result that C12 then tries to read as `{group:
-    {"buckets": ...}}`. The node succeeds, so nothing else catches it.
+    _compile_analysis can only honour that promise for `histogram`/
+    `named_buckets` when the referenced metric KPI has the SAME operation
+    (each is keyed by the KPI's own operation in its templates dict).
+    Referencing e.g. a `count` KPI makes it fall through to the generic
+    grouped path, which emits grouped_count_rows — a `{group: int}` result
+    that C12 then tries to read as `{group: {"buckets": ...}}` (histogram) or
+    `{"named_buckets": {...}}` (named_buckets). The node succeeds, so
+    nothing else catches it.
 
     Reject the mismatch here rather than letting the compiler quietly swap
     the shape out from under the executor.
     """
     issues: list[CompilationIssue] = []
     for analysis in analyses:
-        if analysis.operation != "histogram":
+        templates_by_op = _SHAPE_PROMISING_OPERATIONS.get(analysis.operation)
+        if templates_by_op is None:
             continue
         metric_kpi = kpis_by_id.get(analysis.metric or "")
-        if metric_kpi is not None and metric_kpi.operation in HISTOGRAM_TEMPLATES:
+        if metric_kpi is not None and metric_kpi.operation in templates_by_op:
             continue
         found = (f"{metric_kpi.operation!r}" if metric_kpi is not None
                  else "no such KPI")
         issues.append(CompilationIssue(
             code="uncompilable_analysis_operation",
             node_id=f"analysis:{analysis.analysis_id}",
-            detail=(f"operation 'histogram' needs metric KPI "
-                    f"{analysis.metric!r} to be a histogram KPI with a numeric "
-                    f"measure, but found {found} — the plan would silently "
+            detail=(f"operation {analysis.operation!r} needs metric KPI "
+                    f"{analysis.metric!r} to have the same operation, "
+                    f"but found {found} — the plan would silently "
                     "compile to a grouped count instead")))
     return issues
 

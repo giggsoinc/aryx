@@ -19,6 +19,21 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class RowFilter(BaseModel):
+    """One ad-hoc, dashboard-level row filter — applied to the raw typed
+    rows BEFORE the already-approved compiled plan runs over them, so every
+    KPI/Analysis reflects the filtered subset through the exact same
+    governed formulas. Never a client-side recompute: this only narrows
+    which rows the C12 plan sees, the plan itself is untouched."""
+
+    column: str
+    op: Literal["eq", "in", "date_range"]
+    value: str | None = None
+    values: list[str] | None = None
+    start: str | None = None
+    end: str | None = None
+
+
 class KpiLineage(BaseModel):
     """Which columns and compiled operations produced one KPI's value."""
 
@@ -113,4 +128,8 @@ class ExecutionRun(BaseModel):
         description="C13 PostExecutionReport, as a dict (see "
         "post_execution_validation.models) — attached right after this run "
         "completes, gating eligible_for_dashboard independently of `status`.")
+    applied_filters: list[RowFilter] = Field(
+        default_factory=list,
+        description="Ad-hoc row filters this run was executed under, if any "
+        "— echoed back so the frontend can render the active filter state.")
     created_at: datetime = Field(default_factory=_utcnow)

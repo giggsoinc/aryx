@@ -54,6 +54,9 @@ def span_from(rec: dict) -> dict:
         "session_id": rec.get("session_id", "") or "",
         "ts": rec.get("ts", ""),
         "reason": rec.get("reason", ""),
+        # Odoo card linkage (ODO-2): carried if an edit record already has it;
+        # otherwise stamped at pre-commit. Survives _merge_joint via {**b}.
+        "card_id": rec.get("card_id", "") or "",
     }
 
 
@@ -72,7 +75,8 @@ def _merge_joint(a: dict, b: dict) -> dict:
     }
 
 
-def reconcile(spans: list[dict]) -> list[dict]:
+def _reconcile_same_source(spans: list[dict]) -> list[dict]:
+    """Original reconcile: latest-wins within a session, joint merge across."""
     spans = [s for s in spans if s]
     spans.sort(key=lambda s: (s["start"], s["ts"]))
     out: list[dict] = []
@@ -92,14 +96,122 @@ def reconcile(spans: list[dict]) -> list[dict]:
     return out
 
 
+def _subtract(span: dict, cuts: list[dict]) -> list[dict]:
+    """`span` minus every interval in `cuts`, as zero or more fragments."""
+    pieces = [(span["start"], span["end"])]
+    for c in cuts:
+        nxt: list[tuple[int, int]] = []
+        for s, e in pieces:
+            if c["end"] < s or c["start"] > e:      # no overlap
+                nxt.append((s, e))
+                continue
+            if s < c["start"]:                       # keep the head
+                nxt.append((s, c["start"] - 1))
+            if e > c["end"]:                         # keep the tail
+                nxt.append((c["end"] + 1, e))
+        pieces = nxt
+        if not pieces:
+            break
+    return [{**span, "start": s, "end": e} for s, e in pieces if s <= e]
+
+
+def reconcile(spans: list[dict]) -> list[dict]:
+    """Reconcile spans, giving a precise AI record precedence over a vague human one.
+
+    edit-watcher is a filesystem watcher: it sees that a file changed but not
+    WHICH lines, so it stamps the whole file `source=human, 1..N` on every disk
+    change — including the AI's own edits — and its later timestamp used to win
+    under latest-wins. The result was that every AI span was erased and nothing
+    was ever attributed to a model, which left comprehension debt with no input.
+
+    Note this cannot be fixed by teaching the watcher to record precise ranges:
+    it still cannot tell WHO changed the file, so those ranges would remain
+    `human`, still overlap, and still win. Only distinguishing the sources does.
+
+    The human span is SUBTRACTED around the AI's, not replaced by it — a human
+    `1-879` overlapping an AI `1-17` must leave `18-879` with the human, or the
+    AI would be credited with the whole file and the error would simply flip.
+
+    Precedence applies ONLY to *blind* human spans — those with no `session_id`,
+    which is what edit-watcher writes. A human span carrying a real session id is
+    a tracked authorship claim from an actual session, and keeps the existing
+    cross-session `joint` merge: two identified parties editing the same range
+    genuinely share it, and collapsing that to "the AI did it" would be wrong.
+    """
+    spans = [s for s in spans if s]
+    ai = _reconcile_same_source([s for s in spans if s.get("source") == "ai"])
+    other = [s for s in spans if s.get("source") != "ai"]
+    blind = _reconcile_same_source([s for s in other if not s.get("session_id")])
+    tracked = [s for s in other if s.get("session_id")]
+
+    kept: list[dict] = []
+    for s in blind:
+        kept.extend(_subtract(s, ai))          # AI wins over a blind whole-file stamp
+    if tracked:
+        # tracked human spans rejoin the AI spans under the original rules
+        kept.extend(_reconcile_same_source(ai + tracked))
+    else:
+        kept.extend(ai)
+    kept.sort(key=lambda s: (s["start"], s["ts"]))
+    return kept
+
+
+def norm_path(path: str) -> str:
+    """Normalise a recorded path to git's form: `dir/f.py`.
+
+    edit-watcher writes Windows-native paths (`.\\dir\\f.py`) while
+    `git diff --cached --name-only` reports `dir/f.py`. These were compared as
+    raw strings, so on Windows NO record ever matched a staged file: every line
+    read as human-written, no attribution was ever produced, and the
+    comprehension-debt score had no input at all.
+
+    Normalising on read (rather than fixing only the writer) keeps the already
+    captured history usable — including AI spans recorded before this fix.
+    """
+    p = (path or "").replace("\\", "/")
+    while p.startswith("./"):
+        p = p[2:]
+    return p
+
+
+def _match_staged(rec_path: str, staged_norm: set[str], staged_by_len: list[str]) -> str | None:
+    """Map a recorded path onto the staged path it refers to, or None.
+
+    Records arrive in three forms: `dir/f.py` (git), `./dir/f.py` and
+    `.\\dir\\f.py` (edit-watcher), and a full absolute path (the Edit/Write
+    tools). Suffix matching handles all of them, and it is used in preference to
+    stripping the repo root because the root is not reliably comparable: this
+    repo's path contains an emoji, and the absolute records encode it
+    differently from `os.getcwd()` (`S_redteam<mojibake>` vs `S_redteam❤️`), so
+    a prefix test returns False for every single AI record. The repo-relative
+    tail is byte-identical in both, so that is what we match on.
+
+    Longest staged path first, so `a/b.py` wins over a staged `b.py` and a
+    record is never credited to the wrong file.
+    """
+    if rec_path in staged_norm:
+        return rec_path
+    for s in staged_by_len:
+        if rec_path.endswith("/" + s):
+            return s
+    return None
+
+
 def build_attribution_map(edits: Iterable[dict], staged_files: set[str] | None = None) -> dict[str, list[dict]]:
+    # Keyed by the git form — contribute_files.path is populated from this key, so
+    # emitting a backslash or absolute path would create a second, duplicate file
+    # row for a file already recorded by a POSIX agent and split its debt in two.
+    staged_norm = {norm_path(s) for s in staged_files} if staged_files is not None else None
+    staged_by_len = sorted(staged_norm, key=len, reverse=True) if staged_norm else []
     by_file: dict[str, list[dict]] = {}
     for rec in edits:
-        f = rec.get("file", "")
+        f = norm_path(rec.get("file", ""))
         if not f:
             continue
-        if staged_files is not None and f not in staged_files:
-            continue
+        if staged_norm is not None:
+            f = _match_staged(f, staged_norm, staged_by_len)
+            if f is None:
+                continue
         sp = span_from(rec)
         if not sp:
             continue

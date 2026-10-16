@@ -84,13 +84,13 @@ def _ctx(**overrides):
 
 # ── happy path ───────────────────────────────────────────────────────────
 
-def test_clean_spec_approved_by_all_ten_checks() -> None:
+def test_clean_spec_approved_by_all_checks() -> None:
     spec = _ground(GOOD_RAW)
     report, repair = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
     assert report.status == "approved"
     assert report.eligible_for_compilation is True
     assert repair is None
-    assert len(report.checks) == len(ALL_CHECKS) == 10
+    assert len(report.checks) == len(ALL_CHECKS) == 11
     assert all(c.status == "passed" for c in report.checks)
     assert report.errors == []
 
@@ -175,6 +175,103 @@ def test_quartiles_kpi_with_no_measure_is_rejected() -> None:
     spec = _ground(raw)
     report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
     assert any(e.code == "missing_measure" and e.reference == "kpi_deal_size" for e in report.errors)
+
+
+# ── 4b. named_buckets (dual-mode sibling of the numeric-measure check) ───
+
+_BUCKET_OPS = [*APPROVED_OPS, "named_buckets"]
+_BUCKET_COLUMNS = [*APPROVED_COLUMNS, {"name": "draft_age_days", "type": "numeric"},
+                  {"name": "end_date", "type": "date"}]
+
+
+def _ground_buckets(raw):
+    return ground_spec(
+        raw, dataset_id="dataset_contracts", dataset_version="v1",
+        approved_columns=_BUCKET_COLUMNS, approved_operations=_BUCKET_OPS,
+        approved_charts=APPROVED_CHARTS)
+
+
+def _bucket_ctx(**overrides):
+    kwargs = dict(
+        approved_columns={c["name"]: c["type"] for c in _BUCKET_COLUMNS},
+        approved_graph_paths=frozenset(APPROVED_PATHS),
+        approved_operations=frozenset(_BUCKET_OPS),
+        approved_charts=frozenset(APPROVED_CHARTS),
+    )
+    kwargs.update(overrides)
+    return ValidationContext(**kwargs)
+
+
+def test_named_buckets_kpi_with_neither_measure_nor_date_diff_from_is_rejected() -> None:
+    raw = dict(GOOD_RAW, kpis=[{
+        "kpi_id": "kpi_bad", "operation": "named_buckets",
+        "buckets": [{"name": "Any"}],
+    }])
+    spec = _ground_buckets(raw)
+    report, _ = validate_spec(spec, _bucket_ctx(), validation_id="v1", attempt=1)
+    assert any(e.code == "missing_measure" and e.reference == "kpi_bad" for e in report.errors)
+
+
+def test_named_buckets_kpi_with_both_measure_and_date_diff_from_is_rejected() -> None:
+    raw = dict(GOOD_RAW, kpis=[{
+        "kpi_id": "kpi_bad", "operation": "named_buckets", "measure": "draft_age_days",
+        "date_diff_from": "end_date", "buckets": [{"name": "Any"}],
+    }])
+    spec = _ground_buckets(raw)
+    report, _ = validate_spec(spec, _bucket_ctx(), validation_id="v1", attempt=1)
+    assert any(e.code == "ambiguous_bucket_source" and e.reference == "kpi_bad" for e in report.errors)
+
+
+def test_named_buckets_kpi_with_no_buckets_is_rejected() -> None:
+    raw = dict(GOOD_RAW, kpis=[{
+        "kpi_id": "kpi_bad", "operation": "named_buckets", "measure": "draft_age_days",
+    }])
+    spec = _ground_buckets(raw)
+    report, _ = validate_spec(spec, _bucket_ctx(), validation_id="v1", attempt=1)
+    assert any(e.code == "missing_buckets" and e.reference == "kpi_bad" for e in report.errors)
+
+
+def test_named_buckets_kpi_without_an_open_ended_last_bucket_is_rejected() -> None:
+    raw = dict(GOOD_RAW, kpis=[{
+        "kpi_id": "kpi_bad", "operation": "named_buckets", "measure": "draft_age_days",
+        "buckets": [{"name": "Low", "max": 60}, {"name": "High", "max": 365}],
+    }])
+    spec = _ground_buckets(raw)
+    report, _ = validate_spec(spec, _bucket_ctx(), validation_id="v1", attempt=1)
+    assert any(e.code == "unbounded_bucket_missing" and e.reference == "kpi_bad"
+              for e in report.errors)
+
+
+def test_named_buckets_analysis_referencing_non_named_buckets_kpi_is_rejected() -> None:
+    raw = dict(GOOD_RAW, analyses=[{
+        "analysis_id": "an_bad", "operation": "named_buckets", "metric": "kpi_renewed_value",
+    }])
+    spec = _ground_buckets(raw)
+    report, _ = validate_spec(spec, _bucket_ctx(), validation_id="v1", attempt=1)
+    assert any(e.code == "named_buckets_metric_mismatch" and e.path == "analysis:an_bad.metric"
+              for e in report.errors)
+
+
+def test_well_formed_named_buckets_kpi_and_analysis_pass() -> None:
+    raw = dict(GOOD_RAW, kpis=[
+        *GOOD_RAW["kpis"],
+        {
+            "kpi_id": "kpi_draft_severity", "operation": "named_buckets", "measure": "draft_age_days",
+            "filter": {"column": "renewal_status", "operator": "equals", "value": "Renewed"},
+            "buckets": [{"name": "Low", "max": 60}, {"name": "High"}],
+        },
+    ], analyses=[
+        *GOOD_RAW["analyses"],
+        {"analysis_id": "an_draft_severity", "operation": "named_buckets",
+         "metric": "kpi_draft_severity"},
+    ], visualizations=[
+        *GOOD_RAW["visualizations"],
+        {"chart_id": "chart_draft_severity", "chart_type": "bar", "source_ref": "an_draft_severity"},
+    ])
+    spec = _ground_buckets(raw)
+    report, _ = validate_spec(spec, _bucket_ctx(), validation_id="v1", attempt=1)
+    assert report.status == "approved"
+    assert report.errors == []
 
 
 # ── 5. operation whitelist (promoted from ground.py) ─────────────────────
@@ -648,3 +745,56 @@ def test_workspace_mode_invented_dataset_id_is_rejected() -> None:
     report, _ = validate_spec(spec, ctx, validation_id="v1", attempt=1)
     assert report.status == "rejected"
     assert any(e.code == "unknown_dataset" for e in report.errors)
+
+
+# ── 11. redundant group_by ───────────────────────────────────────────────
+
+def test_group_by_matching_kpis_own_equals_filter_column_fails() -> None:
+    # kpi_stuck's filter already pins every admitted row's renewal_status to
+    # "Not Renewed" — grouping the same KPI's analysis by renewal_status can
+    # only ever produce that one group back, restating the KPI's own number
+    # as a lone, redundant bar.
+    raw = dict(
+        GOOD_RAW,
+        kpis=[*GOOD_RAW["kpis"], {
+            "kpi_id": "kpi_stuck", "name": "Stuck Count",
+            "source_columns": ["renewal_status"], "operation": "count",
+            "filter": {"column": "renewal_status", "operator": "equals", "value": "Not Renewed"},
+        }],
+        analyses=[*GOOD_RAW["analyses"], {
+            "analysis_id": "analysis_stuck_by_status", "operation": "group_by",
+            "group_by": ["renewal_status"], "metric": "kpi_stuck",
+        }],
+        visualizations=[*GOOD_RAW["visualizations"], {
+            "chart_id": "chart_stuck_by_status", "chart_type": "bar",
+            "source_ref": "analysis_stuck_by_status",
+        }],
+    )
+    spec = _ground(raw)
+    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert any(e.code == "redundant_group_by" and e.reference == "analysis_stuck_by_status"
+              for e in report.errors)
+
+
+def test_group_by_a_different_column_than_kpis_filter_passes() -> None:
+    # Same filtered KPI, but grouped by a DIFFERENT column — a genuinely
+    # useful breakdown (e.g. by region) — must not be flagged.
+    raw = dict(
+        GOOD_RAW,
+        kpis=[*GOOD_RAW["kpis"], {
+            "kpi_id": "kpi_stuck", "name": "Stuck Count",
+            "source_columns": ["renewal_status"], "operation": "count",
+            "filter": {"column": "renewal_status", "operator": "equals", "value": "Not Renewed"},
+        }],
+        analyses=[*GOOD_RAW["analyses"], {
+            "analysis_id": "analysis_stuck_by_region", "operation": "group_by",
+            "group_by": ["region"], "metric": "kpi_stuck",
+        }],
+        visualizations=[*GOOD_RAW["visualizations"], {
+            "chart_id": "chart_stuck_by_region", "chart_type": "bar",
+            "source_ref": "analysis_stuck_by_region",
+        }],
+    )
+    spec = _ground(raw)
+    report, _ = validate_spec(spec, _ctx(), validation_id="v1", attempt=1)
+    assert not any(e.code == "redundant_group_by" for e in report.errors)

@@ -7,16 +7,112 @@ regression that breaks node shapes would also break these tests.
 from __future__ import annotations
 
 from aryx.analysis_execution import execute as execute_module
+from datetime import datetime
+
 from aryx.analysis_execution.execute import (
-    _histogram_buckets, _kpi_result_from_node, _survival_curve,
+    _histogram_buckets, _kpi_result_from_node, _loose_equals, _loose_in, _survival_curve,
     resolve_graph_relation_nodes, run_plan,
 )
 from aryx.analysis_execution.run import _analysis_rows, _display_value, _kpi_source_columns
-from aryx.andie_planner.models import Analysis, Kpi, KpiFilter, KpiOperand
+from aryx.andie_planner.models import Analysis, BucketDef, Kpi, KpiFilter, KpiOperand
 from aryx.execution_compiler.compile import compile_plan
 from aryx.graph_profiler.models import GraphProfile, VerifiedPath
 
 DATASET = "dataset_contracts"
+
+
+# ── filter/ratio type coercion — real bug found this session ─────────────
+#
+# C10 (aryx.preprocess.transform, via load_typed_rows) converts a
+# boolean/numeric/date column's raw CSV strings into a real Python
+# bool/float/datetime before C12 ever runs. The planner, meanwhile, always
+# writes filter values as bare strings (copied verbatim from a column's
+# string sample_values). Plain `==`/`in` then silently matches ZERO rows for
+# every filter on a boolean/numeric/date column — e.g. is_at_risk="1" against
+# a row whose typed value is Python True — a wrong ZERO that looks like a
+# real, legitimate result rather than a loud failure. Caught live: a
+# named_buckets "Revenue at Risk by Lapsed Time" chart, correctly specified
+# end to end, rendered every bucket at exactly zero.
+
+def test_loose_equals_matches_boolean_row_value_against_string_filter() -> None:
+    assert _loose_equals(True, "1") is True
+    assert _loose_equals(True, "true") is True
+    assert _loose_equals(False, "0") is True
+    assert _loose_equals(False, "no") is True
+    assert _loose_equals(True, "0") is False
+
+
+def test_loose_equals_matches_numeric_row_value_against_string_filter() -> None:
+    assert _loose_equals(1.0, "1") is True
+    assert _loose_equals(42.0, "42") is True
+    assert _loose_equals(1.0, "2") is False
+
+
+def test_loose_equals_matches_datetime_row_value_against_iso_string_filter() -> None:
+    assert _loose_equals(datetime(2024, 1, 15), "2024-01-15") is True
+    assert _loose_equals(datetime(2024, 1, 15), "2024-01-16") is False
+
+
+def test_loose_equals_still_matches_plain_strings_exactly() -> None:
+    assert _loose_equals("DRAFT", "DRAFT") is True
+    assert _loose_equals("DRAFT", "draft") is False  # never case-fold real categoricals
+
+
+def test_loose_in_checks_every_candidate() -> None:
+    assert _loose_in(True, ["0", "1"]) is True
+    assert _loose_in(False, ["1"]) is False
+    assert _loose_in("ACTIVE", []) is False
+
+
+def test_filter_equals_on_a_boolean_typed_column_matches_real_rows() -> None:
+    # is_at_risk stored as Python bool (post C10 conversion), filter value
+    # a bare string "1" — this used to match zero rows.
+    rows = [{"is_at_risk": True, "estimated_amount": 100.0},
+           {"is_at_risk": False, "estimated_amount": 999.0},
+           {"is_at_risk": True, "estimated_amount": 50.0}]
+    kpi = Kpi(kpi_id="kpi_at_risk", dataset_id=DATASET, operation="sum",
+             measure="estimated_amount", filter=KpiFilter(column="is_at_risk", value="1"))
+    plan = compile_plan("spec_1", DATASET, "v1", [kpi], [])
+    results, errors, _completed, _failed = run_plan(plan, {DATASET: rows})
+    assert errors == []
+    result = results[f"op_{kpi.kpi_id}_sum"]
+    assert result["value"] == 150.0 and result["sample_size"] == 2
+
+
+def test_filter_equals_on_a_numeric_typed_column_matches_real_rows() -> None:
+    rows = [{"account_number": 10074303.0, "estimated_amount": 100.0},
+           {"account_number": 20000000.0, "estimated_amount": 999.0}]
+    kpi = Kpi(kpi_id="kpi_one_account", dataset_id=DATASET, operation="sum",
+             measure="estimated_amount", filter=KpiFilter(column="account_number", value="10074303"))
+    plan = compile_plan("spec_1", DATASET, "v1", [kpi], [])
+    results, errors, _completed, _failed = run_plan(plan, {DATASET: rows})
+    assert errors == []
+    assert results[f"op_{kpi.kpi_id}_sum"]["value"] == 100.0
+
+
+def test_grouped_safe_ratio_status_column_boolean_typed_matches_real_rows() -> None:
+    # kpi_renewal_rate-shaped ratio whose status_column (is_renewed) is
+    # boolean-typed post-C10 — grouped by region, both operands filtered.
+    rows = [
+        {"is_renewed": True, "region": "North"}, {"is_renewed": True, "region": "North"},
+        {"is_renewed": False, "region": "North"},
+        {"is_renewed": True, "region": "South"}, {"is_renewed": False, "region": "South"},
+    ]
+    kpi = Kpi(
+        kpi_id="kpi_renewal_rate", dataset_id=DATASET, operation="ratio",
+        zero_denominator_policy="return_null_with_warning",
+        numerator=KpiOperand(operation="count", filter=KpiFilter(column="is_renewed", value="1")),
+        denominator=KpiOperand(operation="count",
+                               filter=KpiFilter(column="is_renewed", values=["1", "0"])),
+    )
+    analysis = Analysis(analysis_id="an_renewal_by_region", operation="group_by",
+                        dataset_id=DATASET, group_by=["region"], metric="kpi_renewal_rate")
+    plan = compile_plan("spec_1", DATASET, "v1", [kpi], [analysis])
+    results, errors, _completed, _failed = run_plan(plan, {DATASET: rows})
+    assert errors == []
+    result = results[plan.analysis_node["an_renewal_by_region"]]
+    assert result["North"]["numerator"] == 2 and result["North"]["denominator"] == 3
+    assert result["South"]["numerator"] == 1 and result["South"]["denominator"] == 2
 
 
 def _rows(renewed: int, not_renewed: int, region: str = "North") -> list[dict]:
@@ -57,6 +153,39 @@ def test_renewal_rate_matches_spec_doc_worked_example() -> None:
     value, num, den, sample_size, excluded = _kpi_result_from_node(ratio_result)
     assert (num, den, sample_size, excluded) == (211, 340, 340, 0)
     assert _display_value(value, "percentage") == "62.06%"
+
+
+def test_ratio_kpi_with_top_level_filter_never_exceeds_100_percent() -> None:
+    # Regression, found live: "Manual Renewal Rate" = ratio(is_renewed=1)
+    # scoped by a top-level filter renewal_type=MANUAL. Before the fix, the
+    # numerator ignored the MANUAL scoping entirely and counted every
+    # renewed row in the whole dataset (AUTO included) — against a
+    # denominator correctly scoped to MANUAL-only rows — producing a
+    # mathematically impossible rate above 1.0 (100%).
+    rows = [
+        {"renewal_type": "MANUAL", "is_renewed": True},
+        {"renewal_type": "MANUAL", "is_renewed": False},
+        {"renewal_type": "MANUAL", "is_renewed": False},
+        {"renewal_type": "AUTO", "is_renewed": True},
+        {"renewal_type": "AUTO", "is_renewed": True},
+        {"renewal_type": "AUTO", "is_renewed": True},
+    ]
+    kpi = Kpi(
+        kpi_id="kpi_manual_rate", dataset_id=DATASET, operation="ratio",
+        filter=KpiFilter(column="renewal_type", value="MANUAL"),
+        zero_denominator_policy="return_null_with_warning",
+        numerator=KpiOperand(operation="count", filter=KpiFilter(column="is_renewed", value="1")),
+        denominator=KpiOperand(operation="count"),
+    )
+    plan = compile_plan("spec_1", DATASET, "v1", [kpi], [])
+    results, errors, _completed, _failed = run_plan(plan, {DATASET: rows})
+    assert errors == []
+    ratio_result = results[plan.kpi_final_node["kpi_manual_rate"]]
+    # 1 renewed MANUAL row / 3 total MANUAL rows — AUTO rows must not leak in.
+    assert ratio_result["numerator"] == 1
+    assert ratio_result["denominator"] == 3
+    assert ratio_result["value"] <= 1.0
+    assert round(ratio_result["value"], 4) == round(1 / 3, 4)
 
 
 def test_sum_kpi_excludes_nulls_and_formats_currency() -> None:
@@ -128,6 +257,37 @@ def test_grouped_safe_ratio_keeps_a_group_with_only_numerator_hits() -> None:
     assert grouped["East"] == {"numerator": 0, "denominator": 1, "value": 0.0, "sample_size": 1}
 
 
+def test_grouped_safe_ratio_with_an_unfiltered_denominator_counts_every_row() -> None:
+    # Regression, found live building a real dashboard: the single most
+    # natural way to define a rate KPI — numerator "is_renewed=1",
+    # denominator a bare unfiltered count (exactly the component doc's own
+    # worked example) — reported denominator=0 for EVERY group the moment
+    # it was charted grouped by anything. An empty denominator_values list
+    # (compile._filter_values(None) == []) was read as "matches no row"
+    # instead of "no filter was declared, matches every row".
+    rows = [
+        {"line_description": "Plan A", "is_renewed": "1"},
+        {"line_description": "Plan A", "is_renewed": "0"},
+        {"line_description": "Plan A", "is_renewed": "0"},
+        {"line_description": "Plan B", "is_renewed": "1"},
+        {"line_description": "Plan B", "is_renewed": "1"},
+    ]
+    kpi = Kpi(
+        kpi_id="kpi_line_renewal_rate", dataset_id=DATASET, operation="ratio",
+        numerator=KpiOperand(operation="count", filter=KpiFilter(column="is_renewed", value="1")),
+        denominator=KpiOperand(operation="count"),  # no filter at all
+    )
+    analysis = Analysis(analysis_id="an_low_renewal_products", operation="group_by",
+                        dataset_id=DATASET, group_by=["line_description"], metric="kpi_line_renewal_rate")
+    plan = compile_plan("spec_1", DATASET, "v1", [kpi], [analysis])
+    results, errors, _completed, _failed = run_plan(plan, {DATASET: rows})
+    assert errors == []
+    grouped = results[plan.analysis_node["an_low_renewal_products"]]
+    assert grouped["Plan A"] == {"numerator": 1, "denominator": 3, "value": 1 / 3,
+                                 "sample_size": 3}
+    assert grouped["Plan B"] == {"numerator": 2, "denominator": 2, "value": 1.0, "sample_size": 2}
+
+
 def test_quartiles_kpi_computes_min_q1_median_q3_max() -> None:
     rows = [{"deal_id": f"d{i}", "deal_value": v} for i, v in enumerate(
         [100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0])]
@@ -172,6 +332,66 @@ def test_grouped_sum_numeric_by_region() -> None:
     grouped = results[plan.analysis_node["analysis_value_by_region"]]
     assert grouped["East"] == {"value": 200.0, "sample_size": 2}
     assert grouped["West"] == {"value": 300.0, "sample_size": 3}
+
+
+def test_grouped_sum_numeric_honors_the_metric_kpis_own_filter() -> None:
+    # Regression, found while building four tab-focused MSI_SRM dashboards:
+    # a filtered "sum" KPI (e.g. revenue at risk, WHERE is_at_risk=1) grouped
+    # by anything used to silently sum EVERY row, not just the filtered
+    # subset — a wrong total that looks like a real, legitimate result.
+    rows = [
+        {"contract_type": "SERVICE", "is_at_risk": True, "estimated_amount": 100.0},
+        {"contract_type": "SERVICE", "is_at_risk": False, "estimated_amount": 999.0},
+        {"contract_type": "SUBSCRIPTION", "is_at_risk": True, "estimated_amount": 50.0},
+    ]
+    kpi = Kpi(kpi_id="kpi_at_risk_value", dataset_id=DATASET, operation="sum",
+             measure="estimated_amount", filter=KpiFilter(column="is_at_risk", value="1"))
+    analysis = Analysis(analysis_id="an_risk_by_type", operation="group_by",
+                        dataset_id=DATASET, group_by=["contract_type"], metric="kpi_at_risk_value")
+    plan = compile_plan("spec_1", DATASET, "v1", [kpi], [analysis])
+    results, errors, _completed, _failed = run_plan(plan, {DATASET: rows})
+    assert errors == []
+    grouped = results[plan.analysis_node["an_risk_by_type"]]
+    assert grouped == {
+        "SERVICE": {"value": 100.0, "sample_size": 1},
+        "SUBSCRIPTION": {"value": 50.0, "sample_size": 1},
+    }
+
+
+def test_grouped_count_rows_honors_the_metric_kpis_own_filter() -> None:
+    rows = [
+        {"line_type": "SERVICE", "non_standard_duration": True},
+        {"line_type": "SERVICE", "non_standard_duration": False},
+        {"line_type": "SUBSCRIPTION", "non_standard_duration": True},
+    ]
+    kpi = Kpi(kpi_id="kpi_non_standard", dataset_id=DATASET, operation="count",
+             filter=KpiFilter(column="non_standard_duration", value="1"))
+    analysis = Analysis(analysis_id="an_non_standard_by_type", operation="group_by",
+                        dataset_id=DATASET, group_by=["line_type"], metric="kpi_non_standard")
+    plan = compile_plan("spec_1", DATASET, "v1", [kpi], [analysis])
+    results, errors, _completed, _failed = run_plan(plan, {DATASET: rows})
+    assert errors == []
+    assert results[plan.analysis_node["an_non_standard_by_type"]] == {"SERVICE": 1, "SUBSCRIPTION": 1}
+
+
+def test_crosstab_sum_numeric_honors_the_metric_kpis_own_filter() -> None:
+    rows = [
+        {"contract_type": "SERVICE", "renewal_type": "AUTO", "is_at_risk": True, "estimated_amount": 10.0},
+        {"contract_type": "SERVICE", "renewal_type": "AUTO", "is_at_risk": False, "estimated_amount": 999.0},
+        {"contract_type": "SERVICE", "renewal_type": "MANUAL", "is_at_risk": True, "estimated_amount": 20.0},
+    ]
+    kpi = Kpi(kpi_id="kpi_at_risk_value", dataset_id=DATASET, operation="sum",
+             measure="estimated_amount", filter=KpiFilter(column="is_at_risk", value="1"))
+    analysis = Analysis(analysis_id="an_risk_crosstab", operation="crosstab", dataset_id=DATASET,
+                        group_by=["contract_type", "renewal_type"], metric="kpi_at_risk_value")
+    plan = compile_plan("spec_1", DATASET, "v1", [kpi], [analysis])
+    results, errors, _completed, _failed = run_plan(plan, {DATASET: rows})
+    assert errors == []
+    grouped = results[plan.analysis_node["an_risk_crosstab"]]
+    assert grouped == {
+        ("SERVICE", "AUTO"): {"value": 10.0, "sample_size": 1},
+        ("SERVICE", "MANUAL"): {"value": 20.0, "sample_size": 1},
+    }
 
 
 # ── controlled degradation ────────────────────────────────────────────────
@@ -229,6 +449,30 @@ def test_crosstab_sum_numeric_by_two_columns() -> None:
     result_rows = _analysis_rows(analysis, grouped)
     by_cell = {(r.group_value, r.group_value_secondary): r.value for r in result_rows}
     assert by_cell == {("East", "A"): 10.0, ("West", "A"): 150.0, ("West", "B"): 30.0}
+
+
+def test_crosstab_safe_ratio_with_an_unfiltered_denominator_counts_every_row() -> None:
+    # crosstab sibling of the grouped_safe_ratio regression above.
+    rows = [
+        {"contract_type": "SERVICE", "renewal_type": "AUTO", "is_renewed": "1"},
+        {"contract_type": "SERVICE", "renewal_type": "AUTO", "is_renewed": "0"},
+        {"contract_type": "SERVICE", "renewal_type": "MANUAL", "is_renewed": "1"},
+    ]
+    kpi = Kpi(
+        kpi_id="kpi_renewal_rate", dataset_id=DATASET, operation="ratio",
+        numerator=KpiOperand(operation="count", filter=KpiFilter(column="is_renewed", value="1")),
+        denominator=KpiOperand(operation="count"),
+    )
+    analysis = Analysis(analysis_id="an_rate_crosstab", operation="crosstab", dataset_id=DATASET,
+                        group_by=["contract_type", "renewal_type"], metric="kpi_renewal_rate")
+    plan = compile_plan("spec_1", DATASET, "v1", [kpi], [analysis])
+    results, errors, _completed, _failed = run_plan(plan, {DATASET: rows})
+    assert errors == []
+    grouped = results[plan.analysis_node["an_rate_crosstab"]]
+    assert grouped[("SERVICE", "AUTO")] == {"numerator": 1, "denominator": 2, "value": 0.5,
+                                            "sample_size": 2}
+    assert grouped[("SERVICE", "MANUAL")] == {"numerator": 1, "denominator": 1, "value": 1.0,
+                                              "sample_size": 1}
 
 
 # ── row_points (scatter/bubble) ────────────────────────────────────────────
@@ -367,6 +611,82 @@ def test_grouped_histogram_execution_and_row_unpacking() -> None:
     hist_result = results[plan.analysis_node["analysis_hist_by_region"]]
     result_rows = _analysis_rows(analysis, hist_result)
     assert {r.group_value for r in result_rows} == {"West", "East"}
+
+
+# ── named_buckets ──────────────────────────────────────────────────────
+
+_SEVERITY_BUCKETS = [
+    BucketDef(label="Low (<=60d)", max=60), BucketDef(label="Medium (60-180d)", max=180),
+    BucketDef(label="High (180-365d)", max=365), BucketDef(label="Critical (>365d)"),
+]
+
+
+def test_named_buckets_counts_rows_per_bucket_in_declared_order() -> None:
+    rows = [
+        {"draft_age_days": 10, "renewal_status": "DRAFT"},   # Low
+        {"draft_age_days": 90, "renewal_status": "DRAFT"},   # Medium
+        {"draft_age_days": 90, "renewal_status": "DRAFT"},   # Medium
+        {"draft_age_days": 400, "renewal_status": "DRAFT"},  # Critical
+        {"draft_age_days": 5, "renewal_status": "ACTIVE"},   # excluded by filter
+        {"draft_age_days": None, "renewal_status": "DRAFT"},  # null, excluded
+    ]
+    kpi = Kpi(kpi_id="kpi_draft_severity", dataset_id=DATASET, operation="named_buckets",
+             measure="draft_age_days", buckets=_SEVERITY_BUCKETS,
+             filter=KpiFilter(column="renewal_status", value="DRAFT"))
+    analysis = Analysis(analysis_id="an_draft_severity", operation="named_buckets",
+                        dataset_id=DATASET, metric="kpi_draft_severity")
+    plan = compile_plan("spec_1", DATASET, "v1", [kpi], [analysis])
+    results, errors, _completed, _failed = run_plan(plan, {DATASET: rows})
+    assert errors == []
+    result = results[plan.analysis_node["an_draft_severity"]]
+    assert result["sample_size"] == 4  # DRAFT + non-null only
+    assert result["excluded_null_rows"] == 1  # the null draft_age_days row
+    result_rows = _analysis_rows(analysis, result)
+    # Declared order preserved (Low, Medium, High, Critical) — NOT alphabetical.
+    assert [r.group_value for r in result_rows] == [
+        "Low (<=60d)", "Medium (60-180d)", "High (180-365d)", "Critical (>365d)"]
+    assert [r.value for r in result_rows] == [1, 2, 0, 1]
+    value, *_rest, sample_size, excluded = _kpi_result_from_node(result)
+    assert value is None  # no single scalar, same contract as histogram
+    assert sample_size == 4 and excluded == 1
+
+
+def test_named_buckets_sums_a_value_column_per_bucket() -> None:
+    rows = [
+        {"end_date": "2020-01-01", "is_at_risk": "1", "estimated_amount": 100.0},  # far past -> Critical
+        {"end_date": "2020-01-01", "is_at_risk": "1", "estimated_amount": 50.0},
+        {"end_date": "2020-01-01", "is_at_risk": "0", "estimated_amount": 999.0},  # excluded by filter
+    ]
+    kpi = Kpi(kpi_id="kpi_risk_lapsed", dataset_id=DATASET, operation="named_buckets",
+             date_diff_from="end_date", bucket_value_column="estimated_amount",
+             buckets=[BucketDef(label="Lapsed <=30d", max=30), BucketDef(label="Lapsed >30d")],
+             filter=KpiFilter(column="is_at_risk", value="1"))
+    analysis = Analysis(analysis_id="an_risk_lapsed", operation="named_buckets",
+                        dataset_id=DATASET, metric="kpi_risk_lapsed")
+    plan = compile_plan("spec_1", DATASET, "v1", [kpi], [analysis])
+    results, errors, _completed, _failed = run_plan(plan, {DATASET: rows})
+    assert errors == []
+    result = results[plan.analysis_node["an_risk_lapsed"]]
+    result_rows = {r.group_value: r for r in _analysis_rows(analysis, result)}
+    assert result_rows["Lapsed <=30d"].value == 0.0
+    assert result_rows["Lapsed >30d"].value == 150.0
+    assert result_rows["Lapsed >30d"].sample_size == 2
+
+
+def test_named_buckets_seeds_empty_buckets_at_zero_rather_than_omitting_them() -> None:
+    rows = [{"draft_age_days": 10, "renewal_status": "DRAFT"}]
+    kpi = Kpi(kpi_id="kpi_draft_severity", dataset_id=DATASET, operation="named_buckets",
+             measure="draft_age_days", buckets=_SEVERITY_BUCKETS,
+             filter=KpiFilter(column="renewal_status", value="DRAFT"))
+    analysis = Analysis(analysis_id="an_draft_severity", operation="named_buckets",
+                        dataset_id=DATASET, metric="kpi_draft_severity")
+    plan = compile_plan("spec_1", DATASET, "v1", [kpi], [analysis])
+    results, errors, _completed, _failed = run_plan(plan, {DATASET: rows})
+    assert errors == []
+    result_rows = _analysis_rows(analysis, results[plan.analysis_node["an_draft_severity"]])
+    assert len(result_rows) == 4  # all 4 buckets present, even the 3 empty ones
+    assert {r.group_value for r in result_rows} == {
+        "Low (<=60d)", "Medium (60-180d)", "High (180-365d)", "Critical (>365d)"}
 
 
 # ── graph_relation (C06 verified paths, no dataset rows involved) ─────────

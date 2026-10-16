@@ -14,6 +14,7 @@ from typing import Any
 from aryx.analysis_execution.data import load_typed_rows
 from aryx.analysis_execution.execute import (
     _kpi_result_from_node,
+    apply_row_filters,
     resolve_graph_relation_nodes,
     run_plan,
 )
@@ -24,6 +25,7 @@ from aryx.analysis_execution.models import (
     ExecutionRun,
     KpiLineage,
     KpiResult,
+    RowFilter,
 )
 from aryx.andie_planner.models import Analysis, DashboardSpec, Kpi
 from aryx.ports import ports
@@ -123,6 +125,22 @@ def _histogram_rows(result: dict[str, Any]) -> list[AnalysisResultRow]:
     ]
 
 
+def _named_buckets_rows(result: dict[str, Any]) -> list[AnalysisResultRow]:
+    """named_buckets — one row per named threshold bucket, in DECLARATION
+    order (not alphabetical, unlike _1d_grouped_rows's `sorted()`): severity
+    (Low/Medium/High/Critical) and lapsed-time order are meaningful and must
+    survive to the chart. Python dicts preserve insertion order, and
+    execute._named_buckets seeds `result["named_buckets"]` in the exact
+    order its `buckets` parameter declared."""
+    return [
+        AnalysisResultRow(
+            group_value=g,
+            value=(v.get("value") if isinstance(v, dict) else float(v)),
+            sample_size=(v.get("sample_size") if isinstance(v, dict) else int(v)))
+        for g, v in result["named_buckets"].items()
+    ]
+
+
 def _analysis_rows(analysis: Analysis, result: Any) -> list[AnalysisResultRow]:
     """Dispatch on the Analysis's own `operation` (never shape-sniffed) to
     the right unpacking of its compiled node's raw result — see
@@ -138,6 +156,8 @@ def _analysis_rows(analysis: Analysis, result: Any) -> list[AnalysisResultRow]:
         return _survival_rows(result)
     if analysis.operation == "histogram":
         return _histogram_rows(result)
+    if analysis.operation == "named_buckets":
+        return _named_buckets_rows(result)
     return _1d_grouped_rows(result)
 
 
@@ -175,6 +195,10 @@ def _kpi_source_columns(kpi: Kpi) -> list[str]:
     cols = list(kpi.source_columns)
     if kpi.measure and kpi.measure not in cols:
         cols.append(kpi.measure)
+    if kpi.date_diff_from and kpi.date_diff_from not in cols:
+        cols.append(kpi.date_diff_from)
+    if kpi.bucket_value_column and kpi.bucket_value_column not in cols:
+        cols.append(kpi.bucket_value_column)
     if kpi.filter and kpi.filter.column not in cols:
         cols.append(kpi.filter.column)
     for operand in (kpi.numerator, kpi.denominator):
@@ -187,6 +211,7 @@ def run_analysis_execution(
     dsn: str, workspace_id: int, dataset_id: str, *,
     maximum_runtime_seconds: float = _DEFAULT_MAX_RUNTIME_SECONDS,
     maximum_rows: int = _DEFAULT_MAX_ROWS,
+    filters: list[RowFilter] | None = None,
 ) -> ExecutionRun:
     """Run C12 for `dataset_id`'s latest compiled plan — a real dataset_id in
     single-dataset mode, "workspace_{id}" in workspace mode (same convention
@@ -233,7 +258,7 @@ def run_analysis_execution(
     dataset_version_by_id: dict[str, str] = {}
     for did in dataset_ids:
         rows, version = load_typed_rows(dsn, workspace_id, did, spec, row_cap)
-        rows_by_dataset[did] = rows
+        rows_by_dataset[did] = apply_row_filters(rows, filters or [])
         dataset_version_by_id[did] = version
 
     resolve_graph_relation_nodes(dsn, workspace_id, plan)
@@ -286,20 +311,29 @@ def run_analysis_execution(
             runtime_ms=int((time.monotonic() - start) * 1000),
             nodes_completed=completed, nodes_failed=failed),
         errors=exec_errors,
+        applied_filters=filters or [],
     )
 
     try:
-        report = run_post_execution_validation(dsn, workspace_id, plan, spec, run, row_cap=row_cap)
+        report = run_post_execution_validation(
+            dsn, workspace_id, plan, spec, run, row_cap=row_cap, filters=filters)
         run.validation = report.model_dump(mode="json")
     except Exception:  # noqa: BLE001 — C13 is additive, never blocks the C12 result
         logger.warning("C13 post-execution validation failed ws=%s run=%s",
                        workspace_id, execution_run_id, exc_info=True)
 
-    store = ExecutionRunStore(dsn, workspace_id)
-    try:
-        store.save(run)
-    finally:
-        store.close()
+    # An ad-hoc filtered run is a transient, request-scoped view — never
+    # persisted as the dataset's "latest" run. ExecutionRunStore.save is
+    # insert-only-newest-wins (see its own docstring); persisting a filtered
+    # run would make it the run every subsequent unfiltered dashboard load
+    # picks up via .latest(), silently corrupting the canonical view for
+    # everyone until an unfiltered run happened to be triggered again.
+    if not filters:
+        store = ExecutionRunStore(dsn, workspace_id)
+        try:
+            store.save(run)
+        finally:
+            store.close()
     logger.info("analysis_execution ws=%s dataset=%s status=%s kpis=%d analyses=%d validation=%s",
                workspace_id, dataset_id, status, len(kpi_results), len(analysis_results),
                (run.validation or {}).get("status"))

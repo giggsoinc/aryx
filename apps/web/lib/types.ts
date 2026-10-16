@@ -889,6 +889,15 @@ export interface RenderTelemetry {
   accessibility_checks: AccessibilityChecks;
 }
 
+export interface RowFilter {
+  column: string;
+  op: "eq" | "in" | "date_range";
+  value?: string | null;
+  values?: string[] | null;
+  start?: string | null;
+  end?: string | null;
+}
+
 export interface ExecutionRun {
   execution_run_id: string;
   execution_plan_id: string;
@@ -901,6 +910,7 @@ export interface ExecutionRun {
   execution_metrics: ExecutionMetrics;
   errors: string[];
   validation: PostExecutionReport | null;
+  applied_filters: RowFilter[];
   created_at: string;
 }
 

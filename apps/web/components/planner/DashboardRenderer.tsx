@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  Loader2, MonitorPlay, AlertTriangle, Info, Ban,
+  Loader2, MonitorPlay, AlertTriangle, Info, Ban, Maximize2, X, Filter,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -17,7 +17,7 @@ import {
 } from "@/lib/plotlySpecs";
 import type {
   DashboardModel, DashboardComponent, ExecutionRun, PlannerResult, Kpi, Analysis,
-  AccessibilityChecks, KpiResult, AnalysisResultRow, DocumentEntity, TimelinePoint,
+  AccessibilityChecks, KpiResult, AnalysisResultRow, DocumentEntity, TimelinePoint, RowFilter,
 } from "@/lib/types";
 
 interface Props {
@@ -82,6 +82,16 @@ export function DashboardRenderer({ workspaceId }: Props) {
   const [chainJob, setChainJob] = useState<Awaited<ReturnType<typeof api.listJobs>>[number] | null>(null);
   const loggedFor = useRef<string | null>(null);
 
+  // Ad-hoc dashboard filter — a real backend re-query (C12 re-run over a
+  // narrowed row set, C13 re-validated the same way), never a client-side
+  // recompute. `filteredRun` shadows `run` for rendering only while active;
+  // the canonical `run` above keeps polling and is untouched.
+  const [filterColumn, setFilterColumn] = useState<string>("");
+  const [filterValue, setFilterValue] = useState<string>("");
+  const [filteredRun, setFilteredRun] = useState<ExecutionRun | null>(null);
+  const [filterLoading, setFilterLoading] = useState(false);
+  const [filterError, setFilterError] = useState<string | null>(null);
+
   // Unstructured section state — independent of the structured model above;
   // outside the C07-C14 governed pipeline (see WordCloudChart.tsx), so it
   // is fetched and rendered as its own section, never as a DashboardModel
@@ -142,6 +152,42 @@ export function DashboardRenderer({ workspaceId }: Props) {
     }).catch(() => { /* telemetry is best-effort */ });
   }, [model, run, planner, workspaceId]);
 
+  // A freshly regenerated/recomposed dashboard invalidates whatever filter
+  // was active against the previous one.
+  useEffect(() => {
+    setFilteredRun(null); setFilterColumn(""); setFilterValue(""); setFilterError(null);
+  }, [model?.dashboard_model_id]);
+
+  const filterDimensions = collectFilterDimensions(run, planner);
+  const filterValueOptions = filterColumn ? (filterDimensions.get(filterColumn) ?? []) : [];
+
+  async function handleApplyFilter() {
+    if (!run || !filterColumn || !filterValue) return;
+    setFilterLoading(true);
+    setFilterError(null);
+    try {
+      const result = await api.runExecutionForWorkspace(workspaceId, [
+        { column: filterColumn, op: "eq", value: filterValue },
+      ]);
+      if (result.status === "failed") {
+        setFilterError(result.errors[0] || "That filter produced no result.");
+        return;
+      }
+      setFilteredRun(result);
+    } catch {
+      setFilterError("Could not apply the filter — try again.");
+    } finally {
+      setFilterLoading(false);
+    }
+  }
+
+  function handleClearFilter() {
+    setFilteredRun(null);
+    setFilterColumn("");
+    setFilterValue("");
+    setFilterError(null);
+  }
+
   return (
     <div className="mx-auto max-w-6xl px-6 pb-8">
       <section className="rounded-xl border border-navy-100 bg-white p-6 shadow-sm">
@@ -189,8 +235,53 @@ export function DashboardRenderer({ workspaceId }: Props) {
           </div>
         )}
 
+        {model && run && model.sections.length > 0 && filterDimensions.size > 0 && (
+          <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-navy-100 bg-navy-50/30 p-3">
+            <Filter size={14} className="shrink-0 text-navy-400" />
+            <select
+              value={filterColumn}
+              onChange={(e) => { setFilterColumn(e.target.value); setFilterValue(""); }}
+              className="rounded border border-navy-200 bg-white px-2 py-1 text-xs text-navy-700"
+            >
+              <option value="">Filter by…</option>
+              {Array.from(filterDimensions.keys()).map((col) => (
+                <option key={col} value={col}>{col}</option>
+              ))}
+            </select>
+            <select
+              value={filterValue}
+              onChange={(e) => setFilterValue(e.target.value)}
+              disabled={!filterColumn}
+              className="rounded border border-navy-200 bg-white px-2 py-1 text-xs text-navy-700 disabled:opacity-50"
+            >
+              <option value="">Select value…</option>
+              {filterValueOptions.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+            <button
+              type="button"
+              onClick={handleApplyFilter}
+              disabled={!filterColumn || !filterValue || filterLoading}
+              className="rounded bg-navy-900 px-3 py-1 text-xs font-medium text-white disabled:opacity-40"
+            >
+              {filterLoading ? "Applying…" : "Apply"}
+            </button>
+            {filteredRun && (
+              <>
+                <span className="rounded-full bg-navy-900/5 px-2 py-1 text-xs text-navy-700">
+                  Filtered: {filteredRun.applied_filters[0]?.column} = {filteredRun.applied_filters[0]?.value}
+                </span>
+                <button type="button" onClick={handleClearFilter}
+                        className="rounded border border-navy-200 px-3 py-1 text-xs text-navy-600 hover:bg-white">
+                  Clear filter
+                </button>
+              </>
+            )}
+            {filterError && <span className="text-xs text-rose-600">{filterError}</span>}
+          </div>
+        )}
+
         {model && run && model.sections.length > 0 && (
-          <RenderedDashboard model={model} run={run} planner={planner}
+          <RenderedDashboard model={model} run={filteredRun ?? run} planner={planner}
                             showWarnings={showWarnings} />
         )}
       </section>
@@ -203,6 +294,37 @@ export function DashboardRenderer({ workspaceId }: Props) {
       />
     </div>
   );
+}
+
+// Chart types whose group_value is a synthetic label (a histogram/bucket
+// name, a crosstab's composite key, a scatter point's own x/y) rather than a
+// literal value that actually appears in the underlying rows — filtering on
+// one of these would silently match zero rows, so they're never offered as
+// a filter dimension.
+const NON_LITERAL_FILTER_OPERATIONS = new Set([
+  "crosstab", "row_points", "date_span", "survival", "histogram", "named_buckets",
+]);
+
+/** Every (column, distinct real values) pair safe to offer as an ad-hoc
+ * dashboard filter — derived entirely from already-computed analysis rows,
+ * never a new lookup. */
+function collectFilterDimensions(
+  run: ExecutionRun | null, planner: PlannerResult | null,
+): Map<string, string[]> {
+  const dims = new Map<string, Set<string>>();
+  if (!run) return new Map();
+  const analysisById = new Map((planner?.spec?.analyses ?? []).map((a) => [a.analysis_id, a]));
+  for (const result of run.analysis_results) {
+    const analysis = analysisById.get(result.analysis_id);
+    if (!result.group_column) continue;
+    if (analysis && NON_LITERAL_FILTER_OPERATIONS.has(analysis.operation)) continue;
+    const values = dims.get(result.group_column) ?? new Set<string>();
+    for (const row of result.rows) {
+      if (row.group_value) values.add(row.group_value);
+    }
+    dims.set(result.group_column, values);
+  }
+  return new Map(Array.from(dims, ([column, values]) => [column, Array.from(values).sort()]));
 }
 
 function kpiFormat(kpi: Kpi | undefined): string {
@@ -300,6 +422,68 @@ function RenderedDashboard({ model, run, planner, showWarnings }: {
   );
 }
 
+function ChartCard({ title, spec, children }: {
+  title: ReactNode; spec: ChartSpec; children?: ReactNode;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="group relative rounded-lg border border-navy-100 bg-white p-4">
+      <button
+        type="button"
+        onClick={() => setExpanded(true)}
+        className="absolute right-3 top-3 rounded p-1 text-navy-400 opacity-0 transition hover:bg-navy-50 hover:text-navy-700 group-hover:opacity-100 focus:opacity-100"
+        aria-label="Expand chart"
+      >
+        <Maximize2 size={14} />
+      </button>
+      <div className="pr-6 text-xs font-medium uppercase text-navy-500">{title}</div>
+      <div className="mt-2">
+        <PlotlyChart spec={spec} />
+      </div>
+      {children}
+      {expanded && (
+        <ChartFullscreenModal title={title} spec={spec} onClose={() => setExpanded(false)} />
+      )}
+    </div>
+  );
+}
+
+function ChartFullscreenModal({ title, spec, onClose }: {
+  title: ReactNode; spec: ChartSpec; onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-navy-900/60 p-6"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-full w-full max-w-5xl overflow-auto rounded-lg bg-white p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 z-10 mb-3 flex items-center justify-between gap-4 bg-white pb-2">
+          <div className="text-sm font-medium uppercase text-navy-500">{title}</div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 rounded p-1 text-navy-400 hover:bg-navy-50 hover:text-navy-700"
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <PlotlyChart spec={spec} height={560} fullscreen />
+      </div>
+    </div>
+  );
+}
+
 function ComponentView({ component, run, kpi, analysis, compareAnalysis, kpiById, showWarnings }: {
   component: DashboardComponent; run: ExecutionRun; kpi?: Kpi; analysis?: Analysis;
   compareAnalysis?: Analysis; kpiById: Map<string, Kpi>; showWarnings: boolean;
@@ -378,14 +562,10 @@ function ComponentView({ component, run, kpi, analysis, compareAnalysis, kpiById
     const insight = showWarnings && BAR_LIKE_TYPES.has(component.type)
       ? safeInsight(analysis, metricKpi, result.rows) : null;
     return (
-      <div className="rounded-lg border border-navy-100 bg-white p-4">
-        <div className="text-xs font-medium uppercase text-navy-500">
-          {title}
-          {analysis?.group_by?.[0] && ` by ${analysis.group_by[0]}`}
-        </div>
-        <div className="mt-2">
-          <PlotlyChart spec={spec} />
-        </div>
+      <ChartCard
+        title={<>{title}{analysis?.group_by?.[0] && ` by ${analysis.group_by[0]}`}</>}
+        spec={spec}
+      >
         {insight && (
           <div className="mt-2 flex items-start gap-1.5 rounded bg-sky-50 px-2 py-1.5 text-xs text-sky-800">
             <Info size={12} className="mt-0.5 shrink-0" /> {insight}
@@ -393,7 +573,7 @@ function ComponentView({ component, run, kpi, analysis, compareAnalysis, kpiById
         )}
         <WarningBanners refs={component.warning_refs} run={run} sourceRef={component.source_ref}
                         show={showWarnings} />
-      </div>
+      </ChartCard>
     );
   }
 
@@ -412,15 +592,10 @@ function ComponentView({ component, run, kpi, analysis, compareAnalysis, kpiById
       ? buildSlopegraphSpec(primary.rows, compare.rows, primaryLabel, compareLabel, fmt, title)
       : buildGroupedBarSpec(primary.rows, compare.rows, primaryLabel, compareLabel, fmt, title);
     return (
-      <div className="rounded-lg border border-navy-100 bg-white p-4">
-        <div className="text-xs font-medium uppercase text-navy-500">
-          {title}
-          {analysis?.group_by?.[0] && ` by ${analysis.group_by[0]}`}
-        </div>
-        <div className="mt-2">
-          <PlotlyChart spec={spec} />
-        </div>
-      </div>
+      <ChartCard
+        title={<>{title}{analysis?.group_by?.[0] && ` by ${analysis.group_by[0]}`}</>}
+        spec={spec}
+      />
     );
   }
 
@@ -437,14 +612,7 @@ function ComponentView({ component, run, kpi, analysis, compareAnalysis, kpiById
     }).filter((e) => Number.isFinite(e.value));
     if (entries.length < 3) return <UnsupportedPlaceholder type="radar (fewer than 3 computed axes)" />;
     const spec = buildRadarSpec(entries, component.source_ref);
-    return (
-      <div className="rounded-lg border border-navy-100 bg-white p-4">
-        <div className="text-xs font-medium uppercase text-navy-500">{component.source_ref}</div>
-        <div className="mt-2">
-          <PlotlyChart spec={spec} />
-        </div>
-      </div>
-    );
+    return <ChartCard title={component.source_ref} spec={spec} />;
   }
 
   return <UnsupportedPlaceholder type={component.type} />;

@@ -43,3 +43,11 @@ CREATE INDEX IF NOT EXISTS aryx_dataset_ws_idx
     ON aryx_dataset(workspace_id);
 CREATE INDEX IF NOT EXISTS aryx_dataset_version_ws_idx
     ON aryx_dataset_version(workspace_id, dataset_id);
+
+-- CREATE TABLE IF NOT EXISTS never alters a table that already exists —
+-- any environment whose aryx_dataset_version predates this migration (i.e.
+-- was created back when raw_bytes was still a column here) keeps that
+-- column's NOT NULL constraint forever, and every future insert (which no
+-- longer supplies raw_bytes) fails. Found live: an e2e test against a
+-- long-running dev database hit this exact NotNullViolation.
+ALTER TABLE aryx_dataset_version DROP COLUMN IF EXISTS raw_bytes;

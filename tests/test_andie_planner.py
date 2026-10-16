@@ -852,6 +852,102 @@ def test_workspace_spec_never_raises_on_provider_failure() -> None:
     assert result.error_code == "llm_call_failed"
 
 
+# ── named_buckets grounding ──────────────────────────────────────────────
+
+_BUCKET_APPROVED_COLUMNS = [
+    {"name": "draft_age_days", "type": "numeric"},
+    {"name": "end_date", "type": "date"},
+    {"name": "estimated_amount", "type": "numeric"},
+    {"name": "renewal_status", "type": "categorical", "sample_values": ["DRAFT", "ACTIVE"]},
+]
+_BUCKET_APPROVED_OPS = [*APPROVED_OPS, "named_buckets"]
+
+
+def _ground_buckets(raw):
+    return ground_spec(
+        raw, dataset_id="dataset_contracts", dataset_version="v1",
+        approved_columns=_BUCKET_APPROVED_COLUMNS, approved_operations=_BUCKET_APPROVED_OPS,
+        approved_charts=APPROVED_CHARTS)
+
+
+def test_named_buckets_kpi_grounds_measure_and_buckets() -> None:
+    # Raw JSON uses "name" (not "label") — see schema._BUCKETS_SCHEMA: that's
+    # the key actually sent to the model, and the one every live response
+    # arrives with post llm_normalize (which renames "label" -> "name").
+    raw = {
+        "business_questions": [{"question_id": "bq_1", "text": "x"}],
+        "kpis": [{
+            "kpi_id": "kpi_draft_severity", "operation": "named_buckets", "measure": "draft_age_days",
+            "filter": {"column": "renewal_status", "operator": "equals", "value": "DRAFT"},
+            "buckets": [{"name": "Low (<=60d)", "max": 60}, {"name": "Critical (>365d)"}],
+        }],
+    }
+    spec = _ground_buckets(raw)
+    kpi = spec.kpis[0]
+    assert kpi.measure == "draft_age_days"
+    assert kpi.filter is not None and kpi.filter.value == "DRAFT"
+    assert [b.label for b in kpi.buckets] == ["Low (<=60d)", "Critical (>365d)"]
+    assert kpi.buckets[0].max == 60.0 and kpi.buckets[1].max is None
+
+
+def test_named_buckets_kpi_grounds_date_diff_from_and_bucket_value_column() -> None:
+    raw = {
+        "business_questions": [{"question_id": "bq_1", "text": "x"}],
+        "kpis": [{
+            "kpi_id": "kpi_risk_lapsed", "operation": "named_buckets",
+            "date_diff_from": "end_date", "bucket_value_column": "estimated_amount",
+            "buckets": [{"name": "Lapsed >30d"}],
+        }],
+    }
+    spec = _ground_buckets(raw)
+    kpi = spec.kpis[0]
+    assert kpi.measure is None
+    assert kpi.date_diff_from == "end_date"
+    assert kpi.bucket_value_column == "estimated_amount"
+
+
+def test_named_buckets_kpi_rejects_unapproved_date_diff_from_column() -> None:
+    raw = {
+        "business_questions": [{"question_id": "bq_1", "text": "x"}],
+        "kpis": [{
+            "kpi_id": "kpi_risk_lapsed", "operation": "named_buckets",
+            "date_diff_from": "made_up_column", "buckets": [{"name": "Any"}],
+        }],
+    }
+    spec = _ground_buckets(raw)
+    kpi = spec.kpis[0]
+    assert kpi.date_diff_from is None
+    assert any(w.code == "unapproved_column" and w.column == "made_up_column"
+              for w in spec.warnings)
+
+
+def test_named_buckets_kpi_drops_bucket_items_missing_a_label() -> None:
+    raw = {
+        "business_questions": [{"question_id": "bq_1", "text": "x"}],
+        "kpis": [{
+            "kpi_id": "kpi_draft_severity", "operation": "named_buckets", "measure": "draft_age_days",
+            "buckets": [{"max": 60}, {"name": "Critical (>365d)"}],
+        }],
+    }
+    spec = _ground_buckets(raw)
+    assert [b.label for b in spec.kpis[0].buckets] == ["Critical (>365d)"]
+
+
+def test_named_buckets_kpi_accepts_label_key_as_a_fallback() -> None:
+    # Defensive coverage only: a raw dict that bypassed llm_normalize (e.g.
+    # handed in directly, as any real caller other than the live LLM path
+    # would) may still use "label" — must not be treated as missing.
+    raw = {
+        "business_questions": [{"question_id": "bq_1", "text": "x"}],
+        "kpis": [{
+            "kpi_id": "kpi_draft_severity", "operation": "named_buckets", "measure": "draft_age_days",
+            "buckets": [{"label": "Low (<=60d)", "max": 60}, {"label": "Critical (>365d)"}],
+        }],
+    }
+    spec = _ground_buckets(raw)
+    assert [b.label for b in spec.kpis[0].buckets] == ["Low (<=60d)", "Critical (>365d)"]
+
+
 def test_workspace_spec_prompt_mentions_multiple_datasets() -> None:
     from aryx.andie_planner.prompt import build_workspace_planner_prompt
     _, user = build_workspace_planner_prompt(

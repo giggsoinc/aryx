@@ -9,7 +9,8 @@ correctness): recomputing, not re-reading, the answer.
 from __future__ import annotations
 
 from aryx.analysis_execution.data import load_typed_rows
-from aryx.analysis_execution.execute import resolve_graph_relation_nodes, run_plan
+from aryx.analysis_execution.execute import apply_row_filters, resolve_graph_relation_nodes, run_plan
+from aryx.analysis_execution.models import RowFilter
 from aryx.andie_planner.models import DashboardSpec
 from aryx.execution_compiler.models import ExecutionPlan
 from aryx.ports import ports
@@ -17,16 +18,22 @@ from aryx.ports import ports
 
 def recompute(
     dsn: str, workspace_id: int, plan: ExecutionPlan, spec: DashboardSpec, row_cap: int,
+    filters: list[RowFilter] | None = None,
 ) -> tuple[dict[str, object], list[str]]:
     """Return (node_results, errors) from a fresh execution of `plan` — the
     exact same shape `analysis_execution.execute.run_plan` produces, so
     callers can map through `plan.kpi_final_node`/`plan.analysis_node`
-    themselves rather than this module guessing at KPI-level semantics."""
+    themselves rather than this module guessing at KPI-level semantics.
+
+    `filters` must mirror whatever ad-hoc row filters the run being
+    validated was executed under — recomputing against the full, unfiltered
+    dataset would spuriously disagree with a filtered run's real numbers
+    and reject every value C12 reported."""
     dataset_ids = sorted({n.dataset_id for n in plan.nodes if n.dataset_id})
     rows_by_dataset: dict[str, list] = {}
     for did in dataset_ids:
         rows, _version = load_typed_rows(dsn, workspace_id, did, spec, row_cap)
-        rows_by_dataset[did] = rows
+        rows_by_dataset[did] = apply_row_filters(rows, filters or [])
     resolve_graph_relation_nodes(dsn, workspace_id, plan)
     graph_reader = (ports().graph_reader(workspace_id)
                     if any(n.template == "graph_relation_count" for n in plan.nodes) else None)

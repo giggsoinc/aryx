@@ -158,6 +158,14 @@ def _profile_column(name: str, values: list[Any], row_count: int
             unique_count <= 6 and all(s.lower() in _STATUS_VOCAB for s in distinct)
         )
         role = "status" if statusy else "dimension"
+    elif canonical == "text" and non_null and unique_count / len(non_null) < _HIGH_CARD_RATIO:
+        # Too many distinct values for the _CATEGORICAL_MAX cutoff (e.g. a
+        # 5-year span of fiscal quarters, or hundreds of real account names)
+        # is not the same thing as high-cardinality free text (comments,
+        # addresses) — the same unique/non-null ratio already used for the
+        # high_cardinality quality flag below tells them apart: real repeats
+        # mean a legitimate group-by/top-N dimension, not near-unique noise.
+        role = "dimension"
     else:
         role = "attribute"
 

@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from types import ModuleType
 
-ROOT = Path(os.environ.get("CLAUDE_PROJECT_DIR", str(Path.cwd()))).resolve()
+ROOT = Path(os.environ.get("CLAUDE_PROJECT_DIR", "."))
 STATE_DIR = ROOT / ".raven/state"
 EDITS = STATE_DIR / "edits.jsonl"
 ATTRIBUTIONS = STATE_DIR / "attributions.json"
@@ -20,10 +20,63 @@ def _load(name: str, path: Path) -> ModuleType:
     return mod
 
 
-try:
-    _engine = _load("_eng", ROOT / ".claude/scripts/attribution_engine.py")
-except Exception:
-    _engine = None
+_engine = _load("_eng", ROOT / ".claude/scripts/attribution_engine.py")
+
+
+def _card_link():
+    p = ROOT / ".claude/scripts/card_link.py"
+    return _load("_card", p) if p.exists() else None
+
+
+def _resolve_card_id() -> str:
+    """The Odoo card this commit belongs to (ODO-2): commit-message trailer >
+    active-card state > branch name. Best-effort, never raises."""
+    cl = None
+    try:
+        cl = _card_link()
+        if cl is None:
+            return ""
+        msg = ""
+        for mf in (ROOT / ".git" / "COMMIT_EDITMSG", ROOT / ".git" / "MERGE_MSG"):
+            try:
+                if mf.exists():
+                    msg = mf.read_text(encoding="utf-8", errors="replace")
+                    break
+            except Exception:
+                pass
+        # Read .git/HEAD directly — robust on an unborn branch (no initial
+        # commit), where `git rev-parse --abbrev-ref HEAD` is unreliable.
+        branch = ""
+        try:
+            head = (ROOT / ".git" / "HEAD").read_text(encoding="utf-8").strip()
+            if head.startswith("ref:"):
+                branch = head.split("refs/heads/", 1)[-1]
+        except Exception:
+            pass
+        if not branch:
+            try:
+                branch = subprocess.run(
+                    ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=str(ROOT),
+                    capture_output=True, text=True, timeout=10).stdout.strip()
+            except Exception:
+                pass
+        return cl.resolve_card_id(message=msg, branch=branch)
+    except Exception:
+        return ""
+
+
+def stamp_card_id(attr_map: dict) -> dict:
+    """Stamp the resolved card_id onto every span that lacks one. A span that
+    already carries a card_id (e.g. from a future per-edit capture) is left
+    untouched — explicit beats inferred."""
+    card = _resolve_card_id()
+    if not card:
+        return attr_map
+    for spans in attr_map.values():
+        for s in spans:
+            if not s.get("card_id"):
+                s["card_id"] = card
+    return attr_map
 
 
 def _docs_module() -> ModuleType | None:
@@ -95,6 +148,7 @@ def report_gaps(gaps: dict, mode: str) -> int:
 
 def write_attributions(attr_map: dict) -> None:
     STATE_DIR.mkdir(parents=True, exist_ok=True)
+    attr_map = stamp_card_id(attr_map)   # ODO-2: link spans to the Odoo card
     ATTRIBUTIONS.write_text(json.dumps(attr_map, indent=2))
     docs = _docs_module()
     if not docs:
@@ -111,8 +165,6 @@ def write_attributions(attr_map: dict) -> None:
 
 
 def main() -> int:
-    if _engine is None:
-        return 0  # attribution engine not available — skip silently
     files = staged_files()
     if not files:
         return 0

@@ -17,6 +17,11 @@ const nextConfig = {
   output: "standalone",
   experimental: {
     optimizePackageImports: ["lucide-react"],
+    // /ask can make two sequential LLM calls (extract + synthesise), each
+    // capped at 120s (see llm_providers._DEFAULT_TIMEOUT) — the default 30s
+    // proxy timeout kills the socket long before the backend responds,
+    // which surfaces to the UI as a bogus 500.
+    proxyTimeout: 300_000,
   },
 };
 export default nextConfig;

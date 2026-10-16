@@ -27,7 +27,7 @@ for _mod in ("falkordb", "psycopg", "psycopg.types", "psycopg.types.json",
     except ImportError:
         sys.modules.setdefault(_mod, MagicMock())
 
-from aryx.andie_planner.models import Analysis, DashboardSpec, Kpi
+from aryx.andie_planner.models import Analysis, BucketDef, DashboardSpec, Kpi
 from aryx.execution_compiler.validate import check_analysis_operation_compilable
 from aryx.spec_validation.checks import _histogram_metric_errors
 
@@ -149,6 +149,55 @@ def test_c12_reports_the_analysis_id_so_the_user_can_act() -> None:
     _, error = _unpack_analysis(_BAD, 5)
 
     assert error.startswith("analysis 'an_latitude_distribution'")
+
+
+# --- named_buckets: the same three-layer contract, mirrored -------------
+#
+# named_buckets is the direct sibling of histogram (see
+# execution_compiler.validate._SHAPE_PROMISING_OPERATIONS): an Analysis's
+# declared operation is a promise about its node's result shape, and that
+# promise only holds when the metric KPI has the SAME operation. Same three
+# layers, same bug class, so the same regression coverage applies.
+
+_BUCKET_KPI = Kpi(kpi_id="kpi_draft_severity", name="Draft severity",
+                  operation="named_buckets", measure="draft_age_days", dataset_id="ds",
+                  buckets=[BucketDef(label="Low", max=60), BucketDef(label="High")])
+_BUCKET_BAD = Analysis(analysis_id="an_draft_severity", operation="named_buckets",
+                       metric="kpi_total_entities", dataset_id="ds")
+_BUCKET_GOOD = Analysis(analysis_id="an_draft_severity", operation="named_buckets",
+                        metric="kpi_draft_severity", dataset_id="ds")
+
+
+def test_c09_rejects_named_buckets_analysis_pointed_at_a_count_kpi() -> None:
+    from aryx.spec_validation.checks import _named_buckets_errors
+
+    errors = _named_buckets_errors(_spec([_BUCKET_BAD], [_COUNT_KPI, _BUCKET_KPI]))
+
+    assert [e.code for e in errors] == ["named_buckets_metric_mismatch"]
+    assert errors[0].path == "analysis:an_draft_severity.metric"
+
+
+def test_c11_refuses_to_silently_compile_named_buckets_as_a_grouped_count() -> None:
+    issues = check_analysis_operation_compilable(
+        [_BUCKET_BAD], {"kpi_total_entities": _COUNT_KPI})
+
+    assert [i.code for i in issues] == ["uncompilable_analysis_operation"]
+    assert issues[0].node_id == "analysis:an_draft_severity"
+
+
+def test_c11_passes_a_correctly_paired_named_buckets() -> None:
+    assert check_analysis_operation_compilable(
+        [_BUCKET_GOOD], {"kpi_draft_severity": _BUCKET_KPI}) == []
+
+
+def test_c12_contains_a_named_buckets_analysis_misread_as_grouped_count() -> None:
+    from aryx.analysis_execution.run import _unpack_analysis
+
+    rows, error = _unpack_analysis(_BUCKET_BAD, {"DRAFT": 12, "ACTIVE": 8})
+
+    assert rows is None
+    assert "an_draft_severity" in error
+    assert "rest of the dashboard is unaffected" in error
 
 
 def test_c12_does_not_swallow_programming_errors() -> None:
