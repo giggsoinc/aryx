@@ -32,3 +32,8 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+markers = [
+  "e2e: cross-component tests against real Postgres+FalkorDB (tests/e2e/) — see tests/e2e/conftest.py",
+]

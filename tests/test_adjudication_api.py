@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from tests.test_api_routes import _client
+from tests.route_client import _client
 
 
 def _row(left=100, right=200) -> dict:
