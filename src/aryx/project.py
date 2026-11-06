@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 
 from aryx.graph import FalkorStore
+from aryx.job_cancel import checkpoint
 from aryx.store.entity_store import EntityStore
 
 logger = logging.getLogger(__name__)
@@ -48,6 +49,7 @@ def project_graph(
     Returns:
         Counts of {entities, provenance, relationships} written.
     """
+    checkpoint(force=True)  # write guard: never wipe/rewrite a reused workspace's graph
     graph.clear()
     entities = store.list_entities()
     ancestors_for = type_ancestors or {}

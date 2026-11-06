@@ -20,6 +20,7 @@ from aryx.api.admin_api import _local_broker
 from aryx.config import get_settings
 from aryx.pipeline.doc_discovery import DATA_EXTS, DOC_EXTS, ingest_confirmed, read_files
 from aryx.store.job_store import JobStore
+from aryx.job_cancel import run_cancellable
 from aryx.store.migrate import apply_migrations
 
 logger = logging.getLogger(__name__)
@@ -120,8 +121,9 @@ def doc_discover_router() -> APIRouter:
             jobs.create(job_id, "documents", "confirmed entities", data.get("workspace_id", 1))
         finally:
             jobs.close()
-        background_tasks.add_task(_confirm_job, req.discovery_id,
-                                 req.approved_types, req.approved_files, job_id)
+        background_tasks.add_task(run_cancellable, _confirm_job, get_settings().rdb_dsn,
+                                  job_id, data.get("workspace_id", 1), req.discovery_id,
+                                  req.approved_types, req.approved_files, job_id)
         return {"status": "queued", "job_id": job_id}
 
     return router

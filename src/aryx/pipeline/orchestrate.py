@@ -18,6 +18,7 @@ from aryx.broker import Broker
 from aryx.connectors.base import Connector
 from aryx.discover import discover
 from aryx.graph import FalkorStore
+from aryx.job_cancel import checkpoint
 from aryx.pipeline.enrich import _build_type_ancestors, _relate
 from aryx.pipeline.fk_edges import link_by_attribute
 from aryx.pipeline.stages import StageRunner
@@ -185,6 +186,9 @@ def run_pipeline(
     entities = relationships = 0
     counts: dict[str, int] = {}
     try:
+        # Cancel checkpoints sit between stages (a no-op outside a job's
+        # cancel_scope); entity/graph writes are additionally guarded.
+        checkpoint(force=True)
         if not runner.skip("resolve_cluster"):
             detail = (
                 f"Resolving records into canonical entities "
@@ -199,12 +203,14 @@ def run_pipeline(
                     else:
                         entities = resolve_run(run_id, ontology_type, match_keys,
                                                estore, broker, dsn, workspace_id)
+        checkpoint()
         if relate and not runner.skip("relate"):
             _emit(on_progress, "Relate", 75, "Inferring relationships between entities")
             with runner.stage("relate"):
                 with _heartbeat(on_progress, "Relate", 75,
                                 "Inferring relationships between entities"):
                     relationships = _relate(estore, broker, max_pairs)
+        checkpoint()
         if fk_links and not runner.skip("fk_link"):
             _emit(on_progress, "Link", 80, "Linking entities by foreign-key attributes")
             with runner.stage("fk_link"):
@@ -213,6 +219,7 @@ def run_pipeline(
                         estore, spec["source_type"], spec["source_attr"],
                         spec["target_type"], spec["target_attr"], spec["name"],
                     )
+        checkpoint(force=True)
         _register_types(dsn, workspace_id, estore)
         _emit(on_progress, "Project", 90, "Projecting entities and edges to the graph")
         with runner.stage("project"):

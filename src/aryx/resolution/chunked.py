@@ -18,6 +18,7 @@ import logging
 from collections.abc import Iterable, Iterator
 
 from aryx.broker import Broker
+from aryx.job_cancel import checkpoint
 from aryx.models import EntityMember, ResolutionRecord, ResolvedEntity
 from aryx.resolution.blocking import _keys_for
 from aryx.resolution.chunk_backend import ChunkBackend
@@ -66,6 +67,7 @@ def _score_pass(run_id: int, backend: ChunkBackend,
         _threshold("ARYX_ER_AUTO_REJECT", 0.05),
     )
     for key in backend.todo_blocks(run_id):
+        checkpoint()  # cancel point per block (resume picks up undone blocks)
         ids = backend.block_record_ids(run_id, key)
         if len(ids) > MAX_BLOCK:
             logger.warning("block %r has %d members > %d — skipped",

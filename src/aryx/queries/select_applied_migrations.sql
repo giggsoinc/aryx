@@ -1,0 +1,1 @@
+SELECT filename FROM aryx_schema_migration

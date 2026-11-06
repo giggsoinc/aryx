@@ -22,6 +22,7 @@ from aryx.pipeline.orchestrate import run_pipeline
 from aryx.pipeline.schema_agent import discover_mappings
 from aryx.resolution.field_shape import resolve_match_keys
 from aryx.store.job_store import JobStore
+from aryx.job_cancel import run_cancellable
 from aryx.store.migrate import apply_migrations
 
 logger = logging.getLogger(__name__)
@@ -132,7 +133,9 @@ def connect_router() -> APIRouter:
             jobs.create(job_id, "rdb", f"{len(req.tables)} table(s)", req.workspace_id)
         finally:
             jobs.close()
-        background_tasks.add_task(_run_multi, url, req.tables, req.edges, job_id, req.workspace_id)
+        background_tasks.add_task(run_cancellable, _run_multi, settings.rdb_dsn, job_id,
+                                  req.workspace_id, url, req.tables, req.edges, job_id,
+                                  req.workspace_id)
         return {"status": "queued", "job_id": job_id,
                 "tables": [t["table"] for t in req.tables]}
 

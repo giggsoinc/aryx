@@ -19,7 +19,7 @@
 set -uo pipefail
 
 cd "$(dirname "$0")/.."
-export PYTHONPATH="${PYTHONPATH:-src}"
+export PYTHONPATH="${PYTHONPATH:-src:.}"
 
 # Per-module wall clock. A test CAN hang rather than fail — an auth guard
 # that stops rejecting lets a TestClient open a real SSE stream and block
