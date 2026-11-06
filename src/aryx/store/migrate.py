@@ -5,7 +5,6 @@ import logging
 from pathlib import Path
 
 import psycopg
-from psycopg.errors import DuplicateColumn, DuplicateObject, DuplicateTable
 
 from aryx.queries import load
 
@@ -14,8 +13,10 @@ logger = logging.getLogger(__name__)
 _MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 _LOCK_KEY = 0x41525958  # "ARYX" — advisory lock id serialising migrators
 _applied_dsns: set[str] = set()  # DSNs fully migrated by this process
-# Errors meaning "this change already exists" — e.g. 0027's ADD CONSTRAINT.
-_ALREADY_APPLIED = (DuplicateColumn, DuplicateObject, DuplicateTable)
+# SQLSTATEs meaning "this change already exists" (duplicate column / object /
+# table) — e.g. 0027's ADD CONSTRAINT. Matched by code, not by importing
+# psycopg.errors, because many unit tests replace `psycopg` with a mock.
+_ALREADY_APPLIED_SQLSTATES = frozenset({"42701", "42710", "42P07"})
 
 
 def _split_statements(sql: str) -> list[str]:
@@ -102,13 +103,14 @@ def apply_migrations(dsn: str) -> None:
                     for statement in statements:
                         try:
                             cur.execute(statement)  # type: ignore[arg-type]
-                        except _ALREADY_APPLIED as exc:
-                            # "already exists": the change is already in place
-                            # (these files were re-run on every call before
-                            # tracking), so the statement counts as applied.
-                            logger.info("migration statement already applied file=%s error=%s",
-                                        path.name, exc)
                         except psycopg.Error as exc:
+                            if getattr(exc, "sqlstate", None) in _ALREADY_APPLIED_SQLSTATES:
+                                # "already exists": the change is already in
+                                # place (these files were re-run on every call
+                                # before tracking), so it counts as applied.
+                                logger.info("migration statement already applied "
+                                            "file=%s error=%s", path.name, exc)
+                                continue
                             # An optional/unavailable feature (e.g. a missing
                             # extension) must not block unrelated later migrations.
                             failed += 1

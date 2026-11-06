@@ -126,9 +126,11 @@ def test_a_file_with_a_failing_statement_is_not_recorded() -> None:
 
 def test_already_exists_errors_count_as_applied() -> None:
     """0027's ADD CONSTRAINT fails with 'already exists' — that is not a failure."""
-    from psycopg.errors import DuplicateTable
+    class _DuplicateTable(migrate.psycopg.Error):
+        sqlstate = "42P07"  # what Postgres reports for "relation already exists"
+
     _Conn.fail_on = "CREATE TABLE IF NOT EXISTS aryx_workspace ("
-    _Conn.fail_exc = DuplicateTable
+    _Conn.fail_exc = _DuplicateTable
     migrate.apply_migrations("dsn-g")
     assert "0009_workspaces.sql" in _Conn.recorded
     assert "dsn-g" in migrate._applied_dsns  # fully migrated: later calls are free
