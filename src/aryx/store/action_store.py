@@ -7,7 +7,7 @@ import json
 import logging
 from typing import Any
 
-from psycopg.types.json import Json
+from psycopg.types.json import Json, Jsonb
 
 from aryx.queries import load
 from aryx.store.pool import get_pool
@@ -122,7 +122,7 @@ class ActionStore:
         with self._pool.connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(load("update_entity_attributes"),
-                            (Json({key: value}, dumps=_dumps),
+                            (Jsonb({key: value}, dumps=_dumps),
                              entity_id, self._ws))
 
     def find_entity(self, ontology_type: str, name: str) -> int | None:

@@ -105,8 +105,11 @@ class WorkspaceStore(WorkspaceUnderstandingMixin):
                 self._conn.rollback()
         stmts = load("purge_workspace_data")
         for stmt in stmts.split(";"):
-            stmt = stmt.strip()
-            if stmt and not stmt.startswith("--"):
+            # Drop comment lines first: the file opens with a comment header,
+            # so the first DELETE would otherwise be skipped as a "comment".
+            stmt = "\n".join(ln for ln in stmt.splitlines()
+                             if not ln.lstrip().startswith("--")).strip()
+            if stmt:
                 self._conn.execute(stmt, {"wid": wid})
         with self._conn.cursor() as cur:
             cur.execute(load("delete_profiles_by_workspace"), (wid,))

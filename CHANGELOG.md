@@ -38,11 +38,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **DEC-004 violation:** dimension values were deduplicated in alphabetical order before landing, making the default `first_non_empty` survivorship strategy depend on the alphabet instead of the source file's row order. Now preserves first-seen order.
 - **Wrong entity display label.** `explore.display_name()` had no entry for `*_name`-suffixed columns (e.g. `employee_name`), so it fell back to "first short string in the record" — coincidentally picking an unrelated field like `manager` on some datasets. Added a pattern-based middle tier before that fallback.
 - Raw exceptions (a JSON parse failure, a stale "already decided" 404) no longer leak to the reviewer as technical text — replaced with clean messages, and stale cards are dropped quietly instead of showing a persistent error banner.
+- **`POST /admin/workspaces/{id}/purge` works again.** `purge_workspace_data.sql` selected `aryx_run.id` and `aryx_job.id`, but those tables are keyed `run_id` and `job_id`, so the endpoint always failed; and `purge_data` skipped the file's first DELETE (`aryx_action_execution`) because that chunk began with a comment header. Both fixed.
+- **`ActionStore.set_attribute` now passes `Jsonb`.** It passed `Json` to `attributes || %s`, which Postgres rejects (`jsonb || json`). Regression tests: `tests/e2e/test_purge_and_set_attribute.py`.
 
 ### Known issue (not yet fixed)
 
-- **`POST /admin/workspaces/{id}/purge` always fails.** `purge_workspace_data.sql` selects `aryx_run.id` and `aryx_job.id`, but those tables are keyed `run_id` and `job_id`; its first statement is also skipped because `purge_data` drops any chunk that starts with a comment. Found while adding the inferred tables to that file; left alone.
-- **`ActionStore.set_attribute` passes `Json` where `Jsonb` is needed** for `attributes || %s`, which Postgres rejects (`jsonb || json`); the adjudication merge, which passes `Jsonb`, is fine. Mocked tests never hit it.
 - **Blocking recall gap:** `MultiKeyBlocker`'s token-set key requires the *entire* combined multi-token string to match rather than blocking on individual shared tokens, so two genuine near-duplicates (e.g. "Daniel Kim" / "Dan Kim") can share zero blocking keys and never even reach scoring. Root-caused; fix location identified (`resolution/blocking.py::_keys_for`), not yet implemented.
 
 ## [1.9.0] — 2026-08-20
