@@ -1,6 +1,7 @@
-# Aryx local stack — dev only. RDB is the source of truth; FalkorDB is the
-# rebuildable graph projection. Production orchestrator (ECS/EKS/OCI) is
-# decided at rollout — these containers are 12-factor and portable.
+# Aryx local stack — dev only. Postgres is the single data store: entities,
+# relationships and the knowledge graph are all read from it. Production
+# orchestrator (ECS/EKS/OCI) is decided at rollout — these containers are
+# 12-factor and portable.
 services:
   postgres:
     image: pgvector/pgvector:pg16
@@ -20,13 +21,6 @@ services:
       timeout: 5s
       retries: 5
 
-  falkordb:
-    image: falkordb/falkordb:latest
-    ports:
-      - "6379:6379"
-    volumes:
-      - graphdata:/data
-
   worker:
     # Published to Docker Hub: https://hub.docker.com/r/giggsodocker/aryx-lite
     image: ${ARYX_IMAGE:-giggsodocker/aryx-lite:1.9.0}
@@ -35,10 +29,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      falkordb:
-        condition: service_started
 
-  # Read-only HTTP API over the FalkorDB projection (Increment 6). Reuses the
+  # Read-only HTTP API over the knowledge graph (Increment 6). Reuses the
   # worker image, overriding the command to serve uvicorn. Bound to all
   # interfaces so a published port is reachable; restrict exposure at the
   # security-group / firewall layer.
@@ -99,8 +91,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      falkordb:
-        condition: service_started
       ollama:
         condition: service_started
     restart: unless-stopped
@@ -132,8 +122,6 @@ services:
     ports:
       - "8765:8765"
     depends_on:
-      falkordb:
-        condition: service_started
       api:
         condition: service_healthy
     restart: unless-stopped
@@ -171,6 +159,5 @@ networks:
 
 volumes:
   pgdata:
-  graphdata:
   ollama_models:
   dataset_blobs:

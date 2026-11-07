@@ -19,11 +19,9 @@ def _run(entities, member_landed_ids=None, **kwargs):
 
     with patch("aryx.pipeline.derive_entities.EntityStore", return_value=estore), \
          patch("aryx.pipeline.derive_entities.OntologyStore", return_value=ostore), \
-         patch("aryx.pipeline.derive_entities.FalkorStore"), \
-         patch("aryx.pipeline.derive_entities.project_graph",
-               return_value={"entities": 0, "relationships": 0}), \
-         patch("aryx.pipeline.derive_entities._build_type_ancestors", return_value={}):
-        result = derive_entities_by_column("dsn", "graph_url", 29, **kwargs)
+         patch("aryx.pipeline.derive_entities.after_graph_change",
+               return_value={"entities": 0, "relationships": 0}):
+        result = derive_entities_by_column("dsn", 29, **kwargs)
     return result, estore, ostore
 
 

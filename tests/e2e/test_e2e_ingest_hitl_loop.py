@@ -1,5 +1,5 @@
 """Chain 5: ingest_file -> job completes -> entities_preview reflects it ->
-ingest_questions/ingest_answer respond cleanly. Real Postgres + FalkorDB.
+ingest_questions/ingest_answer respond cleanly. Real Postgres.
 
 Runs against a REAL LLM (no stub): ingest_file goes over HTTP to the live
 api container's _run_files, which calls a real LLM for entity extraction

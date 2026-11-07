@@ -114,7 +114,7 @@ def data_router() -> APIRouter:
                                       link.target_type, link.target_attr, link.name)
                 per_link.append({"name": link.name, "created": n})
                 created += n
-            projected = _reproject(req.workspace_id, store) if req.reproject else None
+            projected = _reproject(req.workspace_id) if req.reproject else None
             return {"cleared": cleared, "created": created,
                     "per_link": per_link, "projected": projected}
         except Exception as exc:  # noqa: BLE001
@@ -124,11 +124,8 @@ def data_router() -> APIRouter:
     return router
 
 
-def _reproject(workspace_id: int, store: EntityStore) -> dict:
-    """Rebuild the FalkorDB projection so the graph reflects new edges."""
-    from aryx.graph.falkor_store import FalkorStore
-    from aryx.naming import ws_graph
-    from aryx.project import project_graph
+def _reproject(workspace_id: int) -> dict:
+    """Clear derived graph output after relationships changed."""
+    from aryx.graph.changes import after_graph_change
 
-    falkor = FalkorStore(get_settings().graph_url, ws_graph(workspace_id))
-    return project_graph(store, falkor, workspace_id=workspace_id)
+    return after_graph_change(get_settings().rdb_dsn, workspace_id)

@@ -17,7 +17,7 @@ function Dot({ ok }: { ok: boolean | undefined }) {
 }
 
 /** Physical storage truth — the aryx_stat concept in the product. Shows what
- *  is ACTUALLY stored in Postgres and projected into FalkorDB right now,
+ *  is ACTUALLY stored in Postgres right now (the graph is read live from it),
  *  straight from the stores. If a load "succeeded" but these are zero, the
  *  data did not land — no guessing. */
 export function SystemStatus({ refreshKey = 0 }: { refreshKey?: number }) {
@@ -43,10 +43,6 @@ export function SystemStatus({ refreshKey = 0 }: { refreshKey?: number }) {
     const t = setInterval(refresh, 10000);
     return () => clearInterval(t);
   }, [refresh]);
-
-  const graphByWs = new Map(
-    (status?.falkordb.graphs ?? []).map((g) => [g.workspace_id, g]),
-  );
 
   return (
     <div className="border-t border-navy-100 px-4 py-3">
@@ -77,16 +73,13 @@ export function SystemStatus({ refreshKey = 0 }: { refreshKey?: number }) {
               <Dot ok={status.postgres.ok} />
               Postgres{status.postgres.db_size ? ` · ${status.postgres.db_size}` : ""}
             </span>
-            <span className="flex items-center gap-1.5">
-              <Dot ok={status.falkordb.ok} /> FalkorDB
-            </span>
             <span className="flex items-center gap-1.5" title={status.llm.detail}>
               <Dot ok={status.llm.ok} /> {status.llm.provider || "LLM"}
               {!status.llm.ok && <span className="text-amber-700"> — {status.llm.detail}</span>}
             </span>
           </div>
 
-          {/* Per-workspace physical counts: RDB truth vs graph projection */}
+          {/* Per-workspace physical counts straight from Postgres */}
           {status.postgres.workspaces.length > 0 && (
             <table className="w-full text-left">
               <thead>
@@ -94,25 +87,18 @@ export function SystemStatus({ refreshKey = 0 }: { refreshKey?: number }) {
                   <th className="py-0.5 pr-2 font-semibold">Workspace</th>
                   <th className="py-0.5 pr-2 font-semibold">Records</th>
                   <th className="py-0.5 pr-2 font-semibold">Entities</th>
-                  <th className="py-0.5 pr-2 font-semibold">Links</th>
-                  <th className="py-0.5 font-semibold">Graph</th>
+                  <th className="py-0.5 font-semibold">Links</th>
                 </tr>
               </thead>
               <tbody>
-                {status.postgres.workspaces.map((w) => {
-                  const g = graphByWs.get(w.id);
-                  return (
-                    <tr key={w.id} className="text-navy-800">
-                      <td className="max-w-[110px] truncate py-0.5 pr-2" title={w.name}>{w.name}</td>
-                      <td className="py-0.5 pr-2">{w.landed_records.toLocaleString()}</td>
-                      <td className="py-0.5 pr-2">{w.entities.toLocaleString()}</td>
-                      <td className="py-0.5 pr-2">{w.relationships.toLocaleString()}</td>
-                      <td className="py-0.5">
-                        {g ? `${g.nodes.toLocaleString()}n · ${g.edges.toLocaleString()}e` : "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {status.postgres.workspaces.map((w) => (
+                  <tr key={w.id} className="text-navy-800">
+                    <td className="max-w-[110px] truncate py-0.5 pr-2" title={w.name}>{w.name}</td>
+                    <td className="py-0.5 pr-2">{w.landed_records.toLocaleString()}</td>
+                    <td className="py-0.5 pr-2">{w.entities.toLocaleString()}</td>
+                    <td className="py-0.5">{w.relationships.toLocaleString()}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}

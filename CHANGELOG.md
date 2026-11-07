@@ -5,8 +5,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Removed
+
+- **FalkorDB.** The knowledge graph is now read straight from Postgres. Removed the `falkordb` service, volume, dependency and CI service; `graph/falkor_store.py`, `graph/reader.py`, `project.py` (full, incremental and auto projection), `store/projection_store.py`, the `graph_url` setting and parameter (a leftover `ARYX_GRAPH_URL` is ignored), `naming.ws_graph`, `GraphStorePort` / `Container.graph_store()`, and the graph-only demo scripts `seed_support.py` and `patch_ticket_names.py`.
+- Migration 0048 drops `aryx_projection_state`, `aryx_projected_entity` and `aryx_entity.updated_at` (only the projector used them). Migration 0022 no longer creates them, because `apply_migrations` re-runs every file on every call and would otherwise undo the cleanup.
+- **Breaking:** `POST /graph/cypher` returns 410; `GET /admin/system/status` no longer has a `falkordb` key; the pipeline functions no longer take `graph_url`; the graph reader port is constructed as `cls(rdb_dsn, workspace_id)`, so custom `ARYX_ADAPTER_GRAPH_READER` adapters must match.
+
+### Changed
+
+- The graph is always current: no projection step, no lag. `PostgresGraphReader` reproduces the old reader result for result (checked against a golden file captured from live FalkorDB before removal): duplicate edges collapse, edges to missing entities are ignored, an inbound shortest path is listed in edge direction, and equal-length paths prefer the outbound one.
+- Name search uses `aryx_display_name()` with a `pg_trgm` index (a no-match search on 100k entities went from 1.8 s to under 1 ms); shortest path is a bidirectional search (6-hop p95 on 100k entities / 1M edges: 2.45 s to 0.15 s).
+- `/admin/observability` graph counts are exact (they were capped at 500).
+- The API applies migrations at startup, and `apply_migrations` now takes an advisory lock so concurrent callers never run the same DDL at once.
+- `seed_demo.py` creates the demo companies and relationships in Postgres and is safe to re-run.
+
 ### Added
 
+- **Inferred edges and labels persist in Postgres.** `aryx_inferred_relationship` and `aryx_inferred_label` (migration 0047) hold the rule engine's output apart from asserted data; readers flag them (`inferred: true`, `inferred_label`). Output is rebuilt by `POST /rules/evaluate` and cleared whenever entities or edges change.
 - **Adjudication review UI** — a Data-page panel (`AdjudicationReview.tsx`) to fetch pending entity-merge pairs, see full readable context on both sides, and approve/reject; approving merges immediately and re-projects the graph live. New `GET /adjudication/{id}/preview` endpoint.
 - **DEC-010: LLM-confidence auto-reject.** Inside the adjudicate band, a rescore below `ARYX_ER_AUTO_REJECT` (default 0.05) auto-rejects instead of queuing an obviously-wrong pair for human review; new `auto_reject` status, excluded from the human/LLM agreement stat.
 - **DEC-011: transactional-type resolution bypass.** A type whose only proposed match key is a genuine per-row identifier (`field_shape.is_row_identifier` — every value distinct and code-shaped, e.g. `order_id`, `ticket_id`) skips blocking/scoring/adjudication entirely; `resolve_entities.materialize_one_per_record` creates one entity per landed record. Fixes a real incident where partial-field similarity (same company + status, different product) got two genuinely distinct Orders merged.
@@ -14,6 +29,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The reasoning engine never worked.** It called `FalkorStore.run()`, which never existed; entity-scoped rules crashed earlier on tuple-vs-dict rows; rule edges matched a property nodes did not have and were written under a label no reader returned; and axiom closures could relabel an asserted edge as inferred. All four are gone with the rewrite onto SQL.
+- Factory reset left graphs behind for workspaces above id 3.
 - **Survivorship policy now actually applies to adjudication-approved merges.** `AdjudicationStore.merge_entities_of` previously kept the survivor's pre-existing attribute values unconditionally; it now recomputes the golden record via the workspace's real `SurvivorshipPolicy` (the same engine full ingest uses) and logs conflicts to `aryx_attribute_conflict`.
 - **Duplicate pending-review rows.** Two record-level pairs that collapse to the same two entities (e.g. because a third pair auto-merged them mid-run) no longer both stay visible in the pending list or both need deciding — `AdjudicationStore.page()`/`pending_duplicates_of` collapse and auto-close them.
 - **Orphaned adjudication rows survived workspace deletion.** `WorkspaceStore.delete()` never touched `aryx_adjudication` (it isn't one of the partitioned tables); deleting a workspace now also deletes its adjudication rows, so a later workspace reusing the same numeric id doesn't inherit ghost "pending" cards pointing at nothing.
@@ -24,6 +41,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Known issue (not yet fixed)
 
+- **`POST /admin/workspaces/{id}/purge` always fails.** `purge_workspace_data.sql` selects `aryx_run.id` and `aryx_job.id`, but those tables are keyed `run_id` and `job_id`; its first statement is also skipped because `purge_data` drops any chunk that starts with a comment. Found while adding the inferred tables to that file; left alone.
+- **`ActionStore.set_attribute` passes `Json` where `Jsonb` is needed** for `attributes || %s`, which Postgres rejects (`jsonb || json`); the adjudication merge, which passes `Jsonb`, is fine. Mocked tests never hit it.
 - **Blocking recall gap:** `MultiKeyBlocker`'s token-set key requires the *entire* combined multi-token string to match rather than blocking on individual shared tokens, so two genuine near-duplicates (e.g. "Daniel Kim" / "Dan Kim") can share zero blocking keys and never even reach scoring. Root-caused; fix location identified (`resolution/blocking.py::_keys_for`), not yet implemented.
 
 ## [1.9.0] — 2026-08-20

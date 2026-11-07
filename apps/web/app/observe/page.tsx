@@ -15,7 +15,7 @@ type Job = Awaited<ReturnType<typeof api.listJobs>>[number];
 const TERMINAL = new Set(["complete", "failed", "cancelled"]);
 
 /** Observe — full-page ops truth: every job, every workspace's counts, and
- *  what is physically stored in Postgres + FalkorDB right now. */
+ *  what is physically stored in Postgres right now. */
 export default function ObservePage() {
   const { workspaceId, setWorkspaceId } = useWorkspace();
   const [jobs, setJobs] = useState<Job[]>([]);

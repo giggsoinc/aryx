@@ -16,7 +16,7 @@ tagged. The reasoning layer answers three questions:
 3. **Resolution** — which records across systems are the *same real thing*?
    (Acme-in-Redshift == ACME-in-Oracle == "Acme" in a Drive contract.)
 
-The output is a knowledge graph (FalkorDB): types = ontology, nodes = resolved
+The output is a knowledge graph (read live from Postgres): types = ontology, nodes = resolved
 entities, edges = relationships, every node/edge traceable to its source rows.
 
 ## Myth to kill: "ML agents"
@@ -124,10 +124,10 @@ LLM is used only for fuzzy/implied relationships.
 - `aryx_entity_member` — entity <-> landed_record (cluster membership + provenance)
 - `aryx_relationship` — entity -> entity edges
 
-## Part 5 — FalkorDB projection (rebuildable from the RDB)
+## Part 5 — Graph (read live from the RDB)
 
 Type labels = ontology; nodes = resolved entities; edges = relationships plus
-provenance threads back to source rows. Wipe-and-rebuild from Postgres anytime.
+provenance threads back to source rows. Nothing to rebuild: it is read straight from Postgres.
 
 ## Tier / cost map (rationing made concrete)
 
@@ -154,7 +154,7 @@ Too big and too important for one shot; each is independently testable:
 - **5a** — Ontology mapping agent + storage + HITL gate
 - **5b** — Entity resolution funnel (normalize -> block -> score -> adjudicate -> cluster)
 - **5c** — Relationship inference
-- **5d** — FalkorDB projection
+- **5d** — Graph projection (since replaced by reading Postgres directly)
 
 5a is the right first bite: it is the smaller agent, and resolution (5b) needs
 canonical types to resolve into.

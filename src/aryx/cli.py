@@ -39,7 +39,7 @@ def _run(args: argparse.Namespace) -> None:
         connector=connector, dsn=settings.rdb_dsn, system=args.system,
         dataset=args.table, ontology_type=args.type,
         match_keys=keys,
-        graph_url=settings.graph_url, broker=default_broker(),
+        broker=default_broker(),
         tag=args.tag, relate=args.relate,
         skip_resolution=transactional,
     )
@@ -76,7 +76,7 @@ def _docs(args: argparse.Namespace) -> None:
         connector=connector, dsn=settings.rdb_dsn, system=args.system,
         dataset="documents", ontology_type=args.type,
         match_keys=[k.strip() for k in args.match_keys.split(",") if k.strip()],
-        graph_url=settings.graph_url, broker=broker,
+        broker=broker,
         tag=args.tag, relate=args.relate,
     )
     chunk_store.close()

@@ -1,4 +1,4 @@
-"""Shared fixtures for cross-component (e2e) tests — real Postgres + FalkorDB,
+"""Shared fixtures for cross-component (e2e) tests — real Postgres,
 no mocked stores. See docs/plan_dashboard_mcp_tools.md's sibling test plan
 for why these exist: unit tests mock every store, so nothing today asserts a
 chain survives start-to-finish against real infra.
@@ -22,14 +22,12 @@ os.environ.setdefault("ARYX_API_URL", os.environ.get(
 
 _DSN = os.environ.get("ARYX_TEST_RDB_DSN",
                       "postgresql://aryx:aryx@localhost:55432/aryx")
-_GRAPH_URL = os.environ.get("ARYX_TEST_GRAPH_URL", "redis://localhost:6379")
 
 # aryx.config.get_settings() is process-wide (@lru_cache) and reads these
 # from the environment — any code called in-process (e.g. aryx.mcp.act,
-# which never goes over HTTP) must see the same DSN/graph_url as the
+# which never goes over HTTP) must see the same DSN as the
 # fixtures below, not Settings' in-container-port defaults.
 os.environ.setdefault("ARYX_RDB_DSN", _DSN)
-os.environ.setdefault("ARYX_GRAPH_URL", _GRAPH_URL)
 # Settings.blob_dir defaults to /data/aryx-blobs (a container-only path) —
 # on the host running these tests, that's a read-only root. Use a real
 # writable temp dir instead.
@@ -43,12 +41,6 @@ def e2e_dsn() -> str:
     from aryx.store.migrate import apply_migrations
     apply_migrations(_DSN)
     return _DSN
-
-
-@pytest.fixture(scope="session")
-def e2e_graph_url() -> str:
-    """Real FalkorDB connection URL."""
-    return _GRAPH_URL
 
 
 @pytest.fixture

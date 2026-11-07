@@ -14,17 +14,17 @@ from __future__ import annotations
 from typing import Any
 
 from aryx.ask.evidence import RetrievedEntity
-from aryx.graph.reader import GraphReader
+from aryx.ports.protocols import GraphReaderPort
 
 __all__ = ["RetrievedEntity", "all_types", "gather", "render_context", "retrieve"]
 
 
-def all_types(reader: GraphReader) -> list[str]:
+def all_types(reader: GraphReaderPort) -> list[str]:
     """Distinct ontology types present — helps the parser pick search terms."""
     return sorted({e["type"] for e in reader.find_entities(limit=500)})
 
 
-def _lookup(reader: GraphReader, term: str) -> list[dict]:
+def _lookup(reader: GraphReaderPort, term: str) -> list[dict]:
     """Find entities for a term.
 
     Tries in order: (1) numeric id lookup ('378' -> entity id=378), (2) substring
@@ -47,7 +47,7 @@ def _lookup(reader: GraphReader, term: str) -> list[dict]:
     return hits
 
 
-def gather(reader: GraphReader, terms: list[str]) -> tuple[list[RetrievedEntity], list[str]]:
+def gather(reader: GraphReaderPort, terms: list[str]) -> tuple[list[RetrievedEntity], list[str]]:
     """Look up terms, expand one hop, gather provenance — as structured records.
 
     Returns the deduplicated entities and the exact graph calls made.
@@ -91,7 +91,7 @@ def render_context(entities: list[RetrievedEntity]) -> str:
     return "\n\n".join(blocks) if blocks else "No matching entities in the graph."
 
 
-def retrieve(reader: GraphReader, terms: list[str]) -> tuple[str, list[str]]:
+def retrieve(reader: GraphReaderPort, terms: list[str]) -> tuple[str, list[str]]:
     """Back-compat wrapper: structured gather projected to (context, calls)."""
     entities, calls = gather(reader, terms)
     return render_context(entities), calls

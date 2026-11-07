@@ -27,7 +27,7 @@ If you expose Aryx beyond localhost:
 
 - Set `ARYX_API_AUTH=required` and issue API keys
 - Disable open MCP auth (`ARYX_MCP_AUTH_OPTIONAL=0`) and mint MCP tokens
-- Do not publish Postgres/FalkorDB ports to the public internet
+- Do not publish the Postgres port to the public internet
 - Change default database passwords from compose samples
 
 See project docs for deployment guidance.

@@ -59,7 +59,13 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
-    """Close the shared connection pool on shutdown; nothing needed on startup."""
+    """Apply migrations on startup; close the shared connection pool on shutdown.
+
+    The API no longer waits for the worker to migrate: graph reads depend on
+    objects from migration 0047, and compose does not order the two services.
+    """
+    from aryx.store.migrate import apply_migrations
+    apply_migrations(get_settings().rdb_dsn)
     yield
     from aryx.store.pool import close_all
     close_all()

@@ -1,12 +1,12 @@
 """The six capability-port contracts (typing.Protocol).
 
-These are *structural* interfaces: today's concrete classes (FalkorStore,
-GraphReader, the broker LLM dispatch, the Postgres stores) already satisfy them
+These are *structural* interfaces: today's concrete classes (PostgresGraphReader,
+the broker LLM dispatch, the Postgres stores) already satisfy them
 by duck typing, so the default Lite adapters need no wrapper. A future Oracle /
 Fabric / Vertex adapter just has to match the same shape to be swapped in via
 config — the call-sites never change.
 
-Phase 0 wires GraphReaderPort / GraphStorePort end-to-end. The other four are
+Phase 0 wires GraphReaderPort end-to-end. The other four are
 defined here as the forward contract and are migrated incrementally (see the
 attack plan); their signatures mirror what callers use today so the migration
 is mechanical, not a redesign.
@@ -18,7 +18,7 @@ from typing import Any, Protocol, runtime_checkable
 
 @runtime_checkable
 class GraphReaderPort(Protocol):
-    """Read side of the knowledge-graph projection."""
+    """Read side of the knowledge graph."""
 
     def get_entity(self, entity_id: int) -> dict[str, Any] | None: ...
     def find_entities(self, ontology_type: str | None = None,
@@ -29,20 +29,6 @@ class GraphReaderPort(Protocol):
     def shortest_path(self, src: int, dst: int, max_hops: int = 6) -> list[dict[str, Any]]: ...
     def count_by_relationship(self, source_type: str, relationship: str,
                               target_type: str, direction: str = "out") -> dict[str, int]: ...
-
-
-@runtime_checkable
-class GraphStorePort(Protocol):
-    """Write side of the knowledge-graph projection."""
-
-    def clear(self) -> None: ...
-    def add_entity(self, entity_id: int, ontology_type: str,
-                   attributes: dict[str, Any], labels: list[str] | None = None,
-                   iri: str | None = None) -> None: ...
-    def add_provenance(self, entity_id: int, system: str, dataset: str,
-                       record_id: str) -> None: ...
-    def remove_entity(self, entity_id: int) -> None: ...
-    def add_relationship(self, source_id: int, target_id: int, name: str) -> None: ...
 
 
 @runtime_checkable

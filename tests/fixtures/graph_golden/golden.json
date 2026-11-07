@@ -1,0 +1,7050 @@
+{
+ "cases": {
+  "all_relationships": [
+   {
+    "name": "about",
+    "source": 19,
+    "target": 14
+   },
+   {
+    "name": "loop",
+    "source": 27,
+    "target": 28
+   },
+   {
+    "name": "loop",
+    "source": 28,
+    "target": 29
+   },
+   {
+    "name": "loop",
+    "source": 29,
+    "target": 27
+   },
+   {
+    "name": "mentions",
+    "source": 15,
+    "target": 0
+   },
+   {
+    "name": "next",
+    "source": 21,
+    "target": 22
+   },
+   {
+    "name": "next",
+    "source": 22,
+    "target": 23
+   },
+   {
+    "name": "next",
+    "source": 23,
+    "target": 24
+   },
+   {
+    "name": "next",
+    "source": 24,
+    "target": 25
+   },
+   {
+    "name": "next",
+    "source": 25,
+    "target": 26
+   },
+   {
+    "name": "raised_by",
+    "source": 15,
+    "target": 0
+   },
+   {
+    "name": "raised_by",
+    "source": 16,
+    "target": 0
+   },
+   {
+    "name": "raised_by",
+    "source": 17,
+    "target": 1
+   },
+   {
+    "name": "raised_by",
+    "source": 18,
+    "target": 2
+   },
+   {
+    "name": "ring",
+    "source": 30,
+    "target": 31
+   },
+   {
+    "name": "ring",
+    "source": 31,
+    "target": 32
+   },
+   {
+    "name": "ring",
+    "source": 32,
+    "target": 33
+   },
+   {
+    "name": "ring",
+    "source": 33,
+    "target": 30
+   },
+   {
+    "name": "same_group",
+    "source": 0,
+    "target": 1
+   },
+   {
+    "name": "self",
+    "source": 34,
+    "target": 34
+   }
+  ],
+  "ask": {
+   "Acme": {
+    "calls": [
+     "get_neighbors(0)",
+     "get_neighbors(1)",
+     "get_provenance(0)",
+     "get_provenance(1)",
+     "search_entities(name='Acme')"
+    ],
+    "context_lines": [
+     "  -> same_group Acme Corp [Customer]",
+     "  <- mentions T-1 [Ticket]",
+     "  <- raised_by T-1 [Ticket]",
+     "  <- raised_by T-2 [Ticket]",
+     "  <- raised_by T-3 [Ticket]",
+     "  <- same_group Acme Corp [Customer]",
+     "  source: crm.customers",
+     "  source: erp.accounts, crm.customers",
+     "",
+     "Acme Corp [Customer] (id 0)",
+     "Acme Corp [Customer] (id 1)"
+    ],
+    "entities": [
+     {
+      "id": 0,
+      "name": "Acme Corp",
+      "neighbors": [
+       {
+        "direction": "in",
+        "id": 15,
+        "name": "T-1",
+        "relationship": "mentions",
+        "type": "Ticket"
+       },
+       {
+        "direction": "in",
+        "id": 15,
+        "name": "T-1",
+        "relationship": "raised_by",
+        "type": "Ticket"
+       },
+       {
+        "direction": "in",
+        "id": 16,
+        "name": "T-2",
+        "relationship": "raised_by",
+        "type": "Ticket"
+       },
+       {
+        "direction": "out",
+        "id": 1,
+        "name": "Acme Corp",
+        "relationship": "same_group",
+        "type": "Customer"
+       }
+      ],
+      "sources": [
+       {
+        "dataset": "accounts",
+        "record_id": "a-1",
+        "system": "erp"
+       },
+       {
+        "dataset": "customers",
+        "record_id": "c-1",
+        "system": "crm"
+       }
+      ],
+      "type": "Customer"
+     },
+     {
+      "id": 1,
+      "name": "Acme Corp",
+      "neighbors": [
+       {
+        "direction": "in",
+        "id": 0,
+        "name": "Acme Corp",
+        "relationship": "same_group",
+        "type": "Customer"
+       },
+       {
+        "direction": "in",
+        "id": 17,
+        "name": "T-3",
+        "relationship": "raised_by",
+        "type": "Ticket"
+       }
+      ],
+      "sources": [
+       {
+        "dataset": "customers",
+        "record_id": "c-2",
+        "system": "crm"
+       }
+      ],
+      "type": "Customer"
+     }
+    ]
+   },
+   "Acme|Widget": {
+    "calls": [
+     "get_neighbors(0)",
+     "get_neighbors(1)",
+     "get_neighbors(14)",
+     "get_provenance(0)",
+     "get_provenance(1)",
+     "get_provenance(14)",
+     "search_entities(name='Acme')",
+     "search_entities(name='Widget')"
+    ],
+    "context_lines": [
+     "  -> same_group Acme Corp [Customer]",
+     "  <- about T-5 [Ticket]",
+     "  <- mentions T-1 [Ticket]",
+     "  <- raised_by T-1 [Ticket]",
+     "  <- raised_by T-2 [Ticket]",
+     "  <- raised_by T-3 [Ticket]",
+     "  <- same_group Acme Corp [Customer]",
+     "  source: crm.customers",
+     "  source: erp.accounts, crm.customers",
+     "",
+     "",
+     "Acme Corp [Customer] (id 0)",
+     "Acme Corp [Customer] (id 1)",
+     "Widget [Product] (id 14)"
+    ],
+    "entities": [
+     {
+      "id": 0,
+      "name": "Acme Corp",
+      "neighbors": [
+       {
+        "direction": "in",
+        "id": 15,
+        "name": "T-1",
+        "relationship": "mentions",
+        "type": "Ticket"
+       },
+       {
+        "direction": "in",
+        "id": 15,
+        "name": "T-1",
+        "relationship": "raised_by",
+        "type": "Ticket"
+       },
+       {
+        "direction": "in",
+        "id": 16,
+        "name": "T-2",
+        "relationship": "raised_by",
+        "type": "Ticket"
+       },
+       {
+        "direction": "out",
+        "id": 1,
+        "name": "Acme Corp",
+        "relationship": "same_group",
+        "type": "Customer"
+       }
+      ],
+      "sources": [
+       {
+        "dataset": "accounts",
+        "record_id": "a-1",
+        "system": "erp"
+       },
+       {
+        "dataset": "customers",
+        "record_id": "c-1",
+        "system": "crm"
+       }
+      ],
+      "type": "Customer"
+     },
+     {
+      "id": 1,
+      "name": "Acme Corp",
+      "neighbors": [
+       {
+        "direction": "in",
+        "id": 0,
+        "name": "Acme Corp",
+        "relationship": "same_group",
+        "type": "Customer"
+       },
+       {
+        "direction": "in",
+        "id": 17,
+        "name": "T-3",
+        "relationship": "raised_by",
+        "type": "Ticket"
+       }
+      ],
+      "sources": [
+       {
+        "dataset": "customers",
+        "record_id": "c-2",
+        "system": "crm"
+       }
+      ],
+      "type": "Customer"
+     },
+     {
+      "id": 14,
+      "name": "Widget",
+      "neighbors": [
+       {
+        "direction": "in",
+        "id": 19,
+        "name": "T-5",
+        "relationship": "about",
+        "type": "Ticket"
+       }
+      ],
+      "sources": [],
+      "type": "Product"
+     }
+    ]
+   },
+   "Widget": {
+    "calls": [
+     "get_neighbors(14)",
+     "get_provenance(14)",
+     "search_entities(name='Widget')"
+    ],
+    "context_lines": [
+     "  <- about T-5 [Ticket]",
+     "Widget [Product] (id 14)"
+    ],
+    "entities": [
+     {
+      "id": 14,
+      "name": "Widget",
+      "neighbors": [
+       {
+        "direction": "in",
+        "id": 19,
+        "name": "T-5",
+        "relationship": "about",
+        "type": "Ticket"
+       }
+      ],
+      "sources": [],
+      "type": "Product"
+     }
+    ]
+   },
+   "Zoë": {
+    "calls": [
+     "get_neighbors(2)",
+     "get_provenance(2)",
+     "search_entities(name='Zoë')"
+    ],
+    "context_lines": [
+     "  <- raised_by T-4 [Ticket]",
+     "Zoë Ünïcode 日本 [Customer] (id 2)"
+    ],
+    "entities": [
+     {
+      "id": 2,
+      "name": "Zoë Ünïcode 日本",
+      "neighbors": [
+       {
+        "direction": "in",
+        "id": 18,
+        "name": "T-4",
+        "relationship": "raised_by",
+        "type": "Ticket"
+       }
+      ],
+      "sources": [],
+      "type": "Customer"
+     }
+    ]
+   },
+   "all_types": [
+    "Bulk",
+    "Customer",
+    "Node",
+    "Product",
+    "Ticket"
+   ],
+   "bulk-000": {
+    "calls": [
+     "get_entity(id=0)",
+     "get_neighbors(35)",
+     "get_neighbors(36)",
+     "get_neighbors(37)",
+     "get_neighbors(38)",
+     "get_neighbors(39)",
+     "get_provenance(35)",
+     "get_provenance(36)",
+     "get_provenance(37)",
+     "get_provenance(38)",
+     "get_provenance(39)"
+    ],
+    "context_lines": [
+     "",
+     "",
+     "",
+     "",
+     "bulk-0000 [Bulk] (id 35)",
+     "bulk-0001 [Bulk] (id 36)",
+     "bulk-0002 [Bulk] (id 37)",
+     "bulk-0003 [Bulk] (id 38)",
+     "bulk-0004 [Bulk] (id 39)"
+    ],
+    "entities": [
+     {
+      "id": 35,
+      "name": "bulk-0000",
+      "neighbors": [],
+      "sources": [],
+      "type": "Bulk"
+     },
+     {
+      "id": 36,
+      "name": "bulk-0001",
+      "neighbors": [],
+      "sources": [],
+      "type": "Bulk"
+     },
+     {
+      "id": 37,
+      "name": "bulk-0002",
+      "neighbors": [],
+      "sources": [],
+      "type": "Bulk"
+     },
+     {
+      "id": 38,
+      "name": "bulk-0003",
+      "neighbors": [],
+      "sources": [],
+      "type": "Bulk"
+     },
+     {
+      "id": 39,
+      "name": "bulk-0004",
+      "neighbors": [],
+      "sources": [],
+      "type": "Bulk"
+     }
+    ]
+   },
+   "id-lookup:t3": {
+    "calls": [
+     "get_entity(id=17)",
+     "get_neighbors(17)",
+     "get_provenance(17)"
+    ],
+    "context_lines": [
+     "  -> raised_by Acme Corp [Customer]",
+     "  source: helpdesk.tickets",
+     "T-3 [Ticket] (id 17)"
+    ],
+    "entities": [
+     {
+      "id": 17,
+      "name": "T-3",
+      "neighbors": [
+       {
+        "direction": "out",
+        "id": 1,
+        "name": "Acme Corp",
+        "relationship": "raised_by",
+        "type": "Customer"
+       }
+      ],
+      "sources": [
+       {
+        "dataset": "tickets",
+        "record_id": "h-2",
+        "system": "helpdesk"
+       }
+      ],
+      "type": "Ticket"
+     }
+    ]
+   },
+   "nope": {
+    "calls": [
+     "search_entities(name='nope')"
+    ],
+    "context_lines": [
+     "No matching entities in the graph."
+    ],
+    "entities": []
+   },
+   "real_deal": {
+    "calls": [
+     "get_neighbors(10)",
+     "get_provenance(10)",
+     "search_entities(name='real_deal')"
+    ],
+    "context_lines": [
+     "100% real_deal [Customer] (id 10)"
+    ],
+    "entities": [
+     {
+      "id": 10,
+      "name": "100% real_deal",
+      "neighbors": [],
+      "sources": [],
+      "type": "Customer"
+     }
+    ]
+   }
+  },
+  "count_by_relationship": {
+   "Customer|ghost|Customer|out": {},
+   "Customer|raised_by|Ticket|in": {
+    "T-1": 1,
+    "T-2": 1,
+    "T-3": 1,
+    "T-4": 1
+   },
+   "Node|next|Node|out": {
+    "n2": 1,
+    "n3": 1,
+    "n4": 1,
+    "n5": 1,
+    "n6": 1
+   },
+   "Nope|raised_by|Customer|out": {},
+   "Ticket|mentions|Customer|out": {
+    "Acme Corp": 1
+   },
+   "Ticket|nope|Customer|out": {},
+   "Ticket|raised_by|Customer|in": {},
+   "Ticket|raised_by|Customer|out": {
+    "Acme Corp": 3,
+    "Zoë Ünïcode 日本": 1
+   }
+  },
+  "find_entities": {
+   "all_1000": [
+    {
+     "id": 0,
+     "name": "Acme Corp",
+     "type": "Customer"
+    },
+    {
+     "id": 1,
+     "name": "Acme Corp",
+     "type": "Customer"
+    },
+    {
+     "id": 10,
+     "name": "100% real_deal",
+     "type": "Customer"
+    },
+    {
+     "id": 100,
+     "name": "bulk-0065",
+     "type": "Bulk"
+    },
+    {
+     "id": 101,
+     "name": "bulk-0066",
+     "type": "Bulk"
+    },
+    {
+     "id": 102,
+     "name": "bulk-0067",
+     "type": "Bulk"
+    },
+    {
+     "id": 103,
+     "name": "bulk-0068",
+     "type": "Bulk"
+    },
+    {
+     "id": 104,
+     "name": "bulk-0069",
+     "type": "Bulk"
+    },
+    {
+     "id": 105,
+     "name": "bulk-0070",
+     "type": "Bulk"
+    },
+    {
+     "id": 106,
+     "name": "bulk-0071",
+     "type": "Bulk"
+    },
+    {
+     "id": 107,
+     "name": "bulk-0072",
+     "type": "Bulk"
+    },
+    {
+     "id": 108,
+     "name": "bulk-0073",
+     "type": "Bulk"
+    },
+    {
+     "id": 109,
+     "name": "bulk-0074",
+     "type": "Bulk"
+    },
+    {
+     "id": 11,
+     "name": "Lonely",
+     "type": "Customer"
+    },
+    {
+     "id": 110,
+     "name": "bulk-0075",
+     "type": "Bulk"
+    },
+    {
+     "id": 111,
+     "name": "bulk-0076",
+     "type": "Bulk"
+    },
+    {
+     "id": 112,
+     "name": "bulk-0077",
+     "type": "Bulk"
+    },
+    {
+     "id": 113,
+     "name": "bulk-0078",
+     "type": "Bulk"
+    },
+    {
+     "id": 114,
+     "name": "bulk-0079",
+     "type": "Bulk"
+    },
+    {
+     "id": 115,
+     "name": "bulk-0080",
+     "type": "Bulk"
+    },
+    {
+     "id": 116,
+     "name": "bulk-0081",
+     "type": "Bulk"
+    },
+    {
+     "id": 117,
+     "name": "bulk-0082",
+     "type": "Bulk"
+    },
+    {
+     "id": 118,
+     "name": "bulk-0083",
+     "type": "Bulk"
+    },
+    {
+     "id": 119,
+     "name": "bulk-0084",
+     "type": "Bulk"
+    },
+    {
+     "id": 12,
+     "name": "123",
+     "type": "Product"
+    },
+    {
+     "id": 120,
+     "name": "bulk-0085",
+     "type": "Bulk"
+    },
+    {
+     "id": 121,
+     "name": "bulk-0086",
+     "type": "Bulk"
+    },
+    {
+     "id": 122,
+     "name": "bulk-0087",
+     "type": "Bulk"
+    },
+    {
+     "id": 123,
+     "name": "bulk-0088",
+     "type": "Bulk"
+    },
+    {
+     "id": 124,
+     "name": "bulk-0089",
+     "type": "Bulk"
+    },
+    {
+     "id": 125,
+     "name": "bulk-0090",
+     "type": "Bulk"
+    },
+    {
+     "id": 126,
+     "name": "bulk-0091",
+     "type": "Bulk"
+    },
+    {
+     "id": 127,
+     "name": "bulk-0092",
+     "type": "Bulk"
+    },
+    {
+     "id": 128,
+     "name": "bulk-0093",
+     "type": "Bulk"
+    },
+    {
+     "id": 129,
+     "name": "bulk-0094",
+     "type": "Bulk"
+    },
+    {
+     "id": 13,
+     "name": "1.5",
+     "type": "Product"
+    },
+    {
+     "id": 130,
+     "name": "bulk-0095",
+     "type": "Bulk"
+    },
+    {
+     "id": 131,
+     "name": "bulk-0096",
+     "type": "Bulk"
+    },
+    {
+     "id": 132,
+     "name": "bulk-0097",
+     "type": "Bulk"
+    },
+    {
+     "id": 133,
+     "name": "bulk-0098",
+     "type": "Bulk"
+    },
+    {
+     "id": 134,
+     "name": "bulk-0099",
+     "type": "Bulk"
+    },
+    {
+     "id": 135,
+     "name": "bulk-0100",
+     "type": "Bulk"
+    },
+    {
+     "id": 136,
+     "name": "bulk-0101",
+     "type": "Bulk"
+    },
+    {
+     "id": 137,
+     "name": "bulk-0102",
+     "type": "Bulk"
+    },
+    {
+     "id": 138,
+     "name": "bulk-0103",
+     "type": "Bulk"
+    },
+    {
+     "id": 139,
+     "name": "bulk-0104",
+     "type": "Bulk"
+    },
+    {
+     "id": 14,
+     "name": "Widget",
+     "type": "Product"
+    },
+    {
+     "id": 140,
+     "name": "bulk-0105",
+     "type": "Bulk"
+    },
+    {
+     "id": 141,
+     "name": "bulk-0106",
+     "type": "Bulk"
+    },
+    {
+     "id": 142,
+     "name": "bulk-0107",
+     "type": "Bulk"
+    },
+    {
+     "id": 143,
+     "name": "bulk-0108",
+     "type": "Bulk"
+    },
+    {
+     "id": 144,
+     "name": "bulk-0109",
+     "type": "Bulk"
+    },
+    {
+     "id": 145,
+     "name": "bulk-0110",
+     "type": "Bulk"
+    },
+    {
+     "id": 146,
+     "name": "bulk-0111",
+     "type": "Bulk"
+    },
+    {
+     "id": 147,
+     "name": "bulk-0112",
+     "type": "Bulk"
+    },
+    {
+     "id": 148,
+     "name": "bulk-0113",
+     "type": "Bulk"
+    },
+    {
+     "id": 149,
+     "name": "bulk-0114",
+     "type": "Bulk"
+    },
+    {
+     "id": 15,
+     "name": "T-1",
+     "type": "Ticket"
+    },
+    {
+     "id": 150,
+     "name": "bulk-0115",
+     "type": "Bulk"
+    },
+    {
+     "id": 151,
+     "name": "bulk-0116",
+     "type": "Bulk"
+    },
+    {
+     "id": 152,
+     "name": "bulk-0117",
+     "type": "Bulk"
+    },
+    {
+     "id": 153,
+     "name": "bulk-0118",
+     "type": "Bulk"
+    },
+    {
+     "id": 154,
+     "name": "bulk-0119",
+     "type": "Bulk"
+    },
+    {
+     "id": 155,
+     "name": "bulk-0120",
+     "type": "Bulk"
+    },
+    {
+     "id": 156,
+     "name": "bulk-0121",
+     "type": "Bulk"
+    },
+    {
+     "id": 157,
+     "name": "bulk-0122",
+     "type": "Bulk"
+    },
+    {
+     "id": 158,
+     "name": "bulk-0123",
+     "type": "Bulk"
+    },
+    {
+     "id": 159,
+     "name": "bulk-0124",
+     "type": "Bulk"
+    },
+    {
+     "id": 16,
+     "name": "T-2",
+     "type": "Ticket"
+    },
+    {
+     "id": 160,
+     "name": "bulk-0125",
+     "type": "Bulk"
+    },
+    {
+     "id": 161,
+     "name": "bulk-0126",
+     "type": "Bulk"
+    },
+    {
+     "id": 162,
+     "name": "bulk-0127",
+     "type": "Bulk"
+    },
+    {
+     "id": 163,
+     "name": "bulk-0128",
+     "type": "Bulk"
+    },
+    {
+     "id": 164,
+     "name": "bulk-0129",
+     "type": "Bulk"
+    },
+    {
+     "id": 165,
+     "name": "bulk-0130",
+     "type": "Bulk"
+    },
+    {
+     "id": 166,
+     "name": "bulk-0131",
+     "type": "Bulk"
+    },
+    {
+     "id": 167,
+     "name": "bulk-0132",
+     "type": "Bulk"
+    },
+    {
+     "id": 168,
+     "name": "bulk-0133",
+     "type": "Bulk"
+    },
+    {
+     "id": 169,
+     "name": "bulk-0134",
+     "type": "Bulk"
+    },
+    {
+     "id": 17,
+     "name": "T-3",
+     "type": "Ticket"
+    },
+    {
+     "id": 170,
+     "name": "bulk-0135",
+     "type": "Bulk"
+    },
+    {
+     "id": 171,
+     "name": "bulk-0136",
+     "type": "Bulk"
+    },
+    {
+     "id": 172,
+     "name": "bulk-0137",
+     "type": "Bulk"
+    },
+    {
+     "id": 173,
+     "name": "bulk-0138",
+     "type": "Bulk"
+    },
+    {
+     "id": 174,
+     "name": "bulk-0139",
+     "type": "Bulk"
+    },
+    {
+     "id": 175,
+     "name": "bulk-0140",
+     "type": "Bulk"
+    },
+    {
+     "id": 176,
+     "name": "bulk-0141",
+     "type": "Bulk"
+    },
+    {
+     "id": 177,
+     "name": "bulk-0142",
+     "type": "Bulk"
+    },
+    {
+     "id": 178,
+     "name": "bulk-0143",
+     "type": "Bulk"
+    },
+    {
+     "id": 179,
+     "name": "bulk-0144",
+     "type": "Bulk"
+    },
+    {
+     "id": 18,
+     "name": "T-4",
+     "type": "Ticket"
+    },
+    {
+     "id": 180,
+     "name": "bulk-0145",
+     "type": "Bulk"
+    },
+    {
+     "id": 181,
+     "name": "bulk-0146",
+     "type": "Bulk"
+    },
+    {
+     "id": 182,
+     "name": "bulk-0147",
+     "type": "Bulk"
+    },
+    {
+     "id": 183,
+     "name": "bulk-0148",
+     "type": "Bulk"
+    },
+    {
+     "id": 184,
+     "name": "bulk-0149",
+     "type": "Bulk"
+    },
+    {
+     "id": 185,
+     "name": "bulk-0150",
+     "type": "Bulk"
+    },
+    {
+     "id": 186,
+     "name": "bulk-0151",
+     "type": "Bulk"
+    },
+    {
+     "id": 187,
+     "name": "bulk-0152",
+     "type": "Bulk"
+    },
+    {
+     "id": 188,
+     "name": "bulk-0153",
+     "type": "Bulk"
+    },
+    {
+     "id": 189,
+     "name": "bulk-0154",
+     "type": "Bulk"
+    },
+    {
+     "id": 19,
+     "name": "T-5",
+     "type": "Ticket"
+    },
+    {
+     "id": 190,
+     "name": "bulk-0155",
+     "type": "Bulk"
+    },
+    {
+     "id": 191,
+     "name": "bulk-0156",
+     "type": "Bulk"
+    },
+    {
+     "id": 192,
+     "name": "bulk-0157",
+     "type": "Bulk"
+    },
+    {
+     "id": 193,
+     "name": "bulk-0158",
+     "type": "Bulk"
+    },
+    {
+     "id": 194,
+     "name": "bulk-0159",
+     "type": "Bulk"
+    },
+    {
+     "id": 195,
+     "name": "bulk-0160",
+     "type": "Bulk"
+    },
+    {
+     "id": 196,
+     "name": "bulk-0161",
+     "type": "Bulk"
+    },
+    {
+     "id": 197,
+     "name": "bulk-0162",
+     "type": "Bulk"
+    },
+    {
+     "id": 198,
+     "name": "bulk-0163",
+     "type": "Bulk"
+    },
+    {
+     "id": 199,
+     "name": "bulk-0164",
+     "type": "Bulk"
+    },
+    {
+     "id": 2,
+     "name": "Zoë Ünïcode 日本",
+     "type": "Customer"
+    },
+    {
+     "id": 20,
+     "name": "T-6",
+     "type": "Ticket"
+    },
+    {
+     "id": 200,
+     "name": "bulk-0165",
+     "type": "Bulk"
+    },
+    {
+     "id": 201,
+     "name": "bulk-0166",
+     "type": "Bulk"
+    },
+    {
+     "id": 202,
+     "name": "bulk-0167",
+     "type": "Bulk"
+    },
+    {
+     "id": 203,
+     "name": "bulk-0168",
+     "type": "Bulk"
+    },
+    {
+     "id": 204,
+     "name": "bulk-0169",
+     "type": "Bulk"
+    },
+    {
+     "id": 205,
+     "name": "bulk-0170",
+     "type": "Bulk"
+    },
+    {
+     "id": 206,
+     "name": "bulk-0171",
+     "type": "Bulk"
+    },
+    {
+     "id": 207,
+     "name": "bulk-0172",
+     "type": "Bulk"
+    },
+    {
+     "id": 208,
+     "name": "bulk-0173",
+     "type": "Bulk"
+    },
+    {
+     "id": 209,
+     "name": "bulk-0174",
+     "type": "Bulk"
+    },
+    {
+     "id": 21,
+     "name": "n1",
+     "type": "Node"
+    },
+    {
+     "id": 210,
+     "name": "bulk-0175",
+     "type": "Bulk"
+    },
+    {
+     "id": 211,
+     "name": "bulk-0176",
+     "type": "Bulk"
+    },
+    {
+     "id": 212,
+     "name": "bulk-0177",
+     "type": "Bulk"
+    },
+    {
+     "id": 213,
+     "name": "bulk-0178",
+     "type": "Bulk"
+    },
+    {
+     "id": 214,
+     "name": "bulk-0179",
+     "type": "Bulk"
+    },
+    {
+     "id": 215,
+     "name": "bulk-0180",
+     "type": "Bulk"
+    },
+    {
+     "id": 216,
+     "name": "bulk-0181",
+     "type": "Bulk"
+    },
+    {
+     "id": 217,
+     "name": "bulk-0182",
+     "type": "Bulk"
+    },
+    {
+     "id": 218,
+     "name": "bulk-0183",
+     "type": "Bulk"
+    },
+    {
+     "id": 219,
+     "name": "bulk-0184",
+     "type": "Bulk"
+    },
+    {
+     "id": 22,
+     "name": "n2",
+     "type": "Node"
+    },
+    {
+     "id": 220,
+     "name": "bulk-0185",
+     "type": "Bulk"
+    },
+    {
+     "id": 221,
+     "name": "bulk-0186",
+     "type": "Bulk"
+    },
+    {
+     "id": 222,
+     "name": "bulk-0187",
+     "type": "Bulk"
+    },
+    {
+     "id": 223,
+     "name": "bulk-0188",
+     "type": "Bulk"
+    },
+    {
+     "id": 224,
+     "name": "bulk-0189",
+     "type": "Bulk"
+    },
+    {
+     "id": 225,
+     "name": "bulk-0190",
+     "type": "Bulk"
+    },
+    {
+     "id": 226,
+     "name": "bulk-0191",
+     "type": "Bulk"
+    },
+    {
+     "id": 227,
+     "name": "bulk-0192",
+     "type": "Bulk"
+    },
+    {
+     "id": 228,
+     "name": "bulk-0193",
+     "type": "Bulk"
+    },
+    {
+     "id": 229,
+     "name": "bulk-0194",
+     "type": "Bulk"
+    },
+    {
+     "id": 23,
+     "name": "n3",
+     "type": "Node"
+    },
+    {
+     "id": 230,
+     "name": "bulk-0195",
+     "type": "Bulk"
+    },
+    {
+     "id": 231,
+     "name": "bulk-0196",
+     "type": "Bulk"
+    },
+    {
+     "id": 232,
+     "name": "bulk-0197",
+     "type": "Bulk"
+    },
+    {
+     "id": 233,
+     "name": "bulk-0198",
+     "type": "Bulk"
+    },
+    {
+     "id": 234,
+     "name": "bulk-0199",
+     "type": "Bulk"
+    },
+    {
+     "id": 235,
+     "name": "bulk-0200",
+     "type": "Bulk"
+    },
+    {
+     "id": 236,
+     "name": "bulk-0201",
+     "type": "Bulk"
+    },
+    {
+     "id": 237,
+     "name": "bulk-0202",
+     "type": "Bulk"
+    },
+    {
+     "id": 238,
+     "name": "bulk-0203",
+     "type": "Bulk"
+    },
+    {
+     "id": 239,
+     "name": "bulk-0204",
+     "type": "Bulk"
+    },
+    {
+     "id": 24,
+     "name": "n4",
+     "type": "Node"
+    },
+    {
+     "id": 240,
+     "name": "bulk-0205",
+     "type": "Bulk"
+    },
+    {
+     "id": 241,
+     "name": "bulk-0206",
+     "type": "Bulk"
+    },
+    {
+     "id": 242,
+     "name": "bulk-0207",
+     "type": "Bulk"
+    },
+    {
+     "id": 243,
+     "name": "bulk-0208",
+     "type": "Bulk"
+    },
+    {
+     "id": 244,
+     "name": "bulk-0209",
+     "type": "Bulk"
+    },
+    {
+     "id": 245,
+     "name": "bulk-0210",
+     "type": "Bulk"
+    },
+    {
+     "id": 246,
+     "name": "bulk-0211",
+     "type": "Bulk"
+    },
+    {
+     "id": 247,
+     "name": "bulk-0212",
+     "type": "Bulk"
+    },
+    {
+     "id": 248,
+     "name": "bulk-0213",
+     "type": "Bulk"
+    },
+    {
+     "id": 249,
+     "name": "bulk-0214",
+     "type": "Bulk"
+    },
+    {
+     "id": 25,
+     "name": "n5",
+     "type": "Node"
+    },
+    {
+     "id": 250,
+     "name": "bulk-0215",
+     "type": "Bulk"
+    },
+    {
+     "id": 251,
+     "name": "bulk-0216",
+     "type": "Bulk"
+    },
+    {
+     "id": 252,
+     "name": "bulk-0217",
+     "type": "Bulk"
+    },
+    {
+     "id": 253,
+     "name": "bulk-0218",
+     "type": "Bulk"
+    },
+    {
+     "id": 254,
+     "name": "bulk-0219",
+     "type": "Bulk"
+    },
+    {
+     "id": 255,
+     "name": "bulk-0220",
+     "type": "Bulk"
+    },
+    {
+     "id": 256,
+     "name": "bulk-0221",
+     "type": "Bulk"
+    },
+    {
+     "id": 257,
+     "name": "bulk-0222",
+     "type": "Bulk"
+    },
+    {
+     "id": 258,
+     "name": "bulk-0223",
+     "type": "Bulk"
+    },
+    {
+     "id": 259,
+     "name": "bulk-0224",
+     "type": "Bulk"
+    },
+    {
+     "id": 26,
+     "name": "n6",
+     "type": "Node"
+    },
+    {
+     "id": 260,
+     "name": "bulk-0225",
+     "type": "Bulk"
+    },
+    {
+     "id": 261,
+     "name": "bulk-0226",
+     "type": "Bulk"
+    },
+    {
+     "id": 262,
+     "name": "bulk-0227",
+     "type": "Bulk"
+    },
+    {
+     "id": 263,
+     "name": "bulk-0228",
+     "type": "Bulk"
+    },
+    {
+     "id": 264,
+     "name": "bulk-0229",
+     "type": "Bulk"
+    },
+    {
+     "id": 265,
+     "name": "bulk-0230",
+     "type": "Bulk"
+    },
+    {
+     "id": 266,
+     "name": "bulk-0231",
+     "type": "Bulk"
+    },
+    {
+     "id": 267,
+     "name": "bulk-0232",
+     "type": "Bulk"
+    },
+    {
+     "id": 268,
+     "name": "bulk-0233",
+     "type": "Bulk"
+    },
+    {
+     "id": 269,
+     "name": "bulk-0234",
+     "type": "Bulk"
+    },
+    {
+     "id": 27,
+     "name": "cyc1",
+     "type": "Node"
+    },
+    {
+     "id": 270,
+     "name": "bulk-0235",
+     "type": "Bulk"
+    },
+    {
+     "id": 271,
+     "name": "bulk-0236",
+     "type": "Bulk"
+    },
+    {
+     "id": 272,
+     "name": "bulk-0237",
+     "type": "Bulk"
+    },
+    {
+     "id": 273,
+     "name": "bulk-0238",
+     "type": "Bulk"
+    },
+    {
+     "id": 274,
+     "name": "bulk-0239",
+     "type": "Bulk"
+    },
+    {
+     "id": 275,
+     "name": "bulk-0240",
+     "type": "Bulk"
+    },
+    {
+     "id": 276,
+     "name": "bulk-0241",
+     "type": "Bulk"
+    },
+    {
+     "id": 277,
+     "name": "bulk-0242",
+     "type": "Bulk"
+    },
+    {
+     "id": 278,
+     "name": "bulk-0243",
+     "type": "Bulk"
+    },
+    {
+     "id": 279,
+     "name": "bulk-0244",
+     "type": "Bulk"
+    },
+    {
+     "id": 28,
+     "name": "cyc2",
+     "type": "Node"
+    },
+    {
+     "id": 280,
+     "name": "bulk-0245",
+     "type": "Bulk"
+    },
+    {
+     "id": 281,
+     "name": "bulk-0246",
+     "type": "Bulk"
+    },
+    {
+     "id": 282,
+     "name": "bulk-0247",
+     "type": "Bulk"
+    },
+    {
+     "id": 283,
+     "name": "bulk-0248",
+     "type": "Bulk"
+    },
+    {
+     "id": 284,
+     "name": "bulk-0249",
+     "type": "Bulk"
+    },
+    {
+     "id": 285,
+     "name": "bulk-0250",
+     "type": "Bulk"
+    },
+    {
+     "id": 286,
+     "name": "bulk-0251",
+     "type": "Bulk"
+    },
+    {
+     "id": 287,
+     "name": "bulk-0252",
+     "type": "Bulk"
+    },
+    {
+     "id": 288,
+     "name": "bulk-0253",
+     "type": "Bulk"
+    },
+    {
+     "id": 289,
+     "name": "bulk-0254",
+     "type": "Bulk"
+    },
+    {
+     "id": 29,
+     "name": "cyc3",
+     "type": "Node"
+    },
+    {
+     "id": 290,
+     "name": "bulk-0255",
+     "type": "Bulk"
+    },
+    {
+     "id": 291,
+     "name": "bulk-0256",
+     "type": "Bulk"
+    },
+    {
+     "id": 292,
+     "name": "bulk-0257",
+     "type": "Bulk"
+    },
+    {
+     "id": 293,
+     "name": "bulk-0258",
+     "type": "Bulk"
+    },
+    {
+     "id": 294,
+     "name": "bulk-0259",
+     "type": "Bulk"
+    },
+    {
+     "id": 295,
+     "name": "bulk-0260",
+     "type": "Bulk"
+    },
+    {
+     "id": 296,
+     "name": "bulk-0261",
+     "type": "Bulk"
+    },
+    {
+     "id": 297,
+     "name": "bulk-0262",
+     "type": "Bulk"
+    },
+    {
+     "id": 298,
+     "name": "bulk-0263",
+     "type": "Bulk"
+    },
+    {
+     "id": 299,
+     "name": "bulk-0264",
+     "type": "Bulk"
+    },
+    {
+     "id": 3,
+     "name": "Fallback Title",
+     "type": "Customer"
+    },
+    {
+     "id": 30,
+     "name": "sq1",
+     "type": "Node"
+    },
+    {
+     "id": 300,
+     "name": "bulk-0265",
+     "type": "Bulk"
+    },
+    {
+     "id": 301,
+     "name": "bulk-0266",
+     "type": "Bulk"
+    },
+    {
+     "id": 302,
+     "name": "bulk-0267",
+     "type": "Bulk"
+    },
+    {
+     "id": 303,
+     "name": "bulk-0268",
+     "type": "Bulk"
+    },
+    {
+     "id": 304,
+     "name": "bulk-0269",
+     "type": "Bulk"
+    },
+    {
+     "id": 305,
+     "name": "bulk-0270",
+     "type": "Bulk"
+    },
+    {
+     "id": 306,
+     "name": "bulk-0271",
+     "type": "Bulk"
+    },
+    {
+     "id": 307,
+     "name": "bulk-0272",
+     "type": "Bulk"
+    },
+    {
+     "id": 308,
+     "name": "bulk-0273",
+     "type": "Bulk"
+    },
+    {
+     "id": 309,
+     "name": "bulk-0274",
+     "type": "Bulk"
+    },
+    {
+     "id": 31,
+     "name": "sq2",
+     "type": "Node"
+    },
+    {
+     "id": 310,
+     "name": "bulk-0275",
+     "type": "Bulk"
+    },
+    {
+     "id": 311,
+     "name": "bulk-0276",
+     "type": "Bulk"
+    },
+    {
+     "id": 312,
+     "name": "bulk-0277",
+     "type": "Bulk"
+    },
+    {
+     "id": 313,
+     "name": "bulk-0278",
+     "type": "Bulk"
+    },
+    {
+     "id": 314,
+     "name": "bulk-0279",
+     "type": "Bulk"
+    },
+    {
+     "id": 315,
+     "name": "bulk-0280",
+     "type": "Bulk"
+    },
+    {
+     "id": 316,
+     "name": "bulk-0281",
+     "type": "Bulk"
+    },
+    {
+     "id": 317,
+     "name": "bulk-0282",
+     "type": "Bulk"
+    },
+    {
+     "id": 318,
+     "name": "bulk-0283",
+     "type": "Bulk"
+    },
+    {
+     "id": 319,
+     "name": "bulk-0284",
+     "type": "Bulk"
+    },
+    {
+     "id": 32,
+     "name": "sq3",
+     "type": "Node"
+    },
+    {
+     "id": 320,
+     "name": "bulk-0285",
+     "type": "Bulk"
+    },
+    {
+     "id": 321,
+     "name": "bulk-0286",
+     "type": "Bulk"
+    },
+    {
+     "id": 322,
+     "name": "bulk-0287",
+     "type": "Bulk"
+    },
+    {
+     "id": 323,
+     "name": "bulk-0288",
+     "type": "Bulk"
+    },
+    {
+     "id": 324,
+     "name": "bulk-0289",
+     "type": "Bulk"
+    },
+    {
+     "id": 325,
+     "name": "bulk-0290",
+     "type": "Bulk"
+    },
+    {
+     "id": 326,
+     "name": "bulk-0291",
+     "type": "Bulk"
+    },
+    {
+     "id": 327,
+     "name": "bulk-0292",
+     "type": "Bulk"
+    },
+    {
+     "id": 328,
+     "name": "bulk-0293",
+     "type": "Bulk"
+    },
+    {
+     "id": 329,
+     "name": "bulk-0294",
+     "type": "Bulk"
+    },
+    {
+     "id": 33,
+     "name": "sq4",
+     "type": "Node"
+    },
+    {
+     "id": 330,
+     "name": "bulk-0295",
+     "type": "Bulk"
+    },
+    {
+     "id": 331,
+     "name": "bulk-0296",
+     "type": "Bulk"
+    },
+    {
+     "id": 332,
+     "name": "bulk-0297",
+     "type": "Bulk"
+    },
+    {
+     "id": 333,
+     "name": "bulk-0298",
+     "type": "Bulk"
+    },
+    {
+     "id": 334,
+     "name": "bulk-0299",
+     "type": "Bulk"
+    },
+    {
+     "id": 335,
+     "name": "bulk-0300",
+     "type": "Bulk"
+    },
+    {
+     "id": 336,
+     "name": "bulk-0301",
+     "type": "Bulk"
+    },
+    {
+     "id": 337,
+     "name": "bulk-0302",
+     "type": "Bulk"
+    },
+    {
+     "id": 338,
+     "name": "bulk-0303",
+     "type": "Bulk"
+    },
+    {
+     "id": 339,
+     "name": "bulk-0304",
+     "type": "Bulk"
+    },
+    {
+     "id": 34,
+     "name": "loopself",
+     "type": "Node"
+    },
+    {
+     "id": 340,
+     "name": "bulk-0305",
+     "type": "Bulk"
+    },
+    {
+     "id": 341,
+     "name": "bulk-0306",
+     "type": "Bulk"
+    },
+    {
+     "id": 342,
+     "name": "bulk-0307",
+     "type": "Bulk"
+    },
+    {
+     "id": 343,
+     "name": "bulk-0308",
+     "type": "Bulk"
+    },
+    {
+     "id": 344,
+     "name": "bulk-0309",
+     "type": "Bulk"
+    },
+    {
+     "id": 345,
+     "name": "bulk-0310",
+     "type": "Bulk"
+    },
+    {
+     "id": 346,
+     "name": "bulk-0311",
+     "type": "Bulk"
+    },
+    {
+     "id": 347,
+     "name": "bulk-0312",
+     "type": "Bulk"
+    },
+    {
+     "id": 348,
+     "name": "bulk-0313",
+     "type": "Bulk"
+    },
+    {
+     "id": 349,
+     "name": "bulk-0314",
+     "type": "Bulk"
+    },
+    {
+     "id": 35,
+     "name": "bulk-0000",
+     "type": "Bulk"
+    },
+    {
+     "id": 350,
+     "name": "bulk-0315",
+     "type": "Bulk"
+    },
+    {
+     "id": 351,
+     "name": "bulk-0316",
+     "type": "Bulk"
+    },
+    {
+     "id": 352,
+     "name": "bulk-0317",
+     "type": "Bulk"
+    },
+    {
+     "id": 353,
+     "name": "bulk-0318",
+     "type": "Bulk"
+    },
+    {
+     "id": 354,
+     "name": "bulk-0319",
+     "type": "Bulk"
+    },
+    {
+     "id": 355,
+     "name": "bulk-0320",
+     "type": "Bulk"
+    },
+    {
+     "id": 356,
+     "name": "bulk-0321",
+     "type": "Bulk"
+    },
+    {
+     "id": 357,
+     "name": "bulk-0322",
+     "type": "Bulk"
+    },
+    {
+     "id": 358,
+     "name": "bulk-0323",
+     "type": "Bulk"
+    },
+    {
+     "id": 359,
+     "name": "bulk-0324",
+     "type": "Bulk"
+    },
+    {
+     "id": 36,
+     "name": "bulk-0001",
+     "type": "Bulk"
+    },
+    {
+     "id": 360,
+     "name": "bulk-0325",
+     "type": "Bulk"
+    },
+    {
+     "id": 361,
+     "name": "bulk-0326",
+     "type": "Bulk"
+    },
+    {
+     "id": 362,
+     "name": "bulk-0327",
+     "type": "Bulk"
+    },
+    {
+     "id": 363,
+     "name": "bulk-0328",
+     "type": "Bulk"
+    },
+    {
+     "id": 364,
+     "name": "bulk-0329",
+     "type": "Bulk"
+    },
+    {
+     "id": 365,
+     "name": "bulk-0330",
+     "type": "Bulk"
+    },
+    {
+     "id": 366,
+     "name": "bulk-0331",
+     "type": "Bulk"
+    },
+    {
+     "id": 367,
+     "name": "bulk-0332",
+     "type": "Bulk"
+    },
+    {
+     "id": 368,
+     "name": "bulk-0333",
+     "type": "Bulk"
+    },
+    {
+     "id": 369,
+     "name": "bulk-0334",
+     "type": "Bulk"
+    },
+    {
+     "id": 37,
+     "name": "bulk-0002",
+     "type": "Bulk"
+    },
+    {
+     "id": 370,
+     "name": "bulk-0335",
+     "type": "Bulk"
+    },
+    {
+     "id": 371,
+     "name": "bulk-0336",
+     "type": "Bulk"
+    },
+    {
+     "id": 372,
+     "name": "bulk-0337",
+     "type": "Bulk"
+    },
+    {
+     "id": 373,
+     "name": "bulk-0338",
+     "type": "Bulk"
+    },
+    {
+     "id": 374,
+     "name": "bulk-0339",
+     "type": "Bulk"
+    },
+    {
+     "id": 375,
+     "name": "bulk-0340",
+     "type": "Bulk"
+    },
+    {
+     "id": 376,
+     "name": "bulk-0341",
+     "type": "Bulk"
+    },
+    {
+     "id": 377,
+     "name": "bulk-0342",
+     "type": "Bulk"
+    },
+    {
+     "id": 378,
+     "name": "bulk-0343",
+     "type": "Bulk"
+    },
+    {
+     "id": 379,
+     "name": "bulk-0344",
+     "type": "Bulk"
+    },
+    {
+     "id": 38,
+     "name": "bulk-0003",
+     "type": "Bulk"
+    },
+    {
+     "id": 380,
+     "name": "bulk-0345",
+     "type": "Bulk"
+    },
+    {
+     "id": 381,
+     "name": "bulk-0346",
+     "type": "Bulk"
+    },
+    {
+     "id": 382,
+     "name": "bulk-0347",
+     "type": "Bulk"
+    },
+    {
+     "id": 383,
+     "name": "bulk-0348",
+     "type": "Bulk"
+    },
+    {
+     "id": 384,
+     "name": "bulk-0349",
+     "type": "Bulk"
+    },
+    {
+     "id": 385,
+     "name": "bulk-0350",
+     "type": "Bulk"
+    },
+    {
+     "id": 386,
+     "name": "bulk-0351",
+     "type": "Bulk"
+    },
+    {
+     "id": 387,
+     "name": "bulk-0352",
+     "type": "Bulk"
+    },
+    {
+     "id": 388,
+     "name": "bulk-0353",
+     "type": "Bulk"
+    },
+    {
+     "id": 389,
+     "name": "bulk-0354",
+     "type": "Bulk"
+    },
+    {
+     "id": 39,
+     "name": "bulk-0004",
+     "type": "Bulk"
+    },
+    {
+     "id": 390,
+     "name": "bulk-0355",
+     "type": "Bulk"
+    },
+    {
+     "id": 391,
+     "name": "bulk-0356",
+     "type": "Bulk"
+    },
+    {
+     "id": 392,
+     "name": "bulk-0357",
+     "type": "Bulk"
+    },
+    {
+     "id": 393,
+     "name": "bulk-0358",
+     "type": "Bulk"
+    },
+    {
+     "id": 394,
+     "name": "bulk-0359",
+     "type": "Bulk"
+    },
+    {
+     "id": 395,
+     "name": "bulk-0360",
+     "type": "Bulk"
+    },
+    {
+     "id": 396,
+     "name": "bulk-0361",
+     "type": "Bulk"
+    },
+    {
+     "id": 397,
+     "name": "bulk-0362",
+     "type": "Bulk"
+    },
+    {
+     "id": 398,
+     "name": "bulk-0363",
+     "type": "Bulk"
+    },
+    {
+     "id": 399,
+     "name": "bulk-0364",
+     "type": "Bulk"
+    },
+    {
+     "id": 4,
+     "name": "Lbl",
+     "type": "Customer"
+    },
+    {
+     "id": 40,
+     "name": "bulk-0005",
+     "type": "Bulk"
+    },
+    {
+     "id": 400,
+     "name": "bulk-0365",
+     "type": "Bulk"
+    },
+    {
+     "id": 401,
+     "name": "bulk-0366",
+     "type": "Bulk"
+    },
+    {
+     "id": 402,
+     "name": "bulk-0367",
+     "type": "Bulk"
+    },
+    {
+     "id": 403,
+     "name": "bulk-0368",
+     "type": "Bulk"
+    },
+    {
+     "id": 404,
+     "name": "bulk-0369",
+     "type": "Bulk"
+    },
+    {
+     "id": 405,
+     "name": "bulk-0370",
+     "type": "Bulk"
+    },
+    {
+     "id": 406,
+     "name": "bulk-0371",
+     "type": "Bulk"
+    },
+    {
+     "id": 407,
+     "name": "bulk-0372",
+     "type": "Bulk"
+    },
+    {
+     "id": 408,
+     "name": "bulk-0373",
+     "type": "Bulk"
+    },
+    {
+     "id": 409,
+     "name": "bulk-0374",
+     "type": "Bulk"
+    },
+    {
+     "id": 41,
+     "name": "bulk-0006",
+     "type": "Bulk"
+    },
+    {
+     "id": 410,
+     "name": "bulk-0375",
+     "type": "Bulk"
+    },
+    {
+     "id": 411,
+     "name": "bulk-0376",
+     "type": "Bulk"
+    },
+    {
+     "id": 412,
+     "name": "bulk-0377",
+     "type": "Bulk"
+    },
+    {
+     "id": 413,
+     "name": "bulk-0378",
+     "type": "Bulk"
+    },
+    {
+     "id": 414,
+     "name": "bulk-0379",
+     "type": "Bulk"
+    },
+    {
+     "id": 415,
+     "name": "bulk-0380",
+     "type": "Bulk"
+    },
+    {
+     "id": 416,
+     "name": "bulk-0381",
+     "type": "Bulk"
+    },
+    {
+     "id": 417,
+     "name": "bulk-0382",
+     "type": "Bulk"
+    },
+    {
+     "id": 418,
+     "name": "bulk-0383",
+     "type": "Bulk"
+    },
+    {
+     "id": 419,
+     "name": "bulk-0384",
+     "type": "Bulk"
+    },
+    {
+     "id": 42,
+     "name": "bulk-0007",
+     "type": "Bulk"
+    },
+    {
+     "id": 420,
+     "name": "bulk-0385",
+     "type": "Bulk"
+    },
+    {
+     "id": 421,
+     "name": "bulk-0386",
+     "type": "Bulk"
+    },
+    {
+     "id": 422,
+     "name": "bulk-0387",
+     "type": "Bulk"
+    },
+    {
+     "id": 423,
+     "name": "bulk-0388",
+     "type": "Bulk"
+    },
+    {
+     "id": 424,
+     "name": "bulk-0389",
+     "type": "Bulk"
+    },
+    {
+     "id": 425,
+     "name": "bulk-0390",
+     "type": "Bulk"
+    },
+    {
+     "id": 426,
+     "name": "bulk-0391",
+     "type": "Bulk"
+    },
+    {
+     "id": 427,
+     "name": "bulk-0392",
+     "type": "Bulk"
+    },
+    {
+     "id": 428,
+     "name": "bulk-0393",
+     "type": "Bulk"
+    },
+    {
+     "id": 429,
+     "name": "bulk-0394",
+     "type": "Bulk"
+    },
+    {
+     "id": 43,
+     "name": "bulk-0008",
+     "type": "Bulk"
+    },
+    {
+     "id": 430,
+     "name": "bulk-0395",
+     "type": "Bulk"
+    },
+    {
+     "id": 431,
+     "name": "bulk-0396",
+     "type": "Bulk"
+    },
+    {
+     "id": 432,
+     "name": "bulk-0397",
+     "type": "Bulk"
+    },
+    {
+     "id": 433,
+     "name": "bulk-0398",
+     "type": "Bulk"
+    },
+    {
+     "id": 434,
+     "name": "bulk-0399",
+     "type": "Bulk"
+    },
+    {
+     "id": 435,
+     "name": "bulk-0400",
+     "type": "Bulk"
+    },
+    {
+     "id": 436,
+     "name": "bulk-0401",
+     "type": "Bulk"
+    },
+    {
+     "id": 437,
+     "name": "bulk-0402",
+     "type": "Bulk"
+    },
+    {
+     "id": 438,
+     "name": "bulk-0403",
+     "type": "Bulk"
+    },
+    {
+     "id": 439,
+     "name": "bulk-0404",
+     "type": "Bulk"
+    },
+    {
+     "id": 44,
+     "name": "bulk-0009",
+     "type": "Bulk"
+    },
+    {
+     "id": 440,
+     "name": "bulk-0405",
+     "type": "Bulk"
+    },
+    {
+     "id": 441,
+     "name": "bulk-0406",
+     "type": "Bulk"
+    },
+    {
+     "id": 442,
+     "name": "bulk-0407",
+     "type": "Bulk"
+    },
+    {
+     "id": 443,
+     "name": "bulk-0408",
+     "type": "Bulk"
+    },
+    {
+     "id": 444,
+     "name": "bulk-0409",
+     "type": "Bulk"
+    },
+    {
+     "id": 445,
+     "name": "bulk-0410",
+     "type": "Bulk"
+    },
+    {
+     "id": 446,
+     "name": "bulk-0411",
+     "type": "Bulk"
+    },
+    {
+     "id": 447,
+     "name": "bulk-0412",
+     "type": "Bulk"
+    },
+    {
+     "id": 448,
+     "name": "bulk-0413",
+     "type": "Bulk"
+    },
+    {
+     "id": 449,
+     "name": "bulk-0414",
+     "type": "Bulk"
+    },
+    {
+     "id": 45,
+     "name": "bulk-0010",
+     "type": "Bulk"
+    },
+    {
+     "id": 450,
+     "name": "bulk-0415",
+     "type": "Bulk"
+    },
+    {
+     "id": 451,
+     "name": "bulk-0416",
+     "type": "Bulk"
+    },
+    {
+     "id": 452,
+     "name": "bulk-0417",
+     "type": "Bulk"
+    },
+    {
+     "id": 453,
+     "name": "bulk-0418",
+     "type": "Bulk"
+    },
+    {
+     "id": 454,
+     "name": "bulk-0419",
+     "type": "Bulk"
+    },
+    {
+     "id": 455,
+     "name": "bulk-0420",
+     "type": "Bulk"
+    },
+    {
+     "id": 456,
+     "name": "bulk-0421",
+     "type": "Bulk"
+    },
+    {
+     "id": 457,
+     "name": "bulk-0422",
+     "type": "Bulk"
+    },
+    {
+     "id": 458,
+     "name": "bulk-0423",
+     "type": "Bulk"
+    },
+    {
+     "id": 459,
+     "name": "bulk-0424",
+     "type": "Bulk"
+    },
+    {
+     "id": 46,
+     "name": "bulk-0011",
+     "type": "Bulk"
+    },
+    {
+     "id": 460,
+     "name": "bulk-0425",
+     "type": "Bulk"
+    },
+    {
+     "id": 461,
+     "name": "bulk-0426",
+     "type": "Bulk"
+    },
+    {
+     "id": 462,
+     "name": "bulk-0427",
+     "type": "Bulk"
+    },
+    {
+     "id": 463,
+     "name": "bulk-0428",
+     "type": "Bulk"
+    },
+    {
+     "id": 464,
+     "name": "bulk-0429",
+     "type": "Bulk"
+    },
+    {
+     "id": 465,
+     "name": "bulk-0430",
+     "type": "Bulk"
+    },
+    {
+     "id": 466,
+     "name": "bulk-0431",
+     "type": "Bulk"
+    },
+    {
+     "id": 467,
+     "name": "bulk-0432",
+     "type": "Bulk"
+    },
+    {
+     "id": 468,
+     "name": "bulk-0433",
+     "type": "Bulk"
+    },
+    {
+     "id": 469,
+     "name": "bulk-0434",
+     "type": "Bulk"
+    },
+    {
+     "id": 47,
+     "name": "bulk-0012",
+     "type": "Bulk"
+    },
+    {
+     "id": 470,
+     "name": "bulk-0435",
+     "type": "Bulk"
+    },
+    {
+     "id": 471,
+     "name": "bulk-0436",
+     "type": "Bulk"
+    },
+    {
+     "id": 472,
+     "name": "bulk-0437",
+     "type": "Bulk"
+    },
+    {
+     "id": 473,
+     "name": "bulk-0438",
+     "type": "Bulk"
+    },
+    {
+     "id": 474,
+     "name": "bulk-0439",
+     "type": "Bulk"
+    },
+    {
+     "id": 475,
+     "name": "bulk-0440",
+     "type": "Bulk"
+    },
+    {
+     "id": 476,
+     "name": "bulk-0441",
+     "type": "Bulk"
+    },
+    {
+     "id": 477,
+     "name": "bulk-0442",
+     "type": "Bulk"
+    },
+    {
+     "id": 478,
+     "name": "bulk-0443",
+     "type": "Bulk"
+    },
+    {
+     "id": 479,
+     "name": "bulk-0444",
+     "type": "Bulk"
+    },
+    {
+     "id": 48,
+     "name": "bulk-0013",
+     "type": "Bulk"
+    },
+    {
+     "id": 480,
+     "name": "bulk-0445",
+     "type": "Bulk"
+    },
+    {
+     "id": 481,
+     "name": "bulk-0446",
+     "type": "Bulk"
+    },
+    {
+     "id": 482,
+     "name": "bulk-0447",
+     "type": "Bulk"
+    },
+    {
+     "id": 483,
+     "name": "bulk-0448",
+     "type": "Bulk"
+    },
+    {
+     "id": 484,
+     "name": "bulk-0449",
+     "type": "Bulk"
+    },
+    {
+     "id": 485,
+     "name": "bulk-0450",
+     "type": "Bulk"
+    },
+    {
+     "id": 486,
+     "name": "bulk-0451",
+     "type": "Bulk"
+    },
+    {
+     "id": 487,
+     "name": "bulk-0452",
+     "type": "Bulk"
+    },
+    {
+     "id": 488,
+     "name": "bulk-0453",
+     "type": "Bulk"
+    },
+    {
+     "id": 489,
+     "name": "bulk-0454",
+     "type": "Bulk"
+    },
+    {
+     "id": 49,
+     "name": "bulk-0014",
+     "type": "Bulk"
+    },
+    {
+     "id": 490,
+     "name": "bulk-0455",
+     "type": "Bulk"
+    },
+    {
+     "id": 491,
+     "name": "bulk-0456",
+     "type": "Bulk"
+    },
+    {
+     "id": 492,
+     "name": "bulk-0457",
+     "type": "Bulk"
+    },
+    {
+     "id": 493,
+     "name": "bulk-0458",
+     "type": "Bulk"
+    },
+    {
+     "id": 494,
+     "name": "bulk-0459",
+     "type": "Bulk"
+    },
+    {
+     "id": 495,
+     "name": "bulk-0460",
+     "type": "Bulk"
+    },
+    {
+     "id": 496,
+     "name": "bulk-0461",
+     "type": "Bulk"
+    },
+    {
+     "id": 497,
+     "name": "bulk-0462",
+     "type": "Bulk"
+    },
+    {
+     "id": 498,
+     "name": "bulk-0463",
+     "type": "Bulk"
+    },
+    {
+     "id": 499,
+     "name": "bulk-0464",
+     "type": "Bulk"
+    },
+    {
+     "id": 5,
+     "name": "a@b.co",
+     "type": "Customer"
+    },
+    {
+     "id": 50,
+     "name": "bulk-0015",
+     "type": "Bulk"
+    },
+    {
+     "id": 51,
+     "name": "bulk-0016",
+     "type": "Bulk"
+    },
+    {
+     "id": 52,
+     "name": "bulk-0017",
+     "type": "Bulk"
+    },
+    {
+     "id": 53,
+     "name": "bulk-0018",
+     "type": "Bulk"
+    },
+    {
+     "id": 54,
+     "name": "bulk-0019",
+     "type": "Bulk"
+    },
+    {
+     "id": 55,
+     "name": "bulk-0020",
+     "type": "Bulk"
+    },
+    {
+     "id": 56,
+     "name": "bulk-0021",
+     "type": "Bulk"
+    },
+    {
+     "id": 57,
+     "name": "bulk-0022",
+     "type": "Bulk"
+    },
+    {
+     "id": 58,
+     "name": "bulk-0023",
+     "type": "Bulk"
+    },
+    {
+     "id": 59,
+     "name": "bulk-0024",
+     "type": "Bulk"
+    },
+    {
+     "id": 6,
+     "name": "True",
+     "type": "Customer"
+    },
+    {
+     "id": 60,
+     "name": "bulk-0025",
+     "type": "Bulk"
+    },
+    {
+     "id": 61,
+     "name": "bulk-0026",
+     "type": "Bulk"
+    },
+    {
+     "id": 62,
+     "name": "bulk-0027",
+     "type": "Bulk"
+    },
+    {
+     "id": 63,
+     "name": "bulk-0028",
+     "type": "Bulk"
+    },
+    {
+     "id": 64,
+     "name": "bulk-0029",
+     "type": "Bulk"
+    },
+    {
+     "id": 65,
+     "name": "bulk-0030",
+     "type": "Bulk"
+    },
+    {
+     "id": 66,
+     "name": "bulk-0031",
+     "type": "Bulk"
+    },
+    {
+     "id": 67,
+     "name": "bulk-0032",
+     "type": "Bulk"
+    },
+    {
+     "id": 68,
+     "name": "bulk-0033",
+     "type": "Bulk"
+    },
+    {
+     "id": 69,
+     "name": "bulk-0034",
+     "type": "Bulk"
+    },
+    {
+     "id": 7,
+     "name": "#7",
+     "type": "Customer"
+    },
+    {
+     "id": 70,
+     "name": "bulk-0035",
+     "type": "Bulk"
+    },
+    {
+     "id": 71,
+     "name": "bulk-0036",
+     "type": "Bulk"
+    },
+    {
+     "id": 72,
+     "name": "bulk-0037",
+     "type": "Bulk"
+    },
+    {
+     "id": 73,
+     "name": "bulk-0038",
+     "type": "Bulk"
+    },
+    {
+     "id": 74,
+     "name": "bulk-0039",
+     "type": "Bulk"
+    },
+    {
+     "id": 75,
+     "name": "bulk-0040",
+     "type": "Bulk"
+    },
+    {
+     "id": 76,
+     "name": "bulk-0041",
+     "type": "Bulk"
+    },
+    {
+     "id": 77,
+     "name": "bulk-0042",
+     "type": "Bulk"
+    },
+    {
+     "id": 78,
+     "name": "bulk-0043",
+     "type": "Bulk"
+    },
+    {
+     "id": 79,
+     "name": "bulk-0044",
+     "type": "Bulk"
+    },
+    {
+     "id": 8,
+     "name": "z-val",
+     "type": "Customer"
+    },
+    {
+     "id": 80,
+     "name": "bulk-0045",
+     "type": "Bulk"
+    },
+    {
+     "id": 81,
+     "name": "bulk-0046",
+     "type": "Bulk"
+    },
+    {
+     "id": 82,
+     "name": "bulk-0047",
+     "type": "Bulk"
+    },
+    {
+     "id": 83,
+     "name": "bulk-0048",
+     "type": "Bulk"
+    },
+    {
+     "id": 84,
+     "name": "bulk-0049",
+     "type": "Bulk"
+    },
+    {
+     "id": 85,
+     "name": "bulk-0050",
+     "type": "Bulk"
+    },
+    {
+     "id": 86,
+     "name": "bulk-0051",
+     "type": "Bulk"
+    },
+    {
+     "id": 87,
+     "name": "bulk-0052",
+     "type": "Bulk"
+    },
+    {
+     "id": 88,
+     "name": "bulk-0053",
+     "type": "Bulk"
+    },
+    {
+     "id": 89,
+     "name": "bulk-0054",
+     "type": "Bulk"
+    },
+    {
+     "id": 9,
+     "name": "UPPER lower Mixed",
+     "type": "Customer"
+    },
+    {
+     "id": 90,
+     "name": "bulk-0055",
+     "type": "Bulk"
+    },
+    {
+     "id": 91,
+     "name": "bulk-0056",
+     "type": "Bulk"
+    },
+    {
+     "id": 92,
+     "name": "bulk-0057",
+     "type": "Bulk"
+    },
+    {
+     "id": 93,
+     "name": "bulk-0058",
+     "type": "Bulk"
+    },
+    {
+     "id": 94,
+     "name": "bulk-0059",
+     "type": "Bulk"
+    },
+    {
+     "id": 95,
+     "name": "bulk-0060",
+     "type": "Bulk"
+    },
+    {
+     "id": 96,
+     "name": "bulk-0061",
+     "type": "Bulk"
+    },
+    {
+     "id": 97,
+     "name": "bulk-0062",
+     "type": "Bulk"
+    },
+    {
+     "id": 98,
+     "name": "bulk-0063",
+     "type": "Bulk"
+    },
+    {
+     "id": 99,
+     "name": "bulk-0064",
+     "type": "Bulk"
+    }
+   ],
+   "all_default": [
+    {
+     "id": 0,
+     "name": "Acme Corp",
+     "type": "Customer"
+    },
+    {
+     "id": 1,
+     "name": "Acme Corp",
+     "type": "Customer"
+    },
+    {
+     "id": 10,
+     "name": "100% real_deal",
+     "type": "Customer"
+    },
+    {
+     "id": 11,
+     "name": "Lonely",
+     "type": "Customer"
+    },
+    {
+     "id": 12,
+     "name": "123",
+     "type": "Product"
+    },
+    {
+     "id": 13,
+     "name": "1.5",
+     "type": "Product"
+    },
+    {
+     "id": 14,
+     "name": "Widget",
+     "type": "Product"
+    },
+    {
+     "id": 15,
+     "name": "T-1",
+     "type": "Ticket"
+    },
+    {
+     "id": 16,
+     "name": "T-2",
+     "type": "Ticket"
+    },
+    {
+     "id": 17,
+     "name": "T-3",
+     "type": "Ticket"
+    },
+    {
+     "id": 18,
+     "name": "T-4",
+     "type": "Ticket"
+    },
+    {
+     "id": 19,
+     "name": "T-5",
+     "type": "Ticket"
+    },
+    {
+     "id": 2,
+     "name": "Zoë Ünïcode 日本",
+     "type": "Customer"
+    },
+    {
+     "id": 20,
+     "name": "T-6",
+     "type": "Ticket"
+    },
+    {
+     "id": 21,
+     "name": "n1",
+     "type": "Node"
+    },
+    {
+     "id": 22,
+     "name": "n2",
+     "type": "Node"
+    },
+    {
+     "id": 23,
+     "name": "n3",
+     "type": "Node"
+    },
+    {
+     "id": 24,
+     "name": "n4",
+     "type": "Node"
+    },
+    {
+     "id": 25,
+     "name": "n5",
+     "type": "Node"
+    },
+    {
+     "id": 26,
+     "name": "n6",
+     "type": "Node"
+    },
+    {
+     "id": 27,
+     "name": "cyc1",
+     "type": "Node"
+    },
+    {
+     "id": 28,
+     "name": "cyc2",
+     "type": "Node"
+    },
+    {
+     "id": 29,
+     "name": "cyc3",
+     "type": "Node"
+    },
+    {
+     "id": 3,
+     "name": "Fallback Title",
+     "type": "Customer"
+    },
+    {
+     "id": 30,
+     "name": "sq1",
+     "type": "Node"
+    },
+    {
+     "id": 31,
+     "name": "sq2",
+     "type": "Node"
+    },
+    {
+     "id": 32,
+     "name": "sq3",
+     "type": "Node"
+    },
+    {
+     "id": 33,
+     "name": "sq4",
+     "type": "Node"
+    },
+    {
+     "id": 34,
+     "name": "loopself",
+     "type": "Node"
+    },
+    {
+     "id": 35,
+     "name": "bulk-0000",
+     "type": "Bulk"
+    },
+    {
+     "id": 36,
+     "name": "bulk-0001",
+     "type": "Bulk"
+    },
+    {
+     "id": 37,
+     "name": "bulk-0002",
+     "type": "Bulk"
+    },
+    {
+     "id": 38,
+     "name": "bulk-0003",
+     "type": "Bulk"
+    },
+    {
+     "id": 39,
+     "name": "bulk-0004",
+     "type": "Bulk"
+    },
+    {
+     "id": 4,
+     "name": "Lbl",
+     "type": "Customer"
+    },
+    {
+     "id": 40,
+     "name": "bulk-0005",
+     "type": "Bulk"
+    },
+    {
+     "id": 41,
+     "name": "bulk-0006",
+     "type": "Bulk"
+    },
+    {
+     "id": 42,
+     "name": "bulk-0007",
+     "type": "Bulk"
+    },
+    {
+     "id": 43,
+     "name": "bulk-0008",
+     "type": "Bulk"
+    },
+    {
+     "id": 44,
+     "name": "bulk-0009",
+     "type": "Bulk"
+    },
+    {
+     "id": 45,
+     "name": "bulk-0010",
+     "type": "Bulk"
+    },
+    {
+     "id": 46,
+     "name": "bulk-0011",
+     "type": "Bulk"
+    },
+    {
+     "id": 47,
+     "name": "bulk-0012",
+     "type": "Bulk"
+    },
+    {
+     "id": 48,
+     "name": "bulk-0013",
+     "type": "Bulk"
+    },
+    {
+     "id": 49,
+     "name": "bulk-0014",
+     "type": "Bulk"
+    },
+    {
+     "id": 5,
+     "name": "a@b.co",
+     "type": "Customer"
+    },
+    {
+     "id": 6,
+     "name": "True",
+     "type": "Customer"
+    },
+    {
+     "id": 7,
+     "name": "#7",
+     "type": "Customer"
+    },
+    {
+     "id": 8,
+     "name": "z-val",
+     "type": "Customer"
+    },
+    {
+     "id": 9,
+     "name": "UPPER lower Mixed",
+     "type": "Customer"
+    }
+   ],
+   "limit_0": [
+    {
+     "id": 0,
+     "name": "Acme Corp",
+     "type": "Customer"
+    }
+   ],
+   "limit_3": [
+    {
+     "id": 0,
+     "name": "Acme Corp",
+     "type": "Customer"
+    },
+    {
+     "id": 1,
+     "name": "Acme Corp",
+     "type": "Customer"
+    },
+    {
+     "id": 2,
+     "name": "Zoë Ünïcode 日本",
+     "type": "Customer"
+    }
+   ],
+   "limit_negative": [
+    {
+     "id": 0,
+     "name": "Acme Corp",
+     "type": "Customer"
+    }
+   ],
+   "name_acme": [
+    {
+     "id": 0,
+     "name": "Acme Corp",
+     "type": "Customer"
+    },
+    {
+     "id": 1,
+     "name": "Acme Corp",
+     "type": "Customer"
+    }
+   ],
+   "name_empty_string": [
+    {
+     "id": 0,
+     "name": "Acme Corp",
+     "type": "Customer"
+    },
+    {
+     "id": 1,
+     "name": "Acme Corp",
+     "type": "Customer"
+    },
+    {
+     "id": 10,
+     "name": "100% real_deal",
+     "type": "Customer"
+    },
+    {
+     "id": 100,
+     "name": "bulk-0065",
+     "type": "Bulk"
+    },
+    {
+     "id": 101,
+     "name": "bulk-0066",
+     "type": "Bulk"
+    },
+    {
+     "id": 102,
+     "name": "bulk-0067",
+     "type": "Bulk"
+    },
+    {
+     "id": 103,
+     "name": "bulk-0068",
+     "type": "Bulk"
+    },
+    {
+     "id": 104,
+     "name": "bulk-0069",
+     "type": "Bulk"
+    },
+    {
+     "id": 105,
+     "name": "bulk-0070",
+     "type": "Bulk"
+    },
+    {
+     "id": 106,
+     "name": "bulk-0071",
+     "type": "Bulk"
+    },
+    {
+     "id": 107,
+     "name": "bulk-0072",
+     "type": "Bulk"
+    },
+    {
+     "id": 108,
+     "name": "bulk-0073",
+     "type": "Bulk"
+    },
+    {
+     "id": 109,
+     "name": "bulk-0074",
+     "type": "Bulk"
+    },
+    {
+     "id": 11,
+     "name": "Lonely",
+     "type": "Customer"
+    },
+    {
+     "id": 110,
+     "name": "bulk-0075",
+     "type": "Bulk"
+    },
+    {
+     "id": 111,
+     "name": "bulk-0076",
+     "type": "Bulk"
+    },
+    {
+     "id": 112,
+     "name": "bulk-0077",
+     "type": "Bulk"
+    },
+    {
+     "id": 113,
+     "name": "bulk-0078",
+     "type": "Bulk"
+    },
+    {
+     "id": 114,
+     "name": "bulk-0079",
+     "type": "Bulk"
+    },
+    {
+     "id": 115,
+     "name": "bulk-0080",
+     "type": "Bulk"
+    },
+    {
+     "id": 116,
+     "name": "bulk-0081",
+     "type": "Bulk"
+    },
+    {
+     "id": 117,
+     "name": "bulk-0082",
+     "type": "Bulk"
+    },
+    {
+     "id": 118,
+     "name": "bulk-0083",
+     "type": "Bulk"
+    },
+    {
+     "id": 119,
+     "name": "bulk-0084",
+     "type": "Bulk"
+    },
+    {
+     "id": 12,
+     "name": "123",
+     "type": "Product"
+    },
+    {
+     "id": 120,
+     "name": "bulk-0085",
+     "type": "Bulk"
+    },
+    {
+     "id": 121,
+     "name": "bulk-0086",
+     "type": "Bulk"
+    },
+    {
+     "id": 122,
+     "name": "bulk-0087",
+     "type": "Bulk"
+    },
+    {
+     "id": 123,
+     "name": "bulk-0088",
+     "type": "Bulk"
+    },
+    {
+     "id": 124,
+     "name": "bulk-0089",
+     "type": "Bulk"
+    },
+    {
+     "id": 125,
+     "name": "bulk-0090",
+     "type": "Bulk"
+    },
+    {
+     "id": 126,
+     "name": "bulk-0091",
+     "type": "Bulk"
+    },
+    {
+     "id": 127,
+     "name": "bulk-0092",
+     "type": "Bulk"
+    },
+    {
+     "id": 128,
+     "name": "bulk-0093",
+     "type": "Bulk"
+    },
+    {
+     "id": 129,
+     "name": "bulk-0094",
+     "type": "Bulk"
+    },
+    {
+     "id": 13,
+     "name": "1.5",
+     "type": "Product"
+    },
+    {
+     "id": 130,
+     "name": "bulk-0095",
+     "type": "Bulk"
+    },
+    {
+     "id": 131,
+     "name": "bulk-0096",
+     "type": "Bulk"
+    },
+    {
+     "id": 132,
+     "name": "bulk-0097",
+     "type": "Bulk"
+    },
+    {
+     "id": 133,
+     "name": "bulk-0098",
+     "type": "Bulk"
+    },
+    {
+     "id": 134,
+     "name": "bulk-0099",
+     "type": "Bulk"
+    },
+    {
+     "id": 135,
+     "name": "bulk-0100",
+     "type": "Bulk"
+    },
+    {
+     "id": 136,
+     "name": "bulk-0101",
+     "type": "Bulk"
+    },
+    {
+     "id": 137,
+     "name": "bulk-0102",
+     "type": "Bulk"
+    },
+    {
+     "id": 138,
+     "name": "bulk-0103",
+     "type": "Bulk"
+    },
+    {
+     "id": 139,
+     "name": "bulk-0104",
+     "type": "Bulk"
+    },
+    {
+     "id": 14,
+     "name": "Widget",
+     "type": "Product"
+    },
+    {
+     "id": 140,
+     "name": "bulk-0105",
+     "type": "Bulk"
+    },
+    {
+     "id": 141,
+     "name": "bulk-0106",
+     "type": "Bulk"
+    },
+    {
+     "id": 142,
+     "name": "bulk-0107",
+     "type": "Bulk"
+    },
+    {
+     "id": 143,
+     "name": "bulk-0108",
+     "type": "Bulk"
+    },
+    {
+     "id": 144,
+     "name": "bulk-0109",
+     "type": "Bulk"
+    },
+    {
+     "id": 145,
+     "name": "bulk-0110",
+     "type": "Bulk"
+    },
+    {
+     "id": 146,
+     "name": "bulk-0111",
+     "type": "Bulk"
+    },
+    {
+     "id": 147,
+     "name": "bulk-0112",
+     "type": "Bulk"
+    },
+    {
+     "id": 148,
+     "name": "bulk-0113",
+     "type": "Bulk"
+    },
+    {
+     "id": 149,
+     "name": "bulk-0114",
+     "type": "Bulk"
+    },
+    {
+     "id": 15,
+     "name": "T-1",
+     "type": "Ticket"
+    },
+    {
+     "id": 150,
+     "name": "bulk-0115",
+     "type": "Bulk"
+    },
+    {
+     "id": 151,
+     "name": "bulk-0116",
+     "type": "Bulk"
+    },
+    {
+     "id": 152,
+     "name": "bulk-0117",
+     "type": "Bulk"
+    },
+    {
+     "id": 153,
+     "name": "bulk-0118",
+     "type": "Bulk"
+    },
+    {
+     "id": 154,
+     "name": "bulk-0119",
+     "type": "Bulk"
+    },
+    {
+     "id": 155,
+     "name": "bulk-0120",
+     "type": "Bulk"
+    },
+    {
+     "id": 156,
+     "name": "bulk-0121",
+     "type": "Bulk"
+    },
+    {
+     "id": 157,
+     "name": "bulk-0122",
+     "type": "Bulk"
+    },
+    {
+     "id": 158,
+     "name": "bulk-0123",
+     "type": "Bulk"
+    },
+    {
+     "id": 159,
+     "name": "bulk-0124",
+     "type": "Bulk"
+    },
+    {
+     "id": 16,
+     "name": "T-2",
+     "type": "Ticket"
+    },
+    {
+     "id": 160,
+     "name": "bulk-0125",
+     "type": "Bulk"
+    },
+    {
+     "id": 161,
+     "name": "bulk-0126",
+     "type": "Bulk"
+    },
+    {
+     "id": 162,
+     "name": "bulk-0127",
+     "type": "Bulk"
+    },
+    {
+     "id": 163,
+     "name": "bulk-0128",
+     "type": "Bulk"
+    },
+    {
+     "id": 164,
+     "name": "bulk-0129",
+     "type": "Bulk"
+    },
+    {
+     "id": 165,
+     "name": "bulk-0130",
+     "type": "Bulk"
+    },
+    {
+     "id": 166,
+     "name": "bulk-0131",
+     "type": "Bulk"
+    },
+    {
+     "id": 167,
+     "name": "bulk-0132",
+     "type": "Bulk"
+    },
+    {
+     "id": 168,
+     "name": "bulk-0133",
+     "type": "Bulk"
+    },
+    {
+     "id": 169,
+     "name": "bulk-0134",
+     "type": "Bulk"
+    },
+    {
+     "id": 17,
+     "name": "T-3",
+     "type": "Ticket"
+    },
+    {
+     "id": 170,
+     "name": "bulk-0135",
+     "type": "Bulk"
+    },
+    {
+     "id": 171,
+     "name": "bulk-0136",
+     "type": "Bulk"
+    },
+    {
+     "id": 172,
+     "name": "bulk-0137",
+     "type": "Bulk"
+    },
+    {
+     "id": 173,
+     "name": "bulk-0138",
+     "type": "Bulk"
+    },
+    {
+     "id": 174,
+     "name": "bulk-0139",
+     "type": "Bulk"
+    },
+    {
+     "id": 175,
+     "name": "bulk-0140",
+     "type": "Bulk"
+    },
+    {
+     "id": 176,
+     "name": "bulk-0141",
+     "type": "Bulk"
+    },
+    {
+     "id": 177,
+     "name": "bulk-0142",
+     "type": "Bulk"
+    },
+    {
+     "id": 178,
+     "name": "bulk-0143",
+     "type": "Bulk"
+    },
+    {
+     "id": 179,
+     "name": "bulk-0144",
+     "type": "Bulk"
+    },
+    {
+     "id": 18,
+     "name": "T-4",
+     "type": "Ticket"
+    },
+    {
+     "id": 180,
+     "name": "bulk-0145",
+     "type": "Bulk"
+    },
+    {
+     "id": 181,
+     "name": "bulk-0146",
+     "type": "Bulk"
+    },
+    {
+     "id": 182,
+     "name": "bulk-0147",
+     "type": "Bulk"
+    },
+    {
+     "id": 183,
+     "name": "bulk-0148",
+     "type": "Bulk"
+    },
+    {
+     "id": 184,
+     "name": "bulk-0149",
+     "type": "Bulk"
+    },
+    {
+     "id": 185,
+     "name": "bulk-0150",
+     "type": "Bulk"
+    },
+    {
+     "id": 186,
+     "name": "bulk-0151",
+     "type": "Bulk"
+    },
+    {
+     "id": 187,
+     "name": "bulk-0152",
+     "type": "Bulk"
+    },
+    {
+     "id": 188,
+     "name": "bulk-0153",
+     "type": "Bulk"
+    },
+    {
+     "id": 189,
+     "name": "bulk-0154",
+     "type": "Bulk"
+    },
+    {
+     "id": 19,
+     "name": "T-5",
+     "type": "Ticket"
+    },
+    {
+     "id": 190,
+     "name": "bulk-0155",
+     "type": "Bulk"
+    },
+    {
+     "id": 191,
+     "name": "bulk-0156",
+     "type": "Bulk"
+    },
+    {
+     "id": 192,
+     "name": "bulk-0157",
+     "type": "Bulk"
+    },
+    {
+     "id": 193,
+     "name": "bulk-0158",
+     "type": "Bulk"
+    },
+    {
+     "id": 194,
+     "name": "bulk-0159",
+     "type": "Bulk"
+    },
+    {
+     "id": 195,
+     "name": "bulk-0160",
+     "type": "Bulk"
+    },
+    {
+     "id": 196,
+     "name": "bulk-0161",
+     "type": "Bulk"
+    },
+    {
+     "id": 197,
+     "name": "bulk-0162",
+     "type": "Bulk"
+    },
+    {
+     "id": 198,
+     "name": "bulk-0163",
+     "type": "Bulk"
+    },
+    {
+     "id": 199,
+     "name": "bulk-0164",
+     "type": "Bulk"
+    },
+    {
+     "id": 2,
+     "name": "Zoë Ünïcode 日本",
+     "type": "Customer"
+    },
+    {
+     "id": 20,
+     "name": "T-6",
+     "type": "Ticket"
+    },
+    {
+     "id": 200,
+     "name": "bulk-0165",
+     "type": "Bulk"
+    },
+    {
+     "id": 201,
+     "name": "bulk-0166",
+     "type": "Bulk"
+    },
+    {
+     "id": 202,
+     "name": "bulk-0167",
+     "type": "Bulk"
+    },
+    {
+     "id": 203,
+     "name": "bulk-0168",
+     "type": "Bulk"
+    },
+    {
+     "id": 204,
+     "name": "bulk-0169",
+     "type": "Bulk"
+    },
+    {
+     "id": 205,
+     "name": "bulk-0170",
+     "type": "Bulk"
+    },
+    {
+     "id": 206,
+     "name": "bulk-0171",
+     "type": "Bulk"
+    },
+    {
+     "id": 207,
+     "name": "bulk-0172",
+     "type": "Bulk"
+    },
+    {
+     "id": 208,
+     "name": "bulk-0173",
+     "type": "Bulk"
+    },
+    {
+     "id": 209,
+     "name": "bulk-0174",
+     "type": "Bulk"
+    },
+    {
+     "id": 21,
+     "name": "n1",
+     "type": "Node"
+    },
+    {
+     "id": 210,
+     "name": "bulk-0175",
+     "type": "Bulk"
+    },
+    {
+     "id": 211,
+     "name": "bulk-0176",
+     "type": "Bulk"
+    },
+    {
+     "id": 212,
+     "name": "bulk-0177",
+     "type": "Bulk"
+    },
+    {
+     "id": 213,
+     "name": "bulk-0178",
+     "type": "Bulk"
+    },
+    {
+     "id": 214,
+     "name": "bulk-0179",
+     "type": "Bulk"
+    },
+    {
+     "id": 215,
+     "name": "bulk-0180",
+     "type": "Bulk"
+    },
+    {
+     "id": 216,
+     "name": "bulk-0181",
+     "type": "Bulk"
+    },
+    {
+     "id": 217,
+     "name": "bulk-0182",
+     "type": "Bulk"
+    },
+    {
+     "id": 218,
+     "name": "bulk-0183",
+     "type": "Bulk"
+    },
+    {
+     "id": 219,
+     "name": "bulk-0184",
+     "type": "Bulk"
+    },
+    {
+     "id": 22,
+     "name": "n2",
+     "type": "Node"
+    },
+    {
+     "id": 220,
+     "name": "bulk-0185",
+     "type": "Bulk"
+    },
+    {
+     "id": 221,
+     "name": "bulk-0186",
+     "type": "Bulk"
+    },
+    {
+     "id": 222,
+     "name": "bulk-0187",
+     "type": "Bulk"
+    },
+    {
+     "id": 223,
+     "name": "bulk-0188",
+     "type": "Bulk"
+    },
+    {
+     "id": 224,
+     "name": "bulk-0189",
+     "type": "Bulk"
+    },
+    {
+     "id": 225,
+     "name": "bulk-0190",
+     "type": "Bulk"
+    },
+    {
+     "id": 226,
+     "name": "bulk-0191",
+     "type": "Bulk"
+    },
+    {
+     "id": 227,
+     "name": "bulk-0192",
+     "type": "Bulk"
+    },
+    {
+     "id": 228,
+     "name": "bulk-0193",
+     "type": "Bulk"
+    },
+    {
+     "id": 229,
+     "name": "bulk-0194",
+     "type": "Bulk"
+    },
+    {
+     "id": 23,
+     "name": "n3",
+     "type": "Node"
+    },
+    {
+     "id": 230,
+     "name": "bulk-0195",
+     "type": "Bulk"
+    },
+    {
+     "id": 231,
+     "name": "bulk-0196",
+     "type": "Bulk"
+    },
+    {
+     "id": 232,
+     "name": "bulk-0197",
+     "type": "Bulk"
+    },
+    {
+     "id": 233,
+     "name": "bulk-0198",
+     "type": "Bulk"
+    },
+    {
+     "id": 234,
+     "name": "bulk-0199",
+     "type": "Bulk"
+    },
+    {
+     "id": 235,
+     "name": "bulk-0200",
+     "type": "Bulk"
+    },
+    {
+     "id": 236,
+     "name": "bulk-0201",
+     "type": "Bulk"
+    },
+    {
+     "id": 237,
+     "name": "bulk-0202",
+     "type": "Bulk"
+    },
+    {
+     "id": 238,
+     "name": "bulk-0203",
+     "type": "Bulk"
+    },
+    {
+     "id": 239,
+     "name": "bulk-0204",
+     "type": "Bulk"
+    },
+    {
+     "id": 24,
+     "name": "n4",
+     "type": "Node"
+    },
+    {
+     "id": 240,
+     "name": "bulk-0205",
+     "type": "Bulk"
+    },
+    {
+     "id": 241,
+     "name": "bulk-0206",
+     "type": "Bulk"
+    },
+    {
+     "id": 242,
+     "name": "bulk-0207",
+     "type": "Bulk"
+    },
+    {
+     "id": 243,
+     "name": "bulk-0208",
+     "type": "Bulk"
+    },
+    {
+     "id": 244,
+     "name": "bulk-0209",
+     "type": "Bulk"
+    },
+    {
+     "id": 245,
+     "name": "bulk-0210",
+     "type": "Bulk"
+    },
+    {
+     "id": 246,
+     "name": "bulk-0211",
+     "type": "Bulk"
+    },
+    {
+     "id": 247,
+     "name": "bulk-0212",
+     "type": "Bulk"
+    },
+    {
+     "id": 248,
+     "name": "bulk-0213",
+     "type": "Bulk"
+    },
+    {
+     "id": 249,
+     "name": "bulk-0214",
+     "type": "Bulk"
+    },
+    {
+     "id": 25,
+     "name": "n5",
+     "type": "Node"
+    },
+    {
+     "id": 250,
+     "name": "bulk-0215",
+     "type": "Bulk"
+    },
+    {
+     "id": 251,
+     "name": "bulk-0216",
+     "type": "Bulk"
+    },
+    {
+     "id": 252,
+     "name": "bulk-0217",
+     "type": "Bulk"
+    },
+    {
+     "id": 253,
+     "name": "bulk-0218",
+     "type": "Bulk"
+    },
+    {
+     "id": 254,
+     "name": "bulk-0219",
+     "type": "Bulk"
+    },
+    {
+     "id": 255,
+     "name": "bulk-0220",
+     "type": "Bulk"
+    },
+    {
+     "id": 256,
+     "name": "bulk-0221",
+     "type": "Bulk"
+    },
+    {
+     "id": 257,
+     "name": "bulk-0222",
+     "type": "Bulk"
+    },
+    {
+     "id": 258,
+     "name": "bulk-0223",
+     "type": "Bulk"
+    },
+    {
+     "id": 259,
+     "name": "bulk-0224",
+     "type": "Bulk"
+    },
+    {
+     "id": 26,
+     "name": "n6",
+     "type": "Node"
+    },
+    {
+     "id": 260,
+     "name": "bulk-0225",
+     "type": "Bulk"
+    },
+    {
+     "id": 261,
+     "name": "bulk-0226",
+     "type": "Bulk"
+    },
+    {
+     "id": 262,
+     "name": "bulk-0227",
+     "type": "Bulk"
+    },
+    {
+     "id": 263,
+     "name": "bulk-0228",
+     "type": "Bulk"
+    },
+    {
+     "id": 264,
+     "name": "bulk-0229",
+     "type": "Bulk"
+    },
+    {
+     "id": 265,
+     "name": "bulk-0230",
+     "type": "Bulk"
+    },
+    {
+     "id": 266,
+     "name": "bulk-0231",
+     "type": "Bulk"
+    },
+    {
+     "id": 267,
+     "name": "bulk-0232",
+     "type": "Bulk"
+    },
+    {
+     "id": 268,
+     "name": "bulk-0233",
+     "type": "Bulk"
+    },
+    {
+     "id": 269,
+     "name": "bulk-0234",
+     "type": "Bulk"
+    },
+    {
+     "id": 27,
+     "name": "cyc1",
+     "type": "Node"
+    },
+    {
+     "id": 270,
+     "name": "bulk-0235",
+     "type": "Bulk"
+    },
+    {
+     "id": 271,
+     "name": "bulk-0236",
+     "type": "Bulk"
+    },
+    {
+     "id": 272,
+     "name": "bulk-0237",
+     "type": "Bulk"
+    },
+    {
+     "id": 273,
+     "name": "bulk-0238",
+     "type": "Bulk"
+    },
+    {
+     "id": 274,
+     "name": "bulk-0239",
+     "type": "Bulk"
+    },
+    {
+     "id": 275,
+     "name": "bulk-0240",
+     "type": "Bulk"
+    },
+    {
+     "id": 276,
+     "name": "bulk-0241",
+     "type": "Bulk"
+    },
+    {
+     "id": 277,
+     "name": "bulk-0242",
+     "type": "Bulk"
+    },
+    {
+     "id": 278,
+     "name": "bulk-0243",
+     "type": "Bulk"
+    },
+    {
+     "id": 279,
+     "name": "bulk-0244",
+     "type": "Bulk"
+    },
+    {
+     "id": 28,
+     "name": "cyc2",
+     "type": "Node"
+    },
+    {
+     "id": 280,
+     "name": "bulk-0245",
+     "type": "Bulk"
+    },
+    {
+     "id": 281,
+     "name": "bulk-0246",
+     "type": "Bulk"
+    },
+    {
+     "id": 282,
+     "name": "bulk-0247",
+     "type": "Bulk"
+    },
+    {
+     "id": 283,
+     "name": "bulk-0248",
+     "type": "Bulk"
+    },
+    {
+     "id": 284,
+     "name": "bulk-0249",
+     "type": "Bulk"
+    },
+    {
+     "id": 285,
+     "name": "bulk-0250",
+     "type": "Bulk"
+    },
+    {
+     "id": 286,
+     "name": "bulk-0251",
+     "type": "Bulk"
+    },
+    {
+     "id": 287,
+     "name": "bulk-0252",
+     "type": "Bulk"
+    },
+    {
+     "id": 288,
+     "name": "bulk-0253",
+     "type": "Bulk"
+    },
+    {
+     "id": 289,
+     "name": "bulk-0254",
+     "type": "Bulk"
+    },
+    {
+     "id": 29,
+     "name": "cyc3",
+     "type": "Node"
+    },
+    {
+     "id": 290,
+     "name": "bulk-0255",
+     "type": "Bulk"
+    },
+    {
+     "id": 291,
+     "name": "bulk-0256",
+     "type": "Bulk"
+    },
+    {
+     "id": 292,
+     "name": "bulk-0257",
+     "type": "Bulk"
+    },
+    {
+     "id": 293,
+     "name": "bulk-0258",
+     "type": "Bulk"
+    },
+    {
+     "id": 294,
+     "name": "bulk-0259",
+     "type": "Bulk"
+    },
+    {
+     "id": 295,
+     "name": "bulk-0260",
+     "type": "Bulk"
+    },
+    {
+     "id": 296,
+     "name": "bulk-0261",
+     "type": "Bulk"
+    },
+    {
+     "id": 297,
+     "name": "bulk-0262",
+     "type": "Bulk"
+    },
+    {
+     "id": 298,
+     "name": "bulk-0263",
+     "type": "Bulk"
+    },
+    {
+     "id": 299,
+     "name": "bulk-0264",
+     "type": "Bulk"
+    },
+    {
+     "id": 3,
+     "name": "Fallback Title",
+     "type": "Customer"
+    },
+    {
+     "id": 30,
+     "name": "sq1",
+     "type": "Node"
+    },
+    {
+     "id": 300,
+     "name": "bulk-0265",
+     "type": "Bulk"
+    },
+    {
+     "id": 301,
+     "name": "bulk-0266",
+     "type": "Bulk"
+    },
+    {
+     "id": 302,
+     "name": "bulk-0267",
+     "type": "Bulk"
+    },
+    {
+     "id": 303,
+     "name": "bulk-0268",
+     "type": "Bulk"
+    },
+    {
+     "id": 304,
+     "name": "bulk-0269",
+     "type": "Bulk"
+    },
+    {
+     "id": 305,
+     "name": "bulk-0270",
+     "type": "Bulk"
+    },
+    {
+     "id": 306,
+     "name": "bulk-0271",
+     "type": "Bulk"
+    },
+    {
+     "id": 307,
+     "name": "bulk-0272",
+     "type": "Bulk"
+    },
+    {
+     "id": 308,
+     "name": "bulk-0273",
+     "type": "Bulk"
+    },
+    {
+     "id": 309,
+     "name": "bulk-0274",
+     "type": "Bulk"
+    },
+    {
+     "id": 31,
+     "name": "sq2",
+     "type": "Node"
+    },
+    {
+     "id": 310,
+     "name": "bulk-0275",
+     "type": "Bulk"
+    },
+    {
+     "id": 311,
+     "name": "bulk-0276",
+     "type": "Bulk"
+    },
+    {
+     "id": 312,
+     "name": "bulk-0277",
+     "type": "Bulk"
+    },
+    {
+     "id": 313,
+     "name": "bulk-0278",
+     "type": "Bulk"
+    },
+    {
+     "id": 314,
+     "name": "bulk-0279",
+     "type": "Bulk"
+    },
+    {
+     "id": 315,
+     "name": "bulk-0280",
+     "type": "Bulk"
+    },
+    {
+     "id": 316,
+     "name": "bulk-0281",
+     "type": "Bulk"
+    },
+    {
+     "id": 317,
+     "name": "bulk-0282",
+     "type": "Bulk"
+    },
+    {
+     "id": 318,
+     "name": "bulk-0283",
+     "type": "Bulk"
+    },
+    {
+     "id": 319,
+     "name": "bulk-0284",
+     "type": "Bulk"
+    },
+    {
+     "id": 32,
+     "name": "sq3",
+     "type": "Node"
+    },
+    {
+     "id": 320,
+     "name": "bulk-0285",
+     "type": "Bulk"
+    },
+    {
+     "id": 321,
+     "name": "bulk-0286",
+     "type": "Bulk"
+    },
+    {
+     "id": 322,
+     "name": "bulk-0287",
+     "type": "Bulk"
+    },
+    {
+     "id": 323,
+     "name": "bulk-0288",
+     "type": "Bulk"
+    },
+    {
+     "id": 324,
+     "name": "bulk-0289",
+     "type": "Bulk"
+    },
+    {
+     "id": 325,
+     "name": "bulk-0290",
+     "type": "Bulk"
+    },
+    {
+     "id": 326,
+     "name": "bulk-0291",
+     "type": "Bulk"
+    },
+    {
+     "id": 327,
+     "name": "bulk-0292",
+     "type": "Bulk"
+    },
+    {
+     "id": 328,
+     "name": "bulk-0293",
+     "type": "Bulk"
+    },
+    {
+     "id": 329,
+     "name": "bulk-0294",
+     "type": "Bulk"
+    },
+    {
+     "id": 33,
+     "name": "sq4",
+     "type": "Node"
+    },
+    {
+     "id": 330,
+     "name": "bulk-0295",
+     "type": "Bulk"
+    },
+    {
+     "id": 331,
+     "name": "bulk-0296",
+     "type": "Bulk"
+    },
+    {
+     "id": 332,
+     "name": "bulk-0297",
+     "type": "Bulk"
+    },
+    {
+     "id": 333,
+     "name": "bulk-0298",
+     "type": "Bulk"
+    },
+    {
+     "id": 334,
+     "name": "bulk-0299",
+     "type": "Bulk"
+    },
+    {
+     "id": 335,
+     "name": "bulk-0300",
+     "type": "Bulk"
+    },
+    {
+     "id": 336,
+     "name": "bulk-0301",
+     "type": "Bulk"
+    },
+    {
+     "id": 337,
+     "name": "bulk-0302",
+     "type": "Bulk"
+    },
+    {
+     "id": 338,
+     "name": "bulk-0303",
+     "type": "Bulk"
+    },
+    {
+     "id": 339,
+     "name": "bulk-0304",
+     "type": "Bulk"
+    },
+    {
+     "id": 34,
+     "name": "loopself",
+     "type": "Node"
+    },
+    {
+     "id": 340,
+     "name": "bulk-0305",
+     "type": "Bulk"
+    },
+    {
+     "id": 341,
+     "name": "bulk-0306",
+     "type": "Bulk"
+    },
+    {
+     "id": 342,
+     "name": "bulk-0307",
+     "type": "Bulk"
+    },
+    {
+     "id": 343,
+     "name": "bulk-0308",
+     "type": "Bulk"
+    },
+    {
+     "id": 344,
+     "name": "bulk-0309",
+     "type": "Bulk"
+    },
+    {
+     "id": 345,
+     "name": "bulk-0310",
+     "type": "Bulk"
+    },
+    {
+     "id": 346,
+     "name": "bulk-0311",
+     "type": "Bulk"
+    },
+    {
+     "id": 347,
+     "name": "bulk-0312",
+     "type": "Bulk"
+    },
+    {
+     "id": 348,
+     "name": "bulk-0313",
+     "type": "Bulk"
+    },
+    {
+     "id": 349,
+     "name": "bulk-0314",
+     "type": "Bulk"
+    },
+    {
+     "id": 35,
+     "name": "bulk-0000",
+     "type": "Bulk"
+    },
+    {
+     "id": 350,
+     "name": "bulk-0315",
+     "type": "Bulk"
+    },
+    {
+     "id": 351,
+     "name": "bulk-0316",
+     "type": "Bulk"
+    },
+    {
+     "id": 352,
+     "name": "bulk-0317",
+     "type": "Bulk"
+    },
+    {
+     "id": 353,
+     "name": "bulk-0318",
+     "type": "Bulk"
+    },
+    {
+     "id": 354,
+     "name": "bulk-0319",
+     "type": "Bulk"
+    },
+    {
+     "id": 355,
+     "name": "bulk-0320",
+     "type": "Bulk"
+    },
+    {
+     "id": 356,
+     "name": "bulk-0321",
+     "type": "Bulk"
+    },
+    {
+     "id": 357,
+     "name": "bulk-0322",
+     "type": "Bulk"
+    },
+    {
+     "id": 358,
+     "name": "bulk-0323",
+     "type": "Bulk"
+    },
+    {
+     "id": 359,
+     "name": "bulk-0324",
+     "type": "Bulk"
+    },
+    {
+     "id": 36,
+     "name": "bulk-0001",
+     "type": "Bulk"
+    },
+    {
+     "id": 360,
+     "name": "bulk-0325",
+     "type": "Bulk"
+    },
+    {
+     "id": 361,
+     "name": "bulk-0326",
+     "type": "Bulk"
+    },
+    {
+     "id": 362,
+     "name": "bulk-0327",
+     "type": "Bulk"
+    },
+    {
+     "id": 363,
+     "name": "bulk-0328",
+     "type": "Bulk"
+    },
+    {
+     "id": 364,
+     "name": "bulk-0329",
+     "type": "Bulk"
+    },
+    {
+     "id": 365,
+     "name": "bulk-0330",
+     "type": "Bulk"
+    },
+    {
+     "id": 366,
+     "name": "bulk-0331",
+     "type": "Bulk"
+    },
+    {
+     "id": 367,
+     "name": "bulk-0332",
+     "type": "Bulk"
+    },
+    {
+     "id": 368,
+     "name": "bulk-0333",
+     "type": "Bulk"
+    },
+    {
+     "id": 369,
+     "name": "bulk-0334",
+     "type": "Bulk"
+    },
+    {
+     "id": 37,
+     "name": "bulk-0002",
+     "type": "Bulk"
+    },
+    {
+     "id": 370,
+     "name": "bulk-0335",
+     "type": "Bulk"
+    },
+    {
+     "id": 371,
+     "name": "bulk-0336",
+     "type": "Bulk"
+    },
+    {
+     "id": 372,
+     "name": "bulk-0337",
+     "type": "Bulk"
+    },
+    {
+     "id": 373,
+     "name": "bulk-0338",
+     "type": "Bulk"
+    },
+    {
+     "id": 374,
+     "name": "bulk-0339",
+     "type": "Bulk"
+    },
+    {
+     "id": 375,
+     "name": "bulk-0340",
+     "type": "Bulk"
+    },
+    {
+     "id": 376,
+     "name": "bulk-0341",
+     "type": "Bulk"
+    },
+    {
+     "id": 377,
+     "name": "bulk-0342",
+     "type": "Bulk"
+    },
+    {
+     "id": 378,
+     "name": "bulk-0343",
+     "type": "Bulk"
+    },
+    {
+     "id": 379,
+     "name": "bulk-0344",
+     "type": "Bulk"
+    },
+    {
+     "id": 38,
+     "name": "bulk-0003",
+     "type": "Bulk"
+    },
+    {
+     "id": 380,
+     "name": "bulk-0345",
+     "type": "Bulk"
+    },
+    {
+     "id": 381,
+     "name": "bulk-0346",
+     "type": "Bulk"
+    },
+    {
+     "id": 382,
+     "name": "bulk-0347",
+     "type": "Bulk"
+    },
+    {
+     "id": 383,
+     "name": "bulk-0348",
+     "type": "Bulk"
+    },
+    {
+     "id": 384,
+     "name": "bulk-0349",
+     "type": "Bulk"
+    },
+    {
+     "id": 385,
+     "name": "bulk-0350",
+     "type": "Bulk"
+    },
+    {
+     "id": 386,
+     "name": "bulk-0351",
+     "type": "Bulk"
+    },
+    {
+     "id": 387,
+     "name": "bulk-0352",
+     "type": "Bulk"
+    },
+    {
+     "id": 388,
+     "name": "bulk-0353",
+     "type": "Bulk"
+    },
+    {
+     "id": 389,
+     "name": "bulk-0354",
+     "type": "Bulk"
+    },
+    {
+     "id": 39,
+     "name": "bulk-0004",
+     "type": "Bulk"
+    },
+    {
+     "id": 390,
+     "name": "bulk-0355",
+     "type": "Bulk"
+    },
+    {
+     "id": 391,
+     "name": "bulk-0356",
+     "type": "Bulk"
+    },
+    {
+     "id": 392,
+     "name": "bulk-0357",
+     "type": "Bulk"
+    },
+    {
+     "id": 393,
+     "name": "bulk-0358",
+     "type": "Bulk"
+    },
+    {
+     "id": 394,
+     "name": "bulk-0359",
+     "type": "Bulk"
+    },
+    {
+     "id": 395,
+     "name": "bulk-0360",
+     "type": "Bulk"
+    },
+    {
+     "id": 396,
+     "name": "bulk-0361",
+     "type": "Bulk"
+    },
+    {
+     "id": 397,
+     "name": "bulk-0362",
+     "type": "Bulk"
+    },
+    {
+     "id": 398,
+     "name": "bulk-0363",
+     "type": "Bulk"
+    },
+    {
+     "id": 399,
+     "name": "bulk-0364",
+     "type": "Bulk"
+    },
+    {
+     "id": 4,
+     "name": "Lbl",
+     "type": "Customer"
+    },
+    {
+     "id": 40,
+     "name": "bulk-0005",
+     "type": "Bulk"
+    },
+    {
+     "id": 400,
+     "name": "bulk-0365",
+     "type": "Bulk"
+    },
+    {
+     "id": 401,
+     "name": "bulk-0366",
+     "type": "Bulk"
+    },
+    {
+     "id": 402,
+     "name": "bulk-0367",
+     "type": "Bulk"
+    },
+    {
+     "id": 403,
+     "name": "bulk-0368",
+     "type": "Bulk"
+    },
+    {
+     "id": 404,
+     "name": "bulk-0369",
+     "type": "Bulk"
+    },
+    {
+     "id": 405,
+     "name": "bulk-0370",
+     "type": "Bulk"
+    },
+    {
+     "id": 406,
+     "name": "bulk-0371",
+     "type": "Bulk"
+    },
+    {
+     "id": 407,
+     "name": "bulk-0372",
+     "type": "Bulk"
+    },
+    {
+     "id": 408,
+     "name": "bulk-0373",
+     "type": "Bulk"
+    },
+    {
+     "id": 409,
+     "name": "bulk-0374",
+     "type": "Bulk"
+    },
+    {
+     "id": 41,
+     "name": "bulk-0006",
+     "type": "Bulk"
+    },
+    {
+     "id": 410,
+     "name": "bulk-0375",
+     "type": "Bulk"
+    },
+    {
+     "id": 411,
+     "name": "bulk-0376",
+     "type": "Bulk"
+    },
+    {
+     "id": 412,
+     "name": "bulk-0377",
+     "type": "Bulk"
+    },
+    {
+     "id": 413,
+     "name": "bulk-0378",
+     "type": "Bulk"
+    },
+    {
+     "id": 414,
+     "name": "bulk-0379",
+     "type": "Bulk"
+    },
+    {
+     "id": 415,
+     "name": "bulk-0380",
+     "type": "Bulk"
+    },
+    {
+     "id": 416,
+     "name": "bulk-0381",
+     "type": "Bulk"
+    },
+    {
+     "id": 417,
+     "name": "bulk-0382",
+     "type": "Bulk"
+    },
+    {
+     "id": 418,
+     "name": "bulk-0383",
+     "type": "Bulk"
+    },
+    {
+     "id": 419,
+     "name": "bulk-0384",
+     "type": "Bulk"
+    },
+    {
+     "id": 42,
+     "name": "bulk-0007",
+     "type": "Bulk"
+    },
+    {
+     "id": 420,
+     "name": "bulk-0385",
+     "type": "Bulk"
+    },
+    {
+     "id": 421,
+     "name": "bulk-0386",
+     "type": "Bulk"
+    },
+    {
+     "id": 422,
+     "name": "bulk-0387",
+     "type": "Bulk"
+    },
+    {
+     "id": 423,
+     "name": "bulk-0388",
+     "type": "Bulk"
+    },
+    {
+     "id": 424,
+     "name": "bulk-0389",
+     "type": "Bulk"
+    },
+    {
+     "id": 425,
+     "name": "bulk-0390",
+     "type": "Bulk"
+    },
+    {
+     "id": 426,
+     "name": "bulk-0391",
+     "type": "Bulk"
+    },
+    {
+     "id": 427,
+     "name": "bulk-0392",
+     "type": "Bulk"
+    },
+    {
+     "id": 428,
+     "name": "bulk-0393",
+     "type": "Bulk"
+    },
+    {
+     "id": 429,
+     "name": "bulk-0394",
+     "type": "Bulk"
+    },
+    {
+     "id": 43,
+     "name": "bulk-0008",
+     "type": "Bulk"
+    },
+    {
+     "id": 430,
+     "name": "bulk-0395",
+     "type": "Bulk"
+    },
+    {
+     "id": 431,
+     "name": "bulk-0396",
+     "type": "Bulk"
+    },
+    {
+     "id": 432,
+     "name": "bulk-0397",
+     "type": "Bulk"
+    },
+    {
+     "id": 433,
+     "name": "bulk-0398",
+     "type": "Bulk"
+    },
+    {
+     "id": 434,
+     "name": "bulk-0399",
+     "type": "Bulk"
+    },
+    {
+     "id": 435,
+     "name": "bulk-0400",
+     "type": "Bulk"
+    },
+    {
+     "id": 436,
+     "name": "bulk-0401",
+     "type": "Bulk"
+    },
+    {
+     "id": 437,
+     "name": "bulk-0402",
+     "type": "Bulk"
+    },
+    {
+     "id": 438,
+     "name": "bulk-0403",
+     "type": "Bulk"
+    },
+    {
+     "id": 439,
+     "name": "bulk-0404",
+     "type": "Bulk"
+    },
+    {
+     "id": 44,
+     "name": "bulk-0009",
+     "type": "Bulk"
+    },
+    {
+     "id": 440,
+     "name": "bulk-0405",
+     "type": "Bulk"
+    },
+    {
+     "id": 441,
+     "name": "bulk-0406",
+     "type": "Bulk"
+    },
+    {
+     "id": 442,
+     "name": "bulk-0407",
+     "type": "Bulk"
+    },
+    {
+     "id": 443,
+     "name": "bulk-0408",
+     "type": "Bulk"
+    },
+    {
+     "id": 444,
+     "name": "bulk-0409",
+     "type": "Bulk"
+    },
+    {
+     "id": 445,
+     "name": "bulk-0410",
+     "type": "Bulk"
+    },
+    {
+     "id": 446,
+     "name": "bulk-0411",
+     "type": "Bulk"
+    },
+    {
+     "id": 447,
+     "name": "bulk-0412",
+     "type": "Bulk"
+    },
+    {
+     "id": 448,
+     "name": "bulk-0413",
+     "type": "Bulk"
+    },
+    {
+     "id": 449,
+     "name": "bulk-0414",
+     "type": "Bulk"
+    },
+    {
+     "id": 45,
+     "name": "bulk-0010",
+     "type": "Bulk"
+    },
+    {
+     "id": 450,
+     "name": "bulk-0415",
+     "type": "Bulk"
+    },
+    {
+     "id": 451,
+     "name": "bulk-0416",
+     "type": "Bulk"
+    },
+    {
+     "id": 452,
+     "name": "bulk-0417",
+     "type": "Bulk"
+    },
+    {
+     "id": 453,
+     "name": "bulk-0418",
+     "type": "Bulk"
+    },
+    {
+     "id": 454,
+     "name": "bulk-0419",
+     "type": "Bulk"
+    },
+    {
+     "id": 455,
+     "name": "bulk-0420",
+     "type": "Bulk"
+    },
+    {
+     "id": 456,
+     "name": "bulk-0421",
+     "type": "Bulk"
+    },
+    {
+     "id": 457,
+     "name": "bulk-0422",
+     "type": "Bulk"
+    },
+    {
+     "id": 458,
+     "name": "bulk-0423",
+     "type": "Bulk"
+    },
+    {
+     "id": 459,
+     "name": "bulk-0424",
+     "type": "Bulk"
+    },
+    {
+     "id": 46,
+     "name": "bulk-0011",
+     "type": "Bulk"
+    },
+    {
+     "id": 460,
+     "name": "bulk-0425",
+     "type": "Bulk"
+    },
+    {
+     "id": 461,
+     "name": "bulk-0426",
+     "type": "Bulk"
+    },
+    {
+     "id": 462,
+     "name": "bulk-0427",
+     "type": "Bulk"
+    },
+    {
+     "id": 463,
+     "name": "bulk-0428",
+     "type": "Bulk"
+    },
+    {
+     "id": 464,
+     "name": "bulk-0429",
+     "type": "Bulk"
+    },
+    {
+     "id": 465,
+     "name": "bulk-0430",
+     "type": "Bulk"
+    },
+    {
+     "id": 466,
+     "name": "bulk-0431",
+     "type": "Bulk"
+    },
+    {
+     "id": 467,
+     "name": "bulk-0432",
+     "type": "Bulk"
+    },
+    {
+     "id": 468,
+     "name": "bulk-0433",
+     "type": "Bulk"
+    },
+    {
+     "id": 469,
+     "name": "bulk-0434",
+     "type": "Bulk"
+    },
+    {
+     "id": 47,
+     "name": "bulk-0012",
+     "type": "Bulk"
+    },
+    {
+     "id": 470,
+     "name": "bulk-0435",
+     "type": "Bulk"
+    },
+    {
+     "id": 471,
+     "name": "bulk-0436",
+     "type": "Bulk"
+    },
+    {
+     "id": 472,
+     "name": "bulk-0437",
+     "type": "Bulk"
+    },
+    {
+     "id": 473,
+     "name": "bulk-0438",
+     "type": "Bulk"
+    },
+    {
+     "id": 474,
+     "name": "bulk-0439",
+     "type": "Bulk"
+    },
+    {
+     "id": 475,
+     "name": "bulk-0440",
+     "type": "Bulk"
+    },
+    {
+     "id": 476,
+     "name": "bulk-0441",
+     "type": "Bulk"
+    },
+    {
+     "id": 477,
+     "name": "bulk-0442",
+     "type": "Bulk"
+    },
+    {
+     "id": 478,
+     "name": "bulk-0443",
+     "type": "Bulk"
+    },
+    {
+     "id": 479,
+     "name": "bulk-0444",
+     "type": "Bulk"
+    },
+    {
+     "id": 48,
+     "name": "bulk-0013",
+     "type": "Bulk"
+    },
+    {
+     "id": 480,
+     "name": "bulk-0445",
+     "type": "Bulk"
+    },
+    {
+     "id": 481,
+     "name": "bulk-0446",
+     "type": "Bulk"
+    },
+    {
+     "id": 482,
+     "name": "bulk-0447",
+     "type": "Bulk"
+    },
+    {
+     "id": 483,
+     "name": "bulk-0448",
+     "type": "Bulk"
+    },
+    {
+     "id": 484,
+     "name": "bulk-0449",
+     "type": "Bulk"
+    },
+    {
+     "id": 485,
+     "name": "bulk-0450",
+     "type": "Bulk"
+    },
+    {
+     "id": 486,
+     "name": "bulk-0451",
+     "type": "Bulk"
+    },
+    {
+     "id": 487,
+     "name": "bulk-0452",
+     "type": "Bulk"
+    },
+    {
+     "id": 488,
+     "name": "bulk-0453",
+     "type": "Bulk"
+    },
+    {
+     "id": 489,
+     "name": "bulk-0454",
+     "type": "Bulk"
+    },
+    {
+     "id": 49,
+     "name": "bulk-0014",
+     "type": "Bulk"
+    },
+    {
+     "id": 490,
+     "name": "bulk-0455",
+     "type": "Bulk"
+    },
+    {
+     "id": 491,
+     "name": "bulk-0456",
+     "type": "Bulk"
+    },
+    {
+     "id": 492,
+     "name": "bulk-0457",
+     "type": "Bulk"
+    },
+    {
+     "id": 493,
+     "name": "bulk-0458",
+     "type": "Bulk"
+    },
+    {
+     "id": 494,
+     "name": "bulk-0459",
+     "type": "Bulk"
+    },
+    {
+     "id": 495,
+     "name": "bulk-0460",
+     "type": "Bulk"
+    },
+    {
+     "id": 496,
+     "name": "bulk-0461",
+     "type": "Bulk"
+    },
+    {
+     "id": 497,
+     "name": "bulk-0462",
+     "type": "Bulk"
+    },
+    {
+     "id": 498,
+     "name": "bulk-0463",
+     "type": "Bulk"
+    },
+    {
+     "id": 499,
+     "name": "bulk-0464",
+     "type": "Bulk"
+    },
+    {
+     "id": 5,
+     "name": "a@b.co",
+     "type": "Customer"
+    },
+    {
+     "id": 50,
+     "name": "bulk-0015",
+     "type": "Bulk"
+    },
+    {
+     "id": 51,
+     "name": "bulk-0016",
+     "type": "Bulk"
+    },
+    {
+     "id": 52,
+     "name": "bulk-0017",
+     "type": "Bulk"
+    },
+    {
+     "id": 53,
+     "name": "bulk-0018",
+     "type": "Bulk"
+    },
+    {
+     "id": 54,
+     "name": "bulk-0019",
+     "type": "Bulk"
+    },
+    {
+     "id": 55,
+     "name": "bulk-0020",
+     "type": "Bulk"
+    },
+    {
+     "id": 56,
+     "name": "bulk-0021",
+     "type": "Bulk"
+    },
+    {
+     "id": 57,
+     "name": "bulk-0022",
+     "type": "Bulk"
+    },
+    {
+     "id": 58,
+     "name": "bulk-0023",
+     "type": "Bulk"
+    },
+    {
+     "id": 59,
+     "name": "bulk-0024",
+     "type": "Bulk"
+    },
+    {
+     "id": 6,
+     "name": "True",
+     "type": "Customer"
+    },
+    {
+     "id": 60,
+     "name": "bulk-0025",
+     "type": "Bulk"
+    },
+    {
+     "id": 61,
+     "name": "bulk-0026",
+     "type": "Bulk"
+    },
+    {
+     "id": 62,
+     "name": "bulk-0027",
+     "type": "Bulk"
+    },
+    {
+     "id": 63,
+     "name": "bulk-0028",
+     "type": "Bulk"
+    },
+    {
+     "id": 64,
+     "name": "bulk-0029",
+     "type": "Bulk"
+    },
+    {
+     "id": 65,
+     "name": "bulk-0030",
+     "type": "Bulk"
+    },
+    {
+     "id": 66,
+     "name": "bulk-0031",
+     "type": "Bulk"
+    },
+    {
+     "id": 67,
+     "name": "bulk-0032",
+     "type": "Bulk"
+    },
+    {
+     "id": 68,
+     "name": "bulk-0033",
+     "type": "Bulk"
+    },
+    {
+     "id": 69,
+     "name": "bulk-0034",
+     "type": "Bulk"
+    },
+    {
+     "id": 7,
+     "name": "#7",
+     "type": "Customer"
+    },
+    {
+     "id": 70,
+     "name": "bulk-0035",
+     "type": "Bulk"
+    },
+    {
+     "id": 71,
+     "name": "bulk-0036",
+     "type": "Bulk"
+    },
+    {
+     "id": 72,
+     "name": "bulk-0037",
+     "type": "Bulk"
+    },
+    {
+     "id": 73,
+     "name": "bulk-0038",
+     "type": "Bulk"
+    },
+    {
+     "id": 74,
+     "name": "bulk-0039",
+     "type": "Bulk"
+    },
+    {
+     "id": 75,
+     "name": "bulk-0040",
+     "type": "Bulk"
+    },
+    {
+     "id": 76,
+     "name": "bulk-0041",
+     "type": "Bulk"
+    },
+    {
+     "id": 77,
+     "name": "bulk-0042",
+     "type": "Bulk"
+    },
+    {
+     "id": 78,
+     "name": "bulk-0043",
+     "type": "Bulk"
+    },
+    {
+     "id": 79,
+     "name": "bulk-0044",
+     "type": "Bulk"
+    },
+    {
+     "id": 8,
+     "name": "z-val",
+     "type": "Customer"
+    },
+    {
+     "id": 80,
+     "name": "bulk-0045",
+     "type": "Bulk"
+    },
+    {
+     "id": 81,
+     "name": "bulk-0046",
+     "type": "Bulk"
+    },
+    {
+     "id": 82,
+     "name": "bulk-0047",
+     "type": "Bulk"
+    },
+    {
+     "id": 83,
+     "name": "bulk-0048",
+     "type": "Bulk"
+    },
+    {
+     "id": 84,
+     "name": "bulk-0049",
+     "type": "Bulk"
+    },
+    {
+     "id": 85,
+     "name": "bulk-0050",
+     "type": "Bulk"
+    },
+    {
+     "id": 86,
+     "name": "bulk-0051",
+     "type": "Bulk"
+    },
+    {
+     "id": 87,
+     "name": "bulk-0052",
+     "type": "Bulk"
+    },
+    {
+     "id": 88,
+     "name": "bulk-0053",
+     "type": "Bulk"
+    },
+    {
+     "id": 89,
+     "name": "bulk-0054",
+     "type": "Bulk"
+    },
+    {
+     "id": 9,
+     "name": "UPPER lower Mixed",
+     "type": "Customer"
+    },
+    {
+     "id": 90,
+     "name": "bulk-0055",
+     "type": "Bulk"
+    },
+    {
+     "id": 91,
+     "name": "bulk-0056",
+     "type": "Bulk"
+    },
+    {
+     "id": 92,
+     "name": "bulk-0057",
+     "type": "Bulk"
+    },
+    {
+     "id": 93,
+     "name": "bulk-0058",
+     "type": "Bulk"
+    },
+    {
+     "id": 94,
+     "name": "bulk-0059",
+     "type": "Bulk"
+    },
+    {
+     "id": 95,
+     "name": "bulk-0060",
+     "type": "Bulk"
+    },
+    {
+     "id": 96,
+     "name": "bulk-0061",
+     "type": "Bulk"
+    },
+    {
+     "id": 97,
+     "name": "bulk-0062",
+     "type": "Bulk"
+    },
+    {
+     "id": 98,
+     "name": "bulk-0063",
+     "type": "Bulk"
+    },
+    {
+     "id": 99,
+     "name": "bulk-0064",
+     "type": "Bulk"
+    }
+   ],
+   "name_hash": [
+    {
+     "id": 7,
+     "name": "#7",
+     "type": "Customer"
+    }
+   ],
+   "name_keyorder": [
+    {
+     "id": 8,
+     "name": "z-val",
+     "type": "Customer"
+    }
+   ],
+   "name_none": [],
+   "name_percent": [
+    {
+     "id": 10,
+     "name": "100% real_deal",
+     "type": "Customer"
+    }
+   ],
+   "name_underscore": [
+    {
+     "id": 10,
+     "name": "100% real_deal",
+     "type": "Customer"
+    }
+   ],
+   "name_unicode_lower": [
+    {
+     "id": 2,
+     "name": "Zoë Ünïcode 日本",
+     "type": "Customer"
+    }
+   ],
+   "name_unicode_upper": [
+    {
+     "id": 2,
+     "name": "Zoë Ünïcode 日本",
+     "type": "Customer"
+    }
+   ],
+   "name_upper": [
+    {
+     "id": 9,
+     "name": "UPPER lower Mixed",
+     "type": "Customer"
+    }
+   ],
+   "type_and_name": [
+    {
+     "id": 0,
+     "name": "Acme Corp",
+     "type": "Customer"
+    },
+    {
+     "id": 1,
+     "name": "Acme Corp",
+     "type": "Customer"
+    }
+   ],
+   "type_customer": [
+    {
+     "id": 0,
+     "name": "Acme Corp",
+     "type": "Customer"
+    },
+    {
+     "id": 1,
+     "name": "Acme Corp",
+     "type": "Customer"
+    },
+    {
+     "id": 10,
+     "name": "100% real_deal",
+     "type": "Customer"
+    },
+    {
+     "id": 11,
+     "name": "Lonely",
+     "type": "Customer"
+    },
+    {
+     "id": 2,
+     "name": "Zoë Ünïcode 日本",
+     "type": "Customer"
+    },
+    {
+     "id": 3,
+     "name": "Fallback Title",
+     "type": "Customer"
+    },
+    {
+     "id": 4,
+     "name": "Lbl",
+     "type": "Customer"
+    },
+    {
+     "id": 5,
+     "name": "a@b.co",
+     "type": "Customer"
+    },
+    {
+     "id": 6,
+     "name": "True",
+     "type": "Customer"
+    },
+    {
+     "id": 7,
+     "name": "#7",
+     "type": "Customer"
+    },
+    {
+     "id": 8,
+     "name": "z-val",
+     "type": "Customer"
+    },
+    {
+     "id": 9,
+     "name": "UPPER lower Mixed",
+     "type": "Customer"
+    }
+   ],
+   "type_unknown": []
+  },
+  "get_entity": {
+   "acme1": {
+    "id": 0,
+    "name": "Acme Corp",
+    "type": "Customer"
+   },
+   "booltrue": {
+    "id": 6,
+    "name": "True",
+    "type": "Customer"
+   },
+   "emptylist": {
+    "id": 5,
+    "name": "a@b.co",
+    "type": "Customer"
+   },
+   "emptyname": {
+    "id": 4,
+    "name": "Lbl",
+    "type": "Customer"
+   },
+   "falsy0": {
+    "id": 3,
+    "name": "Fallback Title",
+    "type": "Customer"
+   },
+   "floatsku": {
+    "id": 13,
+    "name": "1.5",
+    "type": "Product"
+   },
+   "keyorder": {
+    "id": 8,
+    "name": "z-val",
+    "type": "Customer"
+   },
+   "lonely": {
+    "id": 11,
+    "name": "Lonely",
+    "type": "Customer"
+   },
+   "longonly": {
+    "id": 7,
+    "name": "#7",
+    "type": "Customer"
+   },
+   "missing": null,
+   "numcode": {
+    "id": 12,
+    "name": "123",
+    "type": "Product"
+   },
+   "t1": {
+    "id": 15,
+    "name": "T-1",
+    "type": "Ticket"
+   },
+   "widget": {
+    "id": 14,
+    "name": "Widget",
+    "type": "Product"
+   },
+   "zoe": {
+    "id": 2,
+    "name": "Zoë Ünïcode 日本",
+    "type": "Customer"
+   }
+  },
+  "neighbors": {
+   "acme1": [
+    {
+     "direction": "in",
+     "id": 15,
+     "name": "T-1",
+     "relationship": "mentions",
+     "type": "Ticket"
+    },
+    {
+     "direction": "in",
+     "id": 15,
+     "name": "T-1",
+     "relationship": "raised_by",
+     "type": "Ticket"
+    },
+    {
+     "direction": "in",
+     "id": 16,
+     "name": "T-2",
+     "relationship": "raised_by",
+     "type": "Ticket"
+    },
+    {
+     "direction": "out",
+     "id": 1,
+     "name": "Acme Corp",
+     "relationship": "same_group",
+     "type": "Customer"
+    }
+   ],
+   "acme2": [
+    {
+     "direction": "in",
+     "id": 0,
+     "name": "Acme Corp",
+     "relationship": "same_group",
+     "type": "Customer"
+    },
+    {
+     "direction": "in",
+     "id": 17,
+     "name": "T-3",
+     "relationship": "raised_by",
+     "type": "Ticket"
+    }
+   ],
+   "cyc1": [
+    {
+     "direction": "in",
+     "id": 29,
+     "name": "cyc3",
+     "relationship": "loop",
+     "type": "Node"
+    },
+    {
+     "direction": "out",
+     "id": 28,
+     "name": "cyc2",
+     "relationship": "loop",
+     "type": "Node"
+    }
+   ],
+   "lonely": [],
+   "loopself": [
+    {
+     "direction": "in",
+     "id": 34,
+     "name": "loopself",
+     "relationship": "self",
+     "type": "Node"
+    },
+    {
+     "direction": "out",
+     "id": 34,
+     "name": "loopself",
+     "relationship": "self",
+     "type": "Node"
+    }
+   ],
+   "missing": [],
+   "n1": [
+    {
+     "direction": "out",
+     "id": 22,
+     "name": "n2",
+     "relationship": "next",
+     "type": "Node"
+    }
+   ],
+   "n3": [
+    {
+     "direction": "in",
+     "id": 22,
+     "name": "n2",
+     "relationship": "next",
+     "type": "Node"
+    },
+    {
+     "direction": "out",
+     "id": 24,
+     "name": "n4",
+     "relationship": "next",
+     "type": "Node"
+    }
+   ],
+   "n6": [
+    {
+     "direction": "in",
+     "id": 25,
+     "name": "n5",
+     "relationship": "next",
+     "type": "Node"
+    }
+   ],
+   "t1": [
+    {
+     "direction": "out",
+     "id": 0,
+     "name": "Acme Corp",
+     "relationship": "mentions",
+     "type": "Customer"
+    },
+    {
+     "direction": "out",
+     "id": 0,
+     "name": "Acme Corp",
+     "relationship": "raised_by",
+     "type": "Customer"
+    }
+   ],
+   "t2": [
+    {
+     "direction": "out",
+     "id": 0,
+     "name": "Acme Corp",
+     "relationship": "raised_by",
+     "type": "Customer"
+    }
+   ],
+   "widget": [
+    {
+     "direction": "in",
+     "id": 19,
+     "name": "T-5",
+     "relationship": "about",
+     "type": "Ticket"
+    }
+   ],
+   "zoe": [
+    {
+     "direction": "in",
+     "id": 18,
+     "name": "T-4",
+     "relationship": "raised_by",
+     "type": "Ticket"
+    }
+   ]
+  },
+  "provenance": {
+   "acme1": [
+    {
+     "dataset": "accounts",
+     "record_id": "a-1",
+     "system": "erp"
+    },
+    {
+     "dataset": "customers",
+     "record_id": "c-1",
+     "system": "crm"
+    }
+   ],
+   "acme2": [
+    {
+     "dataset": "customers",
+     "record_id": "c-2",
+     "system": "crm"
+    }
+   ],
+   "lonely": [],
+   "t1": [
+    {
+     "dataset": "tickets",
+     "record_id": "h-1",
+     "system": "helpdesk"
+    }
+   ],
+   "t2": [
+    {
+     "dataset": "tickets",
+     "record_id": "h-1",
+     "system": "helpdesk"
+    }
+   ],
+   "t3": [
+    {
+     "dataset": "tickets",
+     "record_id": "h-2",
+     "system": "helpdesk"
+    }
+   ],
+   "t4": []
+  },
+  "shortest_path": {
+   "acme1->ghost@6": [],
+   "acme1->t1@6": [
+    {
+     "id": 15,
+     "name": "T-1",
+     "relationship": null,
+     "type": "Ticket"
+    },
+    {
+     "id": 0,
+     "name": "Acme Corp",
+     "relationship": "raised_by",
+     "type": "Customer"
+    }
+   ],
+   "cyc1->cyc1@6": [],
+   "cyc1->cyc3@6": [
+    {
+     "id": 29,
+     "name": "cyc3",
+     "relationship": null,
+     "type": "Node"
+    },
+    {
+     "id": 27,
+     "name": "cyc1",
+     "relationship": "loop",
+     "type": "Node"
+    }
+   ],
+   "cyc3->cyc1@6": [
+    {
+     "id": 29,
+     "name": "cyc3",
+     "relationship": null,
+     "type": "Node"
+    },
+    {
+     "id": 27,
+     "name": "cyc1",
+     "relationship": "loop",
+     "type": "Node"
+    }
+   ],
+   "lonely->n1@6": [],
+   "loopself->loopself@6": [],
+   "n1->n1@6": [],
+   "n1->n3@1": [],
+   "n1->n3@2": [
+    {
+     "id": 21,
+     "name": "n1",
+     "relationship": null,
+     "type": "Node"
+    },
+    {
+     "id": 22,
+     "name": "n2",
+     "relationship": "next",
+     "type": "Node"
+    },
+    {
+     "id": 23,
+     "name": "n3",
+     "relationship": "next",
+     "type": "Node"
+    }
+   ],
+   "n1->n6@0": [],
+   "n1->n6@3": [],
+   "n1->n6@6": [
+    {
+     "id": 21,
+     "name": "n1",
+     "relationship": null,
+     "type": "Node"
+    },
+    {
+     "id": 22,
+     "name": "n2",
+     "relationship": "next",
+     "type": "Node"
+    },
+    {
+     "id": 23,
+     "name": "n3",
+     "relationship": "next",
+     "type": "Node"
+    },
+    {
+     "id": 24,
+     "name": "n4",
+     "relationship": "next",
+     "type": "Node"
+    },
+    {
+     "id": 25,
+     "name": "n5",
+     "relationship": "next",
+     "type": "Node"
+    },
+    {
+     "id": 26,
+     "name": "n6",
+     "relationship": "next",
+     "type": "Node"
+    }
+   ],
+   "n1->n6@99": [
+    {
+     "id": 21,
+     "name": "n1",
+     "relationship": null,
+     "type": "Node"
+    },
+    {
+     "id": 22,
+     "name": "n2",
+     "relationship": "next",
+     "type": "Node"
+    },
+    {
+     "id": 23,
+     "name": "n3",
+     "relationship": "next",
+     "type": "Node"
+    },
+    {
+     "id": 24,
+     "name": "n4",
+     "relationship": "next",
+     "type": "Node"
+    },
+    {
+     "id": 25,
+     "name": "n5",
+     "relationship": "next",
+     "type": "Node"
+    },
+    {
+     "id": 26,
+     "name": "n6",
+     "relationship": "next",
+     "type": "Node"
+    }
+   ],
+   "n6->n1@6": [
+    {
+     "id": 21,
+     "name": "n1",
+     "relationship": null,
+     "type": "Node"
+    },
+    {
+     "id": 22,
+     "name": "n2",
+     "relationship": "next",
+     "type": "Node"
+    },
+    {
+     "id": 23,
+     "name": "n3",
+     "relationship": "next",
+     "type": "Node"
+    },
+    {
+     "id": 24,
+     "name": "n4",
+     "relationship": "next",
+     "type": "Node"
+    },
+    {
+     "id": 25,
+     "name": "n5",
+     "relationship": "next",
+     "type": "Node"
+    },
+    {
+     "id": 26,
+     "name": "n6",
+     "relationship": "next",
+     "type": "Node"
+    }
+   ],
+   "sq1->sq3@6": [
+    {
+     "id": 30,
+     "name": "sq1",
+     "relationship": null,
+     "type": "Node"
+    },
+    {
+     "id": 31,
+     "name": "sq2",
+     "relationship": "ring",
+     "type": "Node"
+    },
+    {
+     "id": 32,
+     "name": "sq3",
+     "relationship": "ring",
+     "type": "Node"
+    }
+   ],
+   "sq3->sq1@6": [
+    {
+     "id": 32,
+     "name": "sq3",
+     "relationship": null,
+     "type": "Node"
+    },
+    {
+     "id": 33,
+     "name": "sq4",
+     "relationship": "ring",
+     "type": "Node"
+    },
+    {
+     "id": 30,
+     "name": "sq1",
+     "relationship": "ring",
+     "type": "Node"
+    }
+   ],
+   "t1->acme1@6": [
+    {
+     "id": 15,
+     "name": "T-1",
+     "relationship": null,
+     "type": "Ticket"
+    },
+    {
+     "id": 0,
+     "name": "Acme Corp",
+     "relationship": "raised_by",
+     "type": "Customer"
+    }
+   ]
+  }
+ },
+ "meta": {
+  "bulk_count": 520,
+  "captured_at": "2026-11-07T05:19:52.812351+00:00",
+  "falkor_counts": {
+   "edges": 20,
+   "nodes": 555
+  },
+  "key_rank": {
+   "acme1": 0,
+   "acme2": 1,
+   "booltrue": 6,
+   "bulk0": 35,
+   "bulk1": 36,
+   "bulk10": 45,
+   "bulk100": 135,
+   "bulk101": 136,
+   "bulk102": 137,
+   "bulk103": 138,
+   "bulk104": 139,
+   "bulk105": 140,
+   "bulk106": 141,
+   "bulk107": 142,
+   "bulk108": 143,
+   "bulk109": 144,
+   "bulk11": 46,
+   "bulk110": 145,
+   "bulk111": 146,
+   "bulk112": 147,
+   "bulk113": 148,
+   "bulk114": 149,
+   "bulk115": 150,
+   "bulk116": 151,
+   "bulk117": 152,
+   "bulk118": 153,
+   "bulk119": 154,
+   "bulk12": 47,
+   "bulk120": 155,
+   "bulk121": 156,
+   "bulk122": 157,
+   "bulk123": 158,
+   "bulk124": 159,
+   "bulk125": 160,
+   "bulk126": 161,
+   "bulk127": 162,
+   "bulk128": 163,
+   "bulk129": 164,
+   "bulk13": 48,
+   "bulk130": 165,
+   "bulk131": 166,
+   "bulk132": 167,
+   "bulk133": 168,
+   "bulk134": 169,
+   "bulk135": 170,
+   "bulk136": 171,
+   "bulk137": 172,
+   "bulk138": 173,
+   "bulk139": 174,
+   "bulk14": 49,
+   "bulk140": 175,
+   "bulk141": 176,
+   "bulk142": 177,
+   "bulk143": 178,
+   "bulk144": 179,
+   "bulk145": 180,
+   "bulk146": 181,
+   "bulk147": 182,
+   "bulk148": 183,
+   "bulk149": 184,
+   "bulk15": 50,
+   "bulk150": 185,
+   "bulk151": 186,
+   "bulk152": 187,
+   "bulk153": 188,
+   "bulk154": 189,
+   "bulk155": 190,
+   "bulk156": 191,
+   "bulk157": 192,
+   "bulk158": 193,
+   "bulk159": 194,
+   "bulk16": 51,
+   "bulk160": 195,
+   "bulk161": 196,
+   "bulk162": 197,
+   "bulk163": 198,
+   "bulk164": 199,
+   "bulk165": 200,
+   "bulk166": 201,
+   "bulk167": 202,
+   "bulk168": 203,
+   "bulk169": 204,
+   "bulk17": 52,
+   "bulk170": 205,
+   "bulk171": 206,
+   "bulk172": 207,
+   "bulk173": 208,
+   "bulk174": 209,
+   "bulk175": 210,
+   "bulk176": 211,
+   "bulk177": 212,
+   "bulk178": 213,
+   "bulk179": 214,
+   "bulk18": 53,
+   "bulk180": 215,
+   "bulk181": 216,
+   "bulk182": 217,
+   "bulk183": 218,
+   "bulk184": 219,
+   "bulk185": 220,
+   "bulk186": 221,
+   "bulk187": 222,
+   "bulk188": 223,
+   "bulk189": 224,
+   "bulk19": 54,
+   "bulk190": 225,
+   "bulk191": 226,
+   "bulk192": 227,
+   "bulk193": 228,
+   "bulk194": 229,
+   "bulk195": 230,
+   "bulk196": 231,
+   "bulk197": 232,
+   "bulk198": 233,
+   "bulk199": 234,
+   "bulk2": 37,
+   "bulk20": 55,
+   "bulk200": 235,
+   "bulk201": 236,
+   "bulk202": 237,
+   "bulk203": 238,
+   "bulk204": 239,
+   "bulk205": 240,
+   "bulk206": 241,
+   "bulk207": 242,
+   "bulk208": 243,
+   "bulk209": 244,
+   "bulk21": 56,
+   "bulk210": 245,
+   "bulk211": 246,
+   "bulk212": 247,
+   "bulk213": 248,
+   "bulk214": 249,
+   "bulk215": 250,
+   "bulk216": 251,
+   "bulk217": 252,
+   "bulk218": 253,
+   "bulk219": 254,
+   "bulk22": 57,
+   "bulk220": 255,
+   "bulk221": 256,
+   "bulk222": 257,
+   "bulk223": 258,
+   "bulk224": 259,
+   "bulk225": 260,
+   "bulk226": 261,
+   "bulk227": 262,
+   "bulk228": 263,
+   "bulk229": 264,
+   "bulk23": 58,
+   "bulk230": 265,
+   "bulk231": 266,
+   "bulk232": 267,
+   "bulk233": 268,
+   "bulk234": 269,
+   "bulk235": 270,
+   "bulk236": 271,
+   "bulk237": 272,
+   "bulk238": 273,
+   "bulk239": 274,
+   "bulk24": 59,
+   "bulk240": 275,
+   "bulk241": 276,
+   "bulk242": 277,
+   "bulk243": 278,
+   "bulk244": 279,
+   "bulk245": 280,
+   "bulk246": 281,
+   "bulk247": 282,
+   "bulk248": 283,
+   "bulk249": 284,
+   "bulk25": 60,
+   "bulk250": 285,
+   "bulk251": 286,
+   "bulk252": 287,
+   "bulk253": 288,
+   "bulk254": 289,
+   "bulk255": 290,
+   "bulk256": 291,
+   "bulk257": 292,
+   "bulk258": 293,
+   "bulk259": 294,
+   "bulk26": 61,
+   "bulk260": 295,
+   "bulk261": 296,
+   "bulk262": 297,
+   "bulk263": 298,
+   "bulk264": 299,
+   "bulk265": 300,
+   "bulk266": 301,
+   "bulk267": 302,
+   "bulk268": 303,
+   "bulk269": 304,
+   "bulk27": 62,
+   "bulk270": 305,
+   "bulk271": 306,
+   "bulk272": 307,
+   "bulk273": 308,
+   "bulk274": 309,
+   "bulk275": 310,
+   "bulk276": 311,
+   "bulk277": 312,
+   "bulk278": 313,
+   "bulk279": 314,
+   "bulk28": 63,
+   "bulk280": 315,
+   "bulk281": 316,
+   "bulk282": 317,
+   "bulk283": 318,
+   "bulk284": 319,
+   "bulk285": 320,
+   "bulk286": 321,
+   "bulk287": 322,
+   "bulk288": 323,
+   "bulk289": 324,
+   "bulk29": 64,
+   "bulk290": 325,
+   "bulk291": 326,
+   "bulk292": 327,
+   "bulk293": 328,
+   "bulk294": 329,
+   "bulk295": 330,
+   "bulk296": 331,
+   "bulk297": 332,
+   "bulk298": 333,
+   "bulk299": 334,
+   "bulk3": 38,
+   "bulk30": 65,
+   "bulk300": 335,
+   "bulk301": 336,
+   "bulk302": 337,
+   "bulk303": 338,
+   "bulk304": 339,
+   "bulk305": 340,
+   "bulk306": 341,
+   "bulk307": 342,
+   "bulk308": 343,
+   "bulk309": 344,
+   "bulk31": 66,
+   "bulk310": 345,
+   "bulk311": 346,
+   "bulk312": 347,
+   "bulk313": 348,
+   "bulk314": 349,
+   "bulk315": 350,
+   "bulk316": 351,
+   "bulk317": 352,
+   "bulk318": 353,
+   "bulk319": 354,
+   "bulk32": 67,
+   "bulk320": 355,
+   "bulk321": 356,
+   "bulk322": 357,
+   "bulk323": 358,
+   "bulk324": 359,
+   "bulk325": 360,
+   "bulk326": 361,
+   "bulk327": 362,
+   "bulk328": 363,
+   "bulk329": 364,
+   "bulk33": 68,
+   "bulk330": 365,
+   "bulk331": 366,
+   "bulk332": 367,
+   "bulk333": 368,
+   "bulk334": 369,
+   "bulk335": 370,
+   "bulk336": 371,
+   "bulk337": 372,
+   "bulk338": 373,
+   "bulk339": 374,
+   "bulk34": 69,
+   "bulk340": 375,
+   "bulk341": 376,
+   "bulk342": 377,
+   "bulk343": 378,
+   "bulk344": 379,
+   "bulk345": 380,
+   "bulk346": 381,
+   "bulk347": 382,
+   "bulk348": 383,
+   "bulk349": 384,
+   "bulk35": 70,
+   "bulk350": 385,
+   "bulk351": 386,
+   "bulk352": 387,
+   "bulk353": 388,
+   "bulk354": 389,
+   "bulk355": 390,
+   "bulk356": 391,
+   "bulk357": 392,
+   "bulk358": 393,
+   "bulk359": 394,
+   "bulk36": 71,
+   "bulk360": 395,
+   "bulk361": 396,
+   "bulk362": 397,
+   "bulk363": 398,
+   "bulk364": 399,
+   "bulk365": 400,
+   "bulk366": 401,
+   "bulk367": 402,
+   "bulk368": 403,
+   "bulk369": 404,
+   "bulk37": 72,
+   "bulk370": 405,
+   "bulk371": 406,
+   "bulk372": 407,
+   "bulk373": 408,
+   "bulk374": 409,
+   "bulk375": 410,
+   "bulk376": 411,
+   "bulk377": 412,
+   "bulk378": 413,
+   "bulk379": 414,
+   "bulk38": 73,
+   "bulk380": 415,
+   "bulk381": 416,
+   "bulk382": 417,
+   "bulk383": 418,
+   "bulk384": 419,
+   "bulk385": 420,
+   "bulk386": 421,
+   "bulk387": 422,
+   "bulk388": 423,
+   "bulk389": 424,
+   "bulk39": 74,
+   "bulk390": 425,
+   "bulk391": 426,
+   "bulk392": 427,
+   "bulk393": 428,
+   "bulk394": 429,
+   "bulk395": 430,
+   "bulk396": 431,
+   "bulk397": 432,
+   "bulk398": 433,
+   "bulk399": 434,
+   "bulk4": 39,
+   "bulk40": 75,
+   "bulk400": 435,
+   "bulk401": 436,
+   "bulk402": 437,
+   "bulk403": 438,
+   "bulk404": 439,
+   "bulk405": 440,
+   "bulk406": 441,
+   "bulk407": 442,
+   "bulk408": 443,
+   "bulk409": 444,
+   "bulk41": 76,
+   "bulk410": 445,
+   "bulk411": 446,
+   "bulk412": 447,
+   "bulk413": 448,
+   "bulk414": 449,
+   "bulk415": 450,
+   "bulk416": 451,
+   "bulk417": 452,
+   "bulk418": 453,
+   "bulk419": 454,
+   "bulk42": 77,
+   "bulk420": 455,
+   "bulk421": 456,
+   "bulk422": 457,
+   "bulk423": 458,
+   "bulk424": 459,
+   "bulk425": 460,
+   "bulk426": 461,
+   "bulk427": 462,
+   "bulk428": 463,
+   "bulk429": 464,
+   "bulk43": 78,
+   "bulk430": 465,
+   "bulk431": 466,
+   "bulk432": 467,
+   "bulk433": 468,
+   "bulk434": 469,
+   "bulk435": 470,
+   "bulk436": 471,
+   "bulk437": 472,
+   "bulk438": 473,
+   "bulk439": 474,
+   "bulk44": 79,
+   "bulk440": 475,
+   "bulk441": 476,
+   "bulk442": 477,
+   "bulk443": 478,
+   "bulk444": 479,
+   "bulk445": 480,
+   "bulk446": 481,
+   "bulk447": 482,
+   "bulk448": 483,
+   "bulk449": 484,
+   "bulk45": 80,
+   "bulk450": 485,
+   "bulk451": 486,
+   "bulk452": 487,
+   "bulk453": 488,
+   "bulk454": 489,
+   "bulk455": 490,
+   "bulk456": 491,
+   "bulk457": 492,
+   "bulk458": 493,
+   "bulk459": 494,
+   "bulk46": 81,
+   "bulk460": 495,
+   "bulk461": 496,
+   "bulk462": 497,
+   "bulk463": 498,
+   "bulk464": 499,
+   "bulk465": 500,
+   "bulk466": 501,
+   "bulk467": 502,
+   "bulk468": 503,
+   "bulk469": 504,
+   "bulk47": 82,
+   "bulk470": 505,
+   "bulk471": 506,
+   "bulk472": 507,
+   "bulk473": 508,
+   "bulk474": 509,
+   "bulk475": 510,
+   "bulk476": 511,
+   "bulk477": 512,
+   "bulk478": 513,
+   "bulk479": 514,
+   "bulk48": 83,
+   "bulk480": 515,
+   "bulk481": 516,
+   "bulk482": 517,
+   "bulk483": 518,
+   "bulk484": 519,
+   "bulk485": 520,
+   "bulk486": 521,
+   "bulk487": 522,
+   "bulk488": 523,
+   "bulk489": 524,
+   "bulk49": 84,
+   "bulk490": 525,
+   "bulk491": 526,
+   "bulk492": 527,
+   "bulk493": 528,
+   "bulk494": 529,
+   "bulk495": 530,
+   "bulk496": 531,
+   "bulk497": 532,
+   "bulk498": 533,
+   "bulk499": 534,
+   "bulk5": 40,
+   "bulk50": 85,
+   "bulk500": 535,
+   "bulk501": 536,
+   "bulk502": 537,
+   "bulk503": 538,
+   "bulk504": 539,
+   "bulk505": 540,
+   "bulk506": 541,
+   "bulk507": 542,
+   "bulk508": 543,
+   "bulk509": 544,
+   "bulk51": 86,
+   "bulk510": 545,
+   "bulk511": 546,
+   "bulk512": 547,
+   "bulk513": 548,
+   "bulk514": 549,
+   "bulk515": 550,
+   "bulk516": 551,
+   "bulk517": 552,
+   "bulk518": 553,
+   "bulk519": 554,
+   "bulk52": 87,
+   "bulk53": 88,
+   "bulk54": 89,
+   "bulk55": 90,
+   "bulk56": 91,
+   "bulk57": 92,
+   "bulk58": 93,
+   "bulk59": 94,
+   "bulk6": 41,
+   "bulk60": 95,
+   "bulk61": 96,
+   "bulk62": 97,
+   "bulk63": 98,
+   "bulk64": 99,
+   "bulk65": 100,
+   "bulk66": 101,
+   "bulk67": 102,
+   "bulk68": 103,
+   "bulk69": 104,
+   "bulk7": 42,
+   "bulk70": 105,
+   "bulk71": 106,
+   "bulk72": 107,
+   "bulk73": 108,
+   "bulk74": 109,
+   "bulk75": 110,
+   "bulk76": 111,
+   "bulk77": 112,
+   "bulk78": 113,
+   "bulk79": 114,
+   "bulk8": 43,
+   "bulk80": 115,
+   "bulk81": 116,
+   "bulk82": 117,
+   "bulk83": 118,
+   "bulk84": 119,
+   "bulk85": 120,
+   "bulk86": 121,
+   "bulk87": 122,
+   "bulk88": 123,
+   "bulk89": 124,
+   "bulk9": 44,
+   "bulk90": 125,
+   "bulk91": 126,
+   "bulk92": 127,
+   "bulk93": 128,
+   "bulk94": 129,
+   "bulk95": 130,
+   "bulk96": 131,
+   "bulk97": 132,
+   "bulk98": 133,
+   "bulk99": 134,
+   "cyc1": 27,
+   "cyc2": 28,
+   "cyc3": 29,
+   "emptylist": 5,
+   "emptyname": 4,
+   "falsy0": 3,
+   "floatsku": 13,
+   "keyorder": 8,
+   "lonely": 11,
+   "longonly": 7,
+   "loopself": 34,
+   "mixedcase": 9,
+   "n1": 21,
+   "n2": 22,
+   "n3": 23,
+   "n4": 24,
+   "n5": 25,
+   "n6": 26,
+   "numcode": 12,
+   "sq1": 30,
+   "sq2": 31,
+   "sq3": 32,
+   "sq4": 33,
+   "t1": 15,
+   "t2": 16,
+   "t3": 17,
+   "t4": 18,
+   "t5": 19,
+   "t6": 20,
+   "widget": 14,
+   "wild": 10,
+   "zoe": 2
+  },
+  "project_counts": {
+   "entities": 555,
+   "provenance": 7,
+   "relationships": 23
+  },
+  "source": "aryx.graph.reader.GraphReader on live FalkorDB, after aryx.project.project_graph (pre-removal)"
+ }
+}

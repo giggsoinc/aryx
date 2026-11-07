@@ -13,14 +13,12 @@ from pydantic import BaseModel
 
 from aryx import explore
 from aryx.config import get_settings
-from aryx.graph.falkor_store import FalkorStore
-from aryx.pipeline.enrich import _build_type_ancestors
-from aryx.project import project_graph
+from aryx.graph.changes import after_graph_change
 from aryx.resolution.review_queue import apply_decision
 from aryx.resolution.survivorship import SurvivorshipPolicy
 from aryx.store.adjudication_store import AdjudicationStore
 from aryx.store.entity_store import EntityStore
-from aryx.workspaces import WorkspaceStore, ws_graph
+from aryx.workspaces import WorkspaceStore
 
 logger = logging.getLogger(__name__)
 
@@ -47,16 +45,8 @@ def _load_policy(workspace_id: int) -> SurvivorshipPolicy:
 
 
 def _reproject(workspace_id: int) -> dict[str, int]:
-    """Rebuild the FalkorDB graph so an approved merge shows up immediately."""
-    settings = get_settings()
-    estore = EntityStore(settings.rdb_dsn, workspace_id)
-    try:
-        return project_graph(
-            estore, FalkorStore(settings.graph_url, ws_graph(workspace_id)),
-            type_ancestors=_build_type_ancestors(settings.rdb_dsn),
-            workspace_id=workspace_id)
-    finally:
-        estore.close()
+    """Clear derived graph output after an approved merge changed the data."""
+    return after_graph_change(get_settings().rdb_dsn, workspace_id)
 
 
 def _side_preview(store: AdjudicationStore, entities: list, provenance: list,

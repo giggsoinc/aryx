@@ -19,10 +19,6 @@ class Settings(BaseSettings):
         default="postgresql://aryx:aryx@localhost:5432/aryx",
         description="DSN for the canonical relational store (source of truth).",
     )
-    graph_url: str = Field(
-        default="redis://localhost:6379",
-        description="Connection URL for the rebuildable FalkorDB projection.",
-    )
     log_level: str = Field(default="INFO", description="Root log level.")
     batch_size: int = Field(default=500, description="Rows fetched per extract batch.")
     embed_dim: int = Field(default=768, description="Expected embedding dim; startup check fails on mismatch.")

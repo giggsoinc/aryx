@@ -3,9 +3,9 @@
 Effects v1: set_attribute, add_relationship, remove_relationship, set_label.
 No entity deletes, no source-system writeback (v2 — do not oversell).
 
-Effects apply to Postgres (the source of truth) FIRST and touch the
-entity's ``updated_at`` so the projector's dirty-set picks it up; the graph
-is a projection and is never mutated directly by this module.
+Effects apply to Postgres, which is the only store: the graph is read live
+from it, so nothing else needs updating and the graph is never mutated
+directly by this module.
 
 The guard reuses the EXACT when-clause matcher from reasoning/engine.py —
 one condition grammar across rules, axioms, and actions.

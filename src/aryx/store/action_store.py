@@ -118,7 +118,7 @@ class ActionStore:
         return (row[0] or {}).get(key) if row else None
 
     def set_attribute(self, entity_id: int, key: str, value: Any) -> None:
-        """Merge one attribute into the entity JSONB; touches updated_at."""
+        """Merge one attribute into the entity JSONB."""
         with self._pool.connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(load("update_entity_attributes"),

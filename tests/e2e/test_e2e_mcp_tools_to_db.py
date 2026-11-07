@@ -1,4 +1,4 @@
-"""Chain 4: MCP tools reach real Postgres/FalkorDB correctly — three tools
+"""Chain 4: MCP tools reach real Postgres correctly — three tools
 not otherwise exercised by chains 5/6 (ingest, correction) or chain 3
 (ask-to-visualize): `list` (real graph-stat enrichment), `dashboard_link`
 (pure, no DB), and `act` (the pending-approval mutation gate — the one
@@ -12,7 +12,7 @@ pytestmark = pytest.mark.e2e
 
 
 def test_list_enriches_workspaces_from_real_stores(workspace) -> None:
-    """The `list` tool's enrichment reads real Postgres/FalkorDB, not a mock."""
+    """The `list` tool's enrichment reads real Postgres, not a mock."""
     from aryx.mcp.read import list_workspaces
     workspaces = list_workspaces()
     found = next(w for w in workspaces if w["id"] == workspace["id"])

@@ -105,7 +105,7 @@
     <p class="sub">
       Four layers, replaceable per layer. The web app is fully isolated &mdash;
       browser only talks to its own origin via a Next.js rewrite. Postgres
-      is the source of truth; FalkorDB is a rebuildable projection.
+      is the single data store; the graph is read live from it.
     </p>
   </header>
 
@@ -211,7 +211,7 @@
         <div class="ask-pipe">
           <div class="ask-step"><div class="t">Extract terms</div><div class="d">Menial LLM · pulls nouns + ids from question + history</div></div>
           <div class="ask-arr">›</div>
-          <div class="ask-step"><div class="t">Retrieve</div><div class="d">FalkorDB · lookup, expand 1 hop, gather provenance</div></div>
+          <div class="ask-step"><div class="t">Retrieve</div><div class="d">Postgres · lookup, expand 1 hop, gather provenance</div></div>
           <div class="ask-arr">›</div>
           <div class="ask-step always"><div class="t">Overview ride-along</div><div class="d">Always: kinds + counts + samples + aim. No more "not stored" dead-ends.</div></div>
           <div class="ask-arr">›</div>
@@ -244,7 +244,7 @@
         <div class="pl-arr">›</div>
         <div class="pl-cell"><div class="ico">🔗</div><div class="t">Relate</div><div class="eg">FK · co-occur · LLM</div></div>
         <div class="pl-arr">›</div>
-        <div class="pl-cell"><div class="ico">🗺</div><div class="t">Project</div><div class="eg">FalkorDB graph</div></div>
+        <div class="pl-cell"><div class="ico">🗺</div><div class="t">Finalise</div><div class="eg">graph live in Postgres</div></div>
       </div>
       <div class="band" style="margin-top:14px;background:linear-gradient(135deg,#FFFBEB 0%,white 100%);border-color:#FCD34D;">
         <div class="glyph">❓</div>
@@ -276,9 +276,9 @@
         </div>
         <div class="box accent">
           <div class="ico">📈</div>
-          <div class="label">FalkorDB</div>
-          <div class="desc">Named graph per workspace (aryx_ws_N) · incremental projection</div>
-          <div class="port">:6379</div>
+          <div class="label">Graph (from Postgres)</div>
+          <div class="desc">Read live from the entity tables · trigram name search · bidirectional paths</div>
+          <div class="port">no separate store</div>
         </div>
         <div class="box">
           <div class="ico">🎯</div>
@@ -300,7 +300,7 @@
           <p>
             Every store sits behind a capability <em>port</em> (Relational · Graph ·
             Vector · LLM · Reasoner · Compute) resolved from config
-            (<code>ARYX_ADAPTER_*</code>). Default adapters = Postgres / FalkorDB /
+            (<code>ARYX_ADAPTER_*</code>). Default adapters = Postgres /
             Ollama. <strong>Aryx-o</strong> (v2.1) swaps in Oracle ADB · RDF/Property
             Graph · AI Vector · OCI GenAI &mdash; an adapter swap, not a rewrite.
             <code>ARYX_EDITION</code> gates Lite / Enterprise / Aryx-o. See

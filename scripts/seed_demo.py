@@ -1,60 +1,70 @@
-"""Seed demo data: fix entity names in FalkorDB + add sample relationships.
+"""Seed demo data: five companies and four relationships, in Postgres.
+
+The graph is read live from Postgres, so seeding the tables is seeding the
+graph. Safe to re-run: companies that already exist (by name) are reused and
+existing relationships are not duplicated.
 
 Run on the server after deploy:
-  python scripts/seed_demo.py
+  python scripts/seed_demo.py [--workspace-id N]
 """
 from __future__ import annotations
 
-import os
-import sys
+import argparse
+import logging
 
-from falkordb import FalkorDB
+from aryx.config import get_settings
+from aryx.models import Relationship, ResolvedEntity
+from aryx.store.entity_store import EntityStore
+from aryx.store.migrate import apply_migrations
 
-GRAPH_URL = os.environ.get("ARYX_GRAPH_URL", "redis://localhost:6379")
-GRAPH_NAME = "aryx"
+logger = logging.getLogger("seed_demo")
 
-NAMES = {
-    1: "Acme Corp",
-    2: "Globex LLC",
-    3: "Initech",
-    4: "Umbrella Co",
-    5: "Stark Industries",
-}
+COMPANIES = ["Acme Corp", "Globex LLC", "Initech", "Umbrella Co", "Stark Industries"]
 
+# (source company, target company, relationship name)
 RELATIONSHIPS = [
-    (2, 1, "SUPPLIES"),
-    (5, 3, "ACQUIRED"),
-    (4, 2, "PARTNERS_WITH"),
-    (1, 4, "COMPETES_WITH"),
+    ("Globex LLC", "Acme Corp", "SUPPLIES"),
+    ("Stark Industries", "Initech", "ACQUIRED"),
+    ("Umbrella Co", "Globex LLC", "PARTNERS_WITH"),
+    ("Acme Corp", "Umbrella Co", "COMPETES_WITH"),
 ]
 
-from urllib.parse import urlparse
 
-parsed = urlparse(GRAPH_URL)
-db = FalkorDB(host=parsed.hostname or "localhost", port=parsed.port or 6379)
-g = db.select_graph(GRAPH_NAME)
+def seed(dsn: str, workspace_id: int) -> None:
+    """Create the demo companies and relationships that do not exist yet."""
+    estore = EntityStore(dsn, workspace_id)
+    by_name = {attrs.get("name"): eid for eid, otype, attrs in estore.list_entities()
+               if otype == "Company"}
+    missing = [n for n in COMPANIES if n not in by_name]
+    logger.info("creating %d companies (%d already exist)", len(missing),
+                len(COMPANIES) - len(missing))
+    estore.save([(ResolvedEntity(ontology_type="Company", attributes={"name": n},
+                                 confidence=1.0), []) for n in missing])
+    by_name = {attrs.get("name"): eid for eid, otype, attrs in estore.list_entities()
+               if otype == "Company"}
+    existing = set(estore.list_relationships())
+    fresh = [Relationship(source_entity_id=by_name[s], target_entity_id=by_name[t],
+                          name=rel, confidence=1.0)
+             for s, t, rel in RELATIONSHIPS
+             if (by_name[s], by_name[t], rel) not in existing]
+    estore.save_relationships(fresh)
+    logger.info("added %d relationships (%d already existed)", len(fresh),
+                len(RELATIONSHIPS) - len(fresh))
+    for s, t, rel in RELATIONSHIPS:
+        logger.info("  %s --[%s]--> %s", s, rel, t)
 
-print("Fixing entity names...")
-for eid, name in NAMES.items():
-    g.query("MATCH (e:Entity {id: $id}) SET e.name = $name", {"id": eid, "name": name})
-    print(f"  {eid} → {name}")
 
-print("Adding relationships...")
-for src, tgt, rel in RELATIONSHIPS:
-    g.query(
-        "MATCH (a:Entity {id: $src}), (b:Entity {id: $tgt}) "
-        "MERGE (a)-[:REL {name: $name}]->(b)",
-        {"src": src, "tgt": tgt, "name": rel},
-    )
-    print(f"  {NAMES[src]} --[{rel}]--> {NAMES[tgt]}")
+def main() -> None:
+    """Parse arguments and seed the chosen workspace."""
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--workspace-id", type=int, default=1)
+    args = parser.parse_args()
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    dsn = get_settings().rdb_dsn
+    apply_migrations(dsn)
+    seed(dsn, args.workspace_id)
+    logger.info("Done.")
 
-print("Verifying...")
-rows = g.query("MATCH (e:Entity) RETURN e.id, e.name ORDER BY e.id").result_set
-for r in rows:
-    print(f"  entity {r[0]}: {r[1]}")
 
-rel_rows = g.query("MATCH (a)-[r:REL]->(b) RETURN a.name, r.name, b.name").result_set
-for r in rel_rows:
-    print(f"  {r[0]} --[{r[1]}]--> {r[2]}")
-
-print("Done.")
+if __name__ == "__main__":
+    main()

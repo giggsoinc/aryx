@@ -21,7 +21,6 @@ Aryx connects what databases, applications, APIs, and documents **mean to each o
 
 [![CI](https://github.com/giggsoinc/aryx/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/giggsoinc/aryx/actions/workflows/ci.yml)
 [![License: BSL 1.1](https://img.shields.io/badge/license-BSL%201.1-blue.svg)](LICENSE)
-[![Graph: FalkorDB](https://img.shields.io/badge/graph-FalkorDB-red.svg)](https://github.com/FalkorDB/FalkorDB)
 [![Docker](https://img.shields.io/badge/docker-giggsodocker%2Faryx--lite-blue.svg)](https://hub.docker.com/r/giggsodocker/aryx-lite)
 
 [Quick start](#quick-start) · [Install](docs/INSTALL.md) · [User guide](docs/USER_GUIDE.md) · [Architecture](docs/ARCHITECTURE.md) · [MCP (docs)](docs/mcp-guide.html) · [Docker Hub](docs/DOCKERHUB.md) · [Contributing](CONTRIBUTING.md)
@@ -190,8 +189,7 @@ flowchart LR
 
 **Implementation facts (this repo):**
 
-- **Postgres** — system of record for landed records, entities, jobs, workspaces  
-- **FalkorDB** — rebuildable graph projection (one named graph per workspace)  
+- **Postgres** — system of record for landed records, entities, relationships, jobs, workspaces; the knowledge graph is read live from these tables  
 - **Next.js UI** — Home, setup, Data, Model, Lab, Ask, Observe, Settings  
 - **FastAPI** — ingest, resolve, project, Ask, admin  
 - **LLMs** — Ollama (default) or cloud providers via Settings (Gemini, OpenAI, Anthropic, Grok, …)
@@ -218,7 +216,7 @@ Deeper design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | Databases | Postgres, MySQL/MariaDB, Oracle (SQL connector path) |
 | Files | CSV, JSON, PDF, DOCX, PPTX, images |
 | LLMs | Ollama · Anthropic · OpenAI-compatible · Gemini · Grok |
-| Graph store | FalkorDB |
+| Graph store | Postgres (read live from the entity tables) |
 | Agent protocol | MCP over SSE (`:8765`) |
 | Ontology interchange | RDF/OWL import-export (see [RDF guide](docs/RDF_EXPORT_GUIDE.md)) |
 
@@ -262,7 +260,7 @@ This repository is the public **Aryx** product line (shipped as the self-hostabl
 |--|-----------|------------------------------|
 | **Focus** | Self-building context for teams: connect → discover → resolve → serve agents | Scale, governance, agentic multi-agent planning control plane |
 | **License** | BSL 1.1 → GPL-3.0-or-later on 2029-07-15 | Commercial EULA |
-| **Stack default** | Postgres · FalkorDB · Ollama / cloud LLMs | Same engine idea; substrate + ops adapters |
+| **Stack default** | Postgres · Ollama / cloud LLMs | Same engine idea; substrate + ops adapters |
 
 Details: [docs/EDITIONS.md](docs/EDITIONS.md) · [docs/LICENSING.md](docs/LICENSING.md).
 

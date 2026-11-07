@@ -8,7 +8,6 @@ import psycopg
 from psycopg import sql
 from psycopg.types.json import Json
 
-from aryx.naming import ws_graph  # noqa: F401  re-exported for back-compat
 from aryx.workspace_understanding import WorkspaceUnderstandingMixin
 from aryx.queries import load
 
@@ -149,6 +148,9 @@ class WorkspaceStore(WorkspaceUnderstandingMixin):
             # resurface as "pending" cards pointing at ids that belong to
             # nothing once a new workspace happens to reuse this same id.
             cur.execute(load("delete_adjudication_by_workspace"), (wid,))
+            # Reasoning-engine output is not partitioned either.
+            cur.execute(load("delete_inferred_relationships_by_workspace"), (wid,))
+            cur.execute(load("delete_inferred_labels_by_workspace"), (wid,))
             cur.execute(load("delete_runs_by_workspace"), (wid,))
             cur.execute(load("delete_jobs_by_workspace"), (wid,))
             cur.execute(load("delete_workspace_row"), (wid,))

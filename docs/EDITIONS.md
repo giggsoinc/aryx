@@ -11,7 +11,7 @@ first) — made possible because the core is built behind swappable ports.
 | **Tagline** | A lightweight ontology layer for quick outcome mapping | The discovery-driven knowledge-graph platform | Aryx Enterprise, native on the hyperscaler |
 | **Version** | v1.x | v2.x | v2.1+ |
 | **Audience** | Teams, analysts, OSS users | Enterprise data + AI orgs | Oracle / Azure / GCP shops |
-| **Substrate** | Postgres · FalkorDB · Ollama (bundled) | Pluggable adapters; commodity defaults | Native: Oracle ADB · Oracle RDF/Property Graph · AI Vector Search · OCI GenAI · Oracle OWL reasoner |
+| **Substrate** | Postgres · Ollama (bundled) | Pluggable adapters; commodity defaults | Native: Oracle ADB · Oracle RDF/Property Graph · AI Vector Search · OCI GenAI · Oracle OWL reasoner |
 | **Scope** | Brief → ingest → resolve → map → Ask, single workspace, modest scale | Everything in the v2 design set (below) | Same Enterprise engine; substrate swapped via adapters, not surgery |
 | **Licensing** | **BSL 1.1** (→ GPL-3.0-or-later on 2029-07-15) | Commercial EULA | Commercial EULA |
 
@@ -22,7 +22,7 @@ setup (`/start` — smart brief + graph plan), Brief edit page, Ask with
 grounded answers + citations, Model canvas, Data explorer with **Correct data**
 coach, Accuracy Lab, Observe, Settings, MCP, ingest from DB + files, dimension
 materialization from plan, entity resolution, survivorship, RDF/OWL
-import-export. It runs on the bundled Postgres + FalkorDB + Ollama stack (or
+import-export. It runs on the bundled Postgres + Ollama stack (or
 cloud LLMs via Settings). Fast front door for a single team — not a 200M-row
 multi-tenant estate.
 
@@ -70,14 +70,14 @@ build order; agentic architecture packs ship to the Enterprise team separately.
 ## Aryx-o (v2.1) — native on the hyperscaler
 
 The same Enterprise engine, but the commodity substrate is **removed** and
-replaced by the platform's native services. On Oracle: drop FalkorDB for
+replaced by the platform's native services. On Oracle: swap the Postgres graph reader for
 Oracle's RDF/Property Graph + native OWL inferencing, drop pgvector for AI
 Vector Search, drop Ollama for OCI GenAI, drop Postgres for Oracle ADB.
 
 **This is only cheap if v2 is built right.** Aryx-o must be an *adapter
 swap*, not a rewrite — which is why **Phase 0 of the v2 plan is the
 ports-&-adapters seam**: define the capability interfaces first, wrap the
-current Postgres/FalkorDB/Ollama implementations as the *default* adapters,
+current Postgres/Ollama implementations as the *default* adapters,
 and load the adapter set from config. Then Aryx-o = write the Oracle
 adapters + flip a config. No deep spinal-cord neurosurgery later.
 

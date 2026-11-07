@@ -715,7 +715,7 @@ class _FakeGraphProfileStore:
     def latest(self, graph_id):
         # GraphProfileStore's graph_id is a Postgres-side identifier
         # ("graph_workspace_{id}", see planning/run.py's own gstore.latest()
-        # call) — a different convention from ws_graph()'s FalkorDB graph
+        # call) — a Postgres-side identifier, not a graph name
         # NAME ("aryx_ws_{id}"). Asserting the exact value here is what
         # would have caught the real bug where resolve_graph_relation_nodes
         # was built against the wrong one and silently found no profile.

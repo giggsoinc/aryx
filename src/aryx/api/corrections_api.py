@@ -18,13 +18,9 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from aryx.config import get_settings
-from aryx.graph.falkor_store import FalkorStore
-from aryx.pipeline.enrich import _build_type_ancestors
-from aryx.project import project_graph
+from aryx.graph.changes import after_graph_change
 from aryx.queries import load
-from aryx.store.entity_store import EntityStore
 from aryx.store.relationship_repoint import repoint_relationships_safely
-from aryx.workspaces import ws_graph
 
 logger = logging.getLogger(__name__)
 
@@ -75,15 +71,8 @@ def _t(entity_id: int, roster: list) -> str:
 
 
 def _reproject(workspace_id: int) -> dict[str, int]:
-    settings = get_settings()
-    estore = EntityStore(settings.rdb_dsn, workspace_id)
-    try:
-        return project_graph(
-            estore, FalkorStore(settings.graph_url, ws_graph(workspace_id)),
-            type_ancestors=_build_type_ancestors(settings.rdb_dsn),
-            workspace_id=workspace_id)
-    finally:
-        estore.close()
+    """Clear derived graph output after a correction changed the data."""
+    return after_graph_change(get_settings().rdb_dsn, workspace_id)
 
 
 def corrections_router() -> APIRouter:

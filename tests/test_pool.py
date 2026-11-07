@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 # Stub heavy deps so aryx.store.pool loads without the installed packages
 for _mod in ("psycopg", "psycopg.types", "psycopg.types.json",
-             "falkordb", "pgvector", "pgvector.psycopg"):
+             "pgvector", "pgvector.psycopg"):
     sys.modules.setdefault(_mod, MagicMock())
 
 _mock_cp = MagicMock()
