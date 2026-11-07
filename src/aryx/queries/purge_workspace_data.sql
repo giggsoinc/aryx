@@ -16,6 +16,10 @@ DELETE FROM aryx_run_stage WHERE run_id IN (SELECT run_id FROM aryx_run WHERE wo
 DELETE FROM aryx_match_edge WHERE run_id IN (SELECT run_id FROM aryx_run WHERE workspace_id = %(wid)s);
 DELETE FROM aryx_block_done WHERE run_id IN (SELECT run_id FROM aryx_run WHERE workspace_id = %(wid)s);
 DELETE FROM aryx_block_member WHERE run_id IN (SELECT run_id FROM aryx_run WHERE workspace_id = %(wid)s);
+-- These reference aryx_run(run_id) with no ON DELETE CASCADE, so they must go first.
+DELETE FROM aryx_field_profile WHERE run_id IN (SELECT run_id FROM aryx_run WHERE workspace_id = %(wid)s);
+DELETE FROM aryx_field_tag WHERE run_id IN (SELECT run_id FROM aryx_run WHERE workspace_id = %(wid)s);
+DELETE FROM aryx_schema_mapping WHERE run_id IN (SELECT run_id FROM aryx_run WHERE workspace_id = %(wid)s);
 DELETE FROM aryx_run WHERE workspace_id = %(wid)s;
 DELETE FROM aryx_job_event WHERE job_id IN (SELECT job_id FROM aryx_job WHERE workspace_id = %(wid)s);
 DELETE FROM aryx_job WHERE workspace_id = %(wid)s;

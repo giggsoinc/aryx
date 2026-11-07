@@ -145,6 +145,8 @@ class WorkspaceStore(WorkspaceUnderstandingMixin):
         with self._conn.cursor() as cur:
             cur.execute(load("delete_profiles_by_workspace"), (wid,))
             cur.execute(load("delete_tags_by_workspace"), (wid,))
+            # References aryx_run with no cascade, so it must go before the runs.
+            cur.execute(load("delete_schema_mappings_by_workspace"), (wid,))
             # Before runs/jobs: adjudication rows aren't partitioned with
             # landed_record/entity, so _drop_partitions above never touches
             # them — left alone, they survive workspace deletion and later
