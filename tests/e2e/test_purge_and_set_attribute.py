@@ -23,13 +23,15 @@ from aryx.workspaces import WorkspaceStore
 pytestmark = pytest.mark.e2e
 
 # Tables the purge must empty for a workspace, keyed by how they link to it.
-_BY_WORKSPACE = ("aryx_entity", "aryx_action", "aryx_run", "aryx_job")
+_BY_WORKSPACE = ("aryx_entity", "aryx_run", "aryx_job")
 _BY_RUN = ("aryx_field_profile", "aryx_field_tag", "aryx_schema_mapping")
 
 
 def _seed_workspace(dsn: str, wid: int) -> dict:
     """Give a workspace an entity, an action, a run with its children, and a job."""
-    job_id = f"purge-{uuid.uuid4().hex[:10]}"
+    tag = uuid.uuid4().hex[:10]
+    job_id = f"purge-{tag}"
+    action = f"first-delete-probe-{tag}"
     store = EntityStore(dsn, wid)
     try:
         store.save([(ResolvedEntity(ontology_type="Company",
@@ -38,7 +40,7 @@ def _seed_workspace(dsn: str, wid: int) -> dict:
         store.close()
     with psycopg.connect(dsn, autocommit=True) as conn:
         conn.execute("INSERT INTO aryx_action (workspace_id, name, definition)"
-                     " VALUES (%s, 'first-delete-probe', '{}'::jsonb)", (wid,))
+                     " VALUES (%s, %s, '{}'::jsonb)", (wid, action))
         run_id = conn.execute(
             "INSERT INTO aryx_run (source_system, source_dataset, workspace_id)"
             " VALUES ('crm', 'accounts', %s) RETURNING run_id", (wid,)).fetchone()[0]
@@ -54,7 +56,7 @@ def _seed_workspace(dsn: str, wid: int) -> dict:
                      " workspace_id) VALUES (%s, 'crm', 'accounts', %s)", (job_id, wid))
         conn.execute("INSERT INTO aryx_job_event (job_id, stage) VALUES (%s, 'start')",
                      (job_id,))
-    return {"run_id": run_id, "job_id": job_id}
+    return {"run_id": run_id, "job_id": job_id, "action": action}
 
 
 def _rows(dsn: str, wid: int, ids: dict) -> dict[str, int]:
@@ -69,6 +71,11 @@ def _rows(dsn: str, wid: int, ids: dict) -> dict[str, int]:
             out[table] = conn.execute(
                 f"SELECT count(*) FROM {table} WHERE run_id = %s", (ids["run_id"],)
             ).fetchone()[0]
+        # Counted by its unique name: WorkspaceStore.delete does not clear
+        # aryx_action, so rows from earlier runs can share a reused workspace id.
+        out["aryx_action"] = conn.execute(
+            "SELECT count(*) FROM aryx_action WHERE workspace_id = %s AND name = %s",
+            (wid, ids["action"])).fetchone()[0]
         out["aryx_job_event"] = conn.execute(
             "SELECT count(*) FROM aryx_job_event WHERE job_id = %s", (ids["job_id"],)
         ).fetchone()[0]
@@ -79,6 +86,8 @@ def test_purge_clears_the_workspace_and_keeps_others(e2e_dsn: str, workspace: di
     wid = workspace["id"]
     other = WorkspaceStore(e2e_dsn)
     other_ws = other.create(f"e2e_purge_other_{uuid.uuid4().hex[:8]}")
+    mine: dict = {}
+    theirs: dict = {}
     try:
         mine = _seed_workspace(e2e_dsn, wid)
         theirs = _seed_workspace(e2e_dsn, other_ws["id"])
@@ -97,6 +106,11 @@ def test_purge_clears_the_workspace_and_keeps_others(e2e_dsn: str, workspace: di
     finally:
         other.delete(other_ws["id"])
         other.close()
+        with psycopg.connect(e2e_dsn, autocommit=True) as conn:
+            for ids in (mine, theirs):
+                if ids:
+                    conn.execute("DELETE FROM aryx_action WHERE name = %s",
+                                 (ids["action"],))
 
 
 def test_set_attribute_merges_into_the_entity(e2e_dsn: str, workspace: dict) -> None:
