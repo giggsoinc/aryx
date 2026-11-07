@@ -20,7 +20,7 @@ _FIXTURE_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "graph_golden"
 sys.path.insert(0, str(_FIXTURE_DIR))
 
 from build_fixture import Fixture, build_fixture  # noqa: E402
-from cases import run_cases  # noqa: E402
+from cases import _canon, run_cases  # noqa: E402
 
 from aryx.graph.pg_reader import PostgresGraphReader  # noqa: E402
 from aryx.workspaces import WorkspaceStore  # noqa: E402
@@ -28,6 +28,23 @@ from aryx.workspaces import WorkspaceStore  # noqa: E402
 pytestmark = pytest.mark.e2e
 
 _GOLDEN = json.loads((_FIXTURE_DIR / "golden.json").read_text(encoding="utf-8"))
+
+
+def _canon_ask(cases: dict[str, Any]) -> None:
+    """Sort each ask entity's neighbors/sources by rank-normalised content.
+
+    The capture sorted them on raw FalkorDB ids, which says nothing about the
+    graph; the comparison must not depend on it.
+    """
+    for key, group in cases["ask"].items():
+        if key == "all_types":
+            continue
+        for entity in group["entities"]:
+            entity["neighbors"] = _canon(entity["neighbors"])
+            entity["sources"] = _canon(entity["sources"])
+
+
+_canon_ask(_GOLDEN["cases"])
 
 
 @pytest.fixture(scope="module")

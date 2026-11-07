@@ -94,14 +94,14 @@ def _ask_cases(reader: Any, fx: Fixture) -> dict[str, Any]:
     for terms, key in labelled:
         entities, calls = gather(reader, terms)
         entities = sorted(entities, key=lambda e: fx.rank.get(e.id, e.id))
-        dicts = []
-        for e in entities:
-            d = asdict(e)
+        # Sort neighbors/sources AFTER ids become ranks: sorting on raw ids made
+        # the order depend on how this database happened to number its entities.
+        ranked = to_ranks([asdict(e) for e in entities], fx.rank)
+        for d in ranked:
             d["neighbors"] = _canon(d["neighbors"])
             d["sources"] = _canon(d["sources"])
-            dicts.append(d)
         text = render_context(_rebuild(entities))
-        out[key] = {"entities": to_ranks(dicts, fx.rank),
+        out[key] = {"entities": ranked,
                     "calls": _canon(to_ranks(calls, fx.rank)),
                     "context_lines": _canon(
                         to_ranks(text, fx.rank).splitlines())}
