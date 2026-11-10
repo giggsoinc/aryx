@@ -81,8 +81,10 @@ def apply_migrations(dsn: str, *, force: bool = False) -> None:
 
     The first call for a DSN runs the migrations; later calls return at once,
     so request handlers can keep calling this without queueing on the global
-    advisory lock. A run that failed, or that skipped a statement (for example
-    a missing extension), is not remembered, so the next call retries it.
+    advisory lock. One full pass is remembered whatever its outcome: a
+    statement that cannot run (for example ``CREATE EXTENSION`` on a server
+    without that extension) is logged once and retried at the next process
+    start, not on every request. A run that raises is not remembered.
 
     Args:
         dsn: PostgreSQL connection string.
@@ -92,11 +94,14 @@ def apply_migrations(dsn: str, *, force: bool = False) -> None:
     with _APPLIED_LOCK:
         if not force and dsn in _APPLIED:
             return
-        if _run(dsn):
-            _APPLIED.add(dsn)
+        skipped = _run(dsn)
+        _APPLIED.add(dsn)
+        if skipped:
+            logger.warning("migrations finished with %d skipped statement(s); "
+                           "they are not retried until this process restarts", skipped)
 
 
-def _run(dsn: str) -> bool:
+def _run(dsn: str) -> int:
     """Apply every .sql file under migrations/ in lexical order.
 
     Statements are split on ';' (respecting dollar-quoted DO blocks) and run
@@ -111,10 +116,10 @@ def _run(dsn: str) -> bool:
         dsn: PostgreSQL connection string.
 
     Returns:
-        True if every statement ran or hit an "already exists" error, False if any
-        other error caused a statement to be skipped.
+        How many statements were skipped after an error other than "already
+        exists" (0 when every statement ran or the object was already there).
     """
-    skipped = False
+    skipped = 0
     files = sorted(_MIGRATIONS_DIR.glob("*.sql"))
     with psycopg.connect(dsn, autocommit=True) as conn:
         conn.execute(load("lock_migrations"))
@@ -125,6 +130,7 @@ def _run(dsn: str) -> bool:
                 # mistaken for a statement separator.
                 code = "\n".join(line.split("--", 1)[0] for line in raw.splitlines())
                 statements = _split_statements(code)
+                file_skipped = 0
                 with conn.cursor() as cur:
                     for statement in statements:
                         try:
@@ -136,11 +142,12 @@ def _run(dsn: str) -> bool:
                                 logger.debug("migration object already exists file=%s error=%s",
                                              path.name, exc)
                                 continue
-                            skipped = True
+                            file_skipped += 1
                             logger.warning("migration statement skipped file=%s error=%s",
                                            path.name, exc)
-                logger.info("migration applied file=%s statements=%d",
-                            path.name, len(statements))
+                skipped += file_skipped
+                logger.info("migration applied file=%s statements=%d skipped=%d",
+                            path.name, len(statements), file_skipped)
         finally:
             conn.execute(load("unlock_migrations"))
-    return not skipped
+    return skipped

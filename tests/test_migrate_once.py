@@ -12,7 +12,7 @@ from aryx.store import migrate
 def _fresh(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     monkeypatch.setattr(migrate, "_APPLIED", set())
     calls: list[str] = []
-    monkeypatch.setattr(migrate, "_run", lambda dsn: calls.append(dsn) or True)
+    monkeypatch.setattr(migrate, "_run", lambda dsn: calls.append(dsn) or 0)
     return calls
 
 
@@ -37,11 +37,11 @@ def test_force_runs_again(_fresh: list[str]) -> None:
 def test_a_failed_run_is_retried(monkeypatch: pytest.MonkeyPatch) -> None:
     attempts: list[int] = []
 
-    def flaky(dsn: str) -> bool:
+    def flaky(dsn: str) -> int:
         attempts.append(1)
         if len(attempts) == 1:
             raise RuntimeError("db down")
-        return True
+        return 0
 
     monkeypatch.setattr(migrate, "_run", flaky)
     with pytest.raises(RuntimeError):
@@ -61,16 +61,18 @@ def test_parallel_callers_run_it_once(_fresh: list[str]) -> None:
     assert _fresh == ["dsn-a"]
 
 
-def test_a_run_that_skipped_a_statement_is_retried(monkeypatch: pytest.MonkeyPatch) -> None:
-    outcomes = iter([False, True])
+def test_a_run_with_skipped_statements_is_remembered_and_logged_once(
+        monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     attempts: list[int] = []
 
-    def run(dsn: str) -> bool:
+    def run(dsn: str) -> int:
         attempts.append(1)
-        return next(outcomes)
+        return 2  # e.g. CREATE EXTENSION and its index on a server without pg_trgm
 
     monkeypatch.setattr(migrate, "_run", run)
-    migrate.apply_migrations("dsn-a")  # skipped a statement: not remembered
-    migrate.apply_migrations("dsn-a")  # clean: remembered
-    migrate.apply_migrations("dsn-a")
-    assert len(attempts) == 2
+    with caplog.at_level("WARNING", logger=migrate.logger.name):
+        for _ in range(5):
+            migrate.apply_migrations("dsn-a")
+    assert len(attempts) == 1
+    done = [r for r in caplog.records if "2 skipped statement(s)" in r.getMessage()]
+    assert len(done) == 1
