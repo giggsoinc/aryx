@@ -5,7 +5,6 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
 
-from aryx.graph.pg_reader import GraphSearchTooLarge
 from aryx.ports import GraphReaderPort, ports
 
 
@@ -70,6 +69,9 @@ def graph_router() -> APIRouter:
         entity_id: int, target_id: int, max_hops: int = 6,
         reader: GraphReaderPort = Depends(_reader),
     ) -> list[dict[str, Any]]:
+        # Imported here, not at module level: importing aryx.graph pulls in the
+        # connection pool, and this module is imported by unit tests that stub psycopg.
+        from aryx.graph.pg_path import GraphSearchTooLarge
         try:
             return reader.shortest_path(entity_id, target_id, max_hops)
         except GraphSearchTooLarge as exc:
