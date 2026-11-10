@@ -121,7 +121,23 @@ def test_a_file_with_a_failing_statement_is_not_recorded() -> None:
     migrate.apply_migrations("dsn-e")
     assert "0009_workspaces.sql" not in _Conn.recorded
     assert "0001_init.sql" in _Conn.recorded  # unrelated files still recorded
-    assert "dsn-e" not in migrate._applied_dsns  # retried on the next call
+
+
+def test_a_permanently_failing_file_does_not_cost_a_pass_per_request() -> None:
+    """Review M1: one never-succeeding file must not make every request take the
+    advisory lock and re-run it. After one full pass the DSN is cached; the
+    unrecorded file is retried at the next process start only."""
+    _Conn.fail_on = "CREATE TABLE IF NOT EXISTS aryx_workspace ("
+    migrate.apply_migrations("dsn-h")
+    assert "dsn-h" in migrate._applied_dsns
+    _Conn.log.clear()
+    migrate.apply_migrations("dsn-h")  # a later request
+    assert _Conn.log == []
+
+    migrate._applied_dsns.clear()  # simulate the next process start
+    _Conn.fail_on = None
+    migrate.apply_migrations("dsn-h")
+    assert "0009_workspaces.sql" in _Conn.recorded  # retried, now succeeds
 
 
 def test_already_exists_errors_count_as_applied() -> None:

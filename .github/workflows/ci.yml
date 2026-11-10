@@ -31,7 +31,7 @@ jobs:
 
       - name: Run unit tests (no Docker services required)
         env:
-          PYTHONPATH: src:.
+          PYTHONPATH: src
         run: |
           bash scripts/run_unit_tests.sh
 
@@ -76,7 +76,7 @@ jobs:
 
       - name: Start API server (in-process, against the real service containers above)
         env:
-          PYTHONPATH: src:.
+          PYTHONPATH: src
           ARYX_RDB_DSN: postgresql://aryx:aryx@localhost:5432/aryx
           ARYX_GRAPH_URL: redis://localhost:6379
           ARYX_BLOB_DIR: /tmp/aryx-e2e-blobs
@@ -95,7 +95,7 @@ jobs:
         # planner path) — CI has no Ollama/GPU. Run locally against a real
         # stack instead (see tests/e2e/test_e2e_ingest_hitl_loop.py).
         env:
-          PYTHONPATH: src:.
+          PYTHONPATH: src
           ARYX_TEST_RDB_DSN: postgresql://aryx:aryx@localhost:5432/aryx
           ARYX_TEST_GRAPH_URL: redis://localhost:6379
           ARYX_TEST_API_URL: http://localhost:8088

@@ -24,6 +24,7 @@ from aryx.connectors.doc_router import DocumentRouterConnector
 from aryx.connectors.json_source import JsonConnector, _flatten
 from aryx.dataset.ingest import register_dataset
 from aryx.job_cancel import checkpoint, run_cancellable
+from aryx.raven_log_config import log as raven_log
 from aryx.pipeline.chain_jobs import run_chain_now
 from aryx.pipeline.doc_discovery import _infer_type, infer_fk_links
 from aryx.pipeline.downstream import intent_ready
@@ -301,6 +302,13 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 skipped_duplicates += 1
                 logger.info("skipping duplicate upload %s ws=%s — already ingested",
                             name, workspace_id)
+                raven_log(
+                    "INFO", "duplicate upload skipped: workspace already has its entities",
+                    criticality="P4", service="aryx-api", error_code="DUPLICATE_UPLOAD_SKIPPED",
+                    context={"object_id": Path(name).stem, "workspace_id": workspace_id,
+                             "final_status": "skipped", "result": "skipped_duplicate",
+                             "reason_code": "DUPLICATE_UPLOAD_SKIPPED", "stage": "Ingest",
+                             "job_id": job_id})
                 jobs.update_stage(job_id, "Ingest", 20,
                                   f"Skipped {name}: identical file already ingested in this workspace")
                 continue

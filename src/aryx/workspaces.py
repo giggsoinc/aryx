@@ -9,8 +9,8 @@ import psycopg
 from psycopg import sql
 from psycopg.types.json import Json
 
-from config import log as raven_log
 from aryx.job_cancel import request_cancel, wait_until_stopped
+from aryx.raven_log_config import log as raven_log
 from aryx.naming import ws_graph  # noqa: F401  re-exported for back-compat
 from aryx.workspace_understanding import WorkspaceUnderstandingMixin
 from aryx.queries import load

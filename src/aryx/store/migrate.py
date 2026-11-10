@@ -7,12 +7,12 @@ from pathlib import Path
 import psycopg
 
 from aryx.queries import load
+from aryx.raven_log_config import log as raven_log
 
 logger = logging.getLogger(__name__)
 
 _MIGRATIONS_DIR = Path(__file__).parent / "migrations"
-_LOCK_KEY = 0x41525958  # "ARYX" — advisory lock id serialising migrators
-_applied_dsns: set[str] = set()  # DSNs fully migrated by this process
+_applied_dsns: set[str] = set()  # DSNs given a full migration pass by this process
 # SQLSTATEs meaning "this change already exists" (duplicate column / object /
 # table) — e.g. 0027's ADD CONSTRAINT. Matched by code, not by importing
 # psycopg.errors, because many unit tests replace `psycopg` with a mock.
@@ -73,9 +73,14 @@ def apply_migrations(dsn: str) -> None:
     the workspace id sequence on each call, so a deleted workspace's id was
     handed to the next one created (and a still-running orphaned job wrote
     into it). A file is recorded only when ALL its statements succeeded, so a
-    migration with an optional/unavailable feature is retried as before. A
-    process-level cache makes the call a no-op once everything is applied,
-    and a Postgres advisory lock serialises concurrent starters.
+    migration with an optional/unavailable feature (e.g. ``CREATE EXTENSION
+    vector`` without pgvector) is retried at the NEXT process start — but not
+    on every request: after one full pass the DSN is cached for this process,
+    whatever the outcome, and the files left unrecorded are logged once. A
+    Postgres advisory lock serialises concurrent starters.
+
+    Because applied files are never re-run, an applied migration must never be
+    edited — add a new numbered file instead (see migrations/README.md).
 
     Args:
         dsn: PostgreSQL connection string.
@@ -83,9 +88,9 @@ def apply_migrations(dsn: str) -> None:
     if dsn in _applied_dsns:
         return
     files = sorted(_MIGRATIONS_DIR.glob("*.sql"))
-    all_clean = True
+    unrecorded: list[str] = []
     with psycopg.connect(dsn, autocommit=True) as conn:
-        conn.execute(load("acquire_migration_lock"), (_LOCK_KEY,))
+        conn.execute(load("lock_migrations"))
         try:
             conn.execute(load("create_schema_migration_table"))
             applied = {row[0] for row in
@@ -119,10 +124,16 @@ def apply_migrations(dsn: str) -> None:
                 logger.info("migration applied file=%s statements=%d failed=%d",
                             path.name, len(statements), failed)
                 if failed:
-                    all_clean = False
+                    unrecorded.append(path.name)
                 else:
                     conn.execute(load("record_applied_migration"), (path.name,))
         finally:
-            conn.execute(load("release_migration_lock"), (_LOCK_KEY,))
-    if all_clean:
-        _applied_dsns.add(dsn)
+            conn.execute(load("unlock_migrations"))
+    if unrecorded:
+        raven_log(
+            "WARN", "migration files left unrecorded (retried at next process start)",
+            criticality="P3", service="aryx-api", error_code="MIGRATION_UNRECORDED",
+            context={"dependency_name": "postgres", "operation": "apply_migrations",
+                     "result": "partial", "files": unrecorded,
+                     "final_status": "unrecorded", "reason_code": "MIGRATION_UNRECORDED"})
+    _applied_dsns.add(dsn)

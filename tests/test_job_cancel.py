@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from aryx import job_cancel
+from aryx import cancel_token
 from aryx.job_cancel import (
     JobCancelled, cancel_scope, checkpoint, request_cancel,
     run_cancellable, wait_until_stopped,
@@ -39,7 +39,7 @@ def _fake_db(monkeypatch: pytest.MonkeyPatch) -> None:
     import aryx.store.job_store as job_store
     _FakeJobs.row = {"status": "running"}
     monkeypatch.setattr(job_store, "JobStore", _FakeJobs)
-    monkeypatch.setattr(job_cancel, "workspace_created_at",
+    monkeypatch.setattr(cancel_token, "workspace_created_at",
                         lambda dsn, wid: _FakeWs.created)
     _FakeWs.created = _CREATED
 
