@@ -12,7 +12,7 @@ from aryx.store import migrate
 def _fresh(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     monkeypatch.setattr(migrate, "_APPLIED", set())
     calls: list[str] = []
-    monkeypatch.setattr(migrate, "_run", lambda dsn: calls.append(dsn))
+    monkeypatch.setattr(migrate, "_run", lambda dsn: calls.append(dsn) or True)
     return calls
 
 
@@ -37,10 +37,11 @@ def test_force_runs_again(_fresh: list[str]) -> None:
 def test_a_failed_run_is_retried(monkeypatch: pytest.MonkeyPatch) -> None:
     attempts: list[int] = []
 
-    def flaky(dsn: str) -> None:
+    def flaky(dsn: str) -> bool:
         attempts.append(1)
         if len(attempts) == 1:
             raise RuntimeError("db down")
+        return True
 
     monkeypatch.setattr(migrate, "_run", flaky)
     with pytest.raises(RuntimeError):
@@ -58,3 +59,18 @@ def test_parallel_callers_run_it_once(_fresh: list[str]) -> None:
     for t in threads:
         t.join(timeout=10)
     assert _fresh == ["dsn-a"]
+
+
+def test_a_run_that_skipped_a_statement_is_retried(monkeypatch: pytest.MonkeyPatch) -> None:
+    outcomes = iter([False, True])
+    attempts: list[int] = []
+
+    def run(dsn: str) -> bool:
+        attempts.append(1)
+        return next(outcomes)
+
+    monkeypatch.setattr(migrate, "_run", run)
+    migrate.apply_migrations("dsn-a")  # skipped a statement: not remembered
+    migrate.apply_migrations("dsn-a")  # clean: remembered
+    migrate.apply_migrations("dsn-a")
+    assert len(attempts) == 2

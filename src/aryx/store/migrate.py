@@ -20,6 +20,18 @@ _MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 _APPLIED: set[str] = set()
 _APPLIED_LOCK = threading.Lock()
 
+# SQLSTATEs for "already exists". Some older migrations are not idempotent and
+# hit these on every re-run; they mean the object is there, so they must not
+# stop a run from counting as clean.
+_ALREADY_EXISTS = frozenset({
+    "42P07",  # duplicate_table (also relations such as indexes and constraints)
+    "42710",  # duplicate_object
+    "42701",  # duplicate_column
+    "42723",  # duplicate_function
+    "42P06",  # duplicate_schema
+    "42712",  # duplicate_alias
+})
+
 
 def _split_statements(sql: str) -> list[str]:
     """Split on ';' but never inside a $tag$...$tag$ dollar-quoted block.
@@ -69,7 +81,8 @@ def apply_migrations(dsn: str, *, force: bool = False) -> None:
 
     The first call for a DSN runs the migrations; later calls return at once,
     so request handlers can keep calling this without queueing on the global
-    advisory lock. A failed run is not remembered, so the next call retries.
+    advisory lock. A run that failed, or that skipped a statement (for example
+    a missing extension), is not remembered, so the next call retries it.
 
     Args:
         dsn: PostgreSQL connection string.
@@ -79,11 +92,11 @@ def apply_migrations(dsn: str, *, force: bool = False) -> None:
     with _APPLIED_LOCK:
         if not force and dsn in _APPLIED:
             return
-        _run(dsn)
-        _APPLIED.add(dsn)
+        if _run(dsn):
+            _APPLIED.add(dsn)
 
 
-def _run(dsn: str) -> None:
+def _run(dsn: str) -> bool:
     """Apply every .sql file under migrations/ in lexical order.
 
     Statements are split on ';' (respecting dollar-quoted DO blocks) and run
@@ -96,7 +109,12 @@ def _run(dsn: str) -> None:
 
     Args:
         dsn: PostgreSQL connection string.
+
+    Returns:
+        True if every statement ran or hit an "already exists" error, False if any
+        other error caused a statement to be skipped.
     """
+    skipped = False
     files = sorted(_MIGRATIONS_DIR.glob("*.sql"))
     with psycopg.connect(dsn, autocommit=True) as conn:
         conn.execute(load("lock_migrations"))
@@ -114,9 +132,15 @@ def _run(dsn: str) -> None:
                         except psycopg.Error as exc:
                             # An optional/unavailable feature (e.g. a missing
                             # extension) must not block unrelated later migrations.
+                            if exc.sqlstate in _ALREADY_EXISTS:
+                                logger.debug("migration object already exists file=%s error=%s",
+                                             path.name, exc)
+                                continue
+                            skipped = True
                             logger.warning("migration statement skipped file=%s error=%s",
                                            path.name, exc)
                 logger.info("migration applied file=%s statements=%d",
                             path.name, len(statements))
         finally:
             conn.execute(load("unlock_migrations"))
+    return not skipped
