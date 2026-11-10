@@ -36,7 +36,7 @@ jobs:
           bash scripts/run_unit_tests.sh
 
   e2e-tests:
-    name: E2E tests (real Postgres + FalkorDB)
+    name: E2E tests (real Postgres)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # Kept separate from python-tests: this job needs real service
@@ -56,10 +56,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-      falkordb:
-        image: falkordb/falkordb:latest
-        ports:
-          - 6379:6379
     steps:
       - uses: actions/checkout@v4
 
@@ -78,7 +74,6 @@ jobs:
         env:
           PYTHONPATH: src
           ARYX_RDB_DSN: postgresql://aryx:aryx@localhost:5432/aryx
-          ARYX_GRAPH_URL: redis://localhost:6379
           ARYX_BLOB_DIR: /tmp/aryx-e2e-blobs
         run: |
           python -m uvicorn aryx.api.main:app --port 8088 &
@@ -97,7 +92,6 @@ jobs:
         env:
           PYTHONPATH: src
           ARYX_TEST_RDB_DSN: postgresql://aryx:aryx@localhost:5432/aryx
-          ARYX_TEST_GRAPH_URL: redis://localhost:6379
           ARYX_TEST_API_URL: http://localhost:8088
         run: |
           pytest -m "e2e and not e2e_llm" tests/e2e/ -v

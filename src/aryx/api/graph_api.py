@@ -1,17 +1,15 @@
-"""FastAPI read API over the FalkorDB knowledge graph (Increment 6)."""
+"""FastAPI read API over the knowledge graph, served from Postgres (Increment 6)."""
 from __future__ import annotations
 
 from typing import Any
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
 
-from aryx.config import get_settings
-from aryx.graph import GraphReader
-from aryx.ports import ports
+from aryx.ports import GraphReaderPort, ports
 
 
-def _reader(workspace_id: int = 1) -> GraphReader:
-    return ports().graph_reader(workspace_id)  # type: ignore[return-value]
+def _reader(workspace_id: int = 1) -> GraphReaderPort:
+    return ports().graph_reader(workspace_id)
 
 
 def graph_router() -> APIRouter:
@@ -24,39 +22,30 @@ def graph_router() -> APIRouter:
     @router.get("/entities")
     def find_entities(
         type: str | None = None, name: str | None = None, limit: int = 50,
-        reader: GraphReader = Depends(_reader),
+        reader: GraphReaderPort = Depends(_reader),
     ) -> list[dict[str, Any]]:
         return reader.find_entities(ontology_type=type, name=name, limit=limit)
 
     @router.get("/graph")
-    def full_graph(reader: GraphReader = Depends(_reader)) -> dict[str, Any]:
+    def full_graph(reader: GraphReaderPort = Depends(_reader)) -> dict[str, Any]:
         """All entities + all relationships in one call (for graph canvas)."""
         return {
             "entities": reader.find_entities(limit=500),
             "relationships": reader.all_relationships(),
         }
 
-    @router.post("/graph/cypher")
+    @router.post("/graph/cypher", deprecated=True)
     def cypher_read(body: dict[str, Any]) -> dict[str, Any]:
-        """Run a read-only Cypher MATCH; rejects writes (server.py also guards)."""
-        import re as _re
-        q = str(body.get("query") or "")
-        if _re.search(r"\b(CREATE|MERGE|DELETE|SET|REMOVE|DROP|DETACH)\b",
-                      q, _re.IGNORECASE):
-            raise HTTPException(400, "read-only — write keywords rejected")
-        wid = int(body.get("workspace_id", 1))
-        from aryx.graph.falkor_store import FalkorStore
-        from aryx.workspaces import ws_graph
-        store = FalkorStore(get_settings().graph_url, ws_graph(wid))
-        try:
-            rows = store.run(q, params={})
-        except Exception as exc:  # noqa: BLE001
-            raise HTTPException(400, f"cypher failed: {exc}") from exc
-        return {"rows": rows[: int(body.get("limit", 50))]}
+        """Removed. The graph is served from Postgres, so there is no Cypher engine."""
+        raise HTTPException(
+            status_code=410,
+            detail="POST /graph/cypher was removed: the graph is now served from "
+                   "Postgres. Use /entities, /graph, /entities/{id}/neighbors, "
+                   "/entities/{id}/provenance, /entities/{id}/path/{target_id} or /data/*.")
 
     @router.get("/entities/{entity_id}")
     def get_entity(
-        entity_id: int, reader: GraphReader = Depends(_reader)
+        entity_id: int, reader: GraphReaderPort = Depends(_reader)
     ) -> dict[str, Any]:
         entity = reader.get_entity(entity_id)
         if entity is None:
@@ -65,22 +54,30 @@ def graph_router() -> APIRouter:
 
     @router.get("/entities/{entity_id}/neighbors")
     def neighbors(
-        entity_id: int, reader: GraphReader = Depends(_reader)
+        entity_id: int, reader: GraphReaderPort = Depends(_reader)
     ) -> list[dict[str, Any]]:
         return reader.neighbors(entity_id)
 
     @router.get("/entities/{entity_id}/provenance")
     def provenance(
-        entity_id: int, reader: GraphReader = Depends(_reader)
+        entity_id: int, reader: GraphReaderPort = Depends(_reader)
     ) -> list[dict[str, Any]]:
         return reader.provenance(entity_id)
 
     @router.get("/entities/{entity_id}/path/{target_id}")
     def path(
         entity_id: int, target_id: int, max_hops: int = 6,
-        reader: GraphReader = Depends(_reader),
+        reader: GraphReaderPort = Depends(_reader),
     ) -> list[dict[str, Any]]:
-        return reader.shortest_path(entity_id, target_id, max_hops)
+        # Imported here, not at module level: importing aryx.graph pulls in the
+        # connection pool, and this module is imported by unit tests that stub psycopg.
+        from aryx.graph.pg_path import GraphSearchTooLarge
+        try:
+            return reader.shortest_path(entity_id, target_id, max_hops)
+        except GraphSearchTooLarge as exc:
+            # Not "no path": the search was cut off. Tell the caller to narrow it.
+            raise HTTPException(
+                422, f"search too large; lower max_hops ({exc})") from exc
 
     return router
 

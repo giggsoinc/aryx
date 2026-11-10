@@ -22,7 +22,7 @@ import json
 import sys
 from unittest.mock import MagicMock
 
-for _mod in ("falkordb", "psycopg", "psycopg.types", "psycopg.types.json",
+for _mod in ("psycopg", "psycopg.types", "psycopg.types.json",
              "psycopg_pool"):
     try:
         importlib.import_module(_mod)

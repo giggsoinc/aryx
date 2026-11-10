@@ -269,7 +269,7 @@ def ingest_confirmed(data: dict[str, Any], approved_types: list[str],
         if recs:
             run_pipeline(connector=RecordsConnector(recs), dsn=settings.rdb_dsn,
                          system="document", dataset=otype, ontology_type=otype,
-                         match_keys=["name"], graph_url=settings.graph_url, broker=broker,
+                         match_keys=["name"], broker=broker,
                          workspace_id=workspace_id)
     for fname in approved_files:
         step += 1
@@ -298,14 +298,14 @@ def ingest_confirmed(data: dict[str, Any], approved_types: list[str],
             run_pipeline(connector=conn, dsn=settings.rdb_dsn,
                          system=Path(fname).suffix.lstrip("."), dataset=Path(fname).stem,
                          ontology_type=plan["ontology_type"], match_keys=plan["match_keys"],
-                         graph_url=settings.graph_url, broker=broker, workspace_id=workspace_id)
+                         broker=broker, workspace_id=workspace_id)
         finally:
             if tmp_path is not None:
                 tmp_path.unlink(missing_ok=True)
     inferred = infer_fk_links(link_plans)
     if inferred:
         jobs.update_stage(job_id, "Link", 92, "Inferring relationships")
-        link_entities(settings.rdb_dsn, settings.graph_url, workspace_id, inferred)
+        link_entities(settings.rdb_dsn, workspace_id, inferred)
 
 
 def _csv_colvals(data: bytes) -> dict[str, list[str]]:

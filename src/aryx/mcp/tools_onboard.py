@@ -26,8 +26,8 @@ def onboard_tool_specs() -> list[types.Tool]:
             name="workspace_create",
             description=(
                 "Create a new isolated workspace. Each workspace owns its "
-                "own LIST partitions in Postgres and a named graph in "
-                "FalkorDB — total tenant isolation. Returns {id, name}."
+                "own LIST partitions in Postgres, and its graph is read "
+                "from them — total tenant isolation. Returns {id, name}."
             ),
             inputSchema={
                 "type": "object",

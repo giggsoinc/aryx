@@ -11,12 +11,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from aryx.graph import FalkorStore
+from aryx.graph.changes import after_graph_change
 from aryx.pipeline.dimension_entities import materialize_one_dimension
 from aryx.pipeline.fk_edges import link_by_attribute
-from aryx.project import project_graph
 from aryx.store.entity_store import EntityStore
-from aryx.workspaces import ws_graph
 
 logger = logging.getLogger(__name__)
 
@@ -49,11 +47,9 @@ def _relationship_direction(
 
 def _link_dimension_relationships(
     rels: list[Any], dim_by_name: dict[str, dict[str, Any]], *,
-    dsn: str, graph_url: str, workspace_id: int,
+    dsn: str, workspace_id: int,
 ) -> int:
-    """Link row entities to dimensions per plan, then re-project the graph."""
-    from aryx.pipeline.enrich import _build_type_ancestors
-
+    """Link row entities to dimensions per plan, then refresh derived output."""
     total_rels = 0
     estore = EntityStore(dsn, workspace_id)
     try:
@@ -66,11 +62,7 @@ def _link_dimension_relationships(
             n = link_by_attribute(estore, src, via, tgt, "name", name)
             total_rels += n
             logger.info("linked %s -[%s]-> %s count=%d", src, name, tgt, n)
-        project_graph(
-            estore, FalkorStore(graph_url, ws_graph(workspace_id)),
-            type_ancestors=_build_type_ancestors(dsn),
-            workspace_id=workspace_id,
-        )
+        after_graph_change(dsn, workspace_id)
     finally:
         estore.close()
     return total_rels
@@ -79,7 +71,6 @@ def _link_dimension_relationships(
 def materialize_dimensions(
     *,
     dsn: str,
-    graph_url: str,
     workspace_id: int,
     broker: Any,
     graph_plan: dict[str, Any],
@@ -97,11 +88,11 @@ def materialize_dimensions(
 
     for dim in dims:
         if isinstance(dim, dict):
-            materialize_one_dimension(dim, merged, dsn=dsn, graph_url=graph_url,
+            materialize_one_dimension(dim, merged, dsn=dsn,
                                       workspace_id=workspace_id, broker=broker)
 
     dim_by_name = {str(d.get("name") or "").strip(): d
                    for d in dims if isinstance(d, dict)}
     return _link_dimension_relationships(
         graph_plan.get("relationships") or [], dim_by_name,
-        dsn=dsn, graph_url=graph_url, workspace_id=workspace_id)
+        dsn=dsn, workspace_id=workspace_id)

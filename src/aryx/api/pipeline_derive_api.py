@@ -42,7 +42,7 @@ def pipeline_derive_router() -> APIRouter:
         logger.info("derive-entities ws=%s source=%s group_by=%s new_type=%s",
                     workspace_id, req.source_type, req.group_by_attr, req.new_type_name)
         counts = derive_entities_by_column(
-            settings.rdb_dsn, settings.graph_url, workspace_id,
+            settings.rdb_dsn, workspace_id,
             req.source_type, req.group_by_attr, req.new_type_name, req.carry_attrs,
         )
         if counts.get("created", 0) == 0:

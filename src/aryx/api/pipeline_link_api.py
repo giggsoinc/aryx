@@ -43,14 +43,14 @@ def pipeline_link_router() -> APIRouter:
     @router.post("/link-entities")
     def create_links(req: LinkEntitiesRequest, workspace_id: int = Query(1)) -> dict:
         """Materialize real FK edges across already-resolved entities and
-        re-project the graph. `relationships` in the response is the exact
+        refresh derived graph output. `relationships` in the response is the exact
         count of edges actually created — 0 means the two attributes never
         matched on any real value; the caller must surface that as a real
         outcome, never treat a 0-count call as a silent success."""
         settings = get_settings()
         fk_links = [spec.model_dump() for spec in req.fk_links]
         logger.info("explicit link-entities ws=%s links=%d", workspace_id, len(fk_links))
-        counts = link_entities(settings.rdb_dsn, settings.graph_url, workspace_id, fk_links)
+        counts = link_entities(settings.rdb_dsn, workspace_id, fk_links)
         if not fk_links:
             logger.warning("link-entities called with zero fk_links ws=%s", workspace_id)
         return counts

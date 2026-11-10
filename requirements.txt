@@ -8,9 +8,7 @@ psycopg[binary,pool]~=3.2
 boto3~=1.35
 # Claude API client — frontier/cheap Anthropic model calls via the Broker.
 anthropic~=0.40
-# FalkorDB client — knowledge-graph projection target (stage 5d).
-falkordb~=1.0
-# Read API over the graph projection (Increment 6) + ASGI server.
+# Read API over the knowledge graph (Increment 6) + ASGI server.
 fastapi~=0.115
 uvicorn~=0.32
 python-multipart~=0.0.17

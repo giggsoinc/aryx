@@ -8,10 +8,9 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 
 from aryx.config import get_settings
-from aryx.graph import FalkorStore
 from aryx.pipeline.chain_jobs import trigger_chain_from_brief
 from aryx.store.migrate import apply_migrations
-from aryx.workspaces import WorkspaceStore, ws_graph
+from aryx.workspaces import WorkspaceStore
 
 logger = logging.getLogger(__name__)
 
@@ -133,8 +132,8 @@ def workspace_router() -> APIRouter:
         """Delete THIS workspace's data so ingestion can be redone cleanly.
 
         Removes: landed records, entities + members, relationships, field
-        profiles, jobs, pending ingest questions (Postgres) and the whole
-        workspace graph (FalkorDB). Keeps: the workspace itself, its brief,
+        profiles, jobs, pending ingest questions (Postgres). The graph is
+        read live from those tables, so nothing else needs clearing. Keeps: the workspace itself, its brief,
         ontology types, corrections, and the model choice. Document chunks
         are shared across workspaces (no workspace column) and are left.
         """
@@ -146,6 +145,9 @@ def workspace_router() -> APIRouter:
             with conn.cursor() as cur:
                 for label, q in (
                     ("relationships", "delete_relationships_by_workspace"),
+                    ("inferred_relationships",
+                     "delete_inferred_relationships_by_workspace"),
+                    ("inferred_labels", "delete_inferred_labels_by_workspace"),
                     ("entity_members", "delete_entity_members_by_workspace"),
                     ("entities", "delete_entities_by_workspace"),
                     ("landed_records", "delete_landed_records_by_workspace"),
@@ -155,12 +157,6 @@ def workspace_router() -> APIRouter:
                 ):
                     cur.execute(load_q(q), (workspace_id,))
                     deleted[label] = cur.rowcount
-        try:
-            FalkorStore(get_settings().graph_url,
-                        ws_graph(workspace_id)).clear()
-            deleted["graph"] = 1
-        except Exception:  # noqa: BLE001 — graph may not exist
-            deleted["graph"] = 0
         return {"workspace_id": workspace_id, "deleted": deleted}
 
     @router.post("/nuke")
@@ -171,12 +167,6 @@ def workspace_router() -> APIRouter:
             result = store.nuke()
         finally:
             store.close()
-        for wid in (1, 2, 3):
-            try:
-                g = FalkorStore(get_settings().graph_url, ws_graph(wid))
-                g.clear()
-            except Exception:  # noqa: BLE001
-                pass
         return result
 
     @router.post("/{workspace_id}/purge")
@@ -187,11 +177,6 @@ def workspace_router() -> APIRouter:
             result = store.purge_data(workspace_id)
         finally:
             store.close()
-        try:
-            FalkorStore(get_settings().graph_url,
-                        ws_graph(workspace_id)).clear()
-        except Exception:  # noqa: BLE001
-            logger.debug("graph clear skipped ws=%s", workspace_id)
         return result
 
     @router.delete("/{workspace_id}")
@@ -203,10 +188,6 @@ def workspace_router() -> APIRouter:
             raise HTTPException(400, str(exc)) from exc
         finally:
             store.close()
-        try:
-            FalkorStore(get_settings().graph_url, ws_graph(workspace_id)).clear()
-        except Exception:  # noqa: BLE001 — graph may not exist yet
-            logger.debug("graph drop skipped ws=%s", workspace_id)
         return {"status": "deleted", "workspace_id": workspace_id}
 
     return router

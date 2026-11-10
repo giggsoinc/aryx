@@ -1,4 +1,4 @@
-"""Post-resolution enrichment helpers: type ancestors + relate stage."""
+"""Post-resolution enrichment helpers: the relate stage."""
 from __future__ import annotations
 
 import logging
@@ -7,26 +7,8 @@ from aryx.broker import Broker
 from aryx.models import Relationship
 from aryx.relationships import infer_relationship
 from aryx.store.entity_store import EntityStore
-from aryx.store.ontology_store import OntologyStore
 
 logger = logging.getLogger(__name__)
-
-
-def _build_type_ancestors(dsn: str, workspace_id: int = 1) -> dict[str, list[str]]:
-    """Resolve ancestor chains for every declared type via OntologyStore."""
-    ostore = OntologyStore(dsn, workspace_id)
-    try:
-        types = ostore.list_types()
-        out: dict[str, list[str]] = {}
-        for t in types:
-            if t.parent_type:
-                out[t.name] = ostore.ancestors(t.name)
-        return out
-    except Exception as exc:  # noqa: BLE001 — hierarchy is additive, never block projection
-        logger.warning("type ancestors lookup failed; projecting without labels: %s", exc)
-        return {}
-    finally:
-        ostore.close()
 
 
 def _relate(store: EntityStore, broker: Broker, max_pairs: int) -> int:

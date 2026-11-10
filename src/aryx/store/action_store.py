@@ -7,7 +7,7 @@ import json
 import logging
 from typing import Any
 
-from psycopg.types.json import Json
+from psycopg.types.json import Json, Jsonb
 
 from aryx.queries import load
 from aryx.store.pool import get_pool
@@ -118,11 +118,11 @@ class ActionStore:
         return (row[0] or {}).get(key) if row else None
 
     def set_attribute(self, entity_id: int, key: str, value: Any) -> None:
-        """Merge one attribute into the entity JSONB; touches updated_at."""
+        """Merge one attribute into the entity JSONB."""
         with self._pool.connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(load("update_entity_attributes"),
-                            (Json({key: value}, dumps=_dumps),
+                            (Jsonb({key: value}, dumps=_dumps),
                              entity_id, self._ws))
 
     def find_entity(self, ontology_type: str, name: str) -> int | None:

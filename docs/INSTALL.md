@@ -49,7 +49,6 @@ POSTGRES_DB=aryx
 
 # App DSN — inside Compose network, host is "postgres"
 ARYX_RDB_DSN=postgresql://aryx:change-me-in-production@postgres:5432/aryx
-ARYX_GRAPH_URL=redis://falkordb:6379
 
 ARYX_LOG_LEVEL=INFO
 
@@ -118,7 +117,6 @@ If pull fails and you have source checked out, Compose can **build** from the lo
 | **api** | http://localhost:8088 | FastAPI (`/docs` = OpenAPI) |
 | **mcp** | http://localhost:8765/sse | MCP SSE for agents |
 | **postgres** | localhost:**55432** → container 5432 | Source of truth (+ pgvector) |
-| **falkordb** | localhost:6379 | Graph projection |
 | **ollama** | (internal) | Local LLM runtime |
 | **worker** | (internal) | Background jobs |
 
@@ -132,7 +130,7 @@ There is **no Streamlit service**.
 
 ```bash
 docker compose ps
-# Expect Up: postgres, falkordb, ollama, api, worker, mcp, web
+# Expect Up: postgres, ollama, api, worker, mcp, web
 
 curl -s http://localhost:8088/health
 # {"status":"ok"}  (or similar healthy payload)
@@ -180,7 +178,7 @@ If ports are reachable beyond your laptop:
 |--------|-----|
 | Set `ARYX_API_AUTH=required` | Default `optional` allows unauthenticated API use |
 | Change `POSTGRES_PASSWORD` / DSN | Defaults are for local demo only |
-| Do not publish Postgres/FalkorDB to the public internet | Data stores |
+| Do not publish Postgres to the public internet | Data stores |
 | Prefer a reverse proxy + TLS | Terminate HTTPS in front of 3000/8088 |
 | Set `ARYX_LOG_LEVEL=INFO` in production | Compose may use DEBUG on the API for local debugging |
 
@@ -300,7 +298,7 @@ Do not rely on shared demo IPs from old docs; use your own host.
 
 ## Local development (without full Compose UI)
 
-Still need Postgres, FalkorDB, and usually Ollama (Compose those three, or run equivalents).
+Still need Postgres and usually Ollama (Compose those two, or run equivalents).
 
 ```bash
 # API
@@ -308,7 +306,6 @@ python3.13 -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 export ARYX_RDB_DSN=postgresql://aryx:aryx@localhost:55432/aryx
-export ARYX_GRAPH_URL=redis://localhost:6379
 export ARYX_LLM_BASE_URL=http://localhost:11434
 PYTHONPATH=src python -m uvicorn aryx.api.main:app --reload --port 8088
 

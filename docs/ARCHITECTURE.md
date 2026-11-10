@@ -4,7 +4,7 @@
 
 Aryx is a knowledge graph platform that ingests records from heterogeneous sources (databases, files), resolves duplicates into single entities, infers relationships, and builds a queryable graph.
 
-**Core principle:** Postgres is the source of truth; FalkorDB is a rebuildable projection. Cheap, deterministic stages (blocking, scoring) shrink the search space so frontier LLMs only touch the hard ~1-5% of decisions.
+**Core principle:** Postgres is the single data store: entities, relationships and the knowledge graph are all read from it. Cheap, deterministic stages (blocking, scoring) shrink the search space so frontier LLMs only touch the hard ~1-5% of decisions.
 
 ## V2 Architecture (Web UI + Ports & Adapters)
 
@@ -34,14 +34,14 @@ Two structural changes define the current generation:
    same data-first UX metaphor, deeper agents. See [EDITIONS.md](EDITIONS.md) and
    [UI_BUSINESS_FLOW.html](UI_BUSINESS_FLOW.html).
 
-2. **Ports & adapters (hexagonal) seam.** `src/aryx/ports/` introduces a substrate-swappable seam so the platform is not welded to Postgres/FalkorDB/Ollama:
+2. **Ports & adapters (hexagonal) seam.** `src/aryx/ports/` introduces a substrate-swappable seam so the platform is not welded to Postgres/Ollama:
 
-   - `protocols.py` — capability-port contracts as `typing.Protocol`: `RelationalPort`, `GraphReaderPort`, `GraphStorePort`, `VectorPort`, `LlmPort`, `ReasonerPort`, `ComputePort`.
-   - `config.py` — resolves each port to a `module:Class` target. Defaults (the **Lite** family) wrap today's shipped Postgres/FalkorDB/Ollama implementations; any port can be overridden per-environment via `ARYX_ADAPTER_*` env vars.
+   - `protocols.py` — capability-port contracts as `typing.Protocol`: `RelationalPort`, `GraphReaderPort`, `VectorPort`, `LlmPort`, `ReasonerPort`, `ComputePort`.
+   - `config.py` — resolves each port to a `module:Class` target. Defaults (the **Lite** family) wrap today's shipped Postgres/Ollama implementations; any port can be overridden per-environment via `ARYX_ADAPTER_*` env vars.
    - `container.py` — the composition root. Call-sites obtain dependencies through `ports()`, which imports and constructs the adapter bound to each port.
    - `src/aryx/edition.py` — the `ARYX_EDITION` flag (`lite` / `enterprise` / `aryx-o`). Enterprise unlocks v2 surfaces (Accuracy Lab, governance, the LLM Router) and selects the default adapter family; Aryx-o is Enterprise with the Oracle substrate.
 
-   The **Graph read vertical** (the ask / graph / observability APIs) already routes through the container, so swapping a substrate (e.g. Oracle ADB later) is an adapter swap, not a rewrite. `src/aryx/naming.py` holds the driver-free `ws_graph(workspace_id)` helper — the seam imports it without pulling in `psycopg` or `falkordb`.
+   The **Graph read vertical** (the ask / graph / observability APIs) already routes through the container, so swapping a substrate (e.g. Oracle ADB later) is an adapter swap, not a rewrite. The graph reader (`graph/pg_reader.py`) is constructed as `(dsn, workspace_id)` and reads the relational tables directly; there is no write-side graph port.
 
 ## Ask Engine
 
@@ -130,7 +130,7 @@ skipped:
 | 4 | **Map** | Source → entity type; HITL approval gate | Frontier LLM |
 | 5 | **Resolve** | Block → score → adjudicate → cluster → golden | Mix |
 | 6 | **Relate** | FK links, co-occurrence, optional LLM inference | Deterministic + LLM |
-| 7 | **Project** | Write entities + edges to FalkorDB graph | FalkorDB write |
+| 7 | **Finalise** | Clear derived (inferred) graph output and count the graph; the graph itself is read live from Postgres | PG read/write |
 
 Stage checkpoints (`StageTracker`) track running/done/failed per stage. Crashed pipelines resume from the last completed stage — leftover "running" on resume is treated as "failed".
 
@@ -151,16 +151,17 @@ definition → validate → check_guard → apply_effects → audit log
 
 **Key files:** `actions/engine.py`, `store/action_store.py`, `api/actions_api.py`, `mcp/act.py`
 
-## Incremental Projection
+## Graph Reads
 
-FalkorDB is never the source of truth — it is a projection of Postgres state.
+The knowledge graph is not a separate store. `graph/pg_reader.py` (`PostgresGraphReader`) answers every graph question straight from the relational tables, scoped by `workspace_id` so Postgres prunes to one partition.
 
-- `project_auto()` checks the dirty-set size: <30% dirty → incremental, else full rebuild
-- Dirty-set computation uses Postgres watermark + `aryx_projected_entity` side table
-- Tombstones handle deleted entities (DETACH DELETE in FalkorDB)
-- Full rebuild: wipe named graph, re-project all entities + relationships
+- Always current: there is no copy to rebuild or keep in sync
+- Duplicate edges collapse and edges to missing entities are ignored
+- Display names come from the `aryx_display_name()` SQL function (migration 0047); name search is served by a `pg_trgm` index
+- Shortest path is a bidirectional breadth-first search, one query per level
+- Reasoning-engine output (inverse, symmetric and transitive edges, labels) lives in `aryx_inferred_relationship` and `aryx_inferred_label`, never in asserted data. `after_graph_change()` clears it when entities or edges change; `POST /rules/evaluate` rebuilds it
 
-**Key files:** `project.py`, `store/projection_store.py`, `graph/falkor_store.py`
+**Key files:** `graph/pg_reader.py`, `graph/changes.py`, `store/inferred_store.py`
 
 ## API Layer
 
@@ -168,7 +169,7 @@ The real app is `api/main.py:create_app()`, which registers **44 routers**. (A l
 
 | Router | Prefix | Purpose |
 |--------|--------|---------|
-| graph | /graph | FalkorDB queries, paths (routes via ports container) |
+| graph | /graph | Graph queries and paths, read from Postgres (routes via ports container) |
 | admin (entities) | /admin | Entity CRUD |
 | ask | /ask | NL question answering (grounded, cited) |
 | **lab** | /lab | **Accuracy Lab — `/lab/ab`, `/lab/reasoner`** |
@@ -250,11 +251,11 @@ Key tables:
 
 All entity tables LIST-partitioned by workspace_id for isolation and physical purge.
 
-### FalkorDB (graph projection)
+### Graph (served from Postgres)
 
-- Named graph per workspace (`aryx_ws_<id>`, derived via `naming.ws_graph()`)
-- Nodes = entities, edges = relationships
-- Wipe-and-rebuild safe; Postgres has the real data
+- Entities, relationships and provenance are the graph; every read is scoped by `workspace_id`
+- Reasoning-engine output sits in two small tables, cleared when the graph changes
+- No separate service, volume or sync step
 
 ### Connection Pooling
 
@@ -270,7 +271,7 @@ All entity tables LIST-partitioned by workspace_id for isolation and physical pu
 | UI | Next.js (`apps/web`) | Primary product UI; `/settings` for LLM provider |
 | Substrate seam | Ports & adapters | `module:Class` adapters per port; substrate-swappable (Lite/Enterprise/Aryx-o) |
 | Database | PostgreSQL 16 | ACID, FTS, partitioning, JSONB |
-| Graph | FalkorDB | Fast traversal; wipe/rebuild safe |
+| Graph | PostgreSQL | One store, always current; trigram name index and bidirectional path search |
 | Local LLM | Ollama | Private data; offline; zero-cost inference |
 | Cloud LLM | Anthropic, OpenAI, Gemini | Frontier tier for hard decisions |
 | Deploy | Docker Compose | Reproducible; local + EC2 |
@@ -280,7 +281,7 @@ All entity tables LIST-partitioned by workspace_id for isolation and physical pu
 
 | ID | Decision | Rationale | Date |
 |---|---|---|---|
-| DEC-001 | Postgres source of truth; FalkorDB rebuildable | No graph-only state; safe to wipe | 2026-05-28 |
+| DEC-001 | Postgres source of truth; FalkorDB rebuildable | No graph-only state; safe to wipe (FalkorDB half superseded by DEC-013) | 2026-05-28 |
 | DEC-002 | Streaming one-record-at-a-time | Same code path for small tables and TB datasets | 2026-05-28 |
 | DEC-003 | Four-band thresholds from measured sweep | 0.92/0.90/0.75 from Febrl benchmark, not opinion | 2026-06-11 |
 | DEC-004 | Survivorship policies over first-non-empty | Order-independent merge; auditable conflicts | 2026-06-11 |
@@ -292,6 +293,7 @@ All entity tables LIST-partitioned by workspace_id for isolation and physical pu
 | DEC-010 | Narrow amendment to DEC-009: auto-reject when the LLM's own adjudicate rescore is < 0.05 (`ARYX_ER_AUTO_REJECT`) | A confident LLM "not a match" verdict was still queued identically to a genuine close call, forcing humans to re-confirm decisions the LLM already made; this is a rescore-confidence floor, not a new raw-score cutoff — pairs that never reach the LLM still queue per DEC-009 | 2026-08-21 |
 | DEC-011 | Transactional/fact types (a single proposed match key that is a genuine per-row identifier — `field_shape.is_row_identifier`: every sampled value distinct AND code-shaped) skip the resolution funnel entirely; `materialize_one_per_record` creates one entity per landed record | Fuzzy multi-column matching (the DEC-009/010-era fallback) correctly avoided the id itself but still offered genuinely distinct Orders as merge candidates on partial field overlap (same company + status, different product) — a human approved one, permanently collapsing several real, distinct orders into one entity. For a transactional record every row IS a distinct real-world thing by construction; no similarity heuristic should ever suggest otherwise. Dimension types (Company, Employee's own name field, any free text) are unaffected — narrow trigger, not a blanket "skip ER for ids" rule | 2026-08-24 |
 | DEC-012 | Hardens DEC-011: `skip_resolution` persists across resume (stage-checkpoint detail, `orchestrate.py`/`jobs_api.py`); bypass entities get confidence 0.5 (DEC-006's singleton floor), not 1.0; the same classification runs on file, DB-connect, admin, and CLI ingest, not file-only; the chunked resolver gained the same DEC-009/010 band routing via a shared `_route_decision` helper instead of dropping non-auto-merge pairs | An architectural review found DEC-011 as shipped only closed the false-merge bug in the common case — a resumed run, a non-file ingest path, or the (not-yet-wired-in) chunked resolver were all still exposed to it, and the bypass's 1.0 confidence violated DEC-006 | 2026-08-24 |
+| DEC-013 | Graph served from Postgres; FalkorDB removed | One store and no projection to sync, so the graph is always current. Parity with the old reader is held by a golden file captured from live FalkorDB before removal | 2026-11-07 |
 
 ## Next Steps
 

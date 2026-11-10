@@ -112,13 +112,13 @@ def test_company_dimension_still_resolves_normally(workspace, e2e_dsn) -> None:
 
 
 def test_run_pipeline_skip_resolution_flag_takes_the_bypass_branch(
-    workspace, e2e_dsn, e2e_graph_url,
+    workspace, e2e_dsn,
 ) -> None:
     """Wiring test: run_pipeline(skip_resolution=True) must actually call
     materialize_one_per_record, not resolve_run — the two callees are each
     tested directly above, but nothing previously proved run_pipeline picks
     the right one. Goes through the real function, not a mock, so the
-    project_graph/FalkorDB step at the end is exercised too."""
+    finalise step at the end is exercised too."""
     from unittest.mock import MagicMock
 
     from aryx.connectors.records_source import RecordsConnector
@@ -138,7 +138,7 @@ def test_run_pipeline_skip_resolution_flag_takes_the_bypass_branch(
     summary = run_pipeline(
         connector=connector, dsn=e2e_dsn, system="test", dataset="orders",
         ontology_type="Order", match_keys=["order_id"],
-        graph_url=e2e_graph_url, broker=MagicMock(), workspace_id=wid,
+        broker=MagicMock(), workspace_id=wid,
         skip_resolution=True,
     )
     assert summary["entities"] == len(_ORDERS)
@@ -151,7 +151,7 @@ def test_run_pipeline_skip_resolution_flag_takes_the_bypass_branch(
 
 
 def test_admin_db_ingest_classifies_a_real_orders_table_as_transactional(
-    workspace, e2e_dsn, e2e_graph_url, monkeypatch,
+    workspace, e2e_dsn, monkeypatch,
 ) -> None:
     """Live end-to-end for the DEC-011 gap raven-review flagged: the
     connect/admin/CLI ingest wiring (sample_colvals -> resolve_match_keys
@@ -184,7 +184,7 @@ def test_admin_db_ingest_classifies_a_real_orders_table_as_transactional(
     try:
         monkeypatch.setattr(admin_api, "_local_broker", lambda: MagicMock())
         monkeypatch.setattr(admin_api, "get_settings", lambda: type(
-            "S", (), {"rdb_dsn": e2e_dsn, "graph_url": e2e_graph_url,
+            "S", (), {"rdb_dsn": e2e_dsn,
                      "batch_size": 500})())
 
         req = admin_api.IngestDbRequest(

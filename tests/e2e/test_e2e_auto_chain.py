@@ -1,6 +1,6 @@
 """Chain 1: the full zero-click chain — Brief/Intent -> C03-C07 -> planner
 (C08) -> execution (C12/C13) -> dashboard composition (C14) — in one call,
-against real Postgres + FalkorDB. Only the planner touches an LLM (C14
+against real Postgres. Only the planner touches an LLM (C14
 composition is deterministic unless use_llm_for_dashboard=True, which
 run_auto_chain defaults to False); stubbed via the same module-level
 monkeypatch as chain 2, since run_auto_chain calls the identical

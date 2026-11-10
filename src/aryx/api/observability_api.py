@@ -48,13 +48,10 @@ def _recent_llm(conn: psycopg.Connection) -> list[dict[str, Any]]:
         return [dict(zip(cols, r)) for r in cur.fetchall()]
 
 
-def _graph_stats(workspace_id: int) -> dict[str, int]:
-    try:
-        reader = ports().graph_reader(workspace_id)
-        return {"entities": len(reader.find_entities(limit=500)),
-                "relationships": len(reader.all_relationships())}
-    except Exception:
-        return {"entities": 0, "relationships": 0}
+def _graph_stats(conn: psycopg.Connection, workspace_id: int) -> dict[str, int]:
+    """Exact stored counts (the reader's find is capped at 500 rows)."""
+    return {"entities": _count(conn, "count_entities", workspace_id),
+            "relationships": _count(conn, "count_relationships", workspace_id)}
 
 
 def _count(conn: psycopg.Connection, query_name: str, workspace_id: int) -> int:
@@ -93,7 +90,7 @@ def observability_router() -> APIRouter:
                 "jobs": _job_summary(conn, workspace_id),
                 "llm": _llm_stats(conn),
                 "llm_recent": _recent_llm(conn),
-                "graph": _graph_stats(workspace_id),
+                "graph": _graph_stats(conn, workspace_id),
                 "model_config": llm_runtime.status(),
                 "platform": ports().describe(),
             }

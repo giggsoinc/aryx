@@ -355,9 +355,9 @@ def resolve_graph_relation_nodes(dsn: str, workspace_id: int, plan: ExecutionPla
         return
     store = GraphProfileStore(dsn, workspace_id)
     try:
-        # GraphProfileStore's graph_id is a Postgres-side identifier, a
-        # separate convention from ws_graph() (the FalkorDB graph NAME) —
-        # confirmed against planning/run.py's own gstore.latest() call.
+        # GraphProfileStore's graph_id is a Postgres-side identifier
+        # (graph_workspace_<id>) — confirmed against planning/run.py's own
+        # gstore.latest() call.
         profile = store.latest(f"graph_workspace_{workspace_id}")
     finally:
         store.close()

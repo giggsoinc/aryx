@@ -26,7 +26,7 @@ Canonical flow HTML: [UI_BUSINESS_FLOW.html](UI_BUSINESS_FLOW.html).
 4. **Map** — Map source tables/fields to canonical entity types (Person, Company, Product)
 5. **Resolve** — Detect and merge duplicate records into single entities
 6. **Relate** — Infer relationships between entities (Person → works at → Company)
-7. **Project** — Build interactive graph in FalkorDB (queryable)
+7. **Finalise** — The graph is read live from Postgres (queryable as soon as entities land)
 
 **You interact with steps 1–4 via the UI. Steps 5–7 run automatically in the background.**
 
@@ -68,7 +68,7 @@ Canonical flow HTML: [UI_BUSINESS_FLOW.html](UI_BUSINESS_FLOW.html).
 - Fields get tagged (email, phone, currency, etc.)
 - Cheap AI assigns records to entity types
 - Duplicate records get merged (e.g., two "John Smith" entries become one entity with two members)
-- Graph builds in FalkorDB
+- The graph is available straight from Postgres
 - Watch progress in **Observability tab** → **Jobs & Runs**
 
 **Example (Postgres customer table):**

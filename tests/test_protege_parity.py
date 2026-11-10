@@ -1,50 +1,18 @@
 """Night 1 Protege-parity tests — exercises the in-memory layers only.
 
-The Postgres / FalkorDB layers are mocked or bypassed so this test file runs
-without a live stack. End-to-end coverage lives in the integration suite that
-spins up docker-compose.
+The Postgres layer is faked so this test file runs without a live stack. The
+SQL behind the edge axioms is covered against a real database in
+tests/e2e/test_inferred_edges.py.
 """
 from __future__ import annotations
 
 from rdflib.namespace import OWL, RDFS
 
-from aryx.graph.falkor_store import _safe_labels
 from aryx.models import OntologyType
 from aryx.ontology.rdf import GraphBundle
 from aryx.ontology.rdf.exporter import build_graph
-from aryx.project import _entity_iri
 from aryx.reasoning import edge_axioms as reng
-
-
-# ---------- Phase 1: label safety ----------
-
-def test_safe_labels_accepts_identifiers() -> None:
-    assert _safe_labels(["Vehicle", "Car", "Sedan"]) == ["Vehicle", "Car", "Sedan"]
-
-
-def test_safe_labels_drops_injection() -> None:
-    out = _safe_labels(["Car", "Foo) DELETE n //", "Bar Baz", "Ok_2"])
-    assert out == ["Car", "Ok_2"]
-
-
-def test_safe_labels_dedupes_and_caps() -> None:
-    out = _safe_labels(["A", "A", "B", "C", "D", "E", "F", "G"])
-    assert out == ["A", "B", "C", "D", "E", "F"]  # cap = 6
-
-
-# ---------- Phase 1: stable IRI ----------
-
-def test_entity_iri_is_deterministic() -> None:
-    a = _entity_iri("https://aryx.local/", workspace_id=1, entity_id=42)
-    b = _entity_iri("https://aryx.local/", workspace_id=1, entity_id=42)
-    assert a == b == "https://aryx.local/entity/1/42"
-
-
-def test_entity_iri_handles_missing_trailing_slash_and_workspace() -> None:
-    assert (
-        _entity_iri("https://aryx.local", workspace_id=None, entity_id=7)
-        == "https://aryx.local/entity/0/7"
-    )
+from aryx.store.inferred_store import TRANSITIVE_MAX
 
 
 # ---------- Phase 4: exporter emits rdfs:subClassOf ----------
@@ -77,44 +45,62 @@ def test_exporter_no_subclass_when_no_parent() -> None:
 
 # ---------- Phase 3: reasoner edge axioms ----------
 
-class _FakeGraph:
-    """Capture Cypher writes for assertion without a live FalkorDB."""
+class _FakeStore:
+    """Records which closure the dispatcher asked the store for."""
 
     def __init__(self) -> None:
-        self.calls: list[tuple[str, dict]] = []
+        self.calls: list[tuple] = []
 
-    def run(self, query: str, params: dict | None = None) -> None:
-        self.calls.append((query, params or {}))
+    def apply_inverse(self, edge: str, inverse: str, rule_name: str = "") -> int:
+        self.calls.append(("inverse", edge, inverse, rule_name))
+        return 0
 
+    def apply_symmetric(self, edge: str, rule_name: str = "") -> int:
+        self.calls.append(("symmetric", edge, rule_name))
+        return 0
 
-def test_apply_inverse_runs_one_merge() -> None:
-    g = _FakeGraph()
-    reng.apply_inverse(g, "works_for", "employs")
-    assert len(g.calls) == 1
-    q, p = g.calls[0]
-    assert "MERGE" in q and p == {"fwd": "works_for", "inv": "employs"}
-
-
-def test_apply_symmetric_runs_one_merge() -> None:
-    g = _FakeGraph()
-    reng.apply_symmetric(g, "sibling_of")
-    assert len(g.calls) == 1
-    assert g.calls[0][1] == {"name": "sibling_of"}
+    def apply_transitive(self, edge: str, depth: int, rule_name: str = "") -> int:
+        self.calls.append(("transitive", edge, depth, rule_name))
+        return 0
 
 
-def test_apply_transitive_walks_capped_depth() -> None:
-    g = _FakeGraph()
-    reng.apply_transitive(g, "located_in", depth=10)  # asks for 10, capped to 4
-    # hops 2..4 inclusive = 3 queries
-    assert len(g.calls) == 3
+def test_apply_inverse_delegates_to_the_store() -> None:
+    s = _FakeStore()
+    reng.apply_inverse(s, "works_for", "employs", "r1")
+    assert s.calls == [("inverse", "works_for", "employs", "r1")]
+
+
+def test_apply_symmetric_delegates_to_the_store() -> None:
+    s = _FakeStore()
+    reng.apply_symmetric(s, "sibling_of", "r2")
+    assert s.calls == [("symmetric", "sibling_of", "r2")]
+
+
+def test_apply_transitive_passes_the_requested_depth() -> None:
+    s = _FakeStore()
+    reng.apply_transitive(s, "located_in", depth=10)  # the store caps it
+    assert s.calls == [("transitive", "located_in", 10, "")]
 
 
 def test_apply_edge_axiom_dispatch_combines() -> None:
-    g = _FakeGraph()
+    s = _FakeStore()
     fired = reng.apply_edge_axiom(
-        g, "located_in", {"transitive": True, "max_depth": 3},
+        s, "located_in",
+        {"inverse_of": "contains", "transitive": True, "max_depth": 3}, "r3",
     )
     assert fired == 1
-    assert len(g.calls) == 2  # hops 2..3
+    assert s.calls == [("inverse", "located_in", "contains", "r3"),
+                       ("transitive", "located_in", 3, "r3")]
 
 
+def test_apply_edge_axiom_defaults_transitive_depth_to_the_cap() -> None:
+    s = _FakeStore()
+    reng.apply_edge_axiom(s, "part_of", {"transitive": True})
+    assert s.calls == [("transitive", "part_of", TRANSITIVE_MAX, "")]
+
+
+def test_apply_edge_axiom_with_no_edge_or_no_axiom_does_nothing() -> None:
+    s = _FakeStore()
+    assert reng.apply_edge_axiom(s, "", {"symmetric": True}) == 0
+    assert reng.apply_edge_axiom(s, "friend", {}) == 0
+    assert s.calls == []

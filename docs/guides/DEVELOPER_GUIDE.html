@@ -100,7 +100,7 @@
         <tr><td>Docker-first full stack + Python API</td><td>Zero-ops multi-tenant SaaS</td></tr>
       </tbody>
     </table>
-    <p><strong>Stack:</strong> Postgres (SoT) · FalkorDB (graph projection) · FastAPI · Next.js · Ollama or cloud LLMs · MCP SSE.</p>
+    <p><strong>Stack:</strong> Postgres (SoT) · FastAPI · Next.js · Ollama or cloud LLMs · MCP SSE.</p>
   </section>
 
   <section id="why">
@@ -191,7 +191,7 @@ docker compose up -d</pre>
       <tbody>
         <tr><td>Sources</td><td>DB connect or file upload</td></tr>
         <tr><td>Identity quality</td><td>Match keys, HITL, Correct data</td></tr>
-        <tr><td>Config</td><td><code>ARYX_RDB_DSN</code>, <code>ARYX_GRAPH_URL</code>, <code>ARYX_LLM_*</code></td></tr>
+        <tr><td>Config</td><td><code>ARYX_RDB_DSN</code>, <code>ARYX_LLM_*</code></td></tr>
       </tbody>
     </table>
     <h3>Knowledge graph engineer</h3>
@@ -210,7 +210,7 @@ Claude/MCP →  MCP SSE :8765
 Ops        →  Observe, Jobs, docker logs</pre>
     <div class="ok">
       <strong>Mental model:</strong> Sources → Discover → Resolve → Project graph → Serve (Ask / API / MCP).
-      Postgres = truth; FalkorDB = rebuildable projection. Not zero-copy federation of every SaaS API.
+      Postgres = truth; the graph is read live from it. Not zero-copy federation of every SaaS API.
     </div>
     <p>Markdown twin: <a href="DEVELOPER_GUIDE.md">DEVELOPER_GUIDE.md</a> · Business: <a href="BUSINESS_GUIDE.html">BUSINESS_GUIDE.html</a></p>
   </section>

@@ -54,14 +54,13 @@ See [EDITIONS.md](EDITIONS.md) for the full edition matrix.
 
 | Feature | Status | Component |
 |---------|--------|-----------|
-| FalkorDB projection (named graph per workspace) | Done | `project.py`, `graph/falkor_store.py` |
-| Full graph rebuild | Done | `project.py` |
-| Incremental projection (dirty-set watermark) | Done (G8) | `store/projection_store.py` |
-| Auto mode selection (full vs incremental) | Done (G8) | `project.py` |
-| Entity tombstones (delete propagation) | Done (G8) | `graph/falkor_store.py` |
+| Knowledge graph served from Postgres (per workspace) | Done | `graph/pg_reader.py` |
+| Always-current graph (no rebuild, no sync) | Done | `graph/changes.py` |
+| Inferred edges and labels from rules and axioms | Done | `store/inferred_store.py`, `reasoning/` |
+| Trigram-indexed name search | Done | migration 0047 |
 | Interactive graph explorer (web) | Done | `apps/web` Data / Model surfaces |
 | Entity drill-down (properties, neighbors, provenance) | Done | UI Graph tab |
-| Shortest-path queries | Done | `graph/falkor_store.py` |
+| Shortest-path queries (bidirectional) | Done | `graph/pg_reader.py` |
 
 ## Intelligence & Querying
 
@@ -122,8 +121,7 @@ Capability seam (`aryx.ports`) — the Oracle-readiness foundation. Adapter sele
 | Capability Port | Default Adapter | Component |
 |-----------------|-----------------|-----------|
 | Relational | Postgres | `ports/protocols.py`, `ports/container.py` |
-| Graph (read) | FalkorDB | `ports/protocols.py` |
-| Graph (write) | FalkorDB | `ports/protocols.py` |
+| Graph (read) | Postgres | `ports/protocols.py` |
 | Vector | Postgres | `ports/protocols.py` |
 | LLM | Ollama | `ports/protocols.py` |
 | Reasoner | (built-in) | `ports/protocols.py` |

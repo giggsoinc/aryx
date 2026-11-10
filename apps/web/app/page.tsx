@@ -281,7 +281,7 @@ export default function HomePage() {
                     <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50/60 p-3 text-[12px] text-navy-800">
                       <b>Reset “{w.name}”?</b> Deletes this workspace's{" "}
                       {o ? <>{o.landed_records.toLocaleString()} records, {o.entities.toLocaleString()} entities, {o.relationships.toLocaleString()} links</> : "data"}{" "}
-                      from Postgres and its whole FalkorDB graph.
+                      from Postgres.
                       <b> Keeps</b> your Brief, model choice, ontology types, and corrections.
                       (Shared document chunks are left in place.)
                       <div className="mt-2 flex gap-2">

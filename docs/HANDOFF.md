@@ -8,7 +8,7 @@ Paste-ready context for a fresh Claude Code session. Keep this current as the co
 
 | | |
 |---|---|
-| **Project** | Aryx — discovery-driven knowledge-graph engine (Python 3.11, FastAPI, FalkorDB, Postgres+pgvector, Ollama; Next.js 15 web UI) |
+| **Project** | Aryx — discovery-driven knowledge-graph engine (Python 3.11, FastAPI, Postgres+pgvector, Ollama; Next.js 15 web UI) |
 | **Editions** | **Aryx Lite 1.7** (data-first smart setup, this repo) · **Aryx Enterprise** (v2 fork) · **Aryx-o**. See `docs/EDITIONS.md`. |
 | **Product flow** | `docs/UI_BUSINESS_FLOW.html` · setup: load → smart review → build |
 | **Repo** | https://github.com/giggsoinc/aryx.git (branch `main`) |
@@ -98,8 +98,8 @@ ssh -i ~/.ssh/rvdts-oracle-key.pem ec2-user@ec2-3-91-73-197.compute-1.amazonaws.
 docker exec aryx-api-1 python -c \
  "from aryx.store.migrate import apply_migrations; from aryx.config import get_settings; apply_migrations(get_settings().rdb_dsn)"
 ```
-EC2 `.env` holds `POSTGRES_PASSWORD`, `ARYX_RDB_DSN`, `ARYX_GRAPH_URL` (gitignored).
-In-network hosts: `postgres:5432`, `ollama:11434`, `falkordb:6379`.
+EC2 `.env` holds `POSTGRES_PASSWORD`, `ARYX_RDB_DSN` (gitignored; a leftover `ARYX_GRAPH_URL` is ignored).
+In-network hosts: `postgres:5432`, `ollama:11434`.
 
 ---
 
@@ -118,8 +118,8 @@ In-network hosts: `postgres:5432`, `ollama:11434`, `falkordb:6379`.
   project. Threads `workspace_id` everywhere. `fk_edges.link_by_attribute` = full join (1-to-many).
 - **Postgres = source of truth.** Resolution tables (`aryx_entity`, `aryx_landed_record`,
   `aryx_entity_member`, `aryx_relationship`) are **LIST-partitioned by `workspace_id`**.
-- **FalkorDB = rebuildable projection**, **one named graph per workspace**: `aryx_ws_<id>`
-  (`workspaces.ws_graph`). `GraphReader`/`FalkorStore` take a `graph=` arg.
+- **The graph is read live from Postgres** (`graph/pg_reader.py`, `PostgresGraphReader(dsn, workspace_id)`);
+  there is no separate graph store. Inferred edges/labels live in `aryx_inferred_*`.
 - **LLM layer:** Broker (`src/aryx/broker/`) routes anthropic/ollama/openai-compatible by tier
   (frontier/mid/cheap/local) + token governor. `src/aryx/llm.py` = `complete_json` + `complete_text`.
   `src/aryx/llm_runtime.py` = runtime-swappable provider/model/key for Ask (Settings), logs every
@@ -141,7 +141,7 @@ In-network hosts: `postgres:5432`, `ollama:11434`, `falkordb:6379`.
 - **Settings**: pick provider (Local/Claude/OpenAI/Gemini) + paste key live; + ontology interchange toggle.
 - **Pipeline progress** (#7): durable `aryx_job`/`aryx_job_event`, live stage %, 30-day archive.
 - **Graph** (#6): interactive canvas, drill-down, search, type filter, hide-isolated, **path
-  explorer** (`/entities/{a}/path/{b}` — FalkorDB needs `shortestPath` in WITH/RETURN, directed).
+  explorer** (`/entities/{a}/path/{b}` — bidirectional search; an inbound result is listed in edge direction).
 - **Observability** (#8): `/admin/observability` — jobs + LLM tokens/latency + graph counts.
 - **Multi-source ingest** (#3): connection-first, **context-driven auto-discovery agent**.
   Multi-RDBMS via SQLAlchemy (Postgres/MySQL/MariaDB/Oracle/SQLite; SQL Server needs ODBC).
@@ -186,7 +186,7 @@ Switch workspaces → data is isolated. Delete a workspace → physical purge. D
 **Start a new session by:** invoking `raven:fastapi-specialist`, reading `CLAUDE.md` +
 `.raven/manifest.json` + this file + **`Current_State_Aryx.md`** (repo root, gitignored — the
 living tech-scope snapshot covering the 12 pipeline stages, 8 LLM agents, MCP 2-tool surface,
-resolution funnel thresholds, and per-workspace Falkor isolation). Then
+resolution funnel thresholds, and per-workspace partition isolation). Then
 `git -C <repo> log --oneline -20` to see the latest state. **Append** new findings to
 `Current_State_Aryx.md`'s "Session Log" section — never rewrite the top sections unless a
 sweeping refactor lands.

@@ -38,7 +38,7 @@ def dedup_first_seen(vals: list[str]) -> list[str]:
 
 def materialize_one_dimension(
     dim: dict[str, Any], merged: dict[str, list[str]], *,
-    dsn: str, graph_url: str, workspace_id: int, broker: Any,
+    dsn: str, workspace_id: int, broker: Any,
 ) -> None:
     """Create one dimension type's entities from its distinct column values."""
     from aryx.api import ontology_browse
@@ -77,5 +77,5 @@ def materialize_one_dimension(
     run_pipeline(
         connector=RecordsConnector(recs), dsn=dsn, system="dimension",
         dataset=dim_name, ontology_type=dim_name, match_keys=["name"],
-        graph_url=graph_url, broker=broker, workspace_id=workspace_id,
+        broker=broker, workspace_id=workspace_id,
     )

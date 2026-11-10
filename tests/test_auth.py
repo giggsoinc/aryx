@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 # Stub heavy infrastructure so modules can be imported without Docker deps
-for _mod in ("falkordb", "psycopg", "psycopg.types.json"):
+for _mod in ("psycopg", "psycopg.types.json"):
     sys.modules.setdefault(_mod, MagicMock())
 
 
