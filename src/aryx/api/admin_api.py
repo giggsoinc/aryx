@@ -91,7 +91,7 @@ def _run_db(req: IngestDbRequest, job_id: str) -> None:
             system=req.system, dataset=req.table,
             ontology_type=req.ontology_type,
             match_keys=keys,
-            graph_url=settings.graph_url, broker=_local_broker(),
+            broker=_local_broker(),
             on_progress=lambda stage, pct, detail: jobs.update_stage(job_id, stage, pct, detail),
             fk_links=[link.model_dump() for link in req.fk_links],
             workspace_id=req.workspace_id,

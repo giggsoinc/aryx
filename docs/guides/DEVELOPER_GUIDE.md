@@ -23,7 +23,7 @@ Under the hood you will recognize familiar pieces (entity resolution, graph proj
 | Discover → resolve → graph → serve | A pure academic ontology studio |
 | Docker-first full stack + Python API | Zero-ops SaaS (that’s commercial hosting) |
 
-**Stack (Lite):** Postgres (system of record) · FalkorDB (graph projection) · FastAPI · Next.js UI · Ollama or cloud LLMs · MCP SSE.
+**Stack (Lite):** Postgres (system of record and graph) · FastAPI · Next.js UI · Ollama or cloud LLMs · MCP SSE.
 
 ---
 
@@ -129,8 +129,8 @@ Images: `giggsodocker/aryx-lite` · `giggsodocker/aryx-lite-web` (see [DOCKERHUB
 |------|-----|
 | Source systems | Connect Postgres/MySQL/Oracle or upload files |
 | Identity quality | Match keys, HITL adjudication, Correct data coach |
-| Graph health | Observe vitals, Falkor projection, re-ingest / reset workspace data |
-| Config | `ARYX_RDB_DSN`, `ARYX_GRAPH_URL`, `ARYX_LLM_*` in `.env` |
+| Graph health | Observe vitals, stored counts, re-ingest / reset workspace data |
+| Config | `ARYX_RDB_DSN`, `ARYX_LLM_*` in `.env` |
 
 ### Knowledge graph / ontology engineer
 
@@ -170,7 +170,7 @@ Sources → Discover → Resolve → Project graph → Serve (Ask / API / MCP)
 ```
 
 Postgres holds truth (landed records, entities, jobs).  
-FalkorDB is a **rebuildable projection** agents can traverse.  
+The graph is read live from Postgres, so agents can traverse it without a second store.  
 That is intentional—not a claim of zero-copy live federation of every SaaS API.
 
 ---

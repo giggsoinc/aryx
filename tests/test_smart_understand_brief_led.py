@@ -13,7 +13,7 @@ from unittest.mock import MagicMock
 
 # Stub the DB drivers ONLY when genuinely absent — an unconditional stub
 # would poison sys.modules for every later test module in the process.
-for _mod in ("falkordb", "psycopg", "psycopg.types", "psycopg.types.json",
+for _mod in ("psycopg", "psycopg.types", "psycopg.types.json",
              "psycopg_pool"):
     try:
         importlib.import_module(_mod)

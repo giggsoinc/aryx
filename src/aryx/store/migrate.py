@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from pathlib import Path
 
 import psycopg
@@ -12,11 +13,45 @@ from aryx.raven_log_config import log as raven_log
 logger = logging.getLogger(__name__)
 
 _MIGRATIONS_DIR = Path(__file__).parent / "migrations"
-_applied_dsns: set[str] = set()  # DSNs given a full migration pass by this process
-# SQLSTATEs meaning "this change already exists" (duplicate column / object /
-# table) — e.g. 0027's ADD CONSTRAINT. Matched by code, not by importing
-# psycopg.errors, because many unit tests replace `psycopg` with a mock.
-_ALREADY_APPLIED_SQLSTATES = frozenset({"42701", "42710", "42P07"})
+
+# DSNs already migrated by this process. Many request handlers call
+# apply_migrations; without this every request would take the global advisory
+# lock and re-run every file, so concurrent ingests would queue behind each
+# other. The lock below still guards cross-process DDL.
+_APPLIED: set[str] = set()
+_APPLIED_LOCK = threading.Lock()
+
+# Set by apply_migrations(force=True) while it holds _APPLIED_LOCK, so _run can
+# ignore the aryx_schema_migration records and re-run every file. A module flag
+# (not a _run argument) keeps _run(dsn) callable with one argument, which the
+# existing tests rely on when they replace it.
+_force_rerun = False
+
+# SQLSTATEs for "already exists". Some older migrations are not idempotent and
+# hit these on every re-run; they mean the object is there, so they must not
+# stop a run from counting as clean.
+_ALREADY_EXISTS = frozenset({
+    "42P07",  # duplicate_table (also relations such as indexes and constraints)
+    "42710",  # duplicate_object
+    "42701",  # duplicate_column
+    "42723",  # duplicate_function
+    "42P06",  # duplicate_schema
+    "42712",  # duplicate_alias
+})
+
+# SQLSTATE classes that mean the server or connection had a problem, not that
+# one statement is unsupported: 08 connection, 40 rollback (deadlock), 53 out of
+# resources, 55 object not in prerequisite state (lock not available), 57
+# operator intervention (shutdown, cancelled). They abort the pass instead of
+# being skipped, so a half-applied schema is never remembered as done.
+_TRANSIENT_CLASSES = ("08", "40", "53", "55", "57")
+
+
+def _is_transient(exc: psycopg.Error, conn: psycopg.Connection) -> bool:
+    """True if ``exc`` says the connection or server failed, not the statement."""
+    if conn.closed or conn.broken or exc.sqlstate is None:
+        return True
+    return exc.sqlstate.startswith(_TRANSIENT_CLASSES)
 
 
 def _split_statements(sql: str) -> list[str]:
@@ -62,73 +97,112 @@ def _split_statements(sql: str) -> list[str]:
     return out
 
 
-def apply_migrations(dsn: str) -> None:
+def apply_migrations(dsn: str, *, force: bool = False) -> None:
+    """Apply every migration once per process for this database.
+
+    The first call for a DSN runs the migrations; later calls return at once,
+    so request handlers can keep calling this without queueing on the global
+    advisory lock. One full pass is remembered whatever its outcome: a
+    statement that cannot run (for example ``CREATE EXTENSION`` on a server
+    without that extension) is logged once and retried at the next process
+    start, not on every request. A run that raises, including a lost
+    connection or other transient server error, is not remembered.
+
+    Files that ran cleanly are also recorded in ``aryx_schema_migration``, and a
+    recorded file is never run again — not even by a later process. Before this,
+    every process start re-ran every file, and migration 0009 rewound the
+    workspace id sequence each time, so a deleted workspace's id was handed to
+    the next one created (and a still-running orphaned job wrote into it).
+    Because of that, an applied migration must never be edited: add a new
+    numbered file instead (see migrations/README.md).
+
+    Args:
+        dsn: PostgreSQL connection string.
+        force: Run again even if this process already migrated the DSN, and
+            ignore the recorded files so every file runs. Tests that recreate
+            dropped objects use it; the app never needs to.
+    """
+    global _force_rerun
+    with _APPLIED_LOCK:
+        if not force and dsn in _APPLIED:
+            return
+        _force_rerun = force
+        try:
+            skipped = _run(dsn)
+        finally:
+            _force_rerun = False
+        _APPLIED.add(dsn)
+        if skipped:
+            logger.warning("migrations finished with %d skipped statement(s); "
+                           "they are not retried until this process restarts", skipped)
+
+
+def _run(dsn: str) -> int:
     """Apply every .sql file under migrations/ in lexical order.
 
     Statements are split on ';' (respecting dollar-quoted DO blocks) and run
     one at a time, since psycopg runs a single statement per call.
 
-    Applied files are recorded in ``aryx_schema_migration`` and never re-run.
-    Previously every call re-executed every file; migration 0009 then rewound
-    the workspace id sequence on each call, so a deleted workspace's id was
-    handed to the next one created (and a still-running orphaned job wrote
-    into it). A file is recorded only when ALL its statements succeeded, so a
-    migration with an optional/unavailable feature (e.g. ``CREATE EXTENSION
-    vector`` without pgvector) is retried at the NEXT process start — but not
-    on every request: after one full pass the DSN is cached for this process,
-    whatever the outcome, and the files left unrecorded are logged once. A
-    Postgres advisory lock serialises concurrent starters.
-
-    Because applied files are never re-run, an applied migration must never be
-    edited — add a new numbered file instead (see migrations/README.md).
+    A session-level advisory lock serialises concurrent callers in other
+    processes (the API migrates at startup while the worker and the CLI also
+    do), so two processes never run the same DDL at once. The lock dies with
+    the connection, so a crashed caller cannot leave it held.
 
     Args:
         dsn: PostgreSQL connection string.
+
+    Returns:
+        How many statements were skipped after an error other than "already
+        exists" (0 when every statement ran or the object was already there).
     """
-    if dsn in _applied_dsns:
-        return
-    files = sorted(_MIGRATIONS_DIR.glob("*.sql"))
+    skipped = 0
     unrecorded: list[str] = []
+    files = sorted(_MIGRATIONS_DIR.glob("*.sql"))
     with psycopg.connect(dsn, autocommit=True) as conn:
         conn.execute(load("lock_migrations"))
         try:
             conn.execute(load("create_schema_migration_table"))
-            applied = {row[0] for row in
-                       conn.execute(load("select_applied_migrations")).fetchall()}
+            recorded: set[str] = set()
+            if not _force_rerun:
+                recorded = {row[0] for row in
+                            conn.execute(load("select_applied_migrations")).fetchall()}
             for path in files:
-                if path.name in applied:
+                if path.name in recorded:
                     continue
                 raw = path.read_text(encoding="utf-8")
                 # Strip line comments first so a ';' inside a comment can't be
                 # mistaken for a statement separator.
                 code = "\n".join(line.split("--", 1)[0] for line in raw.splitlines())
                 statements = _split_statements(code)
-                failed = 0
+                file_skipped = 0
                 with conn.cursor() as cur:
                     for statement in statements:
                         try:
                             cur.execute(statement)  # type: ignore[arg-type]
                         except psycopg.Error as exc:
-                            if getattr(exc, "sqlstate", None) in _ALREADY_APPLIED_SQLSTATES:
-                                # "already exists": the change is already in
-                                # place (these files were re-run on every call
-                                # before tracking), so it counts as applied.
-                                logger.info("migration statement already applied "
-                                            "file=%s error=%s", path.name, exc)
-                                continue
                             # An optional/unavailable feature (e.g. a missing
                             # extension) must not block unrelated later migrations.
-                            failed += 1
+                            if _is_transient(exc, conn):
+                                raise
+                            if exc.sqlstate in _ALREADY_EXISTS:
+                                logger.debug("migration object already exists file=%s error=%s",
+                                             path.name, exc)
+                                continue
+                            file_skipped += 1
                             logger.warning("migration statement skipped file=%s error=%s",
                                            path.name, exc)
-                logger.info("migration applied file=%s statements=%d failed=%d",
-                            path.name, len(statements), failed)
-                if failed:
+                skipped += file_skipped
+                logger.info("migration applied file=%s statements=%d skipped=%d",
+                            path.name, len(statements), file_skipped)
+                if file_skipped:
                     unrecorded.append(path.name)
                 else:
                     conn.execute(load("record_applied_migration"), (path.name,))
         finally:
-            conn.execute(load("unlock_migrations"))
+            # A dead connection already dropped the session lock, and unlocking
+            # on it would mask the real error.
+            if not (conn.closed or conn.broken):
+                conn.execute(load("unlock_migrations"))
     if unrecorded:
         raven_log(
             "WARN", "migration files left unrecorded (retried at next process start)",
@@ -136,4 +210,4 @@ def apply_migrations(dsn: str) -> None:
             context={"dependency_name": "postgres", "operation": "apply_migrations",
                      "result": "partial", "files": unrecorded,
                      "final_status": "unrecorded", "reason_code": "MIGRATION_UNRECORDED"})
-    _applied_dsns.add(dsn)
+    return skipped

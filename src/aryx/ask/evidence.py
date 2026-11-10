@@ -1,7 +1,7 @@
 """The retrieved-evidence model — driver-free so the verifier stays pure.
 
 Lives outside the graph package so the groundedness engine can import it
-without pulling in the FalkorDB driver. ``graph.retrieve`` produces these;
+without pulling in any database driver. ``graph.retrieve`` produces these;
 ``ask.grounding`` verifies against them.
 """
 from __future__ import annotations

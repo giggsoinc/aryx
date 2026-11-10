@@ -113,12 +113,9 @@ def test_workspace_id_is_never_reused_after_delete(e2e_dsn) -> None:
     first = store.create(f"e2e_{uuid.uuid4().hex[:10]}")
     store.delete(first["id"])
 
-    # Force the exact trigger from the incident: 0009 running again.
-    with psycopg.connect(e2e_dsn, autocommit=True) as conn:
-        conn.execute("DELETE FROM aryx_schema_migration WHERE filename = %s",
-                     ("0009_workspaces.sql",))
-    migrate._applied_dsns.discard(e2e_dsn)
-    migrate.apply_migrations(e2e_dsn)
+    # Force the exact trigger from the incident: every migration, 0009
+    # included, running again (force=True ignores the recorded files).
+    migrate.apply_migrations(e2e_dsn, force=True)
 
     second = store.create(f"e2e_{uuid.uuid4().hex[:10]}")
     try:

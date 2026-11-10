@@ -6,6 +6,8 @@ port via an env var without touching call-sites::
 
     ARYX_ADAPTER_GRAPH_READER=aryx.adapters.oracle.graph:OracleGraphReader
 
+An adapter class is constructed as ``cls(rdb_dsn, workspace_id)``.
+
 That one line is the whole "swap the substrate" story — no spinal surgery.
 """
 from __future__ import annotations
@@ -18,8 +20,7 @@ from typing import Any
 
 # Lite defaults: today's shipped implementations already satisfy the ports.
 _DEFAULTS: dict[str, str] = {
-    "graph_reader": "aryx.graph.reader:GraphReader",
-    "graph_store": "aryx.graph.falkor_store:FalkorStore",
+    "graph_reader": "aryx.graph.pg_reader:PostgresGraphReader",
 }
 
 _ENV_PREFIX = "ARYX_ADAPTER_"

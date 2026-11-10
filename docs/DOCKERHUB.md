@@ -19,7 +19,7 @@ Source: [github.com/giggsoinc/aryx](https://github.com/giggsoinc/aryx) · Licens
 |---|---|
 | **Edition** | Aryx Lite — single-team outcome mapping (laptop / small server) |
 | **System of record** | PostgreSQL 16 (+ pgvector) |
-| **Graph projection** | [FalkorDB](https://github.com/FalkorDB/FalkorDB) (rebuildable; never sole truth) |
+| **Graph** | Read live from PostgreSQL (no separate graph store) |
 | **UI** | Next.js only — no Streamlit |
 | **Default LLM** | Ollama (local); Settings also supports Anthropic, OpenAI-compatible, Gemini, Grok |
 
@@ -57,7 +57,7 @@ docker pull giggsodocker/aryx-lite-web:v1.9.0
 
 ## Quick start (full stack)
 
-Prefer Compose from the source repo (Postgres, FalkorDB, Ollama, API, worker, MCP, web):
+Prefer Compose from the source repo (Postgres, Ollama, API, worker, MCP, web):
 
 ```bash
 git clone https://github.com/giggsoinc/aryx.git
@@ -88,20 +88,19 @@ docker compose up -d
 ### `aryx-lite` (this is the backend image)
 
 - One image, three roles via command: **api**, **worker**, **mcp**
-- Needs Postgres + FalkorDB (+ LLM) for a working stack
+- Needs Postgres (+ LLM) for a working stack
 - Does **not** include the browser UI
 
 ### `aryx-lite-web`
 
 - Next.js UI; talks HTTP only (same-origin `/api` proxy to the API)
-- Pair with `aryx-lite` + Postgres + FalkorDB + LLM for a full product experience
+- Pair with `aryx-lite` + Postgres + LLM for a full product experience
 
 ---
 
 ## Architecture (short)
 
-- **Postgres** = source of truth (entities, relationships, provenance, checkpoints)  
-- **FalkorDB** = rebuildable graph projection (one named graph per workspace)  
+- **Postgres** = the only data store (entities, relationships, provenance, checkpoints); the knowledge graph is read live from it  
 - **Ports & adapters** seam for Lite / Enterprise / Aryx-o substrate swaps  
 
 ---

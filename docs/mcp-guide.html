@@ -134,7 +134,7 @@
   <span class="sec-label">What MCP gives you</span>
   <h2 class="sec-h">Two surfaces for one knowledge graph.</h2>
   <p class="sec-lede">
-    Same Postgres, same FalkorDB, same brief. Pick the right surface for
+    Same Postgres, same brief. Pick the right surface for
     the audience — or use both side by side.
   </p>
   <div class="what-grid">
@@ -175,7 +175,7 @@
       <div class="num">1</div>
       <div>
         <div class="title">Pick or create a workspace</div>
-        <div class="desc">Isolated tenant per workspace — own LIST partitions, own FalkorDB graph.</div>
+        <div class="desc">Isolated tenant per workspace — own LIST partitions; its graph is read from them.</div>
       </div>
       <div class="tools">
         <span class="tool">workspace_list <span class="arrow">→</span> all workspaces</span>
@@ -262,7 +262,7 @@
   <div class="tools-cat">
     <h3>Workspace <span class="count">3</span></h3>
     <div class="tool-row"><span class="name">workspace_list</span><span class="desc">All workspaces with id, name, description, brief, timestamps.</span></div>
-    <div class="tool-row"><span class="name">workspace_create</span><span class="desc">New isolated tenant. Owns LIST partitions + named FalkorDB graph.</span></div>
+    <div class="tool-row"><span class="name">workspace_create</span><span class="desc">New isolated tenant. Owns LIST partitions; its graph is read from them.</span></div>
     <div class="tool-row"><span class="name">workspace_select</span><span class="desc">Confirm a workspace exists; returns its row.</span></div>
   </div>
 

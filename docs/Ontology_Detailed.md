@@ -79,10 +79,10 @@ Feynman Style Explanation:
   - aryx_entity_member — entity ↔ landed_record (the cluster + provenance)
   - aryx_relationship — entity → entity edges
   
-  Part 5 — FalkorDB projection (rebuildable from the above)
+  Part 5 — Graph (read live from the above)
 
   Type labels = ontology; nodes = resolved entities; edges = relationships + provenance threads back to source rows.
-  Wipe-and-rebuild from Postgres anytime.
+  Nothing to rebuild: the graph is read straight from Postgres.
 
   ---
   Tier / cost map (the rationing made concrete)

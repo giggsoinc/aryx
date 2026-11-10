@@ -9,7 +9,6 @@ from fastapi import FastAPI
 
 from aryx.api.mcp_mount import mount_mcp
 from aryx.config import get_settings
-from aryx.store.migrate import apply_migrations
 from aryx.logging_setup import configure_logging
 from aryx.api.actions_api import actions_router
 from aryx.api.adjudication_api import adjudication_router
@@ -60,11 +59,13 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
-    """Migrate the schema once at startup; close the pool on shutdown."""
-    try:
-        apply_migrations(get_settings().rdb_dsn)
-    except Exception as exc:  # noqa: BLE001 — a down DB must not stop the API booting
-        logger.warning("startup migration failed (will retry on first use): %s", exc)
+    """Apply migrations on startup; close the shared connection pool on shutdown.
+
+    The API no longer waits for the worker to migrate: graph reads depend on
+    objects from migration 0047, and compose does not order the two services.
+    """
+    from aryx.store.migrate import apply_migrations
+    apply_migrations(get_settings().rdb_dsn)
     yield
     from aryx.store.pool import close_all
     close_all()

@@ -379,7 +379,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 connector=connector, dsn=settings.rdb_dsn,
                 system=suffix.lstrip("."), dataset=Path(name).stem,
                 ontology_type=otype, match_keys=keys,
-                graph_url=settings.graph_url, broker=broker,
+                broker=broker,
                 on_progress=_progress,
                 on_run_id=lambda rid, _jid=job_id: jobs.attach_run(_jid, rid),
                 fk_links=fk_links, workspace_id=workspace_id,
@@ -388,14 +388,13 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
             total_entities += int(summary.get("entities") or 0)
         # Cross-file relationships. The UI sends no fk_links, so with every
         # entity now landed, infer foreign-key edges from the files' columns
-        # and materialize the ones whose values actually match, then re-project.
+        # and materialize the ones whose values actually match.
         checkpoint(force=True)
         if not fk_links and len(plans) >= 2:
             jobs.update_stage(job_id, "Link", 92, "Inferring relationships")
             inferred = infer_fk_links(plans)
             if inferred:
-                link_entities(settings.rdb_dsn, settings.graph_url,
-                              workspace_id, inferred)
+                link_entities(settings.rdb_dsn, workspace_id, inferred)
         # Data-first plan: dimension entities (Merchant, Category, …) + edges
         checkpoint(force=True)  # a cancelled run must not chain into dimensions
         if graph_plan and data_files:
@@ -403,7 +402,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
             try:
                 from aryx.pipeline.dimension_materialize import materialize_dimensions
                 nrel = materialize_dimensions(
-                    dsn=settings.rdb_dsn, graph_url=settings.graph_url,
+                    dsn=settings.rdb_dsn,
                     workspace_id=workspace_id, broker=broker,
                     graph_plan=graph_plan, colvals_by_file=plans,
                 )
@@ -448,7 +447,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                     dsn=settings.rdb_dsn,
                     system="document", dataset=otype,
                     ontology_type=otype, match_keys=["name"],
-                    graph_url=settings.graph_url, broker=broker,
+                    broker=broker,
                     # Relate on the LAST landing only: _relate scans the whole
                     # workspace, so one pass covers cross-type edges too.
                     relate=(idx == len(type_names) - 1), max_pairs=150,

@@ -2,8 +2,8 @@
 
 Chains the existing stages into one runnable flow: discover (extract/clean/
 profile/land, + cheap-tier tag when enabled) -> resolve landed records into
-canonical entities -> optional frontier relationship inference -> project to
-FalkorDB. The LLM stages (tag, relate) are opt-in, so the deterministic spine
+canonical entities -> optional frontier relationship inference -> finalise
+(clear derived output, count). The LLM stages (tag, relate) are opt-in, so the deterministic spine
 runs end-to-end without any model configured.
 """
 from __future__ import annotations
@@ -17,18 +17,16 @@ from typing import Iterator
 from aryx.broker import Broker
 from aryx.connectors.base import Connector
 from aryx.discover import discover
-from aryx.graph import FalkorStore
+from aryx.graph.changes import after_graph_change
 from aryx.job_cancel import checkpoint
-from aryx.pipeline.enrich import _build_type_ancestors, _relate
+from aryx.pipeline.enrich import _relate
 from aryx.pipeline.fk_edges import link_by_attribute
 from aryx.pipeline.stages import StageRunner
 from aryx.store.checkpoint_store import StageTracker
-from aryx.project import project_graph
 from aryx.resolve_entities import materialize_one_per_record, resolve_run
 from aryx.store.entity_store import EntityStore
 from aryx.store.ontology_store import OntologyStore
 from aryx.store.postgres_store import PostgresStore
-from aryx.workspaces import ws_graph
 from aryx.models import OntologyType
 
 logger = logging.getLogger(__name__)
@@ -115,7 +113,6 @@ def run_pipeline(
     dataset: str,
     ontology_type: str,
     match_keys: list[str],
-    graph_url: str,
     broker: Broker,
     tag: bool = False,
     relate: bool = False,
@@ -127,7 +124,7 @@ def run_pipeline(
     on_run_id: RunIdCb | None = None,
     skip_resolution: bool = False,
 ) -> dict[str, int]:
-    """Run a source from extraction through to the FalkorDB projection.
+    """Run a source from extraction through to a queryable graph.
 
     Args:
         connector: Configured source connector (unused when resume_run_id set).
@@ -136,7 +133,6 @@ def run_pipeline(
         dataset: Source dataset/table label.
         ontology_type: Canonical type the records resolve into (pinned).
         match_keys: Payload keys whose values form the resolution match text.
-        graph_url: FalkorDB connection URL.
         broker: Model broker (required by resolution; LLM only on opt-in stages).
         tag: Run cheap-tier field tagging during discovery.
         relate: Infer relationships between resolved entities (frontier tier).
@@ -187,7 +183,7 @@ def run_pipeline(
     counts: dict[str, int] = {}
     try:
         # Cancel checkpoints sit between stages (a no-op outside a job's
-        # cancel_scope); entity/graph writes are additionally guarded.
+        # cancel_scope); entity writes are additionally guarded.
         checkpoint(force=True)
         if not runner.skip("resolve_cluster"):
             detail = (
@@ -221,13 +217,9 @@ def run_pipeline(
                     )
         checkpoint(force=True)
         _register_types(dsn, workspace_id, estore)
-        _emit(on_progress, "Project", 90, "Projecting entities and edges to the graph")
+        _emit(on_progress, "Project", 90, "Finalising the graph")
         with runner.stage("project"):
-            type_ancestors = _build_type_ancestors(dsn)
-            counts = project_graph(
-                estore, FalkorStore(graph_url, ws_graph(workspace_id)),
-                type_ancestors=type_ancestors, workspace_id=workspace_id,
-            )
+            counts = after_graph_change(dsn, workspace_id)
     finally:
         estore.close()
 
@@ -239,7 +231,7 @@ def run_pipeline(
 
 
 def link_entities(
-    dsn: str, graph_url: str, workspace_id: int, fk_links: list[dict],
+    dsn: str, workspace_id: int, fk_links: list[dict],
 ) -> dict[str, int]:
     """Create FK edges across already-resolved entities, then re-project.
 
@@ -249,8 +241,7 @@ def link_entities(
 
     Args:
         dsn: Postgres DSN.
-        graph_url: FalkorDB connection URL.
-        workspace_id: Workspace to link and project.
+        workspace_id: Workspace to link.
         fk_links: FK specs — {source_type, source_attr, target_type,
             target_attr, name}.
 
@@ -265,11 +256,7 @@ def link_entities(
                 estore, spec["source_type"], spec["source_attr"],
                 spec["target_type"], spec["target_attr"], spec["name"],
             )
-        type_ancestors = _build_type_ancestors(dsn)
-        counts = project_graph(
-            estore, FalkorStore(graph_url, ws_graph(workspace_id)),
-            type_ancestors=type_ancestors, workspace_id=workspace_id,
-        )
+        counts = after_graph_change(dsn, workspace_id)
     finally:
         estore.close()
     logger.info("link_entities workspace=%s relationships=%d", workspace_id, relationships)

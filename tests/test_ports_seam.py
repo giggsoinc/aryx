@@ -5,23 +5,24 @@ an operator replaces the class backing a capability port via one env var, and
 every call-site keeps working unchanged. These tests pin that contract.
 
 Deliberately substrate-free: they assert on which class the container resolves
-and how it constructs it — no live Postgres / FalkorDB, not even the falkordb
-driver. That is the point of the seam: wiring is verifiable without the stack.
+and how it constructs it — no live Postgres. That is the point of the seam: wiring is verifiable without the stack.
 """
 from __future__ import annotations
 
 import pytest
 
+from aryx.config import get_settings
 from aryx.edition import Edition, current_edition
 from aryx.ports.config import _target_for, resolve
 from aryx.ports.container import Container
 
 
 def test_lite_defaults_point_at_shipped_classes() -> None:
-    """With no overrides, each port targets today's commodity stack (by name,
-    so the assertion never imports the falkordb driver)."""
-    assert _target_for("graph_reader") == "aryx.graph.reader:GraphReader"
-    assert _target_for("graph_store") == "aryx.graph.falkor_store:FalkorStore"
+    """With no overrides, the graph port targets the Postgres reader (by name,
+    so the assertion never opens a connection). The graph is served straight
+    from the relational store, so there is no write-side graph port."""
+    assert _target_for("graph_reader") == "aryx.graph.pg_reader:PostgresGraphReader"
+    assert _target_for("graph_store") == ""
 
 
 def test_env_override_swaps_adapter_without_touching_callsites(
@@ -39,23 +40,15 @@ def test_env_override_swaps_adapter_without_touching_callsites(
     reader = Container().graph_reader(workspace_id=7)
     assert isinstance(reader, _StubGraphReader)
     # Constructed with the right substrate coordinates, wired by the container:
-    assert reader.url  # from Settings.graph_url
-    assert reader.graph == "aryx_ws_7"  # from ws_graph(workspace_id)
+    assert reader.dsn == get_settings().rdb_dsn  # from Settings.rdb_dsn
+    assert reader.workspace_id == 7
     # And it still answers the port contract the call-sites rely on:
     assert reader.find_entities() == []
 
 
-def test_graph_store_port_swaps_the_same_way(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The write side is on the same seam — proving the vertical, not one method."""
-    monkeypatch.setenv(
-        "ARYX_ADAPTER_GRAPH_STORE",
-        "test_ports_seam:_StubGraphStore",
-    )
-    store = Container().graph_store(workspace_id=3)
-    assert isinstance(store, _StubGraphStore)
-    assert store.graph == "aryx_ws_3"
+def test_there_is_no_graph_write_port() -> None:
+    """The graph is a read of the relational store; nothing writes to it."""
+    assert not hasattr(Container(), "graph_store")
 
 
 def test_bad_adapter_target_fails_loud(
@@ -84,17 +77,9 @@ def test_edition_defaults_to_lite(monkeypatch: pytest.MonkeyPatch) -> None:
 class _StubGraphReader:
     """A fake substrate adapter — proves the swap binds any matching class."""
 
-    def __init__(self, url: str, graph: str = "aryx") -> None:
-        self.url = url
-        self.graph = graph
+    def __init__(self, dsn: str, workspace_id: int = 1) -> None:
+        self.dsn = dsn
+        self.workspace_id = workspace_id
 
     def find_entities(self, ontology_type=None, name=None, limit=50):  # noqa: ANN001, ANN201, D102
         return []
-
-
-class _StubGraphStore:
-    """A fake write-side adapter for the swap proof."""
-
-    def __init__(self, url: str, graph: str = "aryx") -> None:
-        self.url = url
-        self.graph = graph

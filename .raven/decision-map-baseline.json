@@ -1,0 +1,4172 @@
+{
+  "note": "Findings accepted as pre-existing debt at the time each was baselined \u2014 raven-core/decision-map-gate.py only blocks on findings NOT in this list. Each entry's reason/reviewer/timestamp/outcome (G19) records WHY it was accepted, not just that it was. Regenerate with --write-baseline after deliberately accepting more debt \u2014 prior entries' metadata is preserved, not overwritten. Do not hand-edit to silence a real new finding.",
+  "findings": [
+    {
+      "file": ".claude/scripts/approval-request.py",
+      "line": 30,
+      "symbol": "post_to_hub",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/approval-request.py",
+      "line": 45,
+      "symbol": "post_to_hub",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/approval-request.py",
+      "line": 54,
+      "symbol": "send_email_notification",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/approval-request.py",
+      "line": 150,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/architect-router.py",
+      "line": 126,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/audit-keygen.py",
+      "line": 8,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/audit-log.py",
+      "line": 85,
+      "symbol": "write_s3",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/audit-log.py",
+      "line": 86,
+      "symbol": "_write",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/audit-log.py",
+      "line": 112,
+      "symbol": "write_gcs",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/audit-log.py",
+      "line": 113,
+      "symbol": "_write",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/audit-log.py",
+      "line": 135,
+      "symbol": "write_azure",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/audit-log.py",
+      "line": 136,
+      "symbol": "_write",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/audit-log.py",
+      "line": 159,
+      "symbol": "write_oci",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/audit-log.py",
+      "line": 160,
+      "symbol": "_write",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/contribute-queue.py",
+      "line": 102,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/contribute-queue.py",
+      "line": 108,
+      "symbol": "pending",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/cve-check.py",
+      "line": 127,
+      "symbol": "check_pypi_safety",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/cve-check.py",
+      "line": 153,
+      "symbol": "check_gpt_cve",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/cve-check.py",
+      "line": 205,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/damage-control/_emit.py",
+      "line": 73,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/damage-control/_emit.py",
+      "line": 76,
+      "symbol": "_lock_exclusive",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/damage-control/_emit.py",
+      "line": 79,
+      "symbol": "_unlock",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/damage-control/_emit.py",
+      "line": 84,
+      "symbol": "_lock_exclusive",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/damage-control/_emit.py",
+      "line": 89,
+      "symbol": "_unlock",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/damage-control/bash-tool-damage-control.py",
+      "line": 147,
+      "symbol": "load_config",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/damage-control/bash-tool-damage-control.py",
+      "line": 162,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/damage-control/bash-tool-damage-control.py",
+      "line": 164,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/damage-control/edit-tool-damage-control.py",
+      "line": 75,
+      "symbol": "load_config",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/damage-control/edit-tool-damage-control.py",
+      "line": 85,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/damage-control/edit-tool-damage-control.py",
+      "line": 87,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/damage-control/write-tool-damage-control.py",
+      "line": 75,
+      "symbol": "load_config",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/damage-control/write-tool-damage-control.py",
+      "line": 85,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/damage-control/write-tool-damage-control.py",
+      "line": 87,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/dashboard-server.py",
+      "line": 81,
+      "symbol": "do_GET",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/dashboard-server.py",
+      "line": 121,
+      "symbol": "main",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/edit-watcher.py",
+      "line": 117,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/emit-violation.py",
+      "line": 49,
+      "symbol": "write_s3",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/emit-violation.py",
+      "line": 50,
+      "symbol": "_write",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/emit-violation.py",
+      "line": 77,
+      "symbol": "write_gcs",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/emit-violation.py",
+      "line": 78,
+      "symbol": "_write",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/emit-violation.py",
+      "line": 101,
+      "symbol": "write_azure",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/emit-violation.py",
+      "line": 102,
+      "symbol": "_write",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/emit-violation.py",
+      "line": 126,
+      "symbol": "write_oci",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/emit-violation.py",
+      "line": 127,
+      "symbol": "_write",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/guard-override-audit.py",
+      "line": 81,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/loc-tracker.py",
+      "line": 108,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/log-overhead.py",
+      "line": 118,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/mcp-guard.py",
+      "line": 154,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/model-discover.py",
+      "line": 84,
+      "symbol": "check_local_provider",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/model-router-hook.py",
+      "line": 135,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/model-router.py",
+      "line": 229,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/model-router.py",
+      "line": 231,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/model-router.py",
+      "line": 240,
+      "symbol": "classify",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/model-router.py",
+      "line": 265,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/obsidian-log.py",
+      "line": 35,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/policy-sync.py",
+      "line": 34,
+      "symbol": "fetch_policy",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/policy-sync.py",
+      "line": 44,
+      "symbol": "fetch_policy",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/pr-signal.py",
+      "line": 59,
+      "symbol": "emit",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/raven-async.py",
+      "line": 50,
+      "symbol": "post",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/raven-dashboard.py",
+      "line": 69,
+      "symbol": "main",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/raven-skill-reminder.py",
+      "line": 154,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/raven_agent.py",
+      "line": 145,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/router_common.py",
+      "line": 56,
+      "symbol": "semantic_fallback",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/secret-scan.py",
+      "line": 172,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/secrets-init.py",
+      "line": 280,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/session-end.py",
+      "line": 33,
+      "symbol": "post_decrement",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/session-start.py",
+      "line": 292,
+      "symbol": "discover_local",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/session-start.py",
+      "line": 313,
+      "symbol": "discover_local",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/session-start.py",
+      "line": 522,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/session-start.py",
+      "line": 658,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/skill-search.py",
+      "line": 21,
+      "symbol": "gh_fetch",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/skill-search.py",
+      "line": 26,
+      "symbol": "search",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/skill-search.py",
+      "line": 52,
+      "symbol": "search",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/stream-signal.py",
+      "line": 235,
+      "symbol": "post_to_hub",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/token-guard.py",
+      "line": 31,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/token-meter-write.py",
+      "line": 199,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/token-meter-write.py",
+      "line": 263,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/triage-router.py",
+      "line": 96,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/trinity-gate.py",
+      "line": 74,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/trinity-gate.py",
+      "line": 86,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/trinity-gate.py",
+      "line": 100,
+      "symbol": "_parse_routes",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/trinity-gate.py",
+      "line": 176,
+      "symbol": "_poll_ready",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/trinity-gate.py",
+      "line": 187,
+      "symbol": "_poll_ready",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/trinity-gate.py",
+      "line": 273,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/trinity-gate.py",
+      "line": 338,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/trinity-gate.py",
+      "line": 382,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/trinity-gate.py",
+      "line": 435,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/trinity-gate.py",
+      "line": 439,
+      "symbol": "_path_get",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/trinity-gate.py",
+      "line": 445,
+      "symbol": "cmd_run_prompts",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/trinity-gate.py",
+      "line": 466,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/trinity-gate.py",
+      "line": 473,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/trinity-gate.py",
+      "line": 488,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/trinity-gate.py",
+      "line": 495,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/trinity-gate.py",
+      "line": 511,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/trinity-gate.py",
+      "line": 527,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/trinity-upload.py",
+      "line": 37,
+      "symbol": "main",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/trinity-upload.py",
+      "line": 89,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/scripts/trinity-upload.py",
+      "line": 102,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/skills/raven-contribute/cli_hub.py",
+      "line": 39,
+      "symbol": "_http_get",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/skills/raven-contribute/cli_hub.py",
+      "line": 120,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": ".claude/skills/raven-contribute/cli_hub.py",
+      "line": 131,
+      "symbol": "signoff",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "benchmarks/datasets/make_mfg.py",
+      "line": 107,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "benchmarks/datasets/make_mfg.py",
+      "line": 111,
+      "symbol": "_corrupt",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "raven-core/decision-map-gate.py",
+      "line": 253,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "raven-core/decision-map-gate.py",
+      "line": 263,
+      "symbol": "_guard_baseline_write",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "raven-core/decision-map-gate.py",
+      "line": 409,
+      "symbol": "_bar_panel",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "raven-core/decision-map-gate.py",
+      "line": 424,
+      "symbol": "_bar_panel",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "raven-core/decision-map-gate.py",
+      "line": 427,
+      "symbol": "render_html",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "raven-core/decision-map-gate.py",
+      "line": 522,
+      "symbol": "render_html",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "raven-core/project_link_common.py",
+      "line": 152,
+      "symbol": "apply_asset_id_credentials",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "raven-core/project_link_common.py",
+      "line": 253,
+      "symbol": "hub_get",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "raven-core/project_link_common.py",
+      "line": 275,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "raven-core/project_link_common.py",
+      "line": 280,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "raven-core/secret-scan.py",
+      "line": 193,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "scripts/demo_onboard_api.py",
+      "line": 15,
+      "symbol": "__init__",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "scripts/load_demo_via_api.py",
+      "line": 16,
+      "symbol": "main",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "scripts/load_demo_via_api.py",
+      "line": 49,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/actions/engine.py",
+      "line": 117,
+      "symbol": "apply_effects",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/analysis_execution/execute.py",
+      "line": 172,
+      "symbol": "apply_row_filters",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/analysis_execution/execute.py",
+      "line": 224,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/analysis_execution/execute.py",
+      "line": 245,
+      "symbol": "_named_buckets",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/andie_planner/delta.py",
+      "line": 179,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/andie_planner/delta.py",
+      "line": 283,
+      "symbol": "draft_delta",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/andie_planner/filter_repair.py",
+      "line": 71,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/andie_planner/filter_repair.py",
+      "line": 75,
+      "symbol": "_normalize_boolean_fill",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/andie_planner/filter_repair.py",
+      "line": 152,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/andie_planner/filter_repair.py",
+      "line": 268,
+      "symbol": "repair_missing_filters",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/actions_api.py",
+      "line": 73,
+      "symbol": "create_action",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/actions_api.py",
+      "line": 107,
+      "symbol": "execute",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/adjudication_api.py",
+      "line": 38,
+      "symbol": "_load_policy",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/adjudication_api.py",
+      "line": 52,
+      "symbol": "_side_preview",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/adjudication_api.py",
+      "line": 68,
+      "symbol": "_side_preview",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/admin_api.py",
+      "line": 24,
+      "symbol": "_local_broker",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/admin_api.py",
+      "line": 49,
+      "symbol": "_local_broker",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/admin_api.py",
+      "line": 107,
+      "symbol": "admin_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/admin_api.py",
+      "line": 125,
+      "symbol": "list_runs",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/admin_api.py",
+      "line": 137,
+      "symbol": "admin_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ask_api.py",
+      "line": 26,
+      "symbol": "_llm_probe",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ask_api.py",
+      "line": 94,
+      "symbol": "_extract_terms",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ask_api.py",
+      "line": 108,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ask_api.py",
+      "line": 113,
+      "symbol": "_extract_terms",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ask_api.py",
+      "line": 116,
+      "symbol": "_synthesise",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ask_api.py",
+      "line": 131,
+      "symbol": "_synthesise",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ask_api.py",
+      "line": 142,
+      "symbol": "ask_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ask_api.py",
+      "line": 146,
+      "symbol": "ask",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ask_api.py",
+      "line": 177,
+      "symbol": "ask",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ask_api.py",
+      "line": 182,
+      "symbol": "get_llm_config",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ask_api.py",
+      "line": 183,
+      "symbol": "get_llm_config",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ask_api.py",
+      "line": 191,
+      "symbol": "llm_models",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ask_api.py",
+      "line": 233,
+      "symbol": "set_llm_config",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ask_api.py",
+      "line": 235,
+      "symbol": "set_llm_config",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ask_api.py",
+      "line": 237,
+      "symbol": "ask_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/axioms_api.py",
+      "line": 72,
+      "symbol": "delete_axiom",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/axioms_api.py",
+      "line": 84,
+      "symbol": "shapes_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/axioms_api.py",
+      "line": 89,
+      "symbol": "get_shapes",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/axioms_api.py",
+      "line": 111,
+      "symbol": "get_shapes",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/axioms_api.py",
+      "line": 115,
+      "symbol": "shapes_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/brief_api.py",
+      "line": 42,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/connect_api.py",
+      "line": 101,
+      "symbol": "connect_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/connect_api.py",
+      "line": 105,
+      "symbol": "connect",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/connect_api.py",
+      "line": 112,
+      "symbol": "connect",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/connect_api.py",
+      "line": 116,
+      "symbol": "discover",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/connect_api.py",
+      "line": 120,
+      "symbol": "discover",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/connect_api.py",
+      "line": 123,
+      "symbol": "ingest_multi",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/connect_api.py",
+      "line": 136,
+      "symbol": "ingest_multi",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/connect_api.py",
+      "line": 139,
+      "symbol": "connect_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/corrections_api.py",
+      "line": 47,
+      "symbol": "_db",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/corrections_api.py",
+      "line": 48,
+      "symbol": "_db",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/corrections_api.py",
+      "line": 51,
+      "symbol": "_entity",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/corrections_api.py",
+      "line": 56,
+      "symbol": "_entity",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/corrections_api.py",
+      "line": 248,
+      "symbol": "delete_correction",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/corrections_api.py",
+      "line": 319,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/data_api.py",
+      "line": 40,
+      "symbol": "data_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/data_api.py",
+      "line": 44,
+      "symbol": "summary",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/data_api.py",
+      "line": 47,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/data_api.py",
+      "line": 55,
+      "symbol": "entities",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/data_api.py",
+      "line": 59,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/data_api.py",
+      "line": 69,
+      "symbol": "entity",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/data_api.py",
+      "line": 72,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/data_api.py",
+      "line": 83,
+      "symbol": "graph",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/data_api.py",
+      "line": 86,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/data_api.py",
+      "line": 124,
+      "symbol": "data_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/datasource_api.py",
+      "line": 36,
+      "symbol": "datasource_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/datasource_api.py",
+      "line": 41,
+      "symbol": "list_kinds",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/datasource_api.py",
+      "line": 43,
+      "symbol": "list_kinds",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/datasource_api.py",
+      "line": 100,
+      "symbol": "delete_datasource",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/datasource_api.py",
+      "line": 102,
+      "symbol": "datasource_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/doc_discover_api.py",
+      "line": 42,
+      "symbol": "_read_job",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/doc_discover_api.py",
+      "line": 46,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/doc_discover_api.py",
+      "line": 62,
+      "symbol": "_confirm_job",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/doc_discover_api.py",
+      "line": 79,
+      "symbol": "doc_discover_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/doc_discover_api.py",
+      "line": 108,
+      "symbol": "summary",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/doc_discover_api.py",
+      "line": 110,
+      "symbol": "summary",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/doc_discover_api.py",
+      "line": 113,
+      "symbol": "confirm",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/doc_discover_api.py",
+      "line": 125,
+      "symbol": "confirm",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/doc_discover_api.py",
+      "line": 127,
+      "symbol": "doc_discover_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/file_ingest_api.py",
+      "line": 232,
+      "symbol": "_run_files",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/file_ingest_api.py",
+      "line": 258,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/file_ingest_api.py",
+      "line": 272,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/file_ingest_api.py",
+      "line": 489,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/file_ingest_api.py",
+      "line": 497,
+      "symbol": "ingest_file",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/graph_api.py",
+      "line": 80,
+      "symbol": "create_app",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/jobs_api.py",
+      "line": 154,
+      "symbol": "cancel_job",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/lab_api.py",
+      "line": 30,
+      "symbol": "_answer_off",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/lab_api.py",
+      "line": 33,
+      "symbol": "_answer_off",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/lab_api.py",
+      "line": 41,
+      "symbol": "lab_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/lab_api.py",
+      "line": 45,
+      "symbol": "ab",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/lab_api.py",
+      "line": 60,
+      "symbol": "ab",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/lab_api.py",
+      "line": 75,
+      "symbol": "lab_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/main.py",
+      "line": 127,
+      "symbol": "create_app",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/mcp_mount.py",
+      "line": 15,
+      "symbol": "mount_mcp",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/mcp_mount.py",
+      "line": 33,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/mcp_mount.py",
+      "line": 45,
+      "symbol": "handle_sse",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/observability_api.py",
+      "line": 19,
+      "symbol": "_db",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/observability_api.py",
+      "line": 20,
+      "symbol": "_db",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/observability_api.py",
+      "line": 23,
+      "symbol": "_job_summary",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/observability_api.py",
+      "line": 29,
+      "symbol": "_job_summary",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/observability_api.py",
+      "line": 32,
+      "symbol": "_llm_stats",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/observability_api.py",
+      "line": 38,
+      "symbol": "_llm_stats",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/observability_api.py",
+      "line": 43,
+      "symbol": "_recent_llm",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/observability_api.py",
+      "line": 51,
+      "symbol": "_graph_stats",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/observability_api.py",
+      "line": 53,
+      "symbol": "_graph_stats",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/observability_api.py",
+      "line": 57,
+      "symbol": "_count",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/observability_api.py",
+      "line": 61,
+      "symbol": "_count",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/observability_api.py",
+      "line": 64,
+      "symbol": "_workspace_overview",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/observability_api.py",
+      "line": 79,
+      "symbol": "_workspace_overview",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/observability_api.py",
+      "line": 82,
+      "symbol": "observability_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/observability_api.py",
+      "line": 86,
+      "symbol": "observability",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/observability_api.py",
+      "line": 109,
+      "symbol": "observability_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ontology_api.py",
+      "line": 60,
+      "symbol": "ontology_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ontology_api.py",
+      "line": 65,
+      "symbol": "get_config",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ontology_api.py",
+      "line": 67,
+      "symbol": "get_config",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ontology_api.py",
+      "line": 70,
+      "symbol": "set_config",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ontology_api.py",
+      "line": 76,
+      "symbol": "set_config",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ontology_api.py",
+      "line": 84,
+      "symbol": "list_types",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ontology_api.py",
+      "line": 86,
+      "symbol": "list_types",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ontology_api.py",
+      "line": 89,
+      "symbol": "approve_type",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ontology_api.py",
+      "line": 91,
+      "symbol": "approve_type",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ontology_api.py",
+      "line": 94,
+      "symbol": "set_parent",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ontology_api.py",
+      "line": 98,
+      "symbol": "set_parent",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ontology_api.py",
+      "line": 102,
+      "symbol": "add_type",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ontology_api.py",
+      "line": 104,
+      "symbol": "add_type",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ontology_api.py",
+      "line": 110,
+      "symbol": "delete_type",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ontology_api.py",
+      "line": 112,
+      "symbol": "delete_type",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ontology_api.py",
+      "line": 115,
+      "symbol": "export_graph",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ontology_api.py",
+      "line": 133,
+      "symbol": "export_graph",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ontology_api.py",
+      "line": 139,
+      "symbol": "import_ontology",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ontology_api.py",
+      "line": 143,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ontology_api.py",
+      "line": 149,
+      "symbol": "ontology_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ontology_browse.py",
+      "line": 23,
+      "symbol": "approve",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/ontology_browse.py",
+      "line": 105,
+      "symbol": "delete_type",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/pipeline_link_api.py",
+      "line": 56,
+      "symbol": "create_links",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/relationship_type_api.py",
+      "line": 56,
+      "symbol": "delete_relationship_type",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/security.py",
+      "line": 49,
+      "symbol": "dispatch",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/smart_api.py",
+      "line": 38,
+      "symbol": "smart_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/smart_api.py",
+      "line": 42,
+      "symbol": "understand",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/smart_api.py",
+      "line": 73,
+      "symbol": "understand",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/smart_api.py",
+      "line": 76,
+      "symbol": "apply",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/smart_api.py",
+      "line": 113,
+      "symbol": "smart_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/system_api.py",
+      "line": 23,
+      "symbol": "_pg_status",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/system_api.py",
+      "line": 25,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/workspace_api.py",
+      "line": 40,
+      "symbol": "workspace_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/workspace_api.py",
+      "line": 131,
+      "symbol": "reset_workspace_data",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/workspace_api.py",
+      "line": 160,
+      "symbol": "reset_workspace_data",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/workspace_api.py",
+      "line": 191,
+      "symbol": "delete_workspace",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/api/workspace_api.py",
+      "line": 193,
+      "symbol": "workspace_router",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/broker/__init__.py",
+      "line": 74,
+      "symbol": "choose",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/broker/__init__.py",
+      "line": 81,
+      "symbol": "choose",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/broker/__init__.py",
+      "line": 96,
+      "symbol": "embed",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/broker/__init__.py",
+      "line": 111,
+      "symbol": "embed",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/broker/discovery.py",
+      "line": 25,
+      "symbol": "discover_ollama",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/broker/discovery.py",
+      "line": 45,
+      "symbol": "discover_ollama",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/broker/discovery.py",
+      "line": 48,
+      "symbol": "discover_openai_compatible",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/broker/discovery.py",
+      "line": 84,
+      "symbol": "discover_openai_compatible",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/broker/governor.py",
+      "line": 28,
+      "symbol": "effective_tier",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/broker/governor.py",
+      "line": 35,
+      "symbol": "effective_tier",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/broker/secrets.py",
+      "line": 32,
+      "symbol": "get",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/broker/secrets.py",
+      "line": 42,
+      "symbol": "get",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/connectors/docx.py",
+      "line": 36,
+      "symbol": "_extract_docx",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/connectors/docx.py",
+      "line": 50,
+      "symbol": "_extract_docx",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/connectors/docx.py",
+      "line": 53,
+      "symbol": "_ocr_image_bytes",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/connectors/docx.py",
+      "line": 54,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/connectors/image.py",
+      "line": 19,
+      "symbol": "extract_pages",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/connectors/markup.py",
+      "line": 33,
+      "symbol": "_extract_xml",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/connectors/markup.py",
+      "line": 35,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/connectors/markup.py",
+      "line": 50,
+      "symbol": "_extract_xml",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/connectors/pdf.py",
+      "line": 18,
+      "symbol": "extract_pages",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/connectors/pdf.py",
+      "line": 38,
+      "symbol": "_ocr_image_bytes",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/connectors/pdf.py",
+      "line": 39,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/connectors/postgres.py",
+      "line": 40,
+      "symbol": "extract",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/connectors/postgres.py",
+      "line": 63,
+      "symbol": "sample_colvals",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/connectors/postgres.py",
+      "line": 80,
+      "symbol": "sample_colvals",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/connectors/pptx.py",
+      "line": 38,
+      "symbol": "_ocr_image_bytes",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/connectors/pptx.py",
+      "line": 39,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/connectors/rest_api.py",
+      "line": 42,
+      "symbol": "_request",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/connectors/rest_api.py",
+      "line": 72,
+      "symbol": "_next_url",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/connectors/rest_api.py",
+      "line": 85,
+      "symbol": "_next_url",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/dashboard_composition/narrate.py",
+      "line": 87,
+      "symbol": "apply_titles",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/dataset/ingest.py",
+      "line": 126,
+      "symbol": "register_dataset",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/datasource_secrets.py",
+      "line": 24,
+      "symbol": "_load_key",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/datasource_secrets.py",
+      "line": 36,
+      "symbol": "_load_key",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/execution_compiler/validate.py",
+      "line": 31,
+      "symbol": "validate_bindings",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/execution_compiler/validate.py",
+      "line": 56,
+      "symbol": "validate_bindings",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/export_runtime.py",
+      "line": 31,
+      "symbol": "status",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/export_runtime.py",
+      "line": 33,
+      "symbol": "status",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/llm.py",
+      "line": 38,
+      "symbol": "_log_call",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/llm.py",
+      "line": 53,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/llm.py",
+      "line": 98,
+      "symbol": "complete_text",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/llm.py",
+      "line": 135,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/llm.py",
+      "line": 161,
+      "symbol": "complete_text",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/llm_providers.py",
+      "line": 27,
+      "symbol": "post_json",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/llm_providers.py",
+      "line": 48,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/llm_providers.py",
+      "line": 72,
+      "symbol": "post_json",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/llm_providers.py",
+      "line": 75,
+      "symbol": "anthropic_json",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/llm_providers.py",
+      "line": 89,
+      "symbol": "anthropic_json",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/llm_providers.py",
+      "line": 210,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/llm_providers.py",
+      "line": 221,
+      "symbol": "openai_json",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/llm_runtime.py",
+      "line": 45,
+      "symbol": "_ensure_loaded",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/llm_runtime.py",
+      "line": 58,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/llm_runtime.py",
+      "line": 94,
+      "symbol": "_log_call",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/llm_runtime.py",
+      "line": 99,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/llm_runtime.py",
+      "line": 140,
+      "symbol": "set_config",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/llm_runtime.py",
+      "line": 162,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/auth.py",
+      "line": 95,
+      "symbol": "authorize_headers",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/auth.py",
+      "line": 117,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/auth.py",
+      "line": 120,
+      "symbol": "dispatch",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/chart.py",
+      "line": 19,
+      "symbol": "_post",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/chart.py",
+      "line": 43,
+      "symbol": "dispatch",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/correction.py",
+      "line": 19,
+      "symbol": "_post",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/correction.py",
+      "line": 43,
+      "symbol": "dispatch",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/dashboard.py",
+      "line": 22,
+      "symbol": "dispatch",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/datasource.py",
+      "line": 21,
+      "symbol": "_get",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/datasource.py",
+      "line": 28,
+      "symbol": "_post",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/datasource.py",
+      "line": 36,
+      "symbol": "_delete",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/datasource.py",
+      "line": 63,
+      "symbol": "dispatch",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/ingest_hitl.py",
+      "line": 22,
+      "symbol": "_get",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/ingest_hitl.py",
+      "line": 29,
+      "symbol": "_post",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/ingest_hitl.py",
+      "line": 37,
+      "symbol": "_post_multipart",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/ingest_hitl.py",
+      "line": 95,
+      "symbol": "dispatch",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/multipart.py",
+      "line": 47,
+      "symbol": "encode_multipart",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/multipart.py",
+      "line": 66,
+      "symbol": "encode_multipart",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/onboard.py",
+      "line": 50,
+      "symbol": "_get",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/onboard.py",
+      "line": 57,
+      "symbol": "_post",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/onboard.py",
+      "line": 65,
+      "symbol": "_patch",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/onboard.py",
+      "line": 136,
+      "symbol": "dispatch",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/ontology.py",
+      "line": 21,
+      "symbol": "_get_types",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/ontology.py",
+      "line": 30,
+      "symbol": "_get_rdf",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/ontology.py",
+      "line": 53,
+      "symbol": "dispatch",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/read.py",
+      "line": 25,
+      "symbol": "_get",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/read.py",
+      "line": 32,
+      "symbol": "_post",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/server.py",
+      "line": 20,
+      "symbol": "list_tools",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/server.py",
+      "line": 22,
+      "symbol": "list_tools",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/server.py",
+      "line": 61,
+      "symbol": "call_tool",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/server.py",
+      "line": 64,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/server.py",
+      "line": 68,
+      "symbol": "call_tool",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/sse.py",
+      "line": 41,
+      "symbol": "handle_sse",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/sse.py",
+      "line": 60,
+      "symbol": "main",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/tools.py",
+      "line": 23,
+      "symbol": "tool_specs",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/tools.py",
+      "line": 26,
+      "symbol": "tool_specs",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/tools.py",
+      "line": 32,
+      "symbol": "_read_act_specs",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/tools.py",
+      "line": 34,
+      "symbol": "_read_act_specs",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/tools_chart.py",
+      "line": 19,
+      "symbol": "chart_tool_specs",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/tools_chart.py",
+      "line": 21,
+      "symbol": "chart_tool_specs",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/tools_correction.py",
+      "line": 16,
+      "symbol": "correction_tool_specs",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/tools_correction.py",
+      "line": 18,
+      "symbol": "correction_tool_specs",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/tools_dashboard.py",
+      "line": 12,
+      "symbol": "dashboard_tool_specs",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/tools_dashboard.py",
+      "line": 14,
+      "symbol": "dashboard_tool_specs",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/tools_datasource.py",
+      "line": 13,
+      "symbol": "datasource_tool_specs",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/tools_datasource.py",
+      "line": 15,
+      "symbol": "datasource_tool_specs",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/tools_ingest.py",
+      "line": 13,
+      "symbol": "ingest_tool_specs",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/tools_ingest.py",
+      "line": 15,
+      "symbol": "ingest_tool_specs",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/tools_onboard.py",
+      "line": 13,
+      "symbol": "onboard_tool_specs",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/tools_onboard.py",
+      "line": 15,
+      "symbol": "onboard_tool_specs",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/tools_ontology.py",
+      "line": 13,
+      "symbol": "ontology_tool_specs",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/mcp/tools_ontology.py",
+      "line": 15,
+      "symbol": "ontology_tool_specs",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/__init__.py",
+      "line": 28,
+      "symbol": "available_formats",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/__init__.py",
+      "line": 34,
+      "symbol": "available_formats",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/axioms.py",
+      "line": 17,
+      "symbol": "emit_axioms",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/axioms.py",
+      "line": 39,
+      "symbol": "_emit_range",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/axioms.py",
+      "line": 51,
+      "symbol": "_emit_cardinality_max",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/exporter.py",
+      "line": 33,
+      "symbol": "build_graph",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/exporter.py",
+      "line": 58,
+      "symbol": "ensure_class",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/exporter.py",
+      "line": 65,
+      "symbol": "ensure_class",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/exporter.py",
+      "line": 67,
+      "symbol": "ensure_datatype_prop",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/exporter.py",
+      "line": 75,
+      "symbol": "ensure_datatype_prop",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/exporter.py",
+      "line": 120,
+      "symbol": "build_graph",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/importer.py",
+      "line": 32,
+      "symbol": "_label",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/importer.py",
+      "line": 37,
+      "symbol": "_label",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/importer.py",
+      "line": 40,
+      "symbol": "parse_ontology",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/importer.py",
+      "line": 94,
+      "symbol": "parse_ontology",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/importer_full.py",
+      "line": 28,
+      "symbol": "parse_ontology_full",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/importer_full.py",
+      "line": 44,
+      "symbol": "parse_ontology_full",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/importer_full.py",
+      "line": 47,
+      "symbol": "_class_name_index",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/importer_full.py",
+      "line": 56,
+      "symbol": "_class_name_index",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/importer_full.py",
+      "line": 59,
+      "symbol": "_extract_hierarchy",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/importer_full.py",
+      "line": 69,
+      "symbol": "_extract_hierarchy",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/importer_full.py",
+      "line": 87,
+      "symbol": "_extract_property_axioms",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/importer_full.py",
+      "line": 111,
+      "symbol": "_extract_property_axioms",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/importer_full.py",
+      "line": 114,
+      "symbol": "_extract_restrictions",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/importer_full.py",
+      "line": 134,
+      "symbol": "_extract_restrictions",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/shapes.py",
+      "line": 26,
+      "symbol": "build_shapes_graph",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/shapes.py",
+      "line": 39,
+      "symbol": "shape_for",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/shapes.py",
+      "line": 46,
+      "symbol": "shape_for",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/shapes.py",
+      "line": 64,
+      "symbol": "build_shapes_graph",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/shapes.py",
+      "line": 67,
+      "symbol": "_emit_max_count",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/ontology/rdf/shapes.py",
+      "line": 86,
+      "symbol": "_emit_range",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/pipeline/chain_jobs.py",
+      "line": 126,
+      "symbol": "trigger_chain_from_brief",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/pipeline/clean_text.py",
+      "line": 13,
+      "symbol": "_normalize",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/pipeline/clean_text.py",
+      "line": 17,
+      "symbol": "_normalize",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/pipeline/dimension_entities.py",
+      "line": 39,
+      "symbol": "materialize_one_dimension",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/pipeline/doc_discovery.py",
+      "line": 82,
+      "symbol": "_infer_type",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/pipeline/doc_discovery.py",
+      "line": 281,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/pipeline/orchestrate.py",
+      "line": 192,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/pipeline/orchestrate.py",
+      "line": 223,
+      "symbol": "run_pipeline",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/pipeline/schema_agent.py",
+      "line": 86,
+      "symbol": "discover_mappings",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/pipeline/schema_agent.py",
+      "line": 99,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/pipeline/schema_agent.py",
+      "line": 120,
+      "symbol": "discover_mappings",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/pipeline/smart_understand.py",
+      "line": 182,
+      "symbol": "understand_samples",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/pipeline/smart_understand.py",
+      "line": 206,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/pipeline/smart_understand.py",
+      "line": 214,
+      "symbol": "understand_samples",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/pipeline/smart_understand.py",
+      "line": 311,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/pipeline/smart_understand.py",
+      "line": 365,
+      "symbol": "_fallback",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/post_execution_validation/checks.py",
+      "line": 188,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/post_execution_validation/checks.py",
+      "line": 197,
+      "symbol": "_check_histogram_rows",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/post_execution_validation/run.py",
+      "line": 54,
+      "symbol": "<assign>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/post_execution_validation/run.py",
+      "line": 59,
+      "symbol": "run_post_execution_validation",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/profiler/profile.py",
+      "line": 143,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/profiler/profile.py",
+      "line": 161,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/profiler/profile.py",
+      "line": 207,
+      "symbol": "_profile_column",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/reasoning/axiom_validator.py",
+      "line": 43,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/reasoning/axiom_validator.py",
+      "line": 47,
+      "symbol": "_violates_cardinality_max",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/reasoning/edge_axioms.py",
+      "line": 53,
+      "symbol": "apply_edge_axiom",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/resolution/chunked.py",
+      "line": 81,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/resolution/review_queue.py",
+      "line": 90,
+      "symbol": "apply_decision",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/resolution/run.py",
+      "line": 75,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/resolution/run.py",
+      "line": 79,
+      "symbol": "_block_embeddings",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/resolution/run.py",
+      "line": 202,
+      "symbol": "<if>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/resolution/run.py",
+      "line": 209,
+      "symbol": "_materialize",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/spec_validation/repair_messages.py",
+      "line": 14,
+      "symbol": "render_repair_line",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/spec_validation/repair_messages.py",
+      "line": 88,
+      "symbol": "render_repair_line",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/store/action_store.py",
+      "line": 46,
+      "symbol": "create",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/store/adjudication_store.py",
+      "line": 66,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/store/adjudication_store.py",
+      "line": 76,
+      "symbol": "stats",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/store/datasource_store.py",
+      "line": 29,
+      "symbol": "add",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/store/datasource_store.py",
+      "line": 42,
+      "symbol": "add",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/store/datasource_store.py",
+      "line": 68,
+      "symbol": "secret_of",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/store/datasource_store.py",
+      "line": 79,
+      "symbol": "secret_of",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/store/inferred_store.py",
+      "line": 55,
+      "symbol": "apply_inverse",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/store/inferred_store.py",
+      "line": 60,
+      "symbol": "apply_symmetric",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/store/inferred_store.py",
+      "line": 73,
+      "symbol": "apply_transitive",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/store/mcp_token_store.py",
+      "line": 27,
+      "symbol": "issue",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/store/mcp_token_store.py",
+      "line": 36,
+      "symbol": "issue",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/store/migrate.py",
+      "line": 59,
+      "symbol": "apply_migrations",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/store/rule_store.py",
+      "line": 63,
+      "symbol": "delete",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/workspaces.py",
+      "line": 27,
+      "symbol": "__init__",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/workspaces.py",
+      "line": 33,
+      "symbol": "_attach_partitions",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/workspaces.py",
+      "line": 40,
+      "symbol": "_drop_partitions",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/workspaces.py",
+      "line": 55,
+      "symbol": "create",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/workspaces.py",
+      "line": 96,
+      "symbol": "purge_data",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/workspaces.py",
+      "line": 101,
+      "symbol": "<try>",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/workspaces.py",
+      "line": 116,
+      "symbol": "purge_data",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/workspaces.py",
+      "line": 118,
+      "symbol": "nuke",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    },
+    {
+      "file": "src/aryx/workspaces.py",
+      "line": 135,
+      "symbol": "nuke",
+      "reason": "",
+      "reviewer": "",
+      "timestamp": "2026-11-07T07:09:35.889412+00:00",
+      "outcome": "accepted"
+    }
+  ]
+}

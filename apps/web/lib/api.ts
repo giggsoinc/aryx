@@ -611,7 +611,7 @@ export const api = {
     fetchJSON<{ status: string }>(`/admin/corrections/${correctionId}`,
       { method: "DELETE" }),
 
-  /** Wipe this workspace's data (records/entities/links/graph) for a clean
+  /** Wipe this workspace's data (records/entities/links) for a clean
    *  re-ingest. Brief, model choice, types, and corrections survive. */
   resetWorkspaceData: (workspaceId: number) =>
     fetchJSON<{ workspace_id: number; deleted: Record<string, number> }>(
@@ -638,7 +638,7 @@ export const api = {
       python: string; platform: string;
     }>("/version"),
 
-  /** Physical storage truth: what is ACTUALLY in Postgres + FalkorDB, plus
+  /** Physical storage truth: what is ACTUALLY in Postgres, plus
    *  service health. Counts come from the stores, never from job claims. */
   systemStatus: () =>
     fetchJSON<{
@@ -649,10 +649,6 @@ export const api = {
           id: number; name: string; landed_records: number;
           entities: number; relationships: number;
         }>;
-      };
-      falkordb: {
-        ok: boolean; error?: string;
-        graphs: Array<{ workspace_id: number; nodes: number; edges: number }>;
       };
       llm: { ok: boolean; provider: string; model: string; detail: string };
     }>("/admin/system/status"),

@@ -11,14 +11,14 @@ import logging
 from typing import Any
 
 from aryx.config import get_settings
-from aryx.graph import GraphReader
+from aryx.ports.protocols import GraphReaderPort
 from aryx.store.relationship_type_store import RelationshipTypeStore
 from aryx.workspaces import WorkspaceStore
 
 logger = logging.getLogger(__name__)
 
 
-def build(reader: GraphReader, workspace_id: int) -> str:
+def build(reader: GraphReaderPort, workspace_id: int) -> str:
     """Return a multi-line overview string. Best-effort; never raises."""
     parts: list[str] = ["WORKSPACE OVERVIEW:"]
     parts.extend(_kinds(reader))
@@ -27,7 +27,7 @@ def build(reader: GraphReader, workspace_id: int) -> str:
     return "\n".join(parts)
 
 
-def _kinds(reader: GraphReader) -> list[str]:
+def _kinds(reader: GraphReaderPort) -> list[str]:
     """Group entities by ontology type; show count + 3 sample names per kind."""
     by_type: dict[str, list[str]] = {}
     try:

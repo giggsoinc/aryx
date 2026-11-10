@@ -12,13 +12,10 @@ from __future__ import annotations
 
 import logging
 
-from aryx.graph import FalkorStore
+from aryx.graph.changes import after_graph_change
 from aryx.models import EntityMember, ResolvedEntity
-from aryx.pipeline.enrich import _build_type_ancestors
-from aryx.project import project_graph
 from aryx.store.entity_store import EntityStore
 from aryx.store.ontology_store import OntologyStore
-from aryx.workspaces import ws_graph
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +83,7 @@ def _resolved_entities_for_groups(
 
 
 def derive_entities_by_column(
-    dsn: str, graph_url: str, workspace_id: int,
+    dsn: str, workspace_id: int,
     source_type: str, group_by_attr: str, new_type_name: str,
     carry_attrs: list[str] | None = None,
 ) -> dict[str, int | str]:
@@ -94,7 +91,6 @@ def derive_entities_by_column(
 
     Args:
         dsn: Postgres DSN.
-        graph_url: FalkorDB connection URL.
         workspace_id: Workspace to read from / write into.
         source_type: Ontology type whose entities are grouped, e.g. ContractLineItem.
         group_by_attr: Attribute key to dedupe on, e.g. "Customer Number".
@@ -103,7 +99,7 @@ def derive_entities_by_column(
 
     Returns:
         {"type", "created", "source_groups", "skipped_missing_key",
-        **project_graph counts}. `created` is the literal count of new
+        **graph counts}. `created` is the literal count of new
         entities written — 0 is a real, surfaced outcome (never a silent
         success), same contract as /pipeline/link-entities.
     """
@@ -127,11 +123,7 @@ def derive_entities_by_column(
         finally:
             ostore.close()
 
-        type_ancestors = _build_type_ancestors(dsn)
-        counts = project_graph(
-            estore, FalkorStore(graph_url, ws_graph(workspace_id)),
-            type_ancestors=type_ancestors, workspace_id=workspace_id,
-        )
+        counts = after_graph_change(dsn, workspace_id)
     finally:
         estore.close()
     logger.info(

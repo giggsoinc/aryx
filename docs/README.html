@@ -212,9 +212,9 @@
     </div>
     <div class="feat">
       <div class="ico">⚡</div>
-      <h4>Incremental projection</h4>
-      <p>Postgres dirty-set drives FalkorDB updates. Sub-30% dirty → incremental; over → full rebuild. Watermarked.</p>
-      <span class="mono">G8</span>
+      <h4>Live graph</h4>
+      <p>The graph is read straight from Postgres, so it is always current. No copy to rebuild or keep in sync.</p>
+      <span class="mono">DEC-013</span>
     </div>
     <div class="feat">
       <div class="ico">🚀</div>
@@ -240,7 +240,7 @@
 <section id="architecture">
   <span class="sec-label">Architecture</span>
   <h2 class="sec-h">Four layers, replaceable per layer.</h2>
-  <p class="sec-lede">The web app is fully isolated &mdash; it talks to FastAPI only via JSON. Postgres is the source of truth; FalkorDB is a rebuildable projection.</p>
+  <p class="sec-lede">The web app is fully isolated &mdash; it talks to FastAPI only via JSON. Postgres is the single data store; the graph is read live from it.</p>
   <div class="arch">
     <div class="arch-layer">
       <span class="badge">UI</span>
@@ -274,7 +274,6 @@
       <span class="badge">Storage</span>
       <div class="items">
         <span class="pill">PostgreSQL 16 · partitioned <code>:5432</code></span>
-        <span class="pill">FalkorDB · graph per workspace <code>:6379</code></span>
         <span class="pill">Ollama · local LLM <code>:11434</code></span>
         <span class="pill">Fernet keyring · ARYX_SECRET_KEY</span>
       </div>
@@ -318,7 +317,7 @@
 <section id="quickstart">
   <span class="sec-label">Quickstart</span>
   <h2 class="sec-h">From clone to running in under five minutes.</h2>
-  <p class="sec-lede">Docker Compose brings up Postgres, FalkorDB, Ollama, FastAPI, MCP, and the Next.js app (Lite 1.8.0).</p>
+  <p class="sec-lede">Docker Compose brings up Postgres, Ollama, FastAPI, MCP, and the Next.js app (Lite 1.8.0).</p>
   <div class="qs">
     <div><span class="cmt"># 1. Clone + bring up the stack</span></div>
     <div class="cmd">git clone https://github.com/giggsoinc/aryx.git</div>

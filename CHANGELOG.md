@@ -5,8 +5,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Removed
+
+- **FalkorDB.** The knowledge graph is now read straight from Postgres. Removed the `falkordb` service, volume, dependency and CI service; `graph/falkor_store.py`, `graph/reader.py`, `project.py` (full, incremental and auto projection), `store/projection_store.py`, the `graph_url` setting and parameter (a leftover `ARYX_GRAPH_URL` is ignored), `naming.ws_graph`, `GraphStorePort` / `Container.graph_store()`, and the graph-only demo scripts `seed_support.py` and `patch_ticket_names.py`.
+- Migration 0048 drops `aryx_projection_state`, `aryx_projected_entity` and `aryx_entity.updated_at` (only the projector used them). Migration 0022 no longer creates them, because `apply_migrations` re-runs every file on every call and would otherwise undo the cleanup.
+- **Breaking:** `POST /graph/cypher` returns 410; `GET /admin/system/status` no longer has a `falkordb` key; the pipeline functions no longer take `graph_url`; the graph reader port is constructed as `cls(rdb_dsn, workspace_id)`, so custom `ARYX_ADAPTER_GRAPH_READER` adapters must match.
+
+### Changed
+
+- The graph is always current: no projection step, no lag. `PostgresGraphReader` reproduces the old reader result for result (checked against a golden file captured from live FalkorDB before removal): duplicate edges collapse, edges to missing entities are ignored, an inbound shortest path is listed in edge direction, and equal-length paths prefer the outbound one.
+- Name search uses `aryx_display_name()` with a `pg_trgm` index (a no-match search on 100k entities went from 1.8 s to under 1 ms); shortest path is a bidirectional search (6-hop p95 on 100k entities / 1M edges: 2.45 s to 0.15 s).
+- `/admin/observability` graph counts are exact (they were capped at 500).
+- The API applies migrations at startup, and `apply_migrations` takes an advisory lock so concurrent processes never run the same DDL at once. Within one process it runs once per database (`force=True` re-runs), so request handlers do not queue on the lock. A statement that cannot run (for example a missing optional extension such as `pg_trgm`) is logged once and retried at the next process start, not on every request.
+- `GET /entities/{id}/path/{target_id}` returns 422 ("search too large; lower max_hops") when the search outgrows its cap, instead of 500.
+- **Upgrade:** deploy only after the image built from this change is published and `ARYX_IMAGE` / `ARYX_WEB_IMAGE` point to it; the compose file still defaults to `1.9.0`, which needs FalkorDB.
+- `seed_demo.py` creates the demo companies and relationships in Postgres and is safe to re-run.
+
 ### Added
 
+- **Inferred edges and labels persist in Postgres.** `aryx_inferred_relationship` and `aryx_inferred_label` (migration 0047) hold the rule engine's output apart from asserted data; readers flag them (`inferred: true`, `inferred_label`). Output is rebuilt by `POST /rules/evaluate` and cleared whenever entities or edges change.
 - **Adjudication review UI** — a Data-page panel (`AdjudicationReview.tsx`) to fetch pending entity-merge pairs, see full readable context on both sides, and approve/reject; approving merges immediately and re-projects the graph live. New `GET /adjudication/{id}/preview` endpoint.
 - **DEC-010: LLM-confidence auto-reject.** Inside the adjudicate band, a rescore below `ARYX_ER_AUTO_REJECT` (default 0.05) auto-rejects instead of queuing an obviously-wrong pair for human review; new `auto_reject` status, excluded from the human/LLM agreement stat.
 - **DEC-011: transactional-type resolution bypass.** A type whose only proposed match key is a genuine per-row identifier (`field_shape.is_row_identifier` — every value distinct and code-shaped, e.g. `order_id`, `ticket_id`) skips blocking/scoring/adjudication entirely; `resolve_entities.materialize_one_per_record` creates one entity per landed record. Fixes a real incident where partial-field similarity (same company + status, different product) got two genuinely distinct Orders merged.
@@ -15,7 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - **Cancel now actually stops an ingest.** `POST /admin/jobs/{id}/cancel` used to only mark the job row cancelled while the pipeline thread ran on (one run kept going ~35 min, then committed 1,462 entities). New `aryx/job_cancel.py` gives every background ingest a cancel scope; the pipeline checks it between stages, inside the resolve/adjudicate loops and before the dimension / document / auto-chain steps, and raises `JobCancelled` (a `BaseException`, so best-effort `except Exception` blocks can't swallow it). `finish_job.sql` no longer lets a still-running thread overwrite a `cancelled` status. Landed records are kept so the run stays resumable.
-- **Write guard against stale runs.** `EntityStore.save` / `save_relationships` and `project_graph` re-check the job and the workspace's identity (`created_at`) right before writing, so an orphaned run can no longer save into a different workspace that reused its id.
+- **Write guard against stale runs.** `EntityStore.save` / `save_relationships` and `after_graph_change` re-check the job and the workspace's identity (`created_at`) right before writing, so an orphaned run can no longer save into a different workspace that reused its id.
 - **Workspace ids are never handed out twice.** `apply_migrations` now records applied files in `aryx_schema_migration` (advisory-locked, process-cached, run once at API startup) instead of re-running every file on most API calls, and migration 0009's `setval` can only move the sequence forward — it used to rewind to `max(id)` after every delete.
 - **Deleting a workspace cancels and waits for its running jobs** before dropping the partitions.
 - **Duplicate uploads no longer double the entities.** When identical file content is re-uploaded into a workspace that already holds entities from it, the pipeline is skipped (a prior cancelled/failed attempt stays retryable). Duplicates are matched per dataset name (the file name's slug) plus a content hash, so the same bytes uploaded under a different file name are not recognised, and content that an older version of the same file already had is skipped even if the latest version differs.
@@ -23,6 +40,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - A cancelled pipeline stage is now recorded as `cancelled` in `aryx_run_stage` instead of staying `running`; a resume redoes it.
 - raven-log wiring: `aryx/raven_log_config.py` (`from aryx.raven_log_config import log as raven_log`; the repo-root `config.py` is a one-line re-export), env-configured S3 sink with a stdlib-logging fallback that keeps criticality / error code / service; optional `raven-logger[s3]`.
 - Known limitation: the zero-click auto-chain job (`auto_chain_…`) is not cancellable yet — cancelling it only marks the row, and on a workspace delete only entity and graph writes are guarded.
+- **The reasoning engine never worked.** It called `FalkorStore.run()`, which never existed; entity-scoped rules crashed earlier on tuple-vs-dict rows; rule edges matched a property nodes did not have and were written under a label no reader returned; and axiom closures could relabel an asserted edge as inferred. All four are gone with the rewrite onto SQL.
+- Factory reset left graphs behind for workspaces above id 3.
 - **Survivorship policy now actually applies to adjudication-approved merges.** `AdjudicationStore.merge_entities_of` previously kept the survivor's pre-existing attribute values unconditionally; it now recomputes the golden record via the workspace's real `SurvivorshipPolicy` (the same engine full ingest uses) and logs conflicts to `aryx_attribute_conflict`.
 - **Duplicate pending-review rows.** Two record-level pairs that collapse to the same two entities (e.g. because a third pair auto-merged them mid-run) no longer both stay visible in the pending list or both need deciding — `AdjudicationStore.page()`/`pending_duplicates_of` collapse and auto-close them.
 - **Orphaned adjudication rows survived workspace deletion.** `WorkspaceStore.delete()` never touched `aryx_adjudication` (it isn't one of the partitioned tables); deleting a workspace now also deletes its adjudication rows, so a later workspace reusing the same numeric id doesn't inherit ghost "pending" cards pointing at nothing.
@@ -30,6 +49,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **DEC-004 violation:** dimension values were deduplicated in alphabetical order before landing, making the default `first_non_empty` survivorship strategy depend on the alphabet instead of the source file's row order. Now preserves first-seen order.
 - **Wrong entity display label.** `explore.display_name()` had no entry for `*_name`-suffixed columns (e.g. `employee_name`), so it fell back to "first short string in the record" — coincidentally picking an unrelated field like `manager` on some datasets. Added a pattern-based middle tier before that fallback.
 - Raw exceptions (a JSON parse failure, a stale "already decided" 404) no longer leak to the reviewer as technical text — replaced with clean messages, and stale cards are dropped quietly instead of showing a persistent error banner.
+- **`POST /admin/workspaces/{id}/purge` works again.** `purge_workspace_data.sql` selected `aryx_run.id` and `aryx_job.id`, but those tables are keyed `run_id` and `job_id`, so the endpoint always failed; and `purge_data` skipped the file's first DELETE (`aryx_action_execution`) because that chunk began with a comment header. The purge also did not clear `aryx_field_profile`, `aryx_field_tag` and `aryx_schema_mapping` (foreign keys to `aryx_run` with no cascade) before deleting the runs, so any workspace that had run a pipeline would still fail; `WorkspaceStore.delete` had the same gap for `aryx_schema_mapping`. All fixed.
+- **`ActionStore.set_attribute` now passes `Jsonb`.** It passed `Json` to `attributes || %s`, which Postgres rejects (`jsonb || json`). Regression tests: `tests/e2e/test_purge_and_set_attribute.py`.
 
 ### Known issue (not yet fixed)
 

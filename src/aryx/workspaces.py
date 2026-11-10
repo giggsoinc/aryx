@@ -11,7 +11,6 @@ from psycopg.types.json import Json
 
 from aryx.job_cancel import request_cancel, wait_until_stopped
 from aryx.raven_log_config import log as raven_log
-from aryx.naming import ws_graph  # noqa: F401  re-exported for back-compat
 from aryx.workspace_understanding import WorkspaceUnderstandingMixin
 from aryx.queries import load
 
@@ -110,8 +109,11 @@ class WorkspaceStore(WorkspaceUnderstandingMixin):
                 self._conn.rollback()
         stmts = load("purge_workspace_data")
         for stmt in stmts.split(";"):
-            stmt = stmt.strip()
-            if stmt and not stmt.startswith("--"):
+            # Drop comment lines first: the file opens with a comment header,
+            # so the first DELETE would otherwise be skipped as a "comment".
+            stmt = "\n".join(ln for ln in stmt.splitlines()
+                             if not ln.lstrip().startswith("--")).strip()
+            if stmt:
                 self._conn.execute(stmt, {"wid": wid})
         with self._conn.cursor() as cur:
             cur.execute(load("delete_profiles_by_workspace"), (wid,))
@@ -181,12 +183,17 @@ class WorkspaceStore(WorkspaceUnderstandingMixin):
         with self._conn.cursor() as cur:
             cur.execute(load("delete_profiles_by_workspace"), (wid,))
             cur.execute(load("delete_tags_by_workspace"), (wid,))
+            # References aryx_run with no cascade, so it must go before the runs.
+            cur.execute(load("delete_schema_mappings_by_workspace"), (wid,))
             # Before runs/jobs: adjudication rows aren't partitioned with
             # landed_record/entity, so _drop_partitions above never touches
             # them — left alone, they survive workspace deletion and later
             # resurface as "pending" cards pointing at ids that belong to
             # nothing once a new workspace happens to reuse this same id.
             cur.execute(load("delete_adjudication_by_workspace"), (wid,))
+            # Reasoning-engine output is not partitioned either.
+            cur.execute(load("delete_inferred_relationships_by_workspace"), (wid,))
+            cur.execute(load("delete_inferred_labels_by_workspace"), (wid,))
             cur.execute(load("delete_runs_by_workspace"), (wid,))
             cur.execute(load("delete_jobs_by_workspace"), (wid,))
             cur.execute(load("delete_workspace_row"), (wid,))
