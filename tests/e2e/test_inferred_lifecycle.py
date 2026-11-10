@@ -118,8 +118,8 @@ def test_purge_sql_names_inferred_tables_after_the_first_statement() -> None:
 
 
 def test_migrations_are_idempotent_and_release_the_lock(e2e_dsn: str) -> None:
-    apply_migrations(e2e_dsn)
-    apply_migrations(e2e_dsn)
+    apply_migrations(e2e_dsn, force=True)
+    apply_migrations(e2e_dsn, force=True)
     with psycopg.connect(e2e_dsn, autocommit=True) as conn:
         got = conn.execute(
             "SELECT pg_try_advisory_lock(hashtext('aryx_migrations'))").fetchone()[0]
@@ -137,7 +137,7 @@ def test_concurrent_migrations_are_serialised(e2e_dsn: str) -> None:
 
     def run() -> None:
         try:
-            apply_migrations(e2e_dsn)
+            apply_migrations(e2e_dsn, force=True)
         except BaseException as exc:  # noqa: BLE001 - surfaced by the assert
             errors.append(exc)
 

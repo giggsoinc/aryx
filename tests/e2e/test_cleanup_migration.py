@@ -57,9 +57,9 @@ def _recreate_old_objects(dsn: str) -> None:
 def test_migration_removes_old_objects_and_a_second_pass_changes_nothing(e2e_dsn: str) -> None:
     _recreate_old_objects(e2e_dsn)
     assert _present(e2e_dsn) == (True, True, True)
-    apply_migrations(e2e_dsn)
+    apply_migrations(e2e_dsn, force=True)
     assert _present(e2e_dsn) == (False, False, False)
-    apply_migrations(e2e_dsn)
+    apply_migrations(e2e_dsn, force=True)
     assert _present(e2e_dsn) == (False, False, False)
 
 

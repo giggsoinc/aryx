@@ -1,6 +1,9 @@
 -- Graph served from Postgres (replaces the FalkorDB projection).
 -- Additive and idempotent: apply_migrations re-runs every file on every call.
 -- Never edit this file once released; add a new migration instead.
+-- aryx_display_name is IMMUTABLE and backs idx_entity_name_trgm: changing its
+-- body leaves the index stale. A new naming rule needs a new function name, or
+-- a REINDEX in the same migration.
 
 -- Port of falkor_store._display_name: first truthy value of a fixed key list,
 -- else the first string value of 1-80 characters in stored key order, else

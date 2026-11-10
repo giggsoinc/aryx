@@ -375,6 +375,7 @@ After phase 5 the stack has no graph service and nothing in the repo reads a gra
 
 ### Upgrade steps for existing deployments
 
+0. **Do this only after the image built from this change is published**, and set `ARYX_IMAGE` and `ARYX_WEB_IMAGE` to it. The compose file still defaults to `1.9.0`, which needs FalkorDB.
 1. Pull the new images and run `docker compose up -d --remove-orphans`. The old `falkordb` container is removed.
 2. Migration 0047 applies on start. No data migration is needed, because FalkorDB held only a copy.
 3. A leftover `ARYX_GRAPH_URL` in `.env` is ignored, so removing it is optional.

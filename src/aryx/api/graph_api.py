@@ -5,6 +5,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
 
+from aryx.graph.pg_reader import GraphSearchTooLarge
 from aryx.ports import GraphReaderPort, ports
 
 
@@ -69,7 +70,12 @@ def graph_router() -> APIRouter:
         entity_id: int, target_id: int, max_hops: int = 6,
         reader: GraphReaderPort = Depends(_reader),
     ) -> list[dict[str, Any]]:
-        return reader.shortest_path(entity_id, target_id, max_hops)
+        try:
+            return reader.shortest_path(entity_id, target_id, max_hops)
+        except GraphSearchTooLarge as exc:
+            # Not "no path": the search was cut off. Tell the caller to narrow it.
+            raise HTTPException(
+                422, f"search too large; lower max_hops ({exc})") from exc
 
     return router
 

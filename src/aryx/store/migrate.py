@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from pathlib import Path
 
 import psycopg
@@ -11,6 +12,13 @@ from aryx.queries import load
 logger = logging.getLogger(__name__)
 
 _MIGRATIONS_DIR = Path(__file__).parent / "migrations"
+
+# DSNs already migrated by this process. Many request handlers call
+# apply_migrations; without this every request would take the global advisory
+# lock and re-run every file, so concurrent ingests would queue behind each
+# other. The lock below still guards cross-process DDL.
+_APPLIED: set[str] = set()
+_APPLIED_LOCK = threading.Lock()
 
 
 def _split_statements(sql: str) -> list[str]:
@@ -56,16 +64,35 @@ def _split_statements(sql: str) -> list[str]:
     return out
 
 
-def apply_migrations(dsn: str) -> None:
+def apply_migrations(dsn: str, *, force: bool = False) -> None:
+    """Apply every migration once per process for this database.
+
+    The first call for a DSN runs the migrations; later calls return at once,
+    so request handlers can keep calling this without queueing on the global
+    advisory lock. A failed run is not remembered, so the next call retries.
+
+    Args:
+        dsn: PostgreSQL connection string.
+        force: Run again even if this process already migrated the DSN. Tests
+            that recreate dropped objects use it; the app never needs to.
+    """
+    with _APPLIED_LOCK:
+        if not force and dsn in _APPLIED:
+            return
+        _run(dsn)
+        _APPLIED.add(dsn)
+
+
+def _run(dsn: str) -> None:
     """Apply every .sql file under migrations/ in lexical order.
 
     Statements are split on ';' (respecting dollar-quoted DO blocks) and run
     one at a time, since psycopg runs a single statement per call.
 
-    A session-level advisory lock serialises concurrent callers (the API now
-    migrates at startup while the worker and many endpoints also do), so two
-    processes never run the same DDL at once. The lock dies with the
-    connection, so a crashed caller cannot leave it held.
+    A session-level advisory lock serialises concurrent callers in other
+    processes (the API migrates at startup while the worker and the CLI also
+    do), so two processes never run the same DDL at once. The lock dies with
+    the connection, so a crashed caller cannot leave it held.
 
     Args:
         dsn: PostgreSQL connection string.

@@ -1,6 +1,6 @@
 # Attribution — tests/e2e/test_cleanup_migration.py
 
-Last updated: 2026-11-07T07:22:40.306814+00:00
+Last updated: 2026-11-10T09:45:10.474989+00:00
 Total lines: 92
 Lines AI-generated: 92 (100.0%)
 Lines human-typed: 0
