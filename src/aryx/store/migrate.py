@@ -32,6 +32,20 @@ _ALREADY_EXISTS = frozenset({
     "42712",  # duplicate_alias
 })
 
+# SQLSTATE classes that mean the server or connection had a problem, not that
+# one statement is unsupported: 08 connection, 40 rollback (deadlock), 53 out of
+# resources, 55 object not in prerequisite state (lock not available), 57
+# operator intervention (shutdown, cancelled). They abort the pass instead of
+# being skipped, so a half-applied schema is never remembered as done.
+_TRANSIENT_CLASSES = ("08", "40", "53", "55", "57")
+
+
+def _is_transient(exc: psycopg.Error, conn: psycopg.Connection) -> bool:
+    """True if ``exc`` says the connection or server failed, not the statement."""
+    if conn.closed or conn.broken or exc.sqlstate is None:
+        return True
+    return exc.sqlstate.startswith(_TRANSIENT_CLASSES)
+
 
 def _split_statements(sql: str) -> list[str]:
     """Split on ';' but never inside a $tag$...$tag$ dollar-quoted block.
@@ -84,7 +98,8 @@ def apply_migrations(dsn: str, *, force: bool = False) -> None:
     advisory lock. One full pass is remembered whatever its outcome: a
     statement that cannot run (for example ``CREATE EXTENSION`` on a server
     without that extension) is logged once and retried at the next process
-    start, not on every request. A run that raises is not remembered.
+    start, not on every request. A run that raises, including a lost
+    connection or other transient server error, is not remembered.
 
     Args:
         dsn: PostgreSQL connection string.
@@ -138,6 +153,8 @@ def _run(dsn: str) -> int:
                         except psycopg.Error as exc:
                             # An optional/unavailable feature (e.g. a missing
                             # extension) must not block unrelated later migrations.
+                            if _is_transient(exc, conn):
+                                raise
                             if exc.sqlstate in _ALREADY_EXISTS:
                                 logger.debug("migration object already exists file=%s error=%s",
                                              path.name, exc)
@@ -149,5 +166,8 @@ def _run(dsn: str) -> int:
                 logger.info("migration applied file=%s statements=%d skipped=%d",
                             path.name, len(statements), file_skipped)
         finally:
-            conn.execute(load("unlock_migrations"))
+            # A dead connection already dropped the session lock, and unlocking
+            # on it would mask the real error.
+            if not (conn.closed or conn.broken):
+                conn.execute(load("unlock_migrations"))
     return skipped
