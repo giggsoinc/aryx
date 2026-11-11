@@ -10,6 +10,7 @@ import logging
 from contextlib import contextmanager
 from typing import Any, Iterator
 
+from aryx.job_cancel import JobCancelled
 from aryx.store.checkpoint_store import StageTracker
 
 logger = logging.getLogger(__name__)
@@ -40,6 +41,11 @@ class StageRunner:
         self._tracker.start(self._run_id, name)
         try:
             yield
+        except JobCancelled as stop:
+            # Not 'running' forever on the observability tab; not 'done', so a
+            # resume redoes this stage.
+            self._tracker.cancel(self._run_id, name, str(stop))
+            raise
         except Exception as exc:
             self._tracker.fail(self._run_id, name, str(exc))
             raise

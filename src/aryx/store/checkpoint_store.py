@@ -54,6 +54,10 @@ class StageTracker:
         """Mark a stage failed with the error message."""
         self._set(run_id, stage, "failed", {"error": error[:500]})
 
+    def cancel(self, run_id: int, stage: str, reason: str) -> None:
+        """Mark a stage cancelled (not 'done', so a resume redoes it)."""
+        self._set(run_id, stage, "cancelled", {"reason": reason[:500]})
+
     def statuses(self, run_id: int) -> dict[str, str]:
         """Stage -> status map; leftover 'running' reads as 'failed' (crash)."""
         with self._pool.connection() as conn:

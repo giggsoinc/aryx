@@ -18,6 +18,7 @@ from aryx.connectors.postgres import PostgresConnector, sample_colvals
 from aryx.pipeline.orchestrate import run_pipeline
 from aryx.resolution.field_shape import resolve_match_keys
 from aryx.store.job_store import JobStore
+from aryx.job_cancel import run_cancellable
 from aryx.store.migrate import apply_migrations
 
 
@@ -118,7 +119,8 @@ def admin_router() -> APIRouter:
             jobs.create(job_id, req.system, req.table, req.workspace_id)
         finally:
             jobs.close()
-        background_tasks.add_task(_run_db, req, job_id)
+        background_tasks.add_task(run_cancellable, _run_db, settings.rdb_dsn, job_id,
+                                  req.workspace_id, req, job_id)
         return {"status": "queued", "job_id": job_id, "table": req.table}
 
     @router.get("/runs")

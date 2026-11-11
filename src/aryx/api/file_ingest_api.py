@@ -23,6 +23,8 @@ from aryx.connectors.csv_source import CsvConnector
 from aryx.connectors.doc_router import DocumentRouterConnector
 from aryx.connectors.json_source import JsonConnector, _flatten
 from aryx.dataset.ingest import register_dataset
+from aryx.job_cancel import checkpoint, run_cancellable
+from aryx.raven_log_config import log as raven_log
 from aryx.pipeline.chain_jobs import run_chain_now
 from aryx.pipeline.doc_discovery import _infer_type, infer_fk_links
 from aryx.pipeline.downstream import intent_ready
@@ -30,6 +32,7 @@ from aryx.pipeline.orchestrate import link_entities, run_pipeline
 from aryx.resolution.field_shape import resolve_match_keys
 from aryx.store.chunk_store import ChunkStore
 from aryx.store.dataset_store import DatasetStore
+from aryx.store.entity_store import EntityStore
 from aryx.store.job_store import JobStore
 from aryx.store.migrate import apply_migrations
 
@@ -165,15 +168,17 @@ def _resolve_batch_ontology_type(
 
 
 def _snapshot_dataset(dsn: str, workspace_id: int, data: bytes, name: str,
-                      request_id: str) -> str | None:
+                      request_id: str) -> tuple[str | None, bool]:
     """C02 — register the raw upload as an immutable, versioned dataset.
 
     C03 (profile) and C04 (interpret) run later, gated on C01 (intent) being
     valid — see the run_downstream() call in _run_files and the backfill
     triggered from intent_api.capture.
 
-    Returns the dataset_id when a snapshot exists (so the caller can scope the
-    later graph/context steps to just this run's datasets), else None.
+    Returns ``(dataset_id, is_duplicate)``. ``dataset_id`` is set when a
+    snapshot exists (so the caller can scope the later graph/context steps to
+    just this run's datasets), else None. ``is_duplicate`` is True when the
+    identical content was already stored in this workspace.
     Best-effort: registration may never block ingestion.
     """
     try:
@@ -185,10 +190,28 @@ def _snapshot_dataset(dsn: str, workspace_id: int, data: bytes, name: str,
             store.close()
     except Exception:  # noqa: BLE001 — snapshot is additive, never block ingest
         logger.warning("dataset snapshot failed file=%s", name, exc_info=True)
-        return None
+        return None, False
     if result.ingestion_status not in ("accepted", "duplicate") or not result.dataset_version:
-        return None
-    return result.dataset_id
+        return None, False
+    return result.dataset_id, result.ingestion_status == "duplicate"
+
+
+def _already_ingested(dsn: str, workspace_id: int, dataset: str) -> bool:
+    """True when this workspace already has entities from ``dataset``.
+
+    A duplicate snapshot alone is not enough to skip: an earlier attempt may
+    have been cancelled or failed before any entity landed, and that upload
+    must stay retryable. Fails open (False) so a lookup error never blocks.
+    """
+    try:
+        estore = EntityStore(dsn, workspace_id)
+        try:
+            return estore.has_entities_for_dataset(dataset)
+        finally:
+            estore.close()
+    except Exception:  # noqa: BLE001 — lookup is best-effort
+        logger.warning("duplicate-upload check failed dataset=%s", dataset, exc_info=True)
+        return False
 
 
 def _brief_context(workspace_id: int) -> str:
@@ -262,13 +285,33 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
         # Per-file plans feed cross-file FK inference once everything has landed.
         plans: list[dict[str, Any]] = []
         snapshotted_ids: set[str] = set()  # datasets touched THIS run (for C07)
+        skipped_duplicates = 0
         for data, name in data_files:
+            checkpoint(force=True)
             suffix = Path(name).suffix.lower()
             # C02 — snapshot the raw upload before transform.
-            snapped = _snapshot_dataset(settings.rdb_dsn, workspace_id, data, name,
-                                        request_id)
+            snapped, is_duplicate = _snapshot_dataset(
+                settings.rdb_dsn, workspace_id, data, name, request_id)
             if snapped:
                 snapshotted_ids.add(snapped)
+            # Duplicate upload: identical bytes already ingested into THIS
+            # workspace. Re-running would add a second copy of every entity
+            # (entity_store.save is a plain INSERT), so stop here instead.
+            if is_duplicate and _already_ingested(
+                    settings.rdb_dsn, workspace_id, Path(name).stem):
+                skipped_duplicates += 1
+                logger.info("skipping duplicate upload %s ws=%s — already ingested",
+                            name, workspace_id)
+                raven_log(
+                    "INFO", "duplicate upload skipped: workspace already has its entities",
+                    criticality="P4", service="aryx-api", error_code="DUPLICATE_UPLOAD_SKIPPED",
+                    context={"object_id": Path(name).stem, "workspace_id": workspace_id,
+                             "final_status": "skipped", "result": "skipped_duplicate",
+                             "reason_code": "DUPLICATE_UPLOAD_SKIPPED", "stage": "Ingest",
+                             "job_id": job_id})
+                jobs.update_stage(job_id, "Ingest", 20,
+                                  f"Skipped {name}: identical file already ingested in this workspace")
+                continue
             if suffix == ".json":
                 connector = JsonConnector(
                     _save_tmp(data, ".json"), system="json",
@@ -346,12 +389,14 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
         # Cross-file relationships. The UI sends no fk_links, so with every
         # entity now landed, infer foreign-key edges from the files' columns
         # and materialize the ones whose values actually match.
+        checkpoint(force=True)
         if not fk_links and len(plans) >= 2:
             jobs.update_stage(job_id, "Link", 92, "Inferring relationships")
             inferred = infer_fk_links(plans)
             if inferred:
                 link_entities(settings.rdb_dsn, workspace_id, inferred)
         # Data-first plan: dimension entities (Merchant, Category, …) + edges
+        checkpoint(force=True)  # a cancelled run must not chain into dimensions
         if graph_plan and data_files:
             jobs.update_stage(job_id, "Dimensions", 93, "Materializing plan dimensions")
             try:
@@ -364,6 +409,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 logger.info("dimension materialize rels=%s", nrel)
             except Exception as exc:  # noqa: BLE001
                 logger.warning("dimension materialize failed: %s", exc)
+        checkpoint(force=True)
         if doc_files:
             jobs.update_stage(job_id, "Documents", 40, f"Chunking {len(doc_files)} doc(s)")
             paths = [_save_tmp(d, Path(n).suffix) for d, n in doc_files]
@@ -412,7 +458,8 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
         # Honest failure beats fake success: files were processed but NOT ONE
         # entity landed — almost always the extraction model returning
         # unusable output (still downloading, wrong provider, bad key).
-        if items and total_entities == 0:
+        checkpoint(force=True)  # never mark complete / start the auto-chain once cancelled
+        if items and total_entities == 0 and skipped_duplicates < len(items):
             jobs.finish(
                 job_id, run_id=None, status="failed",
                 error="No entities were extracted from the upload. The "
@@ -491,7 +538,8 @@ def file_ingest_router() -> APIRouter:
             except json.JSONDecodeError:
                 plan_obj = None
         background_tasks.add_task(
-            _run_files, items, ontology_type, keys, links, job_id, workspace_id,
+            run_cancellable, _run_files, settings.rdb_dsn, job_id, workspace_id,
+            items, ontology_type, keys, links, job_id, workspace_id,
             graph_plan=plan_obj, file_types=file_types_map)
         names = [n for _, n in items]
         return {"status": "queued", "job_id": job_id, "files": names, "count": len(items)}

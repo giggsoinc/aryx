@@ -8,6 +8,7 @@ from pathlib import Path
 import psycopg
 
 from aryx.queries import load
+from aryx.raven_log_config import log as raven_log
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,12 @@ _MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 # other. The lock below still guards cross-process DDL.
 _APPLIED: set[str] = set()
 _APPLIED_LOCK = threading.Lock()
+
+# Set by apply_migrations(force=True) while it holds _APPLIED_LOCK, so _run can
+# ignore the aryx_schema_migration records and re-run every file. A module flag
+# (not a _run argument) keeps _run(dsn) callable with one argument, which the
+# existing tests rely on when they replace it.
+_force_rerun = False
 
 # SQLSTATEs for "already exists". Some older migrations are not idempotent and
 # hit these on every re-run; they mean the object is there, so they must not
@@ -101,15 +108,29 @@ def apply_migrations(dsn: str, *, force: bool = False) -> None:
     start, not on every request. A run that raises, including a lost
     connection or other transient server error, is not remembered.
 
+    Files that ran cleanly are also recorded in ``aryx_schema_migration``, and a
+    recorded file is never run again — not even by a later process. Before this,
+    every process start re-ran every file, and migration 0009 rewound the
+    workspace id sequence each time, so a deleted workspace's id was handed to
+    the next one created (and a still-running orphaned job wrote into it).
+    Because of that, an applied migration must never be edited: add a new
+    numbered file instead (see migrations/README.md).
+
     Args:
         dsn: PostgreSQL connection string.
-        force: Run again even if this process already migrated the DSN. Tests
-            that recreate dropped objects use it; the app never needs to.
+        force: Run again even if this process already migrated the DSN, and
+            ignore the recorded files so every file runs. Tests that recreate
+            dropped objects use it; the app never needs to.
     """
+    global _force_rerun
     with _APPLIED_LOCK:
         if not force and dsn in _APPLIED:
             return
-        skipped = _run(dsn)
+        _force_rerun = force
+        try:
+            skipped = _run(dsn)
+        finally:
+            _force_rerun = False
         _APPLIED.add(dsn)
         if skipped:
             logger.warning("migrations finished with %d skipped statement(s); "
@@ -135,11 +156,19 @@ def _run(dsn: str) -> int:
         exists" (0 when every statement ran or the object was already there).
     """
     skipped = 0
+    unrecorded: list[str] = []
     files = sorted(_MIGRATIONS_DIR.glob("*.sql"))
     with psycopg.connect(dsn, autocommit=True) as conn:
         conn.execute(load("lock_migrations"))
         try:
+            conn.execute(load("create_schema_migration_table"))
+            recorded: set[str] = set()
+            if not _force_rerun:
+                recorded = {row[0] for row in
+                            conn.execute(load("select_applied_migrations")).fetchall()}
             for path in files:
+                if path.name in recorded:
+                    continue
                 raw = path.read_text(encoding="utf-8")
                 # Strip line comments first so a ';' inside a comment can't be
                 # mistaken for a statement separator.
@@ -165,9 +194,20 @@ def _run(dsn: str) -> int:
                 skipped += file_skipped
                 logger.info("migration applied file=%s statements=%d skipped=%d",
                             path.name, len(statements), file_skipped)
+                if file_skipped:
+                    unrecorded.append(path.name)
+                else:
+                    conn.execute(load("record_applied_migration"), (path.name,))
         finally:
             # A dead connection already dropped the session lock, and unlocking
             # on it would mask the real error.
             if not (conn.closed or conn.broken):
                 conn.execute(load("unlock_migrations"))
+    if unrecorded:
+        raven_log(
+            "WARN", "migration files left unrecorded (retried at next process start)",
+            criticality="P3", service="aryx-api", error_code="MIGRATION_UNRECORDED",
+            context={"dependency_name": "postgres", "operation": "apply_migrations",
+                     "result": "partial", "files": unrecorded,
+                     "final_status": "unrecorded", "reason_code": "MIGRATION_UNRECORDED"})
     return skipped

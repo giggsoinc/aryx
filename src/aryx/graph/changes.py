@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 
+from aryx.job_cancel import checkpoint
 from aryx.queries import load
 from aryx.store.inferred_store import InferredStore
 from aryx.store.pool import get_pool
@@ -39,7 +40,13 @@ def after_graph_change(dsn: str, workspace_id: int) -> dict[str, int]:
 
     Call wherever entities or relationships were just written, merged,
     corrected or deleted.
+
+    Write guard: inside a job's cancel_scope this raises JobCancelled BEFORE
+    touching the database when the job was cancelled or its workspace was
+    deleted / re-created since the run started, so a stale run can never clear
+    derived output in a workspace that now owns the same id.
     """
+    checkpoint(force=True)
     with InferredStore(dsn, workspace_id) as store:
         store.clear()
     counts = graph_counts(dsn, workspace_id)

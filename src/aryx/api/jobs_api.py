@@ -8,6 +8,7 @@ from typing import Any
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 from aryx.config import get_settings
+from aryx.job_cancel import JobCancelled, cancel_scope, request_cancel
 from aryx.store.job_store import JobStore
 
 logger = logging.getLogger(__name__)
@@ -59,36 +60,40 @@ def _do_resume(old_job_id: str, new_job_id: str, run_id: int,
     jobs = JobStore(settings.rdb_dsn)
     otype, keys, system, dataset, skip_resolution = _resume_args(meta, run_id)
     try:
-        jobs.update_stage(
-            new_job_id, "Resume", 40,
-            f"Resuming run {run_id} from last checkpoint (skip done stages)",
-        )
-        jobs.attach_run(new_job_id, run_id)
+        with cancel_scope(settings.rdb_dsn, new_job_id, workspace_id):
+            jobs.update_stage(
+                new_job_id, "Resume", 40,
+                f"Resuming run {run_id} from last checkpoint (skip done stages)",
+            )
+            jobs.attach_run(new_job_id, run_id)
 
-        def _progress(s: str, p: int, d: str) -> None:
-            if "still working" in (d or ""):
-                jobs.heartbeat(new_job_id, s, p, d)
-            else:
-                jobs.update_stage(new_job_id, s, p, d)
+            def _progress(s: str, p: int, d: str) -> None:
+                if "still working" in (d or ""):
+                    jobs.heartbeat(new_job_id, s, p, d)
+                else:
+                    jobs.update_stage(new_job_id, s, p, d)
 
-        summary = run_pipeline(
-            connector=RecordsConnector([]),  # discover skipped on resume
-            dsn=settings.rdb_dsn,
-            system=system,
-            dataset=dataset,
-            ontology_type=otype,
-            match_keys=list(keys),
-            broker=_local_broker(),
-            workspace_id=workspace_id,
-            resume_run_id=run_id,
-            skip_resolution=skip_resolution,
-            on_progress=_progress,
-            on_run_id=lambda rid: jobs.attach_run(new_job_id, rid),
-        )
+            summary = run_pipeline(
+                connector=RecordsConnector([]),  # discover skipped on resume
+                dsn=settings.rdb_dsn,
+                system=system,
+                dataset=dataset,
+                ontology_type=otype,
+                match_keys=list(keys),
+                broker=_local_broker(),
+                workspace_id=workspace_id,
+                resume_run_id=run_id,
+                skip_resolution=skip_resolution,
+                on_progress=_progress,
+                on_run_id=lambda rid: jobs.attach_run(new_job_id, rid),
+            )
         jobs.finish(new_job_id, run_id=summary.get("run_id") or run_id,
                     status="complete")
         logger.info("resume job %s (from %s) complete %s",
                     new_job_id, old_job_id, summary)
+    except JobCancelled as stop:
+        # The job row is already 'cancelled' (finish_job never overwrites it).
+        logger.info("resume job %s stopped: %s", new_job_id, stop)
     except Exception as exc:  # noqa: BLE001
         logger.warning("resume job %s failed: %s", new_job_id, exc, exc_info=True)
         jobs.finish(new_job_id, run_id=run_id, status="failed", error=str(exc))
@@ -134,13 +139,14 @@ def jobs_router() -> APIRouter:
 
     @router.post("/jobs/{job_id}/cancel")
     def cancel_job(job_id: str) -> dict[str, Any]:
-        """Mark a job cancelled so the UI frees up.
+        """Cancel a job: mark it cancelled AND stop its pipeline thread.
 
-        Note: a background ingest thread blocked on an LLM call can't be
-        force-killed; this stops the row from showing as running and lets
-        the user retry. Any later progress write from a still-alive thread
-        is ignored because the row is terminal — unless resume is used on
-        the attached run_id.
+        The row is marked first, then the running thread (if it lives in this
+        process) is signalled. The pipeline stops at its next checkpoint —
+        between stages, inside the resolve/adjudicate loops, and before any
+        write — so a thread blocked on a single LLM call stops once that call
+        returns. Landed records stay so the run can be resumed via the
+        attached run_id; no entities are written after the cancel.
         """
         jobs = _store()
         try:
@@ -151,7 +157,9 @@ def jobs_router() -> APIRouter:
                         error="Cancelled by user")
         finally:
             jobs.close()
-        return {"status": "cancelled", "job_id": job_id}
+        signalled = request_cancel(job_id)
+        return {"status": "cancelled", "job_id": job_id,
+                "pipeline_signalled": signalled}
 
     @router.post("/jobs/{job_id}/resume")
     def resume_status(job_id: str) -> dict[str, Any]:

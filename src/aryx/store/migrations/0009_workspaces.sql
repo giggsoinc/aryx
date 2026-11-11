@@ -17,8 +17,16 @@ VALUES (1, 'Default', 'Original workspace')
 ON CONFLICT (id) DO NOTHING;
 
 -- Advance the serial past the hand-seeded Default so generated ids start at 2.
+-- Must only ever move FORWARD: this statement can run again (older builds re-ran
+-- every migration on most API calls), and resetting the sequence to max(id) after
+-- a workspace delete made the next workspace reuse the deleted id, so a still-
+-- running orphaned job wrote into the new workspace. GREATEST() with the
+-- sequence's own last_value (NULL until first use) keeps ids monotonic.
 SELECT setval(pg_get_serial_sequence('aryx_workspace', 'id'),
-              (SELECT max(id) FROM aryx_workspace));
+              GREATEST((SELECT max(id) FROM aryx_workspace),
+                       COALESCE((SELECT last_value FROM pg_sequences
+                                  WHERE schemaname = current_schema()
+                                    AND sequencename = 'aryx_workspace_id_seq'), 1)));
 
 ALTER TABLE aryx_run ADD COLUMN IF NOT EXISTS workspace_id BIGINT NOT NULL DEFAULT 1;
 ALTER TABLE aryx_job ADD COLUMN IF NOT EXISTS workspace_id BIGINT NOT NULL DEFAULT 1;

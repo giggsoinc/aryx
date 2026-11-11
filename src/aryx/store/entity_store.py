@@ -10,6 +10,7 @@ import logging
 
 from psycopg.types.json import Json
 
+from aryx.job_cancel import checkpoint
 from aryx.models import (
     EntityMember,
     Relationship,
@@ -71,7 +72,13 @@ class EntityStore:
         """Persist resolved entities and their provenance members.
 
         Returns the number of entities written.
+
+        Write guard: inside a job's cancel_scope this raises JobCancelled
+        BEFORE touching the database when the job was cancelled or its
+        workspace was deleted / re-created since the run started, so a stale
+        run can never save into a workspace that now owns the same id.
         """
+        checkpoint(force=True)
         count = 0
         with self._pool.connection() as conn:
             with conn.cursor() as cur:
@@ -101,8 +108,21 @@ class EntityStore:
         logger.info("entities saved count=%d", count)
         return count
 
+    def has_entities_for_dataset(self, dataset: str) -> bool:
+        """True when this workspace already holds entities built from ``dataset``.
+
+        Used to stop a duplicate upload from re-running the pipeline (and
+        inserting a second copy of every entity) — see file_ingest_api.
+        """
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(load("has_entities_for_dataset"), (self._ws, dataset))
+                row = cur.fetchone()
+        return bool(row and row[0])
+
     def save_relationships(self, relationships: list[Relationship]) -> None:
         """Persist inferred relationships between entities (stage 8)."""
+        checkpoint(force=True)  # write guard — see save()
         with self._pool.connection() as conn:
             with conn.cursor() as cur:
                 cur.executemany(

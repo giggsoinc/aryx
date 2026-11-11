@@ -32,6 +32,7 @@ import os
 
 from aryx.broker import Broker
 from aryx.config import get_settings
+from aryx.job_cancel import checkpoint
 from aryx.models import EntityMember, ResolutionRecord, ResolvedEntity
 from aryx.resolution.adjudicate import adjudicate
 from aryx.resolution.classical import block, score_pair
@@ -274,6 +275,7 @@ def resolve(
                 if pair_key in seen_pairs:
                     continue
                 seen_pairs.add(pair_key)
+                checkpoint()  # cancel point: ~1.7M pairs ran 35 min after a cancel
                 score = score_pair(left.text, right.text,
                                    embeddings.get(left.record_id),
                                    embeddings.get(right.record_id))
@@ -291,6 +293,7 @@ def resolve(
 
     # Invert pair_scores ONCE for the whole materialisation pass. Every cluster
     # and every record then does an O(degree) lookup instead of a full scan.
+    checkpoint(force=True)
     clusters = union.groups()
     edge_index = build_edge_index(pair_scores)
     logger.info("materialising clusters=%d pairs=%d indexed_records=%d",

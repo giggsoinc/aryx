@@ -2,17 +2,21 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 import psycopg
 from psycopg import sql
 from psycopg.types.json import Json
 
+from aryx.job_cancel import request_cancel, wait_until_stopped
+from aryx.raven_log_config import log as raven_log
 from aryx.workspace_understanding import WorkspaceUnderstandingMixin
 from aryx.queries import load
 
 logger = logging.getLogger(__name__)
 
+_STOP_WAIT_SEC = 30.0  # max wait for running jobs to stop before dropping partitions
 _PARTITIONED = ["aryx_landed_record", "aryx_entity", "aryx_entity_member", "aryx_relationship"]
 
 
@@ -137,10 +141,44 @@ class WorkspaceStore(WorkspaceUnderstandingMixin):
         logger.info("system nuked — factory reset complete")
         return {"status": "nuked", "workspaces_removed": len(non_default)}
 
+    def _stop_running_jobs(self, wid: int) -> None:
+        """Cancel every running job of this workspace and wait for it to stop.
+
+        Dropping the partitions while a pipeline is still running let that
+        orphaned run commit into a NEW workspace that reused the id. Rows are
+        marked cancelled first, the in-process threads are signalled, then we
+        wait (bounded) for them to leave their cancel scope. Anything that
+        outlives the wait is still blocked by the write guard: its job row is
+        gone and its workspace identity no longer matches.
+        """
+        with self._conn.cursor() as cur:
+            cur.execute(load("select_running_job_ids_by_workspace"), (wid,))
+            job_ids = [row[0] for row in cur.fetchall()]
+        if not job_ids:
+            return
+        for job_id in job_ids:
+            self._conn.execute(load("finish_job"),
+                               ("cancelled", None, "Workspace deleted", job_id))
+            request_cancel(job_id, "workspace deleted")
+        started = time.monotonic()
+        still_running = wait_until_stopped(job_ids, _STOP_WAIT_SEC)
+        raven_log(
+            "WARN" if still_running else "INFO",
+            "workspace delete cancelled its running jobs",
+            criticality="P3", service="aryx-api", error_code="WORKSPACE_DELETE_CANCEL",
+            context={"object_id": wid, "previous_state": "running",
+                     "requested_state": "cancelled", "final_state": "cancelled",
+                     "trigger": "workspace delete", "result": "waited",
+                     "reason_code": "WORKSPACE_DELETE_CANCEL",
+                     "final_status": "still_running" if still_running else "stopped",
+                     "duration_ms": int((time.monotonic() - started) * 1000),
+                     "job_ids": job_ids, "still_running": still_running})
+
     def delete(self, wid: int) -> None:
         """Physically purge a workspace: drop partitions + its run/job rows."""
         if int(wid) == 1:
             raise ValueError("the Default workspace cannot be deleted")
+        self._stop_running_jobs(int(wid))
         self._drop_partitions(int(wid))
         with self._conn.cursor() as cur:
             cur.execute(load("delete_profiles_by_workspace"), (wid,))
