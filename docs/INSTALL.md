@@ -89,6 +89,26 @@ ARYX_LLM_API_KEY=your-xai-key
 
 Keys saved in **Settings** stay in API **process memory** (not written to disk). They reset when the API container restarts unless set via env.
 
+### What Ask sends to the answer model
+
+To answer well, Ask puts exact counts, value counts (for example `status: open 26`) and each retrieved record's field values into the prompt. With the default local Ollama nothing leaves your deployment. If you switch to a hosted provider, those values are sent to it on every question, so choose how much:
+
+```bash
+# off  = names, links and counts only (no field values)
+# safe = field values, minus attributes that look personal or secret (default)
+# all  = every field value
+ARYX_ASK_ATTRIBUTES=safe
+
+# Seconds Ask caches a workspace overview per API process (0 = no cache).
+# It is dropped immediately when the graph changes in that process.
+ARYX_ASK_OVERVIEW_TTL=300
+
+# Largest workspace (entities) that gets value counts such as "status: open 26".
+# Computing them reads every attribute (~6 s per 100k entities), so bigger
+# workspaces keep exact type counts but skip them. 0 = no limit.
+ARYX_ASK_BREAKDOWN_MAX_ENTITIES=50000
+```
+
 ---
 
 ## 3. Start the stack

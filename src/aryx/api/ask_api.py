@@ -13,11 +13,11 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from aryx import llm_runtime
-from aryx.api.ask_overview import build as build_overview
+from aryx.api.ask_overview import build_with_types
 from aryx.ask import build_grounding
 from aryx.config import get_settings
 from aryx.graph.ask_facts import entity_attributes
-from aryx.graph.retrieve import all_types, gather, render_context
+from aryx.graph.retrieve import gather, render_context
 from aryx.ports import GraphReaderPort, ports
 from aryx.store.ask_history_store import AskHistoryStore
 
@@ -128,9 +128,11 @@ def _synthesise(question: str, context: str, overview: str = "") -> tuple[str, i
     facts = context if has_context else "(none — no specific entity matched)"
     user = (
         "Answer the question grounded in the workspace below. The numbers in "
-        "the OVERVIEW are exact totals counted from the database, including "
-        "per-value counts such as 'status: open 26' — for any 'how many' "
-        "question, read the number straight from it and state it. If GRAPH "
+        "the OVERVIEW are counted from the database (exact, unless a line says "
+        "'at least'), including per-value counts such as 'status: open 26' — "
+        "for any 'how many' question, read the number straight from it and "
+        "state it. Per-value counts cover only the records that have that "
+        "field, so they may not add up to the type's total. If GRAPH "
         "FACTS contains a specific entity, ground the answer there, using its "
         "'attributes' and 'linked' lines (they are exact). If GRAPH FACTS is "
         "empty, use the OVERVIEW to answer or to describe what's in the "
@@ -159,8 +161,7 @@ def ask_router() -> APIRouter:
     @router.post("/ask")
     def ask(req: AskRequest) -> dict:
         reader = _reader(req.workspace_id)
-        types = all_types(reader)
-        overview = build_overview(reader, req.workspace_id)
+        overview, types = build_with_types(reader, req.workspace_id)
         try:
             terms, p_in, p_out, p_ms = _extract_terms(req.question, types, req.history)
             entities, calls = gather(reader, terms)

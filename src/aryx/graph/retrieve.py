@@ -22,13 +22,14 @@ from aryx.ports.protocols import GraphReaderPort
 __all__ = ["RetrievedEntity", "all_types", "gather", "render_context", "retrieve"]
 
 
-def all_types(reader: GraphReaderPort) -> list[str]:
+def all_types(reader: GraphReaderPort, workspace_id: int | None = None) -> list[str]:
     """Distinct ontology types present — helps the parser pick search terms.
 
     Reads the real per-type counts, so a type that only appears after the
-    first 500 entities is still listed.
+    first 500 entities is still listed. ``workspace_id`` is only used to label
+    a fallback log line.
     """
-    counts, _exact = type_counts(reader)
+    counts, _exact = type_counts(reader, workspace_id)
     return sorted(counts)
 
 

@@ -13,7 +13,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - "How many tickets are open?" had no source. The overview now lists value counts for low-cardinality attributes (`status: closed 54, open 26`) via `attribute_breakdown`; identifier-like keys are left out.
 - A model that is cut off while still inside `<think>` no longer has its private reasoning returned as the answer; Ask reports "No answer produced." instead.
 - The Accuracy Lab A/B path uses the same richer context as Ask.
-- Note: `GraphReaderPort` gained `count_by_type`, `entity_attributes` and `attribute_breakdown`. Custom `ARYX_ADAPTER_GRAPH_READER` adapters should add them; without them Ask still works but falls back to the old 500-row sample and says "at least N records".
+- **Cost per question.** The overview is built from one set of queries per request (types are no longer counted twice, and sample names come from one `sample_names` query instead of one per type) and is cached per workspace for `ARYX_ASK_OVERVIEW_TTL` seconds (default 300, `0` disables). Measured on a 100,000-entity, 40-type workspace: the overview builds in about 80 ms (exact counts 37 ms, sample names 45 ms in one query instead of 280 ms in 40) and a cached question costs 0 ms. `after_graph_change` drops the cache, so a fresh ingest, merge or correction shows up at once in the process that ran it; other API processes pick it up when their entry expires.
+- The overview header says "exact" only when the counts are exact (it says "approximate" in the sampled fallback), breakdown keys are ranked (`status`-like keys first, then the keys most records carry) instead of alphabetical, and a sparse free-text key is no longer mistaken for a category.
+- Fallbacks are logged once per adapter and code (with the workspace id), not on every question.
+- Note: `GraphReaderPort` gained `count_by_type`, `entity_attributes`, `attribute_breakdown` and `sample_names` (implemented in `graph/pg_ask_reader.py`, mixed into `PostgresGraphReader`). Custom `ARYX_ADAPTER_GRAPH_READER` adapters should add them; without them Ask still works but falls back to the old 500-row sample and says "at least N records".
+
+### Changed
+
+- **Behaviour change: record field values now reach the answer model.** Before, the Ask prompt carried only entity names and links; now each retrieved record sends up to 12 `key=value` fields, and the overview sends categorical value counts (e.g. `status: open 26`). With the default local Ollama nothing leaves the deployment, but if the provider is switched to a hosted one in Settings, those values go to it on every question. New setting **`ARYX_ASK_ATTRIBUTES`**: `safe` (default) sends them but drops attributes whose name or value looks personal or secret (email, phone, address, card or account numbers, tokens, ...); `off` sends no field values (names, links and counts only); `all` sends everything. This path has no PII gate comparable to the document pipeline's, so use `off` or `safe` with hosted providers.
+- New setting `ARYX_ASK_OVERVIEW_TTL` (see above).
+- New setting `ARYX_ASK_BREAKDOWN_MAX_ENTITIES` (default 50,000, `0` = no limit). The value counts (`status: open 26`) read every attribute of every entity, which costs about 6 s per 100,000 entities even with more memory, so above this size the overview keeps the exact type counts and sample names but omits the value counts (logged once per workspace). Raise it if you prefer the counts and can wait for a cold build.
 
 ### Removed
 

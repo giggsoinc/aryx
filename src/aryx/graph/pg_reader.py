@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from aryx.graph.pg_ask_reader import PostgresAskStatsMixin
 from aryx.graph.pg_path import GraphSearchTooLarge, directed_path
 from aryx.queries import load
 from aryx.store.pool import get_pool
@@ -33,8 +34,12 @@ _FIND_QUERIES = {
 }
 
 
-class PostgresGraphReader:
-    """Reads entities, relationships and provenance for one workspace."""
+class PostgresGraphReader(PostgresAskStatsMixin):
+    """Reads entities, relationships and provenance for one workspace.
+
+    The aggregates the Ask flow needs (exact counts, value breakdowns, record
+    attributes, sample names) come from ``PostgresAskStatsMixin``.
+    """
 
     def __init__(self, dsn: str, workspace_id: int = 1) -> None:
         """Borrow the shared pool for ``dsn`` and bind to one workspace.
@@ -80,54 +85,6 @@ class PostgresGraphReader:
             params["name"] = name
         query = _FIND_QUERIES[(bool(ontology_type), bool(name))]
         return self._attach_labels([_entity(r) for r in self._rows(query, params)])
-
-    def count_by_type(self) -> dict[str, int]:
-        """Return the exact number of entities per ontology type.
-
-        Unlike ``find_entities`` this is not capped at 500 rows, so it is safe
-        to report as a total.
-
-        Returns:
-            ``{ontology_type: count}``; empty for an empty workspace.
-        """
-        return {str(r[0]): int(r[1])
-                for r in self._rows("graph_count_by_type", {})}
-
-    def entity_attributes(self, entity_ids: list[int]) -> dict[int, dict[str, Any]]:
-        """Return the raw attribute map (status, priority, ...) per entity.
-
-        Args:
-            entity_ids: Entities to look up; ids not in this workspace are
-                simply absent from the result.
-
-        Returns:
-            ``{entity_id: {attribute: value}}``.
-        """
-        if not entity_ids:
-            return {}
-        rows = self._rows("graph_entity_attributes",
-                          {"ids": [int(i) for i in entity_ids]})
-        return {int(r[0]): (r[1] if isinstance(r[1], dict) else {})
-                for r in rows}
-
-    def attribute_breakdown(self, max_values: int = 8) -> dict[str, dict[str, dict[str, int]]]:
-        """Return value counts for low-cardinality attributes of every type.
-
-        Example: ``{"Ticket": {"status": {"closed": 54, "open": 26}}}``. Keys
-        whose values are (nearly) unique, such as ids and names, are left out.
-
-        Args:
-            max_values: Most distinct values a key may have to be reported.
-
-        Returns:
-            ``{ontology_type: {attribute: {value: count}}}``.
-        """
-        out: dict[str, dict[str, dict[str, int]]] = {}
-        for t, key, value, n in self._rows(
-                "graph_attribute_breakdown",
-                {"max_values": max(1, int(max_values))}):
-            out.setdefault(str(t), {}).setdefault(str(key), {})[str(value)] = int(n)
-        return out
 
     def neighbors(self, entity_id: int) -> list[dict[str, Any]]:
         """Return one-hop related entities in both directions.
