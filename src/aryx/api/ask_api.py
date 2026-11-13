@@ -16,6 +16,7 @@ from aryx import llm_runtime
 from aryx.api.ask_overview import build as build_overview
 from aryx.ask import build_grounding
 from aryx.config import get_settings
+from aryx.graph.ask_facts import entity_attributes
 from aryx.graph.retrieve import all_types, gather, render_context
 from aryx.ports import GraphReaderPort, ports
 from aryx.store.ask_history_store import AskHistoryStore
@@ -79,8 +80,16 @@ class AskRequest(BaseModel):
 
 
 def _strip_think(text: str) -> str:
-    """Drop any <think> chain-of-thought a model inlines into its answer."""
-    text = text.rsplit("</think>", 1)[-1] if "</think>" in text else text
+    """Drop any <think> chain-of-thought a model inlines into its answer.
+
+    A ``<think>`` that is never closed means the model ran out of tokens while
+    still reasoning — what is left is its private monologue, not an answer, so
+    it returns '' (the caller then reports "No answer produced.").
+    """
+    if "</think>" in text:
+        text = text.rsplit("</think>", 1)[-1]
+    elif "<think>" in text:
+        return ""
     return text.replace("<think>", "").strip()
 
 
@@ -118,11 +127,16 @@ def _synthesise(question: str, context: str, overview: str = "") -> tuple[str, i
     has_context = bool(context.strip())
     facts = context if has_context else "(none — no specific entity matched)"
     user = (
-        "Answer the question grounded in the workspace below. If GRAPH FACTS "
-        "contains a specific entity, ground the answer there. If GRAPH FACTS "
-        "is empty, use the OVERVIEW to describe what's in the workspace — "
-        "DO NOT say 'no matching entities' or 'not stored'; instead, tell "
-        "the user what is tracked and suggest the next concrete question.\n\n"
+        "Answer the question grounded in the workspace below. The numbers in "
+        "the OVERVIEW are exact totals counted from the database, including "
+        "per-value counts such as 'status: open 26' — for any 'how many' "
+        "question, read the number straight from it and state it. If GRAPH "
+        "FACTS contains a specific entity, ground the answer there, using its "
+        "'attributes' and 'linked' lines (they are exact). If GRAPH FACTS is "
+        "empty, use the OVERVIEW to answer or to describe what's in the "
+        "workspace — DO NOT say 'no matching entities' or 'not stored'; "
+        "instead, tell the user what is tracked and suggest the next concrete "
+        "question. Never invent a number that is not shown below.\n\n"
         f"{overview}\n\nGRAPH FACTS:\n{facts}\n\nQUESTION: {question}"
     )
     start = time.monotonic()
@@ -150,7 +164,8 @@ def ask_router() -> APIRouter:
         try:
             terms, p_in, p_out, p_ms = _extract_terms(req.question, types, req.history)
             entities, calls = gather(reader, terms)
-            context = render_context(entities)
+            attrs = entity_attributes(reader, entities, req.workspace_id)
+            context = render_context(entities, attributes=attrs, summarise=True)
             answer, s_in, s_out, s_ms = _synthesise(req.question, context, overview)
             grounding = build_grounding(answer or "", entities)
         except Exception as exc:  # noqa: BLE001 — surface model/runtime errors to UI

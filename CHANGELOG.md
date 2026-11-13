@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Ask gave wrong or no answers on larger workspaces.** Three causes, all in how Ask describes the data to the model:
+  - The workspace overview counted the first 500 entities and presented that as the total (600 contracts showed as 460, and any type stored after row 500 was missing entirely). It now uses a real `COUNT` per type (`GraphReaderPort.count_by_type`).
+  - The model was shown a record's name and links but none of its fields, so "what is ticket T-5's status?" was a guess. Retrieved records now carry their attributes (`entity_attributes`), plus a ready-made `linked:` total per relationship, and at most 25 links are listed.
+  - "How many tickets are open?" had no source. The overview now lists value counts for low-cardinality attributes (`status: closed 54, open 26`) via `attribute_breakdown`; identifier-like keys are left out.
+- A model that is cut off while still inside `<think>` no longer has its private reasoning returned as the answer; Ask reports "No answer produced." instead.
+- The Accuracy Lab A/B path uses the same richer context as Ask.
+- Note: `GraphReaderPort` gained `count_by_type`, `entity_attributes` and `attribute_breakdown`. Custom `ARYX_ADAPTER_GRAPH_READER` adapters should add them; without them Ask still works but falls back to the old 500-row sample and says "at least N records".
+
 ### Removed
 
 - **FalkorDB.** The knowledge graph is now read straight from Postgres. Removed the `falkordb` service, volume, dependency and CI service; `graph/falkor_store.py`, `graph/reader.py`, `project.py` (full, incremental and auto projection), `store/projection_store.py`, the `graph_url` setting and parameter (a leftover `ARYX_GRAPH_URL` is ignored), `naming.ws_graph`, `GraphStorePort` / `Container.graph_store()`, and the graph-only demo scripts `seed_support.py` and `patch_ticket_names.py`.

@@ -14,14 +14,22 @@ from __future__ import annotations
 from typing import Any
 
 from aryx.ask.evidence import RetrievedEntity
+from aryx.graph.ask_facts import (
+    MAX_NEIGHBORS, format_attributes, summarise_neighbors, type_counts,
+)
 from aryx.ports.protocols import GraphReaderPort
 
 __all__ = ["RetrievedEntity", "all_types", "gather", "render_context", "retrieve"]
 
 
 def all_types(reader: GraphReaderPort) -> list[str]:
-    """Distinct ontology types present — helps the parser pick search terms."""
-    return sorted({e["type"] for e in reader.find_entities(limit=500)})
+    """Distinct ontology types present — helps the parser pick search terms.
+
+    Reads the real per-type counts, so a type that only appears after the
+    first 500 entities is still listed.
+    """
+    counts, _exact = type_counts(reader)
+    return sorted(counts)
 
 
 def _lookup(reader: GraphReaderPort, term: str) -> list[dict]:
@@ -76,14 +84,37 @@ def gather(reader: GraphReaderPort, terms: list[str]) -> tuple[list[RetrievedEnt
     return out, calls
 
 
-def render_context(entities: list[RetrievedEntity]) -> str:
-    """Project structured entities into the compact text the LLM reads."""
+def render_context(entities: list[RetrievedEntity],
+                   attributes: dict[int, dict[str, Any]] | None = None,
+                   summarise: bool = False) -> str:
+    """Project structured entities into the compact text the LLM reads.
+
+    With the defaults the text is exactly what it always was (the frozen
+    golden test pins that). Ask passes the two extras:
+
+    Args:
+        entities: Retrieved entities to render.
+        attributes: ``{entity_id: attributes}``; adds an ``attributes:`` line
+            (status, priority, amount, ...) so the model can answer about a
+            record's fields instead of guessing.
+        summarise: Adds a ``linked:`` line with ready-made totals per
+            relationship and lists at most ``MAX_NEIGHBORS`` links, so a
+            heavily linked entity cannot flood a small model's context.
+    """
     blocks: list[str] = []
     for ent in entities:
         lines = [f"{ent.name} [{ent.type}] (id {ent.id})"]
-        for n in ent.neighbors:
+        attr_text = format_attributes((attributes or {}).get(ent.id, {}), ent.name)
+        if attr_text:
+            lines.append(f"  attributes: {attr_text}")
+        if summarise and ent.neighbors:
+            lines.append(f"  linked: {summarise_neighbors(ent.neighbors)}")
+        shown = ent.neighbors[:MAX_NEIGHBORS] if summarise else ent.neighbors
+        for n in shown:
             arrow = "->" if n["direction"] == "out" else "<-"
             lines.append(f"  {arrow} {n['relationship']} {n['name']} [{n['type']}]")
+        if summarise and len(ent.neighbors) > len(shown):
+            lines.append(f"  ... and {len(ent.neighbors) - len(shown)} more linked records")
         if ent.sources:
             srcs = ", ".join(f"{p['system']}.{p['dataset']}" for p in ent.sources)
             lines.append(f"  source: {srcs}")
