@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from aryx.graph.pg_ask_reader import PostgresAskStatsMixin
 from aryx.graph.pg_path import GraphSearchTooLarge, directed_path
 from aryx.queries import load
 from aryx.store.pool import get_pool
@@ -33,8 +34,12 @@ _FIND_QUERIES = {
 }
 
 
-class PostgresGraphReader:
-    """Reads entities, relationships and provenance for one workspace."""
+class PostgresGraphReader(PostgresAskStatsMixin):
+    """Reads entities, relationships and provenance for one workspace.
+
+    The aggregates the Ask flow needs (exact counts, value breakdowns, record
+    attributes, sample names) come from ``PostgresAskStatsMixin``.
+    """
 
     def __init__(self, dsn: str, workspace_id: int = 1) -> None:
         """Borrow the shared pool for ``dsn`` and bind to one workspace.

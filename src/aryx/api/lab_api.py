@@ -14,9 +14,10 @@ from pydantic import BaseModel
 
 from aryx import llm_runtime
 from aryx.api.ask_api import _extract_terms, _reader, _strip_think, _synthesise
-from aryx.api.ask_overview import build as build_overview
+from aryx.api.ask_overview import build_with_types
 from aryx.ask import run_ab
-from aryx.graph.retrieve import all_types, gather, render_context
+from aryx.graph.ask_facts import entity_attributes
+from aryx.graph.retrieve import gather, render_context
 
 logger = logging.getLogger(__name__)
 
@@ -46,11 +47,11 @@ def lab_router() -> APIRouter:
         """Ontology on/off comparison for one question."""
         reader = _reader(req.workspace_id)
         try:
-            types = all_types(reader)
-            overview = build_overview(reader, req.workspace_id)
+            overview, types = build_with_types(reader, req.workspace_id)
             terms, *_ = _extract_terms(req.question, types, [])
             entities, _calls = gather(reader, terms)
-            context = render_context(entities)
+            attrs = entity_attributes(reader, entities, req.workspace_id)
+            context = render_context(entities, attributes=attrs, summarise=True)
             answer_on, *_ = _synthesise(req.question, context, overview)
             answer_off = _answer_off(req.question)
         except Exception as exc:  # noqa: BLE001 — surface to the Lab UI
