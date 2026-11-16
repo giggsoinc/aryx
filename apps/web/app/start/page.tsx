@@ -85,7 +85,11 @@ export default function StartWizard() {
         <Connect
           workspaceId={workspaceId}
           kind="postgres"
-          onConnected={() => nextSource("database")}
+          onConnected={(_id, ingestJobId) => {
+            // The DB ingest job drives the Running screen's live progress.
+            if (ingestJobId) setJobId(ingestJobId);
+            nextSource("database");
+          }}
           onBack={() => setStep("sources")}
         />
       )}

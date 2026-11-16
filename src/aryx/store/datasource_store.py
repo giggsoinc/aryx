@@ -12,6 +12,7 @@ from typing import Any
 
 import psycopg
 from psycopg.types.json import Json
+from sqlalchemy.engine import URL
 
 from aryx import datasource_secrets
 from aryx.queries import load
@@ -96,20 +97,44 @@ class DatasourceStore:
         return data
 
 
-def open_url(kind: str, config: dict, secret: str) -> str:
-    """Build a SQLAlchemy URL from datasource config + decrypted secret."""
-    drivers = {
-        "postgresql": "postgresql+psycopg", "postgres": "postgresql+psycopg",
-        "mysql": "mysql+pymysql", "mariadb": "mysql+pymysql",
-        "oracle": "oracle+oracledb", "sqlite": "sqlite",
-    }
+_DRIVERS = {
+    "postgresql": "postgresql+psycopg", "postgres": "postgresql+psycopg",
+    "mysql": "mysql+pymysql", "mariadb": "mysql+pymysql",
+    "oracle": "oracle+oracledb", "sqlite": "sqlite",
+}
+
+
+def build_url(kind: str, *, host: str = "", port: str | int | None = None,
+              database: str = "", user: str = "", password: str = "") -> str:
+    """Build a SQLAlchemy URL string with credentials safely escaped.
+
+    Uses ``URL.create`` instead of string concatenation, so passwords (and
+    usernames) containing ``@ : / # ? %`` are percent-encoded rather than
+    misread as the host/port/path separators.
+    """
     if kind == "sqlite":
-        return f"sqlite:///{config.get('database', '')}"
-    driver = drivers.get(kind)
+        return f"sqlite:///{database}"
+    driver = _DRIVERS.get(kind)
     if not driver:
         raise ValueError(f"unsupported datasource kind: {kind}")
-    user = config.get("user", "")
-    auth = f"{user}:{secret}@" if user else ""
-    port = f":{config['port']}" if config.get("port") else ""
-    return (f"{driver}://{auth}{config.get('host', '')}{port}"
-            f"/{config.get('database', '')}")
+    port_str = str(port).strip() if port not in (None, "") else ""
+    if port_str and not port_str.isdigit():
+        raise ValueError(f"port must be a number, got {port_str!r}")
+    user = user.strip()
+    url = URL.create(
+        driver,
+        username=user or None,
+        password=(password or None) if user else None,
+        host=host.strip() or None,
+        port=int(port_str) if port_str else None,
+        database=database.strip() or None,
+    )
+    return url.render_as_string(hide_password=False)
+
+
+def open_url(kind: str, config: dict, secret: str) -> str:
+    """Build a SQLAlchemy URL from datasource config + decrypted secret."""
+    return build_url(
+        kind, host=str(config.get("host", "")), port=config.get("port"),
+        database=str(config.get("database", "")),
+        user=str(config.get("user", "")), password=secret)
