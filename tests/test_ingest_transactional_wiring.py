@@ -60,18 +60,19 @@ def test_cli_run_applies_transactional_bypass(monkeypatch) -> None:
 
 
 def test_connect_multi_ingest_applies_transactional_bypass(monkeypatch) -> None:
-    from aryx.api import connect_api
+    from aryx.api import admin_api
+    from aryx.pipeline import ingest_multi
 
     captured: list[dict] = []
-    monkeypatch.setattr(connect_api, "JobStore", lambda dsn: _FakeJobStore())
-    monkeypatch.setattr(connect_api, "_local_broker", lambda: object())
-    monkeypatch.setattr(connect_api, "sample_colvals",
+    monkeypatch.setattr(ingest_multi, "JobStore", lambda dsn: _FakeJobStore())
+    monkeypatch.setattr(admin_api, "_local_broker", lambda: object())
+    monkeypatch.setattr(ingest_multi, "sample_colvals",
                         lambda url, table: {"order_id": list(_ORDER_IDS)})
-    monkeypatch.setattr(connect_api, "SqlConnector", lambda *a, **kw: object())
-    monkeypatch.setattr(connect_api, "run_pipeline",
+    monkeypatch.setattr(ingest_multi, "SqlConnector", lambda *a, **kw: object())
+    monkeypatch.setattr(ingest_multi, "run_pipeline",
                         lambda **kw: captured.append(kw) or {"run_id": 1})
 
-    connect_api._run_multi(
+    ingest_multi.run_multi(
         "postgresql://fake", [{"table": "orders", "ontology_type": "Order",
                                "match_keys": ["order_id"]}], [], "job-1")
 

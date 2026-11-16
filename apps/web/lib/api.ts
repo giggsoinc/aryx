@@ -1,7 +1,7 @@
 import type {
   AbResult, AdjudicationPreview, AdjudicationRow, AdjudicationStats,
   AskResponse, Axiom, Brief, DataEntitiesPage, DataSummary,
-  Datasource, EntityDetail, EntityGraphView, GraphView, IngestQuestion,
+  Datasource, DatasourceIngestResult, EntityDetail, EntityGraphView, GraphView, IngestQuestion,
   DatasetIngestResult, DatasetProfile, SemanticProfile, GraphIntakeResult, GraphProfile,
   PlanningContext, PlannerResult, DeltaDraftResult, DeltaSpecItems, ExecutionPlan, ExecutionRun, RowFilter,
   DashboardModel, RenderTelemetry, WordCloudResponse, ExcerptsResponse,
@@ -324,13 +324,26 @@ export const api = {
   listDatasources: (workspaceId: number) =>
     fetchJSON<Datasource[]>(`/admin/datasources?workspace_id=${workspaceId}`),
 
+  /** Save a datasource. With `verify`, the server tests the connection
+   *  first and refuses to save on failure (no half-saved rows). */
   addDatasource: (workspaceId: number, name: string, kind: string,
-                  config: Record<string, unknown>, secret = "") =>
-    fetchJSON<Datasource>("/admin/datasources", {
-      method: "POST",
-      body: JSON.stringify({ workspace_id: workspaceId, name, kind,
-                              config, secret }),
-    }),
+                  config: Record<string, unknown>, secret = "",
+                  verify = false) =>
+    fetchJSON<Datasource & { tables?: string[]; table_count?: number }>(
+      "/admin/datasources", {
+        method: "POST",
+        body: JSON.stringify({ workspace_id: workspaceId, name, kind,
+                                config, secret, verify }),
+      }),
+
+  /** Map a saved database datasource's tables and ingest them as one job. */
+  ingestDatasource: (datasourceId: number, tables: string[] = [],
+                     workspaceId?: number) =>
+    fetchJSON<DatasourceIngestResult>(
+      `/admin/datasources/${datasourceId}/ingest`, {
+        method: "POST",
+        body: JSON.stringify({ tables, workspace_id: workspaceId ?? null }),
+      }),
 
   testDatasource: (datasourceId: number) =>
     fetchJSON<{ ok: boolean; error?: string; tables?: string[];

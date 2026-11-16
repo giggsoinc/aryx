@@ -418,6 +418,13 @@ export interface Datasource {
   ready: boolean;
 }
 
+export interface DatasourceIngestResult {
+  status: string;
+  job_id: string;
+  /** Tables queued; the ontology mapping runs inside the job. */
+  tables: string[];
+}
+
 // ── User Intent Capture (C01) ──────────────────────────────────────────
 export interface IntentDateRange {
   start: string;

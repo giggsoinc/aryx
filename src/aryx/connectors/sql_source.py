@@ -6,7 +6,7 @@ streams rows from Postgres, MySQL, Oracle, or SQLite.
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 
 from sqlalchemy import MetaData, Table, create_engine, select
 
@@ -26,13 +26,32 @@ def _coerce(value: object) -> object:
 class SqlConnector(Connector):
     """Stream rows of one table from any SQLAlchemy-reachable database."""
 
-    def __init__(self, url: str, table: str, key_column: str,
+    def __init__(self, url: str, table: str, key_column: str | Sequence[str],
                  system: str = "rdb") -> None:
-        """Configure for one table on a given connection URL."""
+        """Configure for one table on a given connection URL.
+
+        ``key_column`` may be a single column or the full (composite) primary
+        key; composite values are joined with ``|`` into one record id so
+        rows sharing a leading key column (e.g. lines of one PO) stay distinct.
+        """
         self._url = url
         self._table = table
-        self._key = key_column
+        self._keys = [key_column] if isinstance(key_column, str) else list(key_column)
+        if not self._keys:
+            raise ValueError("key_column must name at least one column")
         self._system = system
+
+    def _record_id(self, payload: dict[str, object]) -> str:
+        """Stable record id from the key column(s).
+
+        Composite parts are joined with ``|`` after escaping ``\\`` and ``|``
+        in each value, so ("a|b", "c") and ("a", "b|c") can never collide
+        while ordinary keys still read as ``PO-1|2``.
+        """
+        if len(self._keys) == 1:
+            return str(payload.get(self._keys[0], ""))
+        return "|".join(str(payload.get(k, "")).replace("\\", "\\\\").replace("|", "\\|")
+                        for k in self._keys)
 
     def extract(self) -> Iterator[RawRecord]:
         """Yield each row as a RawRecord with provenance."""
@@ -47,7 +66,7 @@ class SqlConnector(Connector):
                     yield RawRecord(
                         source=SourceRef(
                             system=self._system, dataset=self._table,
-                            record_id=str(payload.get(self._key, "")),
+                            record_id=self._record_id(payload),
                         ),
                         payload=payload,
                     )

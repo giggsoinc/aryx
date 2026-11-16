@@ -24,6 +24,7 @@ from aryx.api.unstructured_dashboard_api import unstructured_dashboard_router
 from aryx.api.data_api import data_router
 from aryx.api.dataset_api import dataset_router
 from aryx.api.datasource_api import datasource_router
+from aryx.api.datasource_ingest_api import datasource_ingest_router
 from aryx.api.demo_ingest_api import demo_ingest_router
 from aryx.api.doc_discover_api import doc_discover_router
 from aryx.api.execution_plan_api import execution_plan_router
@@ -95,6 +96,7 @@ def create_app() -> FastAPI:
     app.include_router(workspace_router())
     app.include_router(brief_router())
     app.include_router(datasource_router())
+    app.include_router(datasource_ingest_router())
     app.include_router(ingest_question_router())
     app.include_router(intent_router())
     app.include_router(dataset_router())

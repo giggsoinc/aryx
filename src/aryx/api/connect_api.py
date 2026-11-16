@@ -14,13 +14,12 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 
 from aryx import connections
-from aryx.api.admin_api import _local_broker
 from aryx.config import get_settings
+from aryx.connectors.connection_errors import friendly_db_error
 from aryx.connectors.schema_inspect import introspect, test_connection
-from aryx.connectors.sql_source import SqlConnector, sample_colvals
-from aryx.pipeline.orchestrate import run_pipeline
+from aryx.pipeline.ingest_multi import run_multi
 from aryx.pipeline.schema_agent import discover_mappings
-from aryx.resolution.field_shape import resolve_match_keys
+from aryx.store.datasource_store import build_url
 from aryx.store.job_store import JobStore
 from aryx.job_cancel import run_cancellable
 from aryx.store.migrate import apply_migrations
@@ -58,45 +57,14 @@ class IngestMultiRequest(BaseModel):
 def _build_url(req: ConnectRequest) -> str:
     if req.url:
         return req.url
-    driver = _DRIVERS.get(req.dialect)
-    if not driver:
+    if req.dialect not in _DRIVERS:
         raise HTTPException(400, f"unsupported dialect: {req.dialect}")
-    if req.dialect == "sqlite":
-        return f"sqlite:///{req.database}"
-    auth = f"{req.user}:{req.password}@" if req.user else ""
-    port = f":{req.port}" if req.port else ""
-    return f"{driver}://{auth}{req.host}{port}/{req.database}"
-
-
-def _run_multi(url: str, tables: list[dict], edges: list[dict], job_id: str,
-               workspace_id: int = 1) -> None:
-    """Background: ingest every confirmed table, then link them by ``edges``."""
-    settings = get_settings()
-    jobs = JobStore(settings.rdb_dsn)
-    broker = _local_broker()
     try:
-        total = len(tables)
-        for i, t in enumerate(tables):
-            pct = int(10 + i * 80 / max(total, 1))
-            jobs.update_stage(job_id, f"Table {i + 1}/{total}", pct, f"Ingesting {t['table']}")
-            keys = t.get("match_keys") or ["id"]
-            colvals = sample_colvals(url, t["table"])
-            keys, transactional = resolve_match_keys(keys, colvals)
-            run_pipeline(
-                connector=SqlConnector(url, t["table"], keys[0], system="rdb"),
-                dsn=settings.rdb_dsn, system="rdb", dataset=t["table"],
-                ontology_type=t["ontology_type"], match_keys=keys,
-                broker=broker,
-                workspace_id=workspace_id,
-                fk_links=edges if i == total - 1 else [],
-                skip_resolution=transactional,
-            )
-        jobs.finish(job_id, run_id=None, status="complete")
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("multi ingest failed job=%s: %s", job_id, exc)
-        jobs.finish(job_id, run_id=None, status="failed", error=str(exc))
-    finally:
-        jobs.close()
+        return build_url(req.dialect, host=req.host, port=req.port,
+                         database=req.database, user=req.user,
+                         password=req.password)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
 def connect_router() -> APIRouter:
@@ -109,7 +77,10 @@ def connect_router() -> APIRouter:
             test_connection(url)
             schema = introspect(url)
         except Exception as exc:  # noqa: BLE001
-            raise HTTPException(400, f"connection failed: {exc}") from exc
+            raise HTTPException(
+                400, friendly_db_error(exc, host=req.host, port=req.port,
+                                       database=req.database,
+                                       secret=req.password)) from exc
         return {"connection_id": connections.put(url),
                 "tables": [t["table"] for t in schema], "schema": schema}
 
@@ -133,7 +104,7 @@ def connect_router() -> APIRouter:
             jobs.create(job_id, "rdb", f"{len(req.tables)} table(s)", req.workspace_id)
         finally:
             jobs.close()
-        background_tasks.add_task(run_cancellable, _run_multi, settings.rdb_dsn, job_id,
+        background_tasks.add_task(run_cancellable, run_multi, settings.rdb_dsn, job_id,
                                   req.workspace_id, url, req.tables, req.edges, job_id,
                                   req.workspace_id)
         return {"status": "queued", "job_id": job_id,

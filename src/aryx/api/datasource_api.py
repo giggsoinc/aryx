@@ -3,7 +3,8 @@
 REST shell over DatasourceStore + datasource_quiz: list / add / get / delete
 / test / quiz. Plaintext secrets enter at /add, are immediately Fernet-
 encrypted, and never leave this layer again. Test runs a SELECT 1 / list-
-files / HEAD-request appropriate to the kind.
+files / HEAD-request appropriate to the kind. Ingest of a saved datasource
+lives in ``datasource_ingest_api``.
 """
 from __future__ import annotations
 
@@ -11,16 +12,22 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import psycopg
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from aryx import datasource_secrets
 from aryx.config import get_settings
+from aryx.connectors.connection_errors import friendly_for_config, redact
 from aryx.connectors.schema_inspect import introspect, test_connection
 from aryx.datasource_quiz import quiz_for, supported_kinds
 from aryx.store.datasource_store import DatasourceStore, open_url
 
 logger = logging.getLogger(__name__)
+
+# Same cap as introspect()'s default, so the picker lists every table that
+# ingest would accept (review L2: it used to stop at 25).
+_MAX_LISTED_TABLES = 200
 
 
 class DatasourceAddRequest(BaseModel):
@@ -31,6 +38,8 @@ class DatasourceAddRequest(BaseModel):
     config: dict[str, Any] = {}
     secret: str = ""
     workspace_id: int = 1
+    # Test the connection first and refuse to save on failure (UI sets this).
+    verify: bool = False
 
 
 def datasource_router() -> APIRouter:
@@ -69,16 +78,32 @@ def datasource_router() -> APIRouter:
         Business context (``config.extra_context``) is required for every
         kind — it drives entity/field mapping quality downstream.
         """
-        if not req.config.get("extra_context", "").strip():
+        if not str(req.config.get("extra_context", "")).strip():
             raise HTTPException(
                 400, "extra_context is required — describe what this "
                      "datasource contains so mapping can use it")
         store = DatasourceStore(get_settings().rdb_dsn)
+        if any(r.get("name") == req.name for r in store.list(req.workspace_id)):
+            raise HTTPException(409, _duplicate_msg(req.name))
+        # verify=True: test BEFORE saving, so a failed attempt never leaves a
+        # half-saved row behind that blocks the retry with a duplicate name.
+        ping: dict[str, Any] = {}
+        if req.verify:
+            ping = _ping(req.kind, req.config, req.secret)
+            if not ping.get("ok"):
+                raise HTTPException(400, ping.get("error") or "Connection failed")
         try:
-            return store.add(req.workspace_id, req.name, req.kind,
-                             req.config, req.secret)
+            row = store.add(req.workspace_id, req.name, req.kind,
+                            req.config, req.secret)
+        except psycopg.errors.UniqueViolation as exc:
+            raise HTTPException(409, _duplicate_msg(req.name)) from exc
         except Exception as exc:
-            raise HTTPException(400, f"add failed: {exc}") from exc
+            raise HTTPException(
+                400, f"add failed: {redact(str(exc), req.secret)}") from exc
+        if req.verify:
+            row["tables"] = ping.get("tables", [])
+            row["table_count"] = ping.get("table_count", 0)
+        return row
 
     @router.post("/{datasource_id}/test")
     def test_datasource(datasource_id: int) -> dict[str, Any]:
@@ -90,8 +115,9 @@ def datasource_router() -> APIRouter:
         try:
             secret = store.secret_of(datasource_id, actor="api:test")
             return _ping(row["kind"], row["config"], secret)
-        except Exception as exc:
-            return {"ok": False, "error": str(exc)}
+        except Exception as exc:  # noqa: BLE001 — surface, never raise
+            return {"ok": False,
+                    "error": friendly_for_config(exc, row["config"] or {}, "")}
 
     @router.delete("/{datasource_id}")
     def delete_datasource(datasource_id: int) -> dict[str, Any]:
@@ -112,11 +138,17 @@ def _ping(kind: str, config: dict, secret: str) -> dict[str, Any]:
         return {"ok": True, "files": files, "file_count": len(files)}
     if kind == "rest":
         return {"ok": True, "note": "rest reachability deferred to ingest"}
-    url = open_url(kind, config, secret)
     try:
+        url = open_url(kind, config, secret)
         test_connection(url)
-        tables = [t.get("table") for t in introspect(url, max_tables=25)
+        tables = [t.get("table") for t in introspect(url, max_tables=_MAX_LISTED_TABLES)
                   if t.get("table")]
         return {"ok": True, "tables": tables, "table_count": len(tables)}
-    except Exception as exc:
-        return {"ok": False, "error": str(exc)}
+    except Exception as exc:  # noqa: BLE001 — any driver error → friendly text
+        return {"ok": False, "error": friendly_for_config(exc, config, secret)}
+
+
+def _duplicate_msg(name: str) -> str:
+    """409 text for a datasource name already used in the workspace."""
+    return (f"A connection named '{name}' already exists in this workspace — "
+            f"use a different name, or delete the old connection first.")
