@@ -15,8 +15,19 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
+# tesseract-ocr: pytesseract is only a wrapper — without the binary, OCR of
+# images embedded in pptx/pdf/docx silently returns "" (errors are swallowed).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tesseract-ocr \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# PII gate model, baked in at build time. Presidio otherwise downloads a
+# ~400 MB model on the FIRST document ingest (see aryx/pipeline/pii.py), which
+# stalls/fails uploads on slow or offline hosts. Must match ARYX_PII_SPACY_MODEL.
+RUN python -m spacy download en_core_web_sm
 
 COPY src/ ./src/
 
