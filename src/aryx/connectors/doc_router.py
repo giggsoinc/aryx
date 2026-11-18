@@ -21,6 +21,7 @@ from aryx.ontology.extract import extract_mentions
 from aryx.pipeline.clean_text import chunk_pages
 from aryx.pipeline.embed import embed_chunks
 from aryx.pipeline.pii import screen_chunks
+from aryx.raven_log_config import log as raven_log
 from aryx.store.chunk_store import ChunkStore
 
 logger = logging.getLogger(__name__)
@@ -55,13 +56,23 @@ def _ingest_with_timeout(
     chunk_size: int, chunk_overlap: int, expected_embed_dim: int,
     run_pii: bool, context: str,
 ) -> list[RawRecord]:
-    """ingest_document under a hard timeout; raises FuturesTimeout on hang."""
-    with ThreadPoolExecutor(max_workers=1) as pool:
+    """ingest_document under a hard timeout; raises FuturesTimeout on hang.
+
+    The pool is shut down with wait=False: `with ThreadPoolExecutor(...)` calls
+    shutdown(wait=True) on exit, which blocks until the worker thread returns —
+    so a hung parse/model-download held the whole batch long past the timeout
+    and the FuturesTimeout handler never ran. A thread cannot be killed; we
+    stop waiting for it and let the batch move on.
+    """
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
         future = pool.submit(
             ingest_document, path, system, broker, chunk_store,
             chunk_size, chunk_overlap, expected_embed_dim, run_pii, context,
         )
         return future.result(timeout=_PER_DOC_TIMEOUT)
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
 
 
 def ingest_document(
@@ -98,7 +109,12 @@ class DocumentRouterConnector(Connector):
         chunk_store: ChunkStore, chunk_size: int = 1000,
         chunk_overlap: int = 100, expected_embed_dim: int = 768,
         run_pii: bool = True, context: str = "",
+        display_names: dict[Path, str] | None = None,
     ) -> None:
+        # Uploads are staged under random temp names; display_names maps each
+        # staged path back to the user's filename for error reporting.
+        self._display_names = display_names or {}
+        self.failures: list[tuple[str, str]] = []  # (original filename, reason)
         self._paths = paths
         self._system = system
         self._broker = broker
@@ -118,10 +134,27 @@ class DocumentRouterConnector(Connector):
                     self._expected_embed_dim, self._run_pii, self._context,
                 )
             except FuturesTimeout:
+                shown = self._display_names.get(path, path.name)
+                reason = (f"took longer than {_PER_DOC_TIMEOUT:.0f}s (parse, PII, "
+                          "embedding or LLM extraction — slow CPU models need a "
+                          "larger ARYX_PER_DOC_TIMEOUT)")
+                self.failures.append((shown, reason))
                 logger.error("ingest TIMED OUT path=%s after %ss — skipping; "
-                             "batch continues", path.name, _PER_DOC_TIMEOUT)
+                             "batch continues", shown, _PER_DOC_TIMEOUT)
+                raven_log("ERROR", "document ingest timed out; batch continues",
+                          criticality="P2", service="aryx-api",
+                          error_code="DOC_INGEST_TIMEOUT",
+                          context={"file": shown, "timeout_s": _PER_DOC_TIMEOUT,
+                                   "stage": "Documents", "result": "skipped_timeout"})
             except Exception as exc:
-                logger.error("ingest failed path=%s error=%s", path.name, exc)
+                shown = self._display_names.get(path, path.name)
+                self.failures.append((shown, f"{type(exc).__name__}: {exc}"))
+                logger.error("ingest failed path=%s error=%s", shown, exc)
+                raven_log("ERROR", "document ingest failed; batch continues",
+                          criticality="P2", service="aryx-api",
+                          error_code="DOC_INGEST_FAILED",
+                          context={"file": shown, "exception": type(exc).__name__,
+                                   "stage": "Documents", "result": "skipped_error"})
 
 
 async def ingest_documents_parallel(

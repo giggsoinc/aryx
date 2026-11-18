@@ -286,6 +286,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
         plans: list[dict[str, Any]] = []
         snapshotted_ids: set[str] = set()  # datasets touched THIS run (for C07)
         skipped_duplicates = 0
+        doc_failures: list[tuple[str, str]] = []  # (original filename, reason)
         for data, name in data_files:
             checkpoint(force=True)
             suffix = Path(name).suffix.lower()
@@ -419,12 +420,19 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 chunk_store=chunk_store, chunk_size=settings.chunk_size,
                 chunk_overlap=settings.chunk_overlap, expected_embed_dim=settings.embed_dim,
                 context=context,
+                display_names={p: n for p, (_, n) in zip(paths, doc_files)},
             )
             # Extract once (chunk→PII→embed→LLM mentions), then land PER
             # DISCOVERED TYPE — so entities carry their real types (Ticket,
             # Agent, WorkflowStage…) in the graph and the ontology, instead
             # of everything collapsing into "Document".
             mentions = list(connector.extract())
+            doc_failures = connector.failures
+            if doc_failures:
+                jobs.update_stage(
+                    job_id, "Documents", 45,
+                    "Could not read: " + "; ".join(
+                        f"{n} ({why})" for n, why in doc_failures))
             by_type: dict[str, list[Any]] = {}
             for m in mentions:
                 t = str(m.payload.get("type") or "Document").strip() or "Document"
@@ -460,11 +468,16 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
         # unusable output (still downloading, wrong provider, bad key).
         checkpoint(force=True)  # never mark complete / start the auto-chain once cancelled
         if items and total_entities == 0 and skipped_duplicates < len(items):
-            jobs.finish(
-                job_id, run_id=None, status="failed",
-                error="No entities were extracted from the upload. The "
-                      "language model returned nothing usable — check the "
-                      "model in Settings (is it ready?) and retry.")
+            if doc_failures:
+                # A file that could not even be READ is not the model's fault —
+                # say which file and why instead of blaming the LLM.
+                error = ("Could not read: " + "; ".join(
+                    f"{n} ({why})" for n, why in doc_failures))
+            else:
+                error = ("No entities were extracted from the upload. The "
+                         "language model returned nothing usable — check the "
+                         "model in Settings (is it ready?) and retry.")
+            jobs.finish(job_id, run_id=None, status="failed", error=error)
             return
         jobs.finish(job_id, run_id=None, status="complete")
         # C03-C07 onward — the zero-click auto-chain (context -> planner ->

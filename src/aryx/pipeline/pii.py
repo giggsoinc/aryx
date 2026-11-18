@@ -10,6 +10,7 @@ Requires: presidio-analyzer presidio-anonymizer spacy en_core_web_sm
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import lru_cache
@@ -45,11 +46,33 @@ DEFAULT_POLICY = PiiPolicy(
 )
 
 
+_DEFAULT_SPACY_MODEL = "en_core_web_sm"
+
+
 @lru_cache(maxsize=1)
 def _engines():
+    """Build the Presidio engines once, pinned to an explicit spaCy model.
+
+    A bare ``AnalyzerEngine()`` silently picks ``en_core_web_lg`` (~400 MB) and,
+    when that is not installed, DOWNLOADS it from GitHub at first use — inside
+    the first document's ingest. In Docker that model is never baked in, so
+    the first upload (pptx/pdf/docx alike) stalled on the download, hit the
+    per-document timeout, or failed outright with no network. The Dockerfile
+    now installs ``en_core_web_sm`` (documented above) at build time; override
+    with ARYX_PII_SPACY_MODEL if a larger model is baked in.
+    """
     from presidio_analyzer import AnalyzerEngine
+    from presidio_analyzer.nlp_engine import NlpEngineProvider
     from presidio_anonymizer import AnonymizerEngine
-    return AnalyzerEngine(), AnonymizerEngine()
+
+    model = os.environ.get("ARYX_PII_SPACY_MODEL", _DEFAULT_SPACY_MODEL)
+    nlp = NlpEngineProvider(nlp_configuration={
+        "nlp_engine_name": "spacy",
+        "models": [{"lang_code": "en", "model_name": model}],
+    }).create_engine()
+    logger.info("pii engine ready spacy_model=%s", model)
+    return (AnalyzerEngine(nlp_engine=nlp, supported_languages=["en"]),
+            AnonymizerEngine())
 
 
 def _operator_config(entity_type: str, policy: PiiPolicy):
