@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 
 from aryx.broker.specs import TIER_LADDER, Tier
 
@@ -15,10 +16,12 @@ class TokenGovernor:
         """Configure per-tier token budgets (0 or missing means unlimited)."""
         self._budgets = budgets
         self._spent: dict[str, int] = {}
+        self._lock = threading.Lock()   # charge() is called from worker threads
 
     def charge(self, tier: Tier, tokens: int) -> None:
         """Record token spend against a tier."""
-        self._spent[tier] = self._spent.get(tier, 0) + tokens
+        with self._lock:
+            self._spent[tier] = self._spent.get(tier, 0) + tokens
 
     def _exhausted(self, tier: Tier) -> bool:
         """True when a tier has a positive budget and has spent beyond it."""

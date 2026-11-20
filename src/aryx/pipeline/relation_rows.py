@@ -66,44 +66,74 @@ def edge_name(predicate: str) -> str:
     return re.sub(r"[^A-Z0-9]+", "_", predicate.upper()).strip("_") or "RELATED_TO"
 
 
-def _index(entities: list[tuple[int, str, object]]) -> dict[str, list[tuple[int, int]]]:
-    """value (lower-cased) -> [(entity id, attribute count)] over all short values."""
-    index: dict[str, list[tuple[int, int]]] = {}
+_ID_NAMES = {"id", "key", "code"}
+
+
+def _is_identifier(key: str) -> bool:
+    """A column that identifies a record: ``ID``, ``Emp ID``, ``Key``, ``Code``."""
+    k = re.sub(r"[^a-z0-9]", "", key.lower())
+    return k in _ID_NAMES or (k.endswith("id") and len(k) > 2)
+
+
+def _index(entities: list[tuple[int, str, object]], exclude_ids: frozenset[int],
+           ) -> tuple[dict[str, set[int]], dict[str, set[int]]]:
+    """(value -> entity ids by identifier column, value -> entity ids by name).
+
+    Only entities created by THIS upload are indexed, and only their identifier
+    columns (plus ``name`` as a fallback). Document ids such as R-01 repeat from one
+    document to the next, and an ordinary attribute ("Active", "1") is not an id,
+    so neither may resolve a link.
+    """
+    by_id: dict[str, set[int]] = {}
+    by_name: dict[str, set[int]] = {}
     for eid, _etype, payload in entities:
-        if not isinstance(payload, dict):
+        if eid in exclude_ids or not isinstance(payload, dict):
             continue
-        size = len(payload)
-        for value in payload.values():
-            if isinstance(value, (str, int)) and not isinstance(value, bool):
-                text = str(value).strip().lower()
-                if text and len(text) <= 80:
-                    index.setdefault(text, []).append((eid, size))
-    return index
+        for key, value in payload.items():
+            if not isinstance(value, (str, int)) or isinstance(value, bool):
+                continue
+            text = str(value).strip().lower()
+            if not text or len(text) > 80:
+                continue
+            if _is_identifier(str(key)):
+                by_id.setdefault(text, set()).add(eid)
+            elif str(key).lower() == "name":
+                by_name.setdefault(text, set()).add(eid)
+    return by_id, by_name
 
 
-def _pick(index: dict[str, list[tuple[int, int]]], value: str) -> int | None:
-    """The entity a value names. If several rows hold it (an id repeated in a
-    catalogue table and in its own table), take the one with the most attributes."""
-    hits = index.get(value.strip().lower())
+def _pick(index: tuple[dict[str, set[int]], dict[str, set[int]]], value: str) -> int | None | str:
+    """The one entity a value names, None when none does, "ambiguous" when several do."""
+    by_id, by_name = index
+    key = value.strip().lower()
+    hits = by_id.get(key) or by_name.get(key)
     if not hits:
         return None
-    return sorted(hits, key=lambda h: (-h[1], h[0]))[0][0]
+    return next(iter(hits)) if len(hits) == 1 else "ambiguous"
 
 
 def link_relation_rows(
     estore: EntityStore, rows: list[tuple[str, str, str]],
+    exclude_ids: frozenset[int] = frozenset(),
 ) -> tuple[int, int]:
-    """Save one relationship per row whose two ends are both known entities.
+    """Save one relationship per row whose two ends are each exactly one entity.
 
-    Returns (edges saved, rows skipped because an end matched no entity).
+    ``exclude_ids`` are the entities that already existed before this upload (a
+    second document in the same workspace must not link the first one's entities).
+    A row is skipped when an end matches no entity or more than one. The edges are
+    stored with confidence 1.0: the document states them outright.
+
+    Returns (edges saved, rows skipped).
     """
-    index = _index(estore.list_entities())
+    index = _index(estore.list_entities(), frozenset(exclude_ids))
     rels: list[Relationship] = []
     seen: set[tuple[int, int, str]] = set()
-    skipped = 0
+    skipped = ambiguous = 0
     for a, predicate, b in rows:
         src, dst = _pick(index, a), _pick(index, b)
-        if src is None or dst is None or src == dst:
+        if "ambiguous" in (src, dst):
+            ambiguous += 1
+        if not isinstance(src, int) or not isinstance(dst, int) or src == dst:
             skipped += 1
             continue
         name = edge_name(predicate)
@@ -114,6 +144,6 @@ def link_relation_rows(
                                  name=name, confidence=1.0))
     if rels:
         estore.save_relationships(rels)
-    logger.info("relation-table edges saved=%d skipped=%d of %d rows",
-                len(rels), skipped, len(rows))
+    logger.info("relation-table edges saved=%d skipped=%d (ambiguous=%d) of %d rows",
+                len(rels), skipped, ambiguous, len(rows))
     return len(rels), skipped

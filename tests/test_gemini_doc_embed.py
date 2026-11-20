@@ -78,7 +78,18 @@ def test_request_shape_order_and_batching(monkeypatch):
     assert requests[0]["url"].endswith("/embeddings")
     assert requests[0]["auth"] == "Bearer secret-key-123"
     assert requests[0]["body"]["model"] == "gemini-embedding-001"
-    assert vectors[0][0] == 0.0 and vectors[1][0] == 1.0, "restored to input order"
+    # restored to input order: vector 0 is the zero vector (left as is), vector 1 is
+    # [1, 1, ...] and comes back unit length
+    assert vectors[0][0] == 0.0
+    assert abs(vectors[1][0] - 1 / 768 ** 0.5) < 1e-9
+    assert abs(sum(x * x for x in vectors[1]) - 1.0) < 1e-9
+
+
+def test_embeddings_are_unit_length_so_inner_product_and_cosine_agree():
+    """Review #56: shortened gemini-embedding-001 vectors are not unit length."""
+    assert abs(sum(x * x for x in emb._unit([3.0, 4.0])) - 1.0) < 1e-12
+    assert emb._unit([3.0, 4.0]) == [0.6, 0.8]
+    assert emb._unit([0.0, 0.0]) == [0.0, 0.0]            # no division by zero
 
 
 def test_transient_503_is_retried(monkeypatch):
@@ -146,9 +157,71 @@ def test_ingest_broker_picks_the_embed_backend(monkeypatch, provider, env, expec
 
     monkeypatch.delenv("ARYX_EMBED_ENDPOINT", raising=False)
     monkeypatch.delenv("ARYX_EMBED_MODEL", raising=False)
+    monkeypatch.delenv("ARYX_EMBED_PROVIDER", raising=False)
     for k, v in env.items():
         monkeypatch.setenv(k, v)
+    monkeypatch.setattr(admin_api, "_ollama_reachable", lambda *_a, **_k: False)
     monkeypatch.setattr(llm_runtime, "status", lambda: {
         "provider": provider, "endpoint": "https://g/v1beta/openai",
         "menial_model": "m", "answer_model": "m"})
     assert admin_api._local_broker().doc_embed_model_id == expect
+
+
+# ---- the switch to the provider's embeddings is never silent (review #56) -------
+
+def _embed_model(monkeypatch, *, ollama_up, env=None, provider="google"):
+    from aryx import llm_runtime
+    from aryx.api import admin_api
+
+    for name in ("ARYX_EMBED_ENDPOINT", "ARYX_EMBED_MODEL", "ARYX_EMBED_PROVIDER"):
+        monkeypatch.delenv(name, raising=False)
+    for k, v in (env or {}).items():
+        monkeypatch.setenv(k, v)
+    monkeypatch.setattr(admin_api, "_ollama_reachable", lambda *_a, **_k: ollama_up)
+    monkeypatch.setattr(llm_runtime, "status", lambda: {
+        "provider": provider, "endpoint": "https://g/v1beta/openai",
+        "menial_model": "m", "answer_model": "m"})
+    return admin_api._local_broker().doc_embed_model_id
+
+
+def test_a_deployment_with_a_working_ollama_keeps_its_own_embeddings(monkeypatch):
+    """The default compose file ships an Ollama sidecar; upgrading must not move its
+    chunk text to Gemini or start mixing two embedding models in one column."""
+    assert _embed_model(monkeypatch, ollama_up=True) == "nomic-embed-text"
+
+
+def test_without_any_ollama_the_provider_embeds(monkeypatch):
+    assert _embed_model(monkeypatch, ollama_up=False) == "gemini-embedding-001"
+
+
+def test_the_provider_can_be_forced_or_refused_explicitly(monkeypatch):
+    assert _embed_model(monkeypatch, ollama_up=True,
+                        env={"ARYX_EMBED_PROVIDER": "cloud"}) == "gemini-embedding-001"
+    assert _embed_model(monkeypatch, ollama_up=False,
+                        env={"ARYX_EMBED_PROVIDER": "ollama"}) == "nomic-embed-text"
+    assert _embed_model(monkeypatch, ollama_up=False,
+                        env={"ARYX_EMBED_PROVIDER": "nonsense"}) == "gemini-embedding-001"   # = auto
+
+
+def test_an_empty_embed_endpoint_counts_as_not_set(monkeypatch):
+    """`ARYX_EMBED_ENDPOINT=` (present but empty) used to switch the cloud embeddings off."""
+    assert _embed_model(monkeypatch, ollama_up=False,
+                        env={"ARYX_EMBED_ENDPOINT": ""}) == "gemini-embedding-001"
+    assert _embed_model(monkeypatch, ollama_up=False,
+                        env={"ARYX_EMBED_ENDPOINT": "http://ollama:11434"}) == "nomic-embed-text"
+
+
+def test_the_reachability_probe_is_cached_and_never_raises(monkeypatch):
+    from aryx.api import admin_api
+
+    calls = []
+
+    def boom(*_a, **_k):
+        calls.append(1)
+        raise OSError("no route")
+
+    monkeypatch.setattr(admin_api.urllib.request, "urlopen", boom)
+    admin_api._REACHABLE.clear()
+    assert admin_api._ollama_reachable("http://nowhere:11434") is False
+    assert admin_api._ollama_reachable("http://nowhere:11434") is False     # cached
+    assert calls == [1]

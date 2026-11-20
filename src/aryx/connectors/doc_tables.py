@@ -86,6 +86,16 @@ def _to_table(raw: list[list[object]]) -> DocTable | None:
     return DocTable(header=_unique_header(grid[0]), rows=_join_wrapped_rows(grid[1:]))
 
 
+def _is_continuation(row: list[str]) -> bool:
+    """An empty first cell AND at most half the cells filled: the second line of a row.
+
+    A real record that merely lacks an id has most of its cells filled and stays a
+    row of its own.
+    """
+    filled = sum(1 for c in row if c.strip())
+    return not row[0].strip() and filled * 2 <= len(row)
+
+
 def _join_wrapped_rows(rows: list[list[str]]) -> list[list[str]]:
     """Join a row that wrapped onto a second line back into the row above it.
 
@@ -101,7 +111,7 @@ def _join_wrapped_rows(rows: list[list[str]]) -> list[list[str]]:
         return rows
     out: list[list[str]] = []
     for row in rows:
-        if out and not row[0].strip():
+        if out and _is_continuation(row):
             prev = out[-1]
             out[-1] = [(a + " " + b).strip() if b else a for a, b in zip(prev, row)]
         else:
@@ -109,26 +119,39 @@ def _join_wrapped_rows(rows: list[list[str]]) -> list[list[str]]:
     return out
 
 
-def merge_continued(tables: list[DocTable]) -> list[DocTable]:
-    """Join tables that share a header (a table split across pages)."""
-    merged: dict[tuple[str, ...], DocTable] = {}
-    for table in tables:
+def merge_continued(tables: list[DocTable],
+                    pages: list[int] | None = None) -> list[DocTable]:
+    """Join a table to the one just before it when they share a header.
+
+    That is a table split across a page break. With ``pages`` (the page of each table)
+    the two must also be on consecutive pages, so two different tables that merely
+    start with the same header ("ID | Description") in different sections stay apart.
+    """
+    out: list[DocTable] = []
+    last_key: tuple[str, ...] | None = None
+    last_page: int | None = None
+    for index, table in enumerate(tables):
         key = tuple(h.lower() for h in table.header)
-        if key in merged:
+        page = pages[index] if pages is not None else None
+        continues = (out and key == last_key and (
+            page is None or last_page is None or page == last_page + 1))
+        last_key, last_page = key, page
+        if continues:
+            target = out[-1]
             rows = [list(r) for r in table.rows]
             # A row that broke across the page: the next page repeats the header
             # and then finishes the row with an empty first cell.
             first = rows[0] if rows else None
-            if (first is not None and not first[0].strip() and merged[key].rows
+            if (first is not None and _is_continuation(first) and target.rows
                     and all(r[0].strip() for r in rows[1:])):
-                prev = merged[key].rows[-1]
-                merged[key].rows[-1] = [(a + " " + b).strip() if b else a
-                                        for a, b in zip(prev, first)]
+                prev = target.rows[-1]
+                target.rows[-1] = [(a + " " + b).strip() if b else a
+                                   for a, b in zip(prev, first)]
                 rows = rows[1:]
-            merged[key].rows.extend(rows)
+            target.rows.extend(rows)
         else:
-            merged[key] = DocTable(list(table.header), list(table.rows))
-    return list(merged.values())
+            out.append(DocTable(list(table.header), list(table.rows)))
+    return out
 
 
 def looks_like_a_table(table: DocTable) -> bool:
@@ -201,9 +224,10 @@ def extract_tables(data: bytes, suffix: str, ocr=None) -> list[DocTable]:
     ``ocr`` (a PageOcr) lets a scanned PDF page contribute the tables it shows.
     """
     suffix = suffix.lower()
+    pages: list[int] | None = None
     try:
         if suffix in PDF_SUFFIXES:
-            tables = _pdf_tables(data, ocr)
+            tables, pages = _pdf_tables(data, ocr)
         elif suffix in DOCX_SUFFIXES:
             tables = _docx_tables(data)
         else:
@@ -211,26 +235,30 @@ def extract_tables(data: bytes, suffix: str, ocr=None) -> list[DocTable]:
     except Exception as exc:  # noqa: BLE001 — never fail the upload over tables
         logger.warning("table extraction skipped (%s): %s", suffix, exc)
         return []
-    return merge_continued(tables)
+    return merge_continued(tables, pages)
 
 
-def _pdf_tables(data: bytes, ocr=None) -> list[DocTable]:
+def _pdf_tables(data: bytes, ocr=None) -> tuple[list[DocTable], list[int]]:
+    """(tables in reading order, the page each one is on)."""
     import fitz  # pymupdf
 
     doc = fitz.open(stream=data, filetype="pdf")
     try:
         if ocr is None:
-            return [t for page in doc for _, t in pdf_page_tables(page)]
+            pairs = [(n, t) for n, page in enumerate(doc, start=1) for _, t in pdf_page_tables(page)]
+            return [t for _, t in pairs], [n for n, _ in pairs]
         from aryx.connectors.ocr_vision import doc_key, page_is_blank, split_markdown_tables
 
         key = doc_key(data)
         tables: list[DocTable] = []
+        where: list[int] = []
         for number, page in enumerate(doc, start=1):
             found = [t for _, t in pdf_page_tables(page)]
             if not found and page_is_blank(page):      # a scan: read the picture
                 found = split_markdown_tables(ocr.text(key, number, page))[1]
             tables.extend(found)
-        return tables
+            where.extend([number] * len(found))
+        return tables, where
     finally:
         doc.close()
 

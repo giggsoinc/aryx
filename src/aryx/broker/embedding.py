@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import time
 import urllib.error
 import urllib.request
@@ -56,6 +57,13 @@ def _post(url: str, key: str, body: dict) -> dict:
     raise RuntimeError("unreachable")  # pragma: no cover
 
 
+def _unit(vector: list[float]) -> list[float]:
+    """L2-normalise a vector. Gemini returns shortened (``dimensions``) embeddings that
+    are not unit length; cosine search does not care, inner product and L2 do."""
+    norm = math.sqrt(sum(x * x for x in vector))
+    return [x / norm for x in vector] if norm > 0 else list(vector)
+
+
 def embed_openai_compatible(config: dict, key: str, texts: list[str]) -> list[list[float]]:
     """Embed ``texts`` via ``{endpoint}/embeddings``; one vector per text, in order."""
     vectors: list[list[float]] = []
@@ -69,5 +77,5 @@ def embed_openai_compatible(config: dict, key: str, texts: list[str]) -> list[li
         if len(rows) != len(batch):
             raise RuntimeError(
                 f"embedding response had {len(rows)} vectors for {len(batch)} inputs")
-        vectors.extend(r["embedding"] for r in rows)
+        vectors.extend(_unit(r["embedding"]) for r in rows)
     return vectors

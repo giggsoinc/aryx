@@ -305,25 +305,65 @@ def test_relation_table_is_read_as_edges():
     assert relation_rows(b"from,to\nA,B\n") is None                    # no predicate
 
 
+class _Store:
+    """EntityStore double: a fixed list of entities, and the edges that were saved."""
+
+    def __init__(self, entities):
+        self._entities, self.saved = entities, []
+
+    def list_entities(self):
+        return self._entities
+
+    def save_relationships(self, rels):
+        self.saved = rels
+
+
 def test_relation_rows_link_the_entities_they_name():
     from aryx.pipeline.relation_rows import link_relation_rows
-
-    class Store:
-        saved: list = []
-        def list_entities(self):
-            return [(1, "Requirement", {"ID": "R-01", "Requirement": "Login", "Priority": "High"}),
-                    (2, "Entity", {"id": "R-01", "name": "Login"}),      # catalogue copy
-                    (3, "Goal", {"ID": "G-02", "Goal": "Faster"})]
-        def save_relationships(self, rels):
-            self.saved = rels
-
-    store = Store()
+    store = _Store([(1, "Requirement", {"ID": "R-01", "Requirement": "Login", "Priority": "High"}),
+                    (3, "Goal", {"ID": "G-02", "Goal": "Faster"})])
     saved, skipped = link_relation_rows(
         store, [("R-01", "satisfies", "G-02"), ("R-01", "satisfies", "G-02"),
                 ("R-01", "owns", "NOPE")])
     assert (saved, skipped) == (1, 1)                       # duplicate row dropped, unknown end skipped
     edge = store.saved[0]
     assert (edge.source_entity_id, edge.target_entity_id, edge.name) == (1, 3, "SATISFIES")
+    assert edge.confidence == 1.0
+
+
+def test_a_second_document_never_links_the_first_documents_entities():
+    """Review #56 (1): ids like R-01 repeat between documents; only this upload's entities count."""
+    from aryx.pipeline.relation_rows import link_relation_rows
+    store = _Store([
+        (1, "Requirement", {"ID": "R-01", "a": "x", "b": "y", "c": "z"}),   # older upload, richer
+        (2, "Goal", {"ID": "G-02", "a": "x", "b": "y", "c": "z"}),
+        (11, "Requirement", {"ID": "R-01", "Requirement": "Login"}),        # this upload
+        (12, "Goal", {"ID": "G-02", "Goal": "Faster"}),
+    ])
+    saved, _ = link_relation_rows(store, [("R-01", "satisfies", "G-02")],
+                                  exclude_ids=frozenset({1, 2}))
+    assert saved == 1
+    assert (store.saved[0].source_entity_id, store.saved[0].target_entity_id) == (11, 12)
+
+
+def test_a_row_whose_id_matches_several_entities_is_skipped_not_guessed():
+    from aryx.pipeline.relation_rows import link_relation_rows
+    store = _Store([(1, "Requirement", {"ID": "R-01"}), (2, "Entity", {"id": "R-01"}),
+                    (3, "Goal", {"ID": "G-02"})])
+    saved, skipped = link_relation_rows(store, [("R-01", "satisfies", "G-02")])
+    assert (saved, skipped) == (0, 1) and store.saved == []
+
+
+def test_only_identifier_columns_resolve_a_link_not_any_attribute():
+    from aryx.pipeline.relation_rows import link_relation_rows
+    store = _Store([(1, "Employee", {"Emp ID": "E1", "Status": "Active", "Level": 1}),
+                    (2, "Employee", {"Emp ID": "E2", "Status": "Active"}),
+                    (3, "Team", {"name": "Platform"})])
+    # "Active" and "1" are attributes, not ids: neither end resolves
+    assert link_relation_rows(store, [("Active", "is", "1")]) == (0, 1)
+    # an Emp ID is an identifier; a name is the fallback
+    assert link_relation_rows(store, [("E1", "member of", "Platform")]) == (1, 0)
+    assert store.saved[0].name == "MEMBER_OF"
 
 
 def test_shared_column_name_links_child_to_parent():

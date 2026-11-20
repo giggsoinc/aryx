@@ -12,6 +12,7 @@ from pathlib import Path
 
 from aryx.broker import Broker
 from aryx.connectors.base import Connector
+from aryx.envnum import env_number
 from aryx.connectors.docx import DocxConnector
 from aryx.connectors.image import ImageConnector, SUPPORTED_EXTENSIONS as IMAGE_EXTS
 from aryx.connectors.markup import MarkupConnector
@@ -50,10 +51,10 @@ def _connector_for(path: Path, skip_tables: bool = False, ocr=None):
 
 # Hard wall-clock budget per document — a hang in parse / OCR / embed /
 # extract is abandoned so the batch finishes. Override ARYX_PER_DOC_TIMEOUT.
-_PER_DOC_TIMEOUT = float(os.environ.get("ARYX_PER_DOC_TIMEOUT", "300"))
+_PER_DOC_TIMEOUT = float(env_number("ARYX_PER_DOC_TIMEOUT", 300.0, float, minimum=1))
 # ...but a long PDF needs longer than a short one: each page costs model time, so
 # the budget grows with the page count (never below ARYX_PER_DOC_TIMEOUT).
-_PER_PAGE_TIMEOUT = float(os.environ.get("ARYX_PER_PAGE_TIMEOUT", "30"))
+_PER_PAGE_TIMEOUT = float(env_number("ARYX_PER_PAGE_TIMEOUT", 30.0, float, minimum=0))
 
 
 def _pdf_pages(path: Path) -> int:
@@ -118,6 +119,19 @@ def _embed_best_effort(chunks: list, broker: Broker, expected_dim: int, path: Pa
         return []
 
 
+def _no_text_message(path: Path, ocr) -> str:
+    """Why a document has no text, and what to do about it."""
+    base = f"No readable text was found in {path.name}. It may be a scanned image."
+    if ocr is None:
+        return (base + " Upload a text-based version, or turn on OCR (ARYX_OCR=auto; "
+                "needs a Gemini or OpenAI key, and the page images are sent to that provider).")
+    errors = getattr(ocr, "errors", [])
+    if errors:
+        return (base + f" OCR is on but the model could not read the page ({errors[-1]}). "
+                "Check that the configured model accepts images.")
+    return base + " OCR is on and read nothing from it."
+
+
 def ingest_document(
     path: Path, system: str, broker: Broker, chunk_store: ChunkStore,
     chunk_size: int, chunk_overlap: int, expected_embed_dim: int,
@@ -141,10 +155,7 @@ def ingest_document(
         pages = list(_connector_for(path, skip_tables, ocr).extract_pages())
         done(1, "pages read", f"pages={len(pages)}")
         if not skip_tables and not any((text or "").strip() for _, text in pages):
-            raise NoReadableText(
-                f"No readable text was found in {path.name}. It may be a scanned "
-                "image - upload a text-based version, or turn on OCR (needs a Gemini or OpenAI key; "
-                "ARYX_OCR).")
+            raise NoReadableText(_no_text_message(path, ocr))
         chunks = chunk_pages(pages, source=source, doc_id=doc_id,
                              chunk_size=chunk_size, overlap=chunk_overlap)
         done(2, "chunked", f"chunks={len(chunks)}")
@@ -164,9 +175,17 @@ def ingest_document(
         done(5, "embedded", f"vectors={len(embeddings)}" if embeddings
              else "vectors=0 (skipped, see warning above)")
         if extract_entities:
+            stats: dict = {}
             records = extract_mentions(chunks, broker, context=context,
-                                       on_progress=on_progress)
-            done(6, "entities extracted", f"chunks={len(chunks)} mentions={len(records)}")
+                                       on_progress=on_progress, stats=stats)
+            failed = int(stats.get("failed", 0))
+            if chunks and failed == len(chunks):
+                # Every part failed: say so in the job error, not "the model returned nothing".
+                raise RuntimeError(
+                    f"the language model could not read any part of the text ({failed} parts "
+                    f"failed; last error: {stats.get('last_error') or 'unknown'})")
+            done(6, "entities extracted",
+                 f"chunks={len(chunks)} mentions={len(records)} failed_parts={failed}")
         else:
             records = []
             done(6, "entity extraction skipped", "tables-only: the text stays searchable")

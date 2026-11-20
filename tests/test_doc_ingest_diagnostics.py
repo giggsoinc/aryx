@@ -55,7 +55,8 @@ def _wire(monkeypatch, embed, pages=None, extract=None) -> None:
     monkeypatch.setattr(doc_router, "screen_chunks", lambda c: c)
     monkeypatch.setattr(doc_router, "embed_chunks", embed)
     monkeypatch.setattr(doc_router, "extract_mentions",
-                        extract or (lambda chunks, _b, context="", on_progress=None: [_record()]))
+                        extract or (lambda chunks, _b, context="", on_progress=None, stats=None:
+                                    [_record()]))
 
 
 def _ingest(pdf: Path, store: _Store, skip_tables: bool = False) -> list[RawRecord]:

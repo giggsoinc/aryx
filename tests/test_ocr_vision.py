@@ -138,8 +138,14 @@ class _Broker:
         return self._spec
 
 
-def test_ocr_is_available_for_gemini_and_off_for_other_providers(monkeypatch):
+def test_ocr_is_off_by_default_because_page_images_leave_the_deployment(monkeypatch):
+    """Review #56: a page image cannot be PII-screened like text, so it is opt-in."""
     monkeypatch.delenv("ARYX_OCR", raising=False)
+    assert make_page_ocr(_Broker(_Spec("google"))) is None
+
+
+def test_ocr_is_available_for_gemini_and_off_for_other_providers(monkeypatch):
+    monkeypatch.setenv("ARYX_OCR", "auto")
     assert make_page_ocr(_Broker(_Spec("google"))) is not None
     assert make_page_ocr(_Broker(_Spec("openai"))) is not None
     assert make_page_ocr(_Broker(_Spec("ollama", key_ref=None))) is None
@@ -147,14 +153,14 @@ def test_ocr_is_available_for_gemini_and_off_for_other_providers(monkeypatch):
     assert make_page_ocr(_Broker(_Spec("google"), key="")) is None       # no key
 
 
-@pytest.mark.parametrize("value", ["off", "OFF", "0", "false", "no"])
-def test_the_off_switch(monkeypatch, value):
+@pytest.mark.parametrize("value", ["", "off", "OFF", "0", "false", "no", "maybe"])
+def test_anything_but_an_explicit_on_leaves_ocr_off(monkeypatch, value):
     monkeypatch.setenv("ARYX_OCR", value)
     assert make_page_ocr(_Broker(_Spec("google"))) is None
 
 
 def test_the_page_budget_comes_from_the_environment(monkeypatch):
-    monkeypatch.delenv("ARYX_OCR", raising=False)
+    monkeypatch.setenv("ARYX_OCR", "auto")
     monkeypatch.setenv("ARYX_OCR_MAX_PAGES", "7")
     assert make_page_ocr(_Broker(_Spec("google")))._max_pages == 7
     monkeypatch.setenv("ARYX_OCR_MAX_PAGES", "lots")
@@ -178,3 +184,30 @@ def test_the_request_sent_to_the_model_carries_the_page_picture(monkeypatch):
     parts = sent["body"]["messages"][0]["content"]
     assert parts[0]["type"] == "text" and parts[1]["image_url"]["url"].startswith("data:image/png;base64,")
     assert sent["body"]["temperature"] == 0
+
+
+# ---- why a scan gave no text ---------------------------------------------------------
+
+def test_a_scan_with_ocr_off_says_how_to_turn_it_on_and_where_the_images_go(tmp_path):
+    from aryx.connectors import doc_router
+
+    class _Chunks:
+        def upsert_document(self, **_k): return 1
+
+    msg = doc_router._no_text_message(tmp_path / "scan.pdf", None)
+    assert "No readable text was found in scan.pdf" in msg
+    assert "ARYX_OCR=auto" in msg and "sent to that provider" in msg
+
+
+def test_a_model_that_cannot_read_images_is_named_in_the_message(tmp_path):
+    from aryx.connectors import doc_router
+
+    def refuses(_png):
+        raise RuntimeError("HTTP 400: this model does not accept image input")
+
+    ocr = PageOcr(refuses)
+    list(PdfConnector(_blank_pdf(tmp_path), ocr=ocr).extract_pages())
+    msg = doc_router._no_text_message(tmp_path / "scan.pdf", ocr)
+    assert "OCR is on but the model could not read the page" in msg
+    assert "does not accept image input" in msg
+    assert "accepts images" in msg

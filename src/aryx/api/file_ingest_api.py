@@ -302,6 +302,15 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
         # Per-file plans feed cross-file FK inference once everything has landed.
         plans: list[dict[str, Any]] = []
         relation_edges: list[tuple[str, str, str]] = []  # from/predicate/to tables
+        existing_ids: frozenset[int] = frozenset()
+        if any(relation_rows(d) is not None for d, _ in table_csvs):
+            # Entities that existed before this upload: a relation table must not
+            # link them (ids such as R-01 repeat from one document to the next).
+            before = EntityStore(settings.rdb_dsn, workspace_id)
+            try:
+                existing_ids = frozenset(e[0] for e in before.list_entities())
+            finally:
+                before.close()
         doc_problems: list[str] = []  # why a document was skipped
         snapshotted_ids: set[str] = set()  # datasets touched THIS run (for C07)
         skipped_duplicates = 0
@@ -440,7 +449,7 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
             jobs.update_stage(job_id, "Link", 92, "Linking the relationships listed in the document")
             estore = EntityStore(settings.rdb_dsn, workspace_id)
             try:
-                link_relation_rows(estore, relation_edges)
+                link_relation_rows(estore, relation_edges, existing_ids)
                 after_graph_change(settings.rdb_dsn, workspace_id)
             finally:
                 estore.close()

@@ -18,6 +18,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from aryx.broker import Broker
+from aryx.envnum import env_number
 from aryx.llm import complete_json
 from aryx.models import DocumentChunk, RawRecord, SourceRef
 
@@ -86,13 +87,14 @@ def _verbatim_ok(name: str, span: str) -> bool:
 
 # Gemini answers one chunk in ~7 s; reading several at once keeps a long document
 # in minutes. Both are overridable (a rate-limited key may want fewer workers).
-_WORKERS = int(os.environ.get("ARYX_EXTRACT_WORKERS", "3"))
-_ATTEMPTS = int(os.environ.get("ARYX_EXTRACT_ATTEMPTS", "2"))
+_WORKERS = int(env_number("ARYX_EXTRACT_WORKERS", 3, int, minimum=1))
+_ATTEMPTS = int(env_number("ARYX_EXTRACT_ATTEMPTS", 2, int, minimum=1))
 
 Progress = Callable[[int, int, int], None]   # (chunks done, chunks total, mentions so far)
 
 
-def _ask(chunk: DocumentChunk, broker: Broker, system_prompt: str) -> dict | None:
+def _ask(chunk: DocumentChunk, broker: Broker, system_prompt: str,
+         errors: list[str] | None = None) -> dict | None:
     """One chunk through the model; a failed or timed-out call is tried again.
 
     A single Gemini timeout used to lose the whole chunk. None means every
@@ -105,6 +107,8 @@ def _ask(chunk: DocumentChunk, broker: Broker, system_prompt: str) -> dict | Non
         except Exception as exc:  # noqa: BLE001 - one chunk must not stop the document
             logger.warning("extraction failed chunk=%d doc=%s attempt=%d/%d error=%s",
                            chunk.chunk_index, chunk.doc_id[:8], attempt, _ATTEMPTS, exc)
+            if errors is not None:
+                errors.append(f"{type(exc).__name__}: {str(exc)[:120]}")
             if attempt < _ATTEMPTS:
                 time.sleep(1.0)
     return None
@@ -140,7 +144,8 @@ def _records_of(chunk: DocumentChunk, result: dict) -> tuple[list[RawRecord], in
 
 def extract_mentions(chunks: list[DocumentChunk], broker: Broker,
                      context: str = "",
-                     on_progress: Progress | None = None) -> list[RawRecord]:
+                     on_progress: Progress | None = None,
+                     stats: dict | None = None) -> list[RawRecord]:
     """Extract entity mentions from document chunks via the cheap LLM tier.
 
     Args:
@@ -151,6 +156,8 @@ def extract_mentions(chunks: list[DocumentChunk], broker: Broker,
             generic NER categories.
         on_progress: Called as ``(chunks_done, chunks_total, mentions_so_far)``
             from the calling thread each time a chunk finishes.
+        stats: Filled with ``failed`` (chunks every attempt failed on) and
+            ``last_error``, so the caller can say why nothing came out.
 
     Returns:
         RawRecord list where each record is one entity mention that passed the
@@ -159,9 +166,10 @@ def extract_mentions(chunks: list[DocumentChunk], broker: Broker,
     """
     system_prompt = _system_prompt(context)
     results: dict[int, dict | None] = {}
+    errors: list[str] = []
     found = 0
     with ThreadPoolExecutor(max_workers=max(1, _WORKERS)) as pool:
-        futures = {pool.submit(_ask, c, broker, system_prompt): n
+        futures = {pool.submit(_ask, c, broker, system_prompt, errors): n
                    for n, c in enumerate(chunks)}
         for done, fut in enumerate(as_completed(futures), start=1):
             n = futures[fut]
@@ -182,6 +190,9 @@ def extract_mentions(chunks: list[DocumentChunk], broker: Broker,
         records.extend(got)
         rejected += rej
 
+    if stats is not None:
+        stats["failed"] = failed
+        stats["last_error"] = errors[-1] if errors else ""
     logger.info("extract_mentions chunks=%d mentions=%d rejected=%d failed_chunks=%d",
                 len(chunks), len(records), rejected, failed)
     return records

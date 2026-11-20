@@ -8,6 +8,7 @@ from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from itertools import combinations_with_replacement, islice, product
 
 from aryx.broker import Broker
+from aryx.envnum import env_number
 from aryx.models import Relationship
 from aryx.relationships import infer_relationship
 from aryx.store.entity_store import EntityStore
@@ -16,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 # Gemini answers one pair in ~8 s; asking several at once keeps the step in
 # minutes. Both are overridable for a slower / rate-limited provider.
-_WORKERS = int(os.environ.get("ARYX_RELATE_WORKERS", "6"))
-_BUDGET_S = float(os.environ.get("ARYX_RELATE_BUDGET_S", "300"))
+_WORKERS = int(env_number("ARYX_RELATE_WORKERS", 6, int, minimum=1))
+_BUDGET_S = float(env_number("ARYX_RELATE_BUDGET_S", 300.0, float, minimum=1))
 
 
 def _candidate_pairs(

@@ -6,9 +6,10 @@ OpenAI-compatible endpoint) transcribes it, writing tables as markdown tables.
 Those tables are read as rows exactly like ruled tables in a text PDF, so a scan
 keeps its layout instead of becoming a blob of text.
 
-Only pages with no text are sent, at most ``ARYX_OCR_MAX_PAGES`` (default 30) per
-document, and ``ARYX_OCR=off`` turns it off. Page images go to the same provider
-that already reads the document text.
+OCR is OFF by default (``ARYX_OCR=auto`` turns it on). A page image cannot be PII-
+screened the way text is, and it leaves the deployment for the LLM provider, so it
+is an explicit choice. Only pages with no text are sent, at most
+``ARYX_OCR_MAX_PAGES`` (default 30) per document.
 """
 from __future__ import annotations
 
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 BLANK_PAGE_CHARS = 20
 _VISION_PROVIDERS = {"google", "gemini", "openai"}
-_OFF = {"off", "0", "false", "no"}
+_ON = {"auto", "on", "gemini", "1", "true", "yes"}
 
 _PROMPT = (
     "Transcribe this scanned page exactly as it is written. Keep the reading "
@@ -58,6 +59,7 @@ class PageOcr:
         self._dpi = dpi
         self._cache: dict[tuple[str, int], str] = {}
         self._used: dict[str, int] = {}
+        self.errors: list[str] = []       # why pages could not be read, for the job error
 
     def text(self, key: str, page_no: int, page) -> str:
         """The page's transcription ("" when over budget or when the model fails)."""
@@ -77,6 +79,7 @@ class PageOcr:
             text = _strip_fences(self._transcribe(png))
         except Exception as exc:  # noqa: BLE001 - a page that fails must not fail the file
             logger.warning("ocr failed page=%d (%s: %.120s)", page_no, type(exc).__name__, exc)
+            self.errors.append(f"{type(exc).__name__}: {str(exc)[:120]}")
             text = ""
         logger.info("ocr page=%d chars=%d", page_no, len(text))
         self._cache[(key, page_no)] = text
@@ -135,11 +138,12 @@ def _transcribe_with(endpoint: str, model: str, key: str, png: bytes) -> str:
 def make_page_ocr(broker) -> PageOcr | None:
     """A PageOcr for the configured LLM provider, or None when OCR cannot run.
 
-    None when ARYX_OCR is off, the provider has no vision endpoint we support
-    (Ollama, Anthropic), or there is no API key - the upload then behaves as it
-    always did (a text-less PDF ends with a clear "no readable text" message).
+    None unless ARYX_OCR is turned on (it is off by default: page images leave the
+    deployment and cannot be PII-screened), the provider has no vision endpoint we
+    support (Ollama, Anthropic), or there is no API key - the upload then behaves as
+    it always did (a text-less PDF ends with a clear "no readable text" message).
     """
-    if os.environ.get("ARYX_OCR", "auto").strip().lower() in _OFF:
+    if os.environ.get("ARYX_OCR", "off").strip().lower() not in _ON:
         return None
     try:
         spec = broker.choose("cheap")
