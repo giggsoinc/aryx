@@ -16,6 +16,7 @@ from aryx.broker.discovery import (
     discover_ollama,
     discover_openai_compatible,
 )
+from aryx.broker.embedding import embed_openai_compatible
 from aryx.broker.governor import TokenGovernor
 from aryx.broker.registry import Registry
 from aryx.broker.secrets import EnvSecretProvider, SecretProvider
@@ -37,12 +38,19 @@ class Broker:
         governor: TokenGovernor,
         secrets: SecretProvider | None = None,
         embed_config: dict[str, str] | None = None,
+        doc_embed_config: dict | None = None,
     ) -> None:
-        """Wire the broker to a registry, governor, secrets, and embed config."""
+        """Wire the broker to a registry, governor, secrets, and embed config.
+
+        ``doc_embed_config`` (see broker.embedding) sends *document chunk*
+        embeddings to a cloud provider instead of Ollama; everything else that
+        embeds (entity resolution, semantic profile) stays on ``embed_config``.
+        """
         self._registry = registry
         self._governor = governor
         self.secrets = secrets or EnvSecretProvider()
         self._embed = embed_config or {}
+        self._doc_embed = doc_embed_config or {}
 
     def add_ollama(self, host: str) -> int:
         """Discover and register an Ollama instance's models; return the count."""
@@ -88,6 +96,18 @@ class Broker:
     def embed_model_id(self) -> str | None:
         """Return the configured local embed model name, or None if unset."""
         return self._embed.get("model") or None
+
+    @property
+    def doc_embed_model_id(self) -> str | None:
+        """Embed model used for document chunks (cloud if set, else Ollama)."""
+        return self._doc_embed.get("model") or self.embed_model_id
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        """Embed document chunks: cloud provider when configured, else Ollama."""
+        if self._doc_embed:
+            key = self.secrets.get(self._doc_embed["api_key_ref"])
+            return embed_openai_compatible(self._doc_embed, key, texts)
+        return self.embed(texts)
 
     def models(self) -> list[ModelSpec]:
         """Return every registered model (for the setup UI roll-call)."""

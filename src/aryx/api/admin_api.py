@@ -6,6 +6,8 @@ import uuid
 from typing import Any
 
 import os
+import time
+import urllib.request
 
 import psycopg
 from fastapi import APIRouter, BackgroundTasks
@@ -13,6 +15,7 @@ from pydantic import BaseModel
 
 from aryx import llm_runtime
 from aryx.broker import Broker, ModelSpec, Registry, TokenGovernor
+from aryx.broker.embedding import cloud_embed_config
 from aryx.config import get_settings
 from aryx.connectors.postgres import PostgresConnector, sample_colvals
 from aryx.pipeline.orchestrate import run_pipeline
@@ -20,6 +23,55 @@ from aryx.resolution.field_shape import resolve_match_keys
 from aryx.store.job_store import JobStore
 from aryx.job_cancel import run_cancellable
 from aryx.store.migrate import apply_migrations
+
+
+def _embed_mode() -> str:
+    """ARYX_EMBED_PROVIDER: ``auto`` (default), ``cloud`` or ``ollama``."""
+    mode = os.environ.get("ARYX_EMBED_PROVIDER", "auto").strip().lower()
+    return mode if mode in ("auto", "cloud", "ollama") else "auto"
+
+
+# Embedding models that only exist on Ollama (or other local servers): sent to a cloud
+# provider they fail. ARYX_EMBED_MODEL=nomic-embed-text is the documented Ollama setting.
+_LOCAL_EMBED_PREFIXES = ("nomic-embed", "mxbai-embed", "all-minilm", "snowflake-arctic-embed",
+                         "bge-", "granite-embedding")
+
+
+def _cloud_embed_model(mode: str) -> str:
+    """The ARYX_EMBED_MODEL to send to a cloud provider, or "" for its default model.
+
+    ARYX_EMBED_MODEL names the OLLAMA model. It is honoured on the cloud path only when
+    the cloud provider was chosen explicitly (ARYX_EMBED_PROVIDER=cloud) and the name is
+    not a known local model; otherwise a Gemini setup that merely keeps the documented
+    ``ARYX_EMBED_MODEL=nomic-embed-text`` would send that name to Gemini, every embedding
+    request would fail and the chunks would load without vectors.
+    """
+    name = os.environ.get("ARYX_EMBED_MODEL", "").strip()
+    if not name or mode != "cloud":
+        return ""
+    if name.lower().startswith(_LOCAL_EMBED_PREFIXES):
+        logger.warning("ARYX_EMBED_MODEL=%s is an Ollama model; the cloud provider's own "
+                       "embedding model is used instead", name)
+        return ""
+    return name
+
+
+_REACHABLE: dict[str, tuple[float, bool]] = {}
+
+
+def _ollama_reachable(endpoint: str, ttl: float = 60.0) -> bool:
+    """True when an Ollama service answers at ``endpoint`` (cached for ``ttl`` seconds)."""
+    now = time.monotonic()
+    cached = _REACHABLE.get(endpoint)
+    if cached and now - cached[0] < ttl:
+        return cached[1]
+    try:
+        with urllib.request.urlopen(endpoint.rstrip("/") + "/api/tags", timeout=1.5):  # noqa: S310
+            ok = True
+    except Exception:  # noqa: BLE001 - unreachable, refused, DNS failure, timeout
+        ok = False
+    _REACHABLE[endpoint] = (now, ok)
+    return ok
 
 
 def _local_broker() -> Broker:
@@ -38,19 +90,36 @@ def _local_broker() -> Broker:
     is_ollama = provider == "ollama"
     api_key_ref = None if is_ollama else llm_runtime._KEY_REF
     embed_model = os.environ.get("ARYX_EMBED_MODEL", "nomic-embed-text")
-    embed_endpoint = os.environ.get(
-        "ARYX_EMBED_ENDPOINT",
-        endpoint if is_ollama else "http://ollama:11434",
-    )
+    explicit_endpoint = os.environ.get("ARYX_EMBED_ENDPOINT", "").strip()   # empty = not set
+    embed_endpoint = explicit_endpoint or (
+        endpoint if is_ollama else "http://ollama:11434")
     registry = Registry()
     for name, tier in ((menial, "cheap"), (answer, "frontier")):
         registry.add(ModelSpec(name=name, provider=provider, tier=tier,
                                local=is_ollama, endpoint=endpoint,
                                api_key_ref=api_key_ref))
+    # A cloud LLM (Gemini) can embed document chunks on the same provider, so the
+    # deployment needs no Ollama service. That is never a silent switch: an explicit
+    # ARYX_EMBED_ENDPOINT, or ARYX_EMBED_PROVIDER=ollama, keeps Ollama; =cloud forces
+    # the provider; the default ("auto") uses the provider only when no Ollama
+    # answers, so a deployment with a working Ollama keeps its own embeddings.
+    doc_embed = None
+    mode = _embed_mode()
+    if not is_ollama and not explicit_endpoint and mode != "ollama" and (
+            mode == "cloud" or not _ollama_reachable(embed_endpoint)):
+        doc_embed = cloud_embed_config(
+            provider, endpoint, api_key_ref, get_settings().embed_dim,
+            _cloud_embed_model(mode))
+    # One line per job, so a brief Ollama restart that sent one upload to the cloud model
+    # (the "auto" decision is cached for up to a minute) is easy to spot afterwards.
+    logger.info("document embeddings: %s (ARYX_EMBED_PROVIDER=%s, %s)",
+                doc_embed["model"] if doc_embed else embed_model, mode,
+                "provider" if doc_embed else "ollama")
     return Broker(
         registry, TokenGovernor({}),
         secrets=llm_runtime._RuntimeSecrets(),
         embed_config={"model": embed_model, "endpoint": embed_endpoint},
+        doc_embed_config=doc_embed,
     )
 
 logger = logging.getLogger(__name__)

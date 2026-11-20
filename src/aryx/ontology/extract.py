@@ -12,8 +12,13 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import time
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from aryx.broker import Broker
+from aryx.envnum import env_number
 from aryx.llm import complete_json
 from aryx.models import DocumentChunk, RawRecord, SourceRef
 
@@ -80,57 +85,114 @@ def _verbatim_ok(name: str, span: str) -> bool:
     return name.lower() in span.lower()
 
 
+# Gemini answers one chunk in ~7 s; reading several at once keeps a long document
+# in minutes. Both are overridable (a rate-limited key may want fewer workers).
+_WORKERS = int(env_number("ARYX_EXTRACT_WORKERS", 3, int, minimum=1))
+_ATTEMPTS = int(env_number("ARYX_EXTRACT_ATTEMPTS", 2, int, minimum=1))
+
+Progress = Callable[[int, int, int], None]   # (chunks done, chunks total, mentions so far)
+
+
+def _ask(chunk: DocumentChunk, broker: Broker, system_prompt: str,
+         errors: list[str] | None = None) -> dict | None:
+    """One chunk through the model; a failed or timed-out call is tried again.
+
+    A single Gemini timeout used to lose the whole chunk. None means every
+    attempt failed (the caller logs it and carries on with the other chunks).
+    """
+    user = json.dumps({"chunk_index": chunk.chunk_index, "text": chunk.text})
+    for attempt in range(1, max(1, _ATTEMPTS) + 1):
+        try:
+            return complete_json(broker, "cheap", system_prompt, user, _SCHEMA)
+        except Exception as exc:  # noqa: BLE001 - one chunk must not stop the document
+            logger.warning("extraction failed chunk=%d doc=%s attempt=%d/%d error=%s",
+                           chunk.chunk_index, chunk.doc_id[:8], attempt, _ATTEMPTS, exc)
+            if errors is not None:
+                errors.append(f"{type(exc).__name__}: {str(exc)[:120]}")
+            if attempt < _ATTEMPTS:
+                time.sleep(1.0)
+    return None
+
+
+def _records_of(chunk: DocumentChunk, result: dict) -> tuple[list[RawRecord], int]:
+    """Mentions of one chunk that pass the verbatim-span gate, and the rejected count."""
+    records: list[RawRecord] = []
+    rejected = 0
+    for i, mention in enumerate(result.get("mentions", [])):
+        name = mention.get("name", "")
+        span = mention.get("span", "") or name
+        if not name or not mention.get("type") or not _verbatim_ok(name, span):
+            rejected += 1
+            continue
+        mention_id = f"{chunk.doc_id}:{chunk.chunk_index}:{i}"
+        records.append(RawRecord(
+            source=SourceRef(
+                system=chunk.source.system,
+                dataset=chunk.source.dataset,
+                record_id=mention_id,
+            ),
+            payload={
+                "type": mention["type"],
+                "name": name,
+                "chunk_index": chunk.chunk_index,
+                "span": span,
+                **(mention.get("attributes") or {}),
+            },
+        ))
+    return records, rejected
+
+
 def extract_mentions(chunks: list[DocumentChunk], broker: Broker,
-                     context: str = "") -> list[RawRecord]:
+                     context: str = "",
+                     on_progress: Progress | None = None,
+                     stats: dict | None = None) -> list[RawRecord]:
     """Extract entity mentions from document chunks via the cheap LLM tier.
 
     Args:
         chunks: PII-screened chunks from clean_text.chunk_pages().
         broker: Model broker; extraction runs on the cheap tier.
-        context: Workspace business context — folded into the system prompt
+        context: Workspace business context - folded into the system prompt
             so the LLM extracts domain-specific entity types instead of
             generic NER categories.
+        on_progress: Called as ``(chunks_done, chunks_total, mentions_so_far)``
+            from the calling thread each time a chunk finishes.
+        stats: Filled with ``failed`` (chunks every attempt failed on) and
+            ``last_error``, so the caller can say why nothing came out.
 
     Returns:
         RawRecord list where each record is one entity mention that passed the
-        verbatim-span gate. Mentions whose name is absent from their cited span
-        are silently dropped (logged at DEBUG).
+        verbatim-span gate, in chunk order whatever order the model answered in.
+        Mentions whose name is absent from their cited span are dropped.
     """
-    records: list[RawRecord] = []
-    rejected = 0
     system_prompt = _system_prompt(context)
+    results: dict[int, dict | None] = {}
+    errors: list[str] = []
+    found = 0
+    with ThreadPoolExecutor(max_workers=max(1, _WORKERS)) as pool:
+        futures = {pool.submit(_ask, c, broker, system_prompt, errors): n
+                   for n, c in enumerate(chunks)}
+        for done, fut in enumerate(as_completed(futures), start=1):
+            n = futures[fut]
+            results[n] = fut.result()
+            if results[n]:
+                found += len(results[n].get("mentions", []))
+            if on_progress is not None:
+                on_progress(done, len(chunks), found)
 
-    for chunk in chunks:
-        user = json.dumps({"chunk_index": chunk.chunk_index, "text": chunk.text})
-        try:
-            result = complete_json(broker, "cheap", system_prompt, user, _SCHEMA)
-        except Exception as exc:
-            logger.warning("extraction failed chunk=%d doc=%s error=%s",
-                           chunk.chunk_index, chunk.doc_id[:8], exc)
+    records: list[RawRecord] = []
+    rejected = failed = 0
+    for n, chunk in enumerate(chunks):
+        result = results.get(n)
+        if result is None:
+            failed += 1
             continue
+        got, rej = _records_of(chunk, result)
+        records.extend(got)
+        rejected += rej
 
-        for i, mention in enumerate(result.get("mentions", [])):
-            name = mention.get("name", "")
-            span = mention.get("span", "") or name
-            if not name or not mention.get("type") or not _verbatim_ok(name, span):
-                rejected += 1
-                continue
-            mention_id = f"{chunk.doc_id}:{chunk.chunk_index}:{i}"
-            records.append(RawRecord(
-                source=SourceRef(
-                    system=chunk.source.system,
-                    dataset=chunk.source.dataset,
-                    record_id=mention_id,
-                ),
-                payload={
-                    "type": mention["type"],
-                    "name": name,
-                    "chunk_index": chunk.chunk_index,
-                    "span": span,
-                    **(mention.get("attributes") or {}),
-                },
-            ))
-
-    logger.info("extract_mentions chunks=%d mentions=%d rejected=%d",
-                len(chunks), len(records), rejected)
+    if stats is not None:
+        stats["failed"] = failed
+        stats["last_error"] = errors[-1] if errors else ""
+    logger.info("extract_mentions chunks=%d mentions=%d rejected=%d failed_chunks=%d",
+                len(chunks), len(records), rejected, failed)
     return records

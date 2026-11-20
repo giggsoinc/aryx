@@ -7,9 +7,11 @@ user confirms which types to keep.
 """
 from __future__ import annotations
 
+import csv
 import json
 import logging
 import re
+import time
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
@@ -79,10 +81,18 @@ _MODEL_KEYS = {
 }
 
 
-def _infer_type(sample: str, filename: str, context: str) -> dict[str, Any]:
+def _infer_type(sample: str, filename: str, context: str,
+                prefer_header: bool = False) -> dict[str, Any]:
     model_plan = _infer_json_model_type(sample)
     if model_plan:
         return model_plan
+    if prefer_header:
+        # A table inside a document ("ID | Rule | ...") names its own rows. Asking
+        # the model gave a different answer on each run (the Rules table came out
+        # as "Requirement" once), which wrecks every count and answer built on it.
+        header = _header_type(sample)
+        if header and len(header["match_keys"]) >= 2:
+            return header
 
     sys = ("You name the real-world thing each ROW of a data file represents, "
            "for a knowledge graph.")
@@ -92,17 +102,69 @@ def _infer_type(sample: str, filename: str, context: str) -> dict[str, Any]:
             "NEVER generic words like Table, Row, Record, or Data. Reply ONLY as JSON "
             '{"ontology_type":"SingularPascalCase","match_keys":["the 1-2 columns '
             'that name/identify a row"]}.')
-    fallback = Path(filename).stem.replace("_", " ").title().replace(" ", "")
+    fallback = _header_type(sample) or {
+        "ontology_type": Path(filename).stem.replace("_", " ").title().replace(" ", ""),
+        "match_keys": ["name"]}
+    # Retried: a dropped connection or one slow Gemini call must not decide a
+    # table's type (it is the name everything built on the table carries).
+    for attempt in (1, 2, 3):
+        try:
+            txt = llm_runtime.chat("menial", sys, user)[0]
+            s, e = txt.find("{"), txt.rfind("}")
+            d = json.loads(txt[s:e + 1])
+            otype = (d.get("ontology_type") or "").strip()
+            if not otype or otype.lower() in _GENERIC:
+                return fallback
+            return {"ontology_type": otype, "match_keys": _clean_keys(d.get("match_keys"))}
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("type inference attempt %d failed for %s (%s: %.80s)",
+                           attempt, filename, type(exc).__name__, str(exc))
+            if attempt < 3:
+                time.sleep(1.5 * attempt)
+    return fallback
+
+
+# Words dropped from a header when it is turned into a type name.
+_FILLER_WORDS = {"in", "this", "as", "is", "of", "the", "a", "an", "for", "to", "and", "or"}
+
+# Header words that name a column, not the thing a row is.
+_NOT_A_TYPE = {"who", "what", "when", "where", "why", "how", "term", "name", "item",
+               "description", "notes", "note", "status", "type", "value", "meaning",
+               "id", "no", "number", "key", "code", "title", "comment", "comments",
+               "priority", "attr", "attrs", "owner", "impact", "severity", "target",
+               "recommendation", "consequence", "criteria"}
+
+
+def _header_type(sample: str) -> dict[str, Any] | None:
+    """Name a table's row type from its own header, with no model.
+
+    ``ID | Decision | Status`` -> Decision (keys ID + Decision): the first column
+    that is neither an identifier nor a generic word names the thing. Used when
+    the model cannot be reached, instead of a name made from the file name.
+    """
+    lines = sample.splitlines()
+    if not lines:
+        return None
     try:
-        txt = llm_runtime.chat("menial", sys, user)[0]
-        s, e = txt.find("{"), txt.rfind("}")
-        d = json.loads(txt[s:e + 1])
-        otype = (d.get("ontology_type") or "").strip()
-        if not otype or otype.lower() in _GENERIC:
-            otype = fallback
-        return {"ontology_type": otype, "match_keys": _clean_keys(d.get("match_keys"))}
-    except Exception:  # noqa: BLE001
-        return {"ontology_type": fallback, "match_keys": ["name"]}
+        header = next(csv.reader([lines[0]]))
+    except (csv.Error, StopIteration):
+        return None
+    ident = next((h for h in header if h.strip().lower() in ("id", "key", "code")), None)
+    for col in header:
+        word = re.sub(r"\([^)]*\)", " ", col).strip()       # "Today (as-is)" -> "Today"
+        norm = re.sub(r"[^a-z]", "", word.lower())
+        if len(norm) < 3 or norm in _NOT_A_TYPE or norm.endswith("id"):
+            continue
+        parts = [w for w in re.split(r"[^A-Za-z0-9]+", word)
+                 if w and w.lower() not in _FILLER_WORDS][:3]
+        if parts and parts[-1].lower().endswith("s"):
+            parts[-1] = _singular_stem(parts[-1])
+        otype = "".join(w[:1].upper() + w[1:] for w in parts)
+        if not otype:
+            continue
+        keys = [k for k in (ident, col) if k]
+        return {"ontology_type": otype, "match_keys": keys}
+    return None
 
 
 def _infer_json_model_type(sample: str) -> dict[str, Any] | None:
@@ -171,6 +233,14 @@ def _singular_stem(type_name: str) -> str:
     return t
 
 
+# A bare "ID" / "name" is in every table: sharing it says nothing about links.
+_GENERIC_COLS = {"id", "name", "key", "code", "no", "number", "type", "title", "label"}
+
+
+def _col(name: str) -> str:
+    return "".join(ch for ch in name.lower() if ch.isalnum())
+
+
 def infer_fk_links(files: list[dict[str, Any]]) -> list[dict[str, str]]:
     """Discover foreign-key links across ingested tabular files by value overlap.
 
@@ -212,7 +282,16 @@ def infer_fk_links(files: list[dict[str, Any]]) -> list[dict[str, str]]:
                         continue
                     # Direction via FK naming: the source column names the
                     # target entity (CustomerID->Customer, Company->Company).
-                    if len(tstem) < 3 or tstem not in scol.lower().replace("_", ""):
+                    names_target = len(tstem) >= 3 and tstem in scol.lower().replace("_", "")
+                    # ...or the two tables share the column's name ("Dept ID" in
+                    # Employees and Departments) and the target holds more
+                    # distinct values (or the source repeats its values): the
+                    # side that holds each value once is the referenced one.
+                    repeats = len([v for v in svals if v]) > len(sset)
+                    shared = (_col(scol) == _col(tcol)
+                              and _col(scol) not in _GENERIC_COLS
+                              and (repeats or len(tset) > len(sset)))
+                    if not (names_target or shared):
                         continue
                     key = (src["ontology_type"], scol, tgt["ontology_type"], tcol)
                     if key in seen:
