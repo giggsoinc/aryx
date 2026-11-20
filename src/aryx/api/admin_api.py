@@ -31,6 +31,31 @@ def _embed_mode() -> str:
     return mode if mode in ("auto", "cloud", "ollama") else "auto"
 
 
+# Embedding models that only exist on Ollama (or other local servers): sent to a cloud
+# provider they fail. ARYX_EMBED_MODEL=nomic-embed-text is the documented Ollama setting.
+_LOCAL_EMBED_PREFIXES = ("nomic-embed", "mxbai-embed", "all-minilm", "snowflake-arctic-embed",
+                         "bge-", "granite-embedding")
+
+
+def _cloud_embed_model(mode: str) -> str:
+    """The ARYX_EMBED_MODEL to send to a cloud provider, or "" for its default model.
+
+    ARYX_EMBED_MODEL names the OLLAMA model. It is honoured on the cloud path only when
+    the cloud provider was chosen explicitly (ARYX_EMBED_PROVIDER=cloud) and the name is
+    not a known local model; otherwise a Gemini setup that merely keeps the documented
+    ``ARYX_EMBED_MODEL=nomic-embed-text`` would send that name to Gemini, every embedding
+    request would fail and the chunks would load without vectors.
+    """
+    name = os.environ.get("ARYX_EMBED_MODEL", "").strip()
+    if not name or mode != "cloud":
+        return ""
+    if name.lower().startswith(_LOCAL_EMBED_PREFIXES):
+        logger.warning("ARYX_EMBED_MODEL=%s is an Ollama model; the cloud provider's own "
+                       "embedding model is used instead", name)
+        return ""
+    return name
+
+
 _REACHABLE: dict[str, tuple[float, bool]] = {}
 
 
@@ -84,7 +109,7 @@ def _local_broker() -> Broker:
             mode == "cloud" or not _ollama_reachable(embed_endpoint)):
         doc_embed = cloud_embed_config(
             provider, endpoint, api_key_ref, get_settings().embed_dim,
-            os.environ.get("ARYX_EMBED_MODEL", ""))
+            _cloud_embed_model(mode))
     return Broker(
         registry, TokenGovernor({}),
         secrets=llm_runtime._RuntimeSecrets(),

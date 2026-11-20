@@ -225,3 +225,50 @@ def test_the_reachability_probe_is_cached_and_never_raises(monkeypatch):
     assert admin_api._ollama_reachable("http://nowhere:11434") is False
     assert admin_api._ollama_reachable("http://nowhere:11434") is False     # cached
     assert calls == [1]
+
+
+# ---- ARYX_EMBED_MODEL names the OLLAMA model; it must not reach a cloud provider (review #56) ----
+
+def test_the_documented_ollama_model_name_is_never_sent_to_gemini(monkeypatch, caplog):
+    """A Gemini setup that keeps ARYX_EMBED_MODEL=nomic-embed-text and has no Ollama used to
+    send that name to Gemini: every request failed and the chunks loaded without vectors."""
+    for mode in ("auto", "cloud"):
+        env = {"ARYX_EMBED_MODEL": "nomic-embed-text"}
+        if mode == "cloud":
+            env["ARYX_EMBED_PROVIDER"] = "cloud"
+        assert _embed_model(monkeypatch, ollama_up=False, env=env) == "gemini-embedding-001"
+
+
+def test_a_cloud_model_override_is_honoured_only_when_the_cloud_is_chosen_explicitly(monkeypatch):
+    env = {"ARYX_EMBED_MODEL": "text-embedding-3-small"}
+    # auto: the override is the Ollama setting, so the provider's own model is used
+    assert _embed_model(monkeypatch, ollama_up=False, env=env) == "gemini-embedding-001"
+    # explicit cloud: the operator named a model for the provider
+    assert _embed_model(monkeypatch, ollama_up=False,
+                        env={**env, "ARYX_EMBED_PROVIDER": "cloud"}) == "text-embedding-3-small"
+
+
+@pytest.mark.parametrize("name", ["nomic-embed-text", "nomic-embed-text:latest", "mxbai-embed-large",
+                                  "all-minilm", "snowflake-arctic-embed", "bge-m3", "BGE-large"])
+def test_known_local_model_names_are_ignored_on_the_cloud_path(monkeypatch, caplog, name):
+    from aryx.api import admin_api
+
+    monkeypatch.setenv("ARYX_EMBED_MODEL", name)
+    with caplog.at_level("WARNING"):
+        assert admin_api._cloud_embed_model("cloud") == ""
+    assert "Ollama model" in caplog.text and name in caplog.text
+
+
+def test_ollama_itself_still_uses_the_model_name(monkeypatch):
+    """The override still drives the Ollama path, which is what it is for."""
+    from aryx import llm_runtime
+    from aryx.api import admin_api
+
+    for key in ("ARYX_EMBED_ENDPOINT", "ARYX_EMBED_PROVIDER"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("ARYX_EMBED_MODEL", "mxbai-embed-large")
+    monkeypatch.setattr(admin_api, "_ollama_reachable", lambda *_a, **_k: True)
+    monkeypatch.setattr(llm_runtime, "status", lambda: {
+        "provider": "google", "endpoint": "https://g/v1beta/openai",
+        "menial_model": "m", "answer_model": "m"})
+    assert admin_api._local_broker().doc_embed_model_id == "mxbai-embed-large"
