@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from aryx import llm_runtime
 from aryx.broker import Broker, ModelSpec, Registry, TokenGovernor
+from aryx.broker.embedding import cloud_embed_config
 from aryx.config import get_settings
 from aryx.connectors.postgres import PostgresConnector, sample_colvals
 from aryx.pipeline.orchestrate import run_pipeline
@@ -47,10 +48,18 @@ def _local_broker() -> Broker:
         registry.add(ModelSpec(name=name, provider=provider, tier=tier,
                                local=is_ollama, endpoint=endpoint,
                                api_key_ref=api_key_ref))
+    # Cloud LLM (Gemini) and no explicit Ollama embed endpoint: embed document
+    # chunks on the same provider, so the deployment needs no Ollama service.
+    doc_embed = None
+    if not is_ollama and "ARYX_EMBED_ENDPOINT" not in os.environ:
+        doc_embed = cloud_embed_config(
+            provider, endpoint, api_key_ref, get_settings().embed_dim,
+            os.environ.get("ARYX_EMBED_MODEL", ""))
     return Broker(
         registry, TokenGovernor({}),
         secrets=llm_runtime._RuntimeSecrets(),
         embed_config={"model": embed_model, "endpoint": embed_endpoint},
+        doc_embed_config=doc_embed,
     )
 
 logger = logging.getLogger(__name__)

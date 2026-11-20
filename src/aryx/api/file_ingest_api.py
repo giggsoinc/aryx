@@ -10,6 +10,7 @@ import csv
 import io
 import json
 import logging
+import os
 import uuid
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -21,7 +22,11 @@ from aryx.api.admin_api import _local_broker
 from aryx.config import get_settings
 from aryx.connectors.csv_source import CsvConnector
 from aryx.connectors.doc_router import DocumentRouterConnector
+from aryx.connectors.doc_tables import (
+    is_redundant_mention, pin_from_name, table_values, tables_as_csv_files,
+)
 from aryx.connectors.json_source import JsonConnector, _flatten
+from aryx.connectors.ocr_vision import make_page_ocr
 from aryx.dataset.ingest import register_dataset
 from aryx.job_cancel import checkpoint, run_cancellable
 from aryx.raven_log_config import log as raven_log
@@ -29,6 +34,8 @@ from aryx.pipeline.chain_jobs import run_chain_now
 from aryx.pipeline.doc_discovery import _infer_type, infer_fk_links
 from aryx.pipeline.downstream import intent_ready
 from aryx.pipeline.orchestrate import link_entities, run_pipeline
+from aryx.pipeline.relation_rows import link_relation_rows, relation_rows
+from aryx.graph.changes import after_graph_change
 from aryx.resolution.field_shape import resolve_match_keys
 from aryx.store.chunk_store import ChunkStore
 from aryx.store.dataset_store import DatasetStore
@@ -256,7 +263,10 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                match_keys: list[str], fk_links: list[dict], job_id: str,
                workspace_id: int = 1, request_id: str = "",
                graph_plan: dict | None = None,
-               file_types: dict[str, str] | None = None) -> None:
+               file_types: dict[str, str] | None = None,
+               tables_only: bool | None = None) -> None:
+    if tables_only is None:
+        tables_only = os.environ.get("ARYX_TABLES_ONLY", "").lower() in ("1", "true", "yes")
     settings = get_settings()
     jobs = JobStore(settings.rdb_dsn)
     broker = _local_broker()
@@ -281,14 +291,32 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
     try:
         data_files = [(d, n) for d, n in items if Path(n).suffix.lower() in _DATA_EXTS]
         doc_files = [(d, n) for d, n in items if Path(n).suffix.lower() in _DOC_EXTS]
+        # Real tables inside PDF/DOCX files are ingested as rows, like a CSV,
+        # so no row is lost to plain-text extraction.
+        page_ocr = make_page_ocr(broker)   # None unless a vision-capable provider is set
+        table_csvs, tabled_docs = tables_as_csv_files(doc_files, ocr=page_ocr)
+        table_names = {n for _, n in table_csvs}
+        covered: dict[str, set[str]] = {}  # type -> values already in a table
+        data_files += table_csvs
         total_entities = 0
         # Per-file plans feed cross-file FK inference once everything has landed.
         plans: list[dict[str, Any]] = []
+        relation_edges: list[tuple[str, str, str]] = []  # from/predicate/to tables
+        doc_problems: list[str] = []  # why a document was skipped
         snapshotted_ids: set[str] = set()  # datasets touched THIS run (for C07)
         skipped_duplicates = 0
         for data, name in data_files:
             checkpoint(force=True)
             suffix = Path(name).suffix.lower()
+            # A "from / predicate / to" table lists the document's own links:
+            # read it as edges (after every entity has landed), never as rows.
+            if name in table_names:
+                listed = relation_rows(data)
+                if listed is not None:
+                    relation_edges.extend(listed)
+                    logger.info("%s is a relation table: %d links, linked after landing",
+                                name, len(listed))
+                    continue
             # C02 — snapshot the raw upload before transform.
             snapped, is_duplicate = _snapshot_dataset(
                 settings.rdb_dsn, workspace_id, data, name, request_id)
@@ -326,10 +354,16 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
             # the caller didn't pin a concrete type, infer the row entity and
             # its identifying columns from this file's own header + sample.
             otype, keys = ontology_type, match_keys
+            if name in table_names:
+                # A shared type (the UI sends the file's main type, e.g.
+                # "Employee") cannot fit the several tables of one document:
+                # type each table from its own header, never the shared type.
+                otype = "Document"
             # A per-file pin (file_types) wins outright — the caller already
             # resolved this file's type explicitly, so none of the shared-type
             # or inference fallbacks below should second-guess it.
-            pinned = (file_types or {}).get(name)
+            pinned = (file_types or {}).get(name) or (
+                pin_from_name(name) if name in table_names else None)
             if pinned:
                 otype = pinned
             # Prefer smart graph_plan (data-first understand) over generic Document.
@@ -338,7 +372,8 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 otype, keys = primary_type_and_keys(graph_plan, name)
                 logger.info("plan %s -> type=%s keys=%s", name, otype, keys)
             if not pinned and (not otype or otype.lower() == "document"):
-                plan = _infer_type(data[:800].decode("utf-8", "ignore"), name, context)
+                plan = _infer_type(data[:800].decode("utf-8", "ignore"), name, context,
+                                   prefer_header=name in table_names)
                 otype, keys = plan["ontology_type"], plan["match_keys"]
                 logger.info("inferred %s -> type=%s keys=%s", name, otype, keys)
             # Seed Model canvas with primary type
@@ -361,11 +396,17 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
             # of those is a distinct real-world thing by construction. See
             # field_shape.resolve_match_keys.
             keys, transactional = resolve_match_keys(keys, cv["colvals"])
+            if name in table_names:
+                # Every row of a table inside a document is its own record. Near-
+                # identical rows (E002/2025, E003/2025) must not be fuzzy-merged.
+                transactional = True
             if transactional:
                 logger.info("match_keys %s is a per-row identifier for %s; "
                            "skipping entity resolution (one entity per record)",
                            keys, name)
             plans.append({"ontology_type": otype, **cv})
+            if name in table_names:
+                covered.setdefault(otype.lower(), set()).update(table_values(data))
             jobs.update_stage(job_id, "Ingest", 20, f"Processing {name}")
 
             def _progress(s: str, p: int, d: str, _jid: str = job_id) -> None:
@@ -395,6 +436,14 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
             inferred = infer_fk_links(plans)
             if inferred:
                 link_entities(settings.rdb_dsn, workspace_id, inferred)
+        if relation_edges:
+            jobs.update_stage(job_id, "Link", 92, "Linking the relationships listed in the document")
+            estore = EntityStore(settings.rdb_dsn, workspace_id)
+            try:
+                link_relation_rows(estore, relation_edges)
+                after_graph_change(settings.rdb_dsn, workspace_id)
+            finally:
+                estore.close()
         # Data-first plan: dimension entities (Merchant, Category, …) + edges
         checkpoint(force=True)  # a cancelled run must not chain into dimensions
         if graph_plan and data_files:
@@ -419,12 +468,38 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                 chunk_store=chunk_store, chunk_size=settings.chunk_size,
                 chunk_overlap=settings.chunk_overlap, expected_embed_dim=settings.embed_dim,
                 context=context,
+                skip_table_paths=frozenset(
+                    p for p, (_, n) in zip(paths, doc_files) if n in tabled_docs),
+                # tables-only: a document whose tables were read as rows keeps its
+                # text (chunked + embedded, searchable) but no entities are pulled
+                # from the paragraphs - exact and repeatable, and no model calls.
+                ocr=page_ocr,
+                extract_entities_paths=(frozenset(
+                    p for p, (_, n) in zip(paths, doc_files) if n not in tabled_docs)
+                    if tables_only else None),
+                on_progress=lambda done, total, found: jobs.heartbeat(
+                    job_id, "Documents", 40 + int(done * 10 / max(total, 1)),
+                    f"Reading the text: {done}/{total} parts, {found} items found so far"),
             )
             # Extract once (chunk→PII→embed→LLM mentions), then land PER
             # DISCOVERED TYPE — so entities carry their real types (Ticket,
             # Agent, WorkflowStage…) in the graph and the ontology, instead
             # of everything collapsing into "Document".
             mentions = list(connector.extract())
+            # The connector reads temp files; tell the user their own file names.
+            for problem in connector.problems:
+                for tmp, (_, original) in zip(paths, doc_files):
+                    problem = problem.replace(tmp.name, original)
+                doc_problems.append(problem)
+            if table_names:
+                # The tables already hold these entities, row by row; keep the
+                # prose mentions that add something (relations, other types).
+                kept = [m for m in mentions if not is_redundant_mention(
+                    str(m.payload.get("name") or ""),
+                    str(m.payload.get("type") or "Document"), covered)]
+                logger.info("dropped %d text mention(s) already covered by tables",
+                            len(mentions) - len(kept))
+                mentions = kept
             by_type: dict[str, list[Any]] = {}
             for m in mentions:
                 t = str(m.payload.get("type") or "Document").strip() or "Document"
@@ -450,7 +525,8 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
                     broker=broker,
                     # Relate on the LAST landing only: _relate scans the whole
                     # workspace, so one pass covers cross-type edges too.
-                    relate=(idx == len(type_names) - 1), max_pairs=150,
+                    relate=(idx == len(type_names) - 1),
+                    max_pairs=150,
                     on_progress=lambda s, p, d: jobs.update_stage(job_id, s, p, d),
                     fk_links=fk_links, workspace_id=workspace_id,
                 )
@@ -462,9 +538,10 @@ def _run_files(items: list[tuple[bytes, str]], ontology_type: str,
         if items and total_entities == 0 and skipped_duplicates < len(items):
             jobs.finish(
                 job_id, run_id=None, status="failed",
-                error="No entities were extracted from the upload. The "
-                      "language model returned nothing usable — check the "
-                      "model in Settings (is it ready?) and retry.")
+                error=("No entities were extracted from the upload. "
+                       + (" ".join(doc_problems[:3]) if doc_problems else
+                          "The language model returned nothing usable — check the "
+                          "model in Settings (is it ready?) and retry.")))
             return
         jobs.finish(job_id, run_id=None, status="complete")
         # C03-C07 onward — the zero-click auto-chain (context -> planner ->
@@ -503,6 +580,7 @@ def file_ingest_router() -> APIRouter:
         workspace_id: int = Form(1),
         graph_plan: str = Form(""),
         file_types: str = Form(""),
+        tables_only: bool = Form(False),
     ) -> dict[str, Any]:
         if len(files) > _MAX_FILES:
             raise HTTPException(400, f"Max {_MAX_FILES} files per upload")
@@ -540,7 +618,8 @@ def file_ingest_router() -> APIRouter:
         background_tasks.add_task(
             run_cancellable, _run_files, settings.rdb_dsn, job_id, workspace_id,
             items, ontology_type, keys, links, job_id, workspace_id,
-            graph_plan=plan_obj, file_types=file_types_map)
+            graph_plan=plan_obj, file_types=file_types_map,
+            tables_only=True if tables_only else None)
         names = [n for _, n in items]
         return {"status": "queued", "job_id": job_id, "files": names, "count": len(items)}
 

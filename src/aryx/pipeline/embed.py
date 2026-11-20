@@ -1,4 +1,4 @@
-"""Chunk embedding via the broker's local Ollama embed model (Inc 9).
+"""Chunk embedding via the broker: Ollama locally, Gemini when the LLM is Gemini (Inc 9).
 
 Fail-closed: raises RuntimeError if the broker has no embed model configured
 or if the returned dimension doesn't match the expected dim. This prevents
@@ -32,17 +32,17 @@ def embed_chunks(
     if not chunks:
         return []
 
-    model_id = broker.embed_model_id
+    model_id = broker.doc_embed_model_id
     if not model_id:
         raise RuntimeError(
             "no embed model configured — set broker catalog embed.model"
         )
 
     texts = [c.text for c in chunks]
-    vectors = broker.embed(texts)
+    vectors = broker.embed_documents(texts)
     if not vectors:
         raise RuntimeError(
-            f"broker.embed() returned no vectors for model={model_id!r} — "
+            f"broker.embed_documents() returned no vectors for model={model_id!r} — "
             "is Ollama running and the model pulled?"
         )
 

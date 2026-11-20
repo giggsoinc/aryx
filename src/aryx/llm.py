@@ -141,9 +141,12 @@ def complete_text(
                 raise
             logger.warning("llm fallback → ollama/%s (provider %s failed: %.120s)",
                            fb.name, spec.provider, str(exc))
-            out = post_json((fb.endpoint or "").rstrip("/") + "/api/chat",
-                            {"model": fb.name, "stream": False,
-                             "messages": msgs, "think": False}, {})
+            try:
+                out = post_json((fb.endpoint or "").rstrip("/") + "/api/chat",
+                                {"model": fb.name, "stream": False,
+                                 "messages": msgs, "think": False}, {})
+            except Exception as fb_exc:  # noqa: BLE001 — no local model either
+                raise exc from fb_exc
             text = out["message"]["content"]
             in_tok = int(out.get("prompt_eval_count", 0))
             out_tok = int(out.get("eval_count", 0))
@@ -186,7 +189,11 @@ def complete_json(
             raise
         logger.warning("llm fallback → ollama/%s (provider %s failed: %.120s)",
                        fb.name, spec.provider, str(exc))
-        data, in_tok, out_tok = ollama_json(fb, system, user)
+        try:
+            data, in_tok, out_tok = ollama_json(fb, system, user)
+        except Exception as fb_exc:  # noqa: BLE001 — no local model to fall back to
+            # Report the real failure (the cloud call), not the Ollama one.
+            raise exc from fb_exc
     broker.charge(tier, in_tok + out_tok)
     logger.info("complete tier=%s provider=%s model=%s tokens=%d", tier,
                 spec.provider, spec.name, in_tok + out_tok)
