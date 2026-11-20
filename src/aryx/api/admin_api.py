@@ -110,6 +110,11 @@ def _local_broker() -> Broker:
         doc_embed = cloud_embed_config(
             provider, endpoint, api_key_ref, get_settings().embed_dim,
             _cloud_embed_model(mode))
+    # One line per job, so a brief Ollama restart that sent one upload to the cloud model
+    # (the "auto" decision is cached for up to a minute) is easy to spot afterwards.
+    logger.info("document embeddings: %s (ARYX_EMBED_PROVIDER=%s, %s)",
+                doc_embed["model"] if doc_embed else embed_model, mode,
+                "provider" if doc_embed else "ollama")
     return Broker(
         registry, TokenGovernor({}),
         secrets=llm_runtime._RuntimeSecrets(),

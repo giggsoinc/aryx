@@ -197,3 +197,83 @@ def test_the_token_governor_does_not_lose_charges_from_worker_threads():
     for t in threads:
         t.join()
     assert gov._spent["cheap"] == 16000
+
+
+# ---- the time limit really releases the batch (Raven review M1) ---------------------------
+
+def test_a_stuck_document_is_abandoned_at_the_budget_and_does_not_hold_the_batch(monkeypatch, tmp_path):
+    """The real _ingest_with_timeout, with a document that hangs: the timeout must reach the
+    caller at about the budget, not after the stuck work finishes on its own."""
+    import time
+    from concurrent.futures import TimeoutError as FuturesTimeout
+
+    release = threading.Event()
+
+    def hangs(*_a, **_k):
+        release.wait(30)                       # a stalled model call
+        return []
+
+    monkeypatch.setattr(doc_router, "ingest_document", hangs)
+    monkeypatch.setattr(doc_router, "_PER_DOC_TIMEOUT", 0.3)
+    monkeypatch.setattr(doc_router, "_PER_PAGE_TIMEOUT", 0.0)
+    doc = tmp_path / "a.docx"
+    doc.write_bytes(b"x")
+    began = time.monotonic()
+    try:
+        with pytest.raises(FuturesTimeout):
+            doc_router._ingest_with_timeout(doc, "document", object(), object(), 1000, 100,
+                                            768, True, "")
+        took = time.monotonic() - began
+    finally:
+        release.set()                          # let the abandoned thread end
+    assert took < 2.0, f"the timeout was held for {took:.1f}s by the stuck work"
+
+
+def test_the_batch_carries_on_to_the_next_document_after_a_hang(monkeypatch, tmp_path):
+    import time
+
+    release = threading.Event()
+    calls: list[str] = []
+
+    def fake(path, *_a, **_k):
+        calls.append(path.name)
+        if path.name == "a.docx":
+            release.wait(30)
+        return []
+
+    monkeypatch.setattr(doc_router, "ingest_document", fake)
+    monkeypatch.setattr(doc_router, "_PER_DOC_TIMEOUT", 0.3)
+    monkeypatch.setattr(doc_router, "_PER_PAGE_TIMEOUT", 0.0)
+    paths = [tmp_path / "a.docx", tmp_path / "b.docx"]
+    for p in paths:
+        p.write_bytes(b"x")
+    conn = doc_router.DocumentRouterConnector(
+        paths=paths, system="document", broker=object(), chunk_store=_Store())
+    began = time.monotonic()
+    try:
+        list(conn.extract())
+        took = time.monotonic() - began
+    finally:
+        release.set()
+    assert calls == ["a.docx", "b.docx"] and took < 3.0
+    assert len(conn.problems) == 1 and "a.docx" in conn.problems[0]
+
+
+# ---- which embedding side "auto" picked is logged for every job (Raven review L2) ---------
+
+def test_the_embedding_choice_is_logged_once_per_job(monkeypatch, caplog):
+    from aryx import llm_runtime
+    from aryx.api import admin_api
+
+    for name in ("ARYX_EMBED_ENDPOINT", "ARYX_EMBED_MODEL", "ARYX_EMBED_PROVIDER"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(llm_runtime, "status", lambda: {
+        "provider": "google", "endpoint": "https://g/v1beta/openai",
+        "menial_model": "m", "answer_model": "m"})
+    for up, expect in ((False, "gemini-embedding-001"), (True, "nomic-embed-text")):
+        monkeypatch.setattr(admin_api, "_ollama_reachable", lambda *_a, **_k: up)
+        caplog.clear()
+        with caplog.at_level(logging.INFO, logger=admin_api.logger.name):
+            admin_api._local_broker()
+        lines = [r.message for r in caplog.records if "document embeddings" in r.message]
+        assert len(lines) == 1 and expect in lines[0] and "ARYX_EMBED_PROVIDER=auto" in lines[0]

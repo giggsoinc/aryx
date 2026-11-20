@@ -369,8 +369,10 @@ def test_only_identifier_columns_resolve_a_link_not_any_attribute():
 def test_shared_column_name_links_child_to_parent():
     from aryx.pipeline.doc_discovery import infer_fk_links
     files = [
-        {"ontology_type": "Department", "colvals": {"Dept ID": ["D1", "D2", "D3"], "Department": ["Eng", "Sup", "Sales"]}},
-        {"ontology_type": "Employee", "colvals": {"Emp ID": ["E1", "E2", "E3", "E4"], "Dept ID": ["D1", "D1", "D2", "D3"]}},
+        {"ontology_type": "Department",
+         "colvals": {"Dept ID": ["D1", "D2", "D3"], "Department": ["Eng", "Sup", "Sales"]}},
+        {"ontology_type": "Employee",
+         "colvals": {"Emp ID": ["E1", "E2", "E3", "E4"], "Dept ID": ["D1", "D1", "D2", "D3"]}},
         {"ontology_type": "PerformanceReview", "colvals": {"Emp ID": ["E1", "E2"], "Year": ["2025", "2025"]}},
     ]
     links = {(l["source_type"], l["source_attr"], l["target_type"], l["target_attr"])

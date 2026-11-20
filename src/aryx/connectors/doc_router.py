@@ -82,14 +82,24 @@ def _ingest_with_timeout(
     on_progress: Callable[[int, int, int], None] | None = None,
     extract_entities: bool = True, ocr=None,
 ) -> list[RawRecord]:
-    """ingest_document under a hard timeout; raises FuturesTimeout on hang."""
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        future = pool.submit(
-            ingest_document, path, system, broker, chunk_store,
-            chunk_size, chunk_overlap, expected_embed_dim, run_pii, context,
-            skip_tables, on_progress, extract_entities, ocr,
-        )
+    """ingest_document under a hard timeout; raises FuturesTimeout on hang.
+
+    The pool is shut down WITHOUT waiting (``wait=False``): a ``with`` block would wait for
+    the stuck call to finish before the timeout reached the caller, so one hung document
+    (a stalled model call or download) would hold the whole batch and the time limit would
+    only show after the hang ended on its own. The abandoned thread cannot be killed; it
+    runs on in the background and is left behind, and the batch carries on.
+    """
+    pool = ThreadPoolExecutor(max_workers=1)
+    future = pool.submit(
+        ingest_document, path, system, broker, chunk_store,
+        chunk_size, chunk_overlap, expected_embed_dim, run_pii, context,
+        skip_tables, on_progress, extract_entities, ocr,
+    )
+    try:
         return future.result(timeout=_budget(path))
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
 
 
 class NoReadableText(Exception):
